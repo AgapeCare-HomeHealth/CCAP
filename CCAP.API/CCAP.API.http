@@ -1,0 +1,6 @@
+@CCAP.API_HostAddress = http://localhost:5289
+
+GET {{CCAP.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
