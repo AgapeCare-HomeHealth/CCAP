@@ -1,30 +1,132 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">CCAP.Web</a>
+﻿<div class="sidebar">
+
+    <!-- Logo Section -->
+    <div class="sidebar-header">
+        <div class="sidebar-header-content">
+
+            <img src="images/logo.png" class="sidebar-logo" />
+
+            <div class="sidebar-title">
+                <h4>AgapeCare</h4>
+                <p>Home Health Inc.</p>
+            </div>
+
+        </div>
     </div>
-</div>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+    <!-- Navigation -->
+    <nav class="sidebar-nav">
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+        <div class="menu-group">
+
+            <NavLink href="/" Match="NavLinkMatch.All" class="nav-item">
+                <i class="bi bi-grid"></i>
+                <span>Dashboard</span>
             </NavLink>
+
+            <NavLink href="/patients" class="nav-item">
+                <i class="bi bi-people"></i>
+                <span>My Patients</span>
+            </NavLink>
+
         </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
+        <!-- ======================= -->
+        <!-- Compliance -->
+        <!-- ======================= -->
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
+        <details class="menu-dropdown">
+
+            <summary>
+                <div>
+                    <i class="bi bi-clipboard-check"></i>
+                    <span>Compliance</span>
+                </div>
+
+                <i class="bi bi-chevron-down arrow"></i>
+            </summary>
+
+            <NavLink href="/compliance/oasis" class="submenu-item">
+                OASIS Review
             </NavLink>
-        </div>
+
+            <NavLink href="/compliance/orders" class="submenu-item">
+                Physician Orders
+            </NavLink>
+
+            <NavLink href="/compliance/audit" class="submenu-item">
+                QA Audit
+            </NavLink>
+
+        </details>
+
+        <!-- ======================= -->
+        <!-- Documents -->
+        <!-- ======================= -->
+
+        <details class="menu-dropdown">
+
+            <summary>
+
+                <div>
+                    <i class="bi bi-folder2-open"></i>
+                    <span>Documents</span>
+                </div>
+
+                <i class="bi bi-chevron-down arrow"></i>
+
+            </summary>
+
+            <NavLink href="/documents/upload" class="submenu-item">
+                Upload
+            </NavLink>
+
+            <NavLink href="/documents/archive" class="submenu-item">
+                Archive
+            </NavLink>
+
+            <NavLink href="/documents/templates" class="submenu-item">
+                Templates
+            </NavLink>
+
+        </details>
+
+        <!-- ======================= -->
+        <!-- Admin -->
+        <!-- ======================= -->
+
+        <details class="menu-dropdown">
+
+            <summary>
+
+                <div>
+                    <i class="bi bi-gear"></i>
+                    <span>Admin</span>
+                </div>
+
+                <i class="bi bi-chevron-down arrow"></i>
+
+            </summary>
+
+            <NavLink href="/admin/users" class="submenu-item">
+                Users
+            </NavLink>
+
+            <NavLink href="/admin/roles" class="submenu-item">
+                Roles
+            </NavLink>
+
+            <NavLink href="/admin/settings" class="submenu-item">
+                Settings
+            </NavLink>
+
+        </details>
+
     </nav>
-</div>
 
+    <!-- Footer -->
+    <div class="sidebar-footer">
+        Version 1.0
+    </div>
+
+</div>
