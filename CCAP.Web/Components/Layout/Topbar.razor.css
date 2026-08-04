@@ -1,0 +1,189 @@
+/* ===========================
+   TOPBAR
+=========================== */
+
+.topbar {
+    height: 64px;
+    background: #1D6F64;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 24px;
+    color: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+
+/* ===========================
+   LEFT
+=========================== */
+
+.topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+/* ===========================
+   RIGHT
+=========================== */
+
+.topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+/* ===========================
+   BUTTONS
+=========================== */
+
+.menu-toggle,
+.action-button,
+.icon-button {
+    border: none;
+    background: none;
+    color: white;
+    cursor: pointer;
+}
+
+.menu-toggle {
+    font-size: 24px;
+}
+
+/* ===========================
+   SEARCH
+=========================== */
+
+.search-container {
+    position: relative;
+    width: 420px;
+}
+
+    .search-container input {
+        width: 100%;
+        height: 40px;
+        border: none;
+        border-radius: 8px;
+        padding-left: 42px;
+        outline: none;
+        font-size: 14px;
+    }
+
+.search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #888;
+}
+
+/* ===========================
+   QUICK ACTIONS
+=========================== */
+
+.quick-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.action-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all .2s ease;
+}
+
+    .action-link:hover {
+        background: rgba(255,255,255,.08);
+    }
+
+    .action-link i {
+        font-size: 15px;
+        opacity: .9;
+    }
+
+/* ===========================
+   NOTIFICATION
+=========================== */
+
+.notification {
+    position: relative;
+}
+
+
+.notification-button {
+    position: relative;
+    width: 42px;
+    height: 42px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: white;
+    cursor: pointer;
+    transition: .25s;
+    font-size: 18px;
+}
+
+    .notification-button:hover {
+        background: rgba(255,255,255,.08);
+    }
+
+.notification-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #E53935;
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #1D6F64;
+}
+
+/* ===========================
+   USER
+=========================== */
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-name {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.user-role {
+    font-size: 12px;
+    color: rgba(255,255,255,.75);
+}

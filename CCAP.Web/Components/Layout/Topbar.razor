@@ -1,0 +1,117 @@
+﻿@using CCAP.Web.Components.Shared
+
+@code {
+
+    private bool showNotifications;
+
+    private int notificationCount = 0;
+
+    private void ToggleNotifications()
+    {
+        showNotifications = !showNotifications;
+    }
+
+}
+
+<header class="topbar">
+
+    <div class="topbar-left">
+
+        <!-- Hamburger -->
+        <button class="menu-toggle">
+            <i class="bi bi-list"></i>
+        </button>
+
+        <!-- Search -->
+        <div class="search-container">
+
+            <i class="bi bi-search search-icon"></i>
+
+            <input type="text"
+                   placeholder="Search patient, referral, or task..." />
+
+        </div>
+
+    </div>
+
+    <div class="topbar-right">
+
+        <!-- Quick Action Buttons -->
+        <div class="quick-actions">
+
+            <button class="action-link">
+
+                <i class="bi bi-person"></i>
+
+                <span>Patient</span>
+
+            </button>
+
+            <button class="action-link">
+
+                <i class="bi bi-hospital"></i>
+
+                <span>Referral</span>
+
+            </button>
+
+            <button class="action-link">
+
+                <i class="bi bi-pencil-square"></i>
+
+                <span>New Task</span>
+
+            </button>
+
+        </div>
+
+        <!-- Notification -->
+        <div class="notification">
+
+            <button class="notification-button"
+                    @onclick="() => showNotifications = !showNotifications">
+
+                <i class="bi bi-bell"></i>
+
+                @if (notificationCount > 0)
+                {
+                    <span class="notification-badge">
+                        @notificationCount
+                    </span>
+                }
+
+            </button>
+
+            @if (showNotifications)
+            {
+                <NotificationPanel Visible="@showNotifications" />
+            }
+
+        </div>
+
+        <!-- User -->
+        <div class="user-profile">
+
+            <img src="images/avatar.png"
+                 class="avatar"
+                 alt="User" />
+
+            <div class="user-info">
+
+                <span class="user-name">
+                    Jennifer LVN
+                </span>
+
+                <span class="user-role">
+                    Care Coordinator
+                </span>
+
+            </div>
+
+            <i class="bi bi-chevron-down"></i>
+
+        </div>
+
+    </div>
+
+</header>
