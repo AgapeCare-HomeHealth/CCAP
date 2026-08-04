@@ -1,15 +1,33 @@
 ﻿@using CCAP.Web.Components.Shared
 
 @code {
+    [Parameter]
+    public EventCallback OnToggleSidebar { get; set; }
 
     private bool showNotifications;
+    private bool showProfileMenu;
 
     private int notificationCount = 0;
 
     private void ToggleNotifications()
+{
+    showNotifications = !showNotifications;
+
+    if (showNotifications)
     {
-        showNotifications = !showNotifications;
+        showProfileMenu = false;
     }
+}
+
+private void ToggleProfileMenu()
+{
+    showProfileMenu = !showProfileMenu;
+
+    if (showProfileMenu)
+    {
+        showNotifications = false;
+    }
+}
 
 }
 
@@ -18,14 +36,22 @@
     <div class="topbar-left">
 
         <!-- Hamburger -->
-        <button class="menu-toggle">
+        <button class="menu-toggle"
+                @onclick="OnToggleSidebar">
+
             <i class="bi bi-list"></i>
+
         </button>
 
-        <!-- Search -->
+        
+
+    </div>
+
+    <div class="topbar-center">
+
         <div class="search-container">
 
-            <i class="bi bi-search search-icon"></i>
+            <i class="fa fa-search"></i>
 
             <input type="text"
                    placeholder="Search patient, referral, or task..." />
@@ -38,6 +64,7 @@
 
         <!-- Quick Action Buttons -->
         <div class="quick-actions">
+
 
             <button class="action-link">
 
@@ -69,7 +96,7 @@
         <div class="notification">
 
             <button class="notification-button"
-                    @onclick="() => showNotifications = !showNotifications">
+                    @onclick="ToggleNotifications">
 
                 <i class="bi bi-bell"></i>
 
@@ -92,26 +119,35 @@
         <!-- User -->
         <div class="user-profile">
 
-            <img src="images/avatar.png"
-                 class="avatar"
-                 alt="User" />
+            <button class="profile-button"
+                    @onclick="ToggleProfileMenu">
 
-            <div class="user-info">
+                <img src="images/avatar-placeholder.png"
+                     alt="User"
+                     class="profile-avatar" />
 
-                <span class="user-name">
-                    Jennifer LVN
-                </span>
+                <div class="profile-info">
 
-                <span class="user-role">
-                    Care Coordinator
-                </span>
+                    <span class="profile-name">
+                        Jennifer LVN
+                    </span>
 
-            </div>
+                    <span class="profile-role">
+                        Care Coordinator
+                    </span>
 
-            <i class="bi bi-chevron-down"></i>
+                </div>
+
+                <i class="bi bi-chevron-down profile-arrow"></i>
+
+            </button>
+
+            @if (showProfileMenu)
+            {
+                <UserProfileMenu />
+            }
 
         </div>
-
     </div>
 
 </header>
