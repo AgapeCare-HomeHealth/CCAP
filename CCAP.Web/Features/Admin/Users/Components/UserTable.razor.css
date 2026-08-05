@@ -1,0 +1,24 @@
+.table {
+    margin-bottom: 0;
+}
+
+th {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+td {
+    vertical-align: middle;
+}
+
+tbody tr {
+    transition: all .2s;
+}
+
+    tbody tr:hover {
+        background: #f8fafc;
+    }
+
+.card {
+    border-radius: 16px;
+}

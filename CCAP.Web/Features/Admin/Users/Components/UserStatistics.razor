@@ -1,0 +1,41 @@
+﻿@using CCAP.Web.Components.Shared
+@using CCAP.Web.Features.Admin.Users.Models
+
+<div class="row g-4">
+
+    <div class="col-12 col-sm-6 col-xl-3">
+        <StatisticCard Title="Total Users"
+                       Value="@Statistics.TotalUsers.ToString()"
+                       Icon="bi bi-people-fill"
+                       Color="#18a689" />
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+        <StatisticCard Title="Active Users"
+                       Value="@Statistics.ActiveUsers.ToString()"
+                       Icon="bi bi-person-check-fill"
+                       Color="#3b82f6" />
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+        <StatisticCard Title="Inactive Users"
+                       Value="@Statistics.InactiveUsers.ToString()"
+                       Icon="bi bi-person-dash-fill"
+                       Color="#f59e0b" />
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+        <StatisticCard Title="Administrators"
+                       Value="@Statistics.Administrators.ToString()"
+                       Icon="bi bi-shield-lock-fill"
+                       Color="#7c3aed" />
+    </div>
+
+</div>
+
+@code{
+
+    [Parameter]
+    public UserStatisticsModel Statistics { get; set; } = new();
+
+}

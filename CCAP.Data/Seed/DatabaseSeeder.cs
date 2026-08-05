@@ -69,6 +69,22 @@ namespace CCAP.Data.Seed
                     PermissionCode = "USER_CREATE",
                     PermissionName = "Create Users",
                     Module = "Users"
+                },
+
+                new Permission
+                {
+                    PermissionId = Guid.NewGuid(),
+                    PermissionCode = "USER_EDIT",
+                    PermissionName = "Edit Users",
+                    Module = "Users"
+                },
+
+                new Permission
+                {
+                    PermissionId = Guid.NewGuid(),
+                    PermissionCode = "USER_DELETE",
+                    PermissionName = "Delete Users",
+                    Module = "Users"
                 }
 
             );
