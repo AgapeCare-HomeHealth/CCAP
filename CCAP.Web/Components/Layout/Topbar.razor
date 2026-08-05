@@ -1,0 +1,153 @@
+﻿@using CCAP.Web.Components.Shared
+
+@code {
+    [Parameter]
+    public EventCallback OnToggleSidebar { get; set; }
+
+    private bool showNotifications;
+    private bool showProfileMenu;
+
+    private int notificationCount = 0;
+
+    private void ToggleNotifications()
+{
+    showNotifications = !showNotifications;
+
+    if (showNotifications)
+    {
+        showProfileMenu = false;
+    }
+}
+
+private void ToggleProfileMenu()
+{
+    showProfileMenu = !showProfileMenu;
+
+    if (showProfileMenu)
+    {
+        showNotifications = false;
+    }
+}
+
+}
+
+<header class="topbar">
+
+    <div class="topbar-left">
+
+        <!-- Hamburger -->
+        <button class="menu-toggle"
+                @onclick="OnToggleSidebar">
+
+            <i class="bi bi-list"></i>
+
+        </button>
+
+        
+
+    </div>
+
+    <div class="topbar-center">
+
+        <div class="search-container">
+
+            <i class="fa fa-search"></i>
+
+            <input type="text"
+                   placeholder="Search patient, referral, or task..." />
+
+        </div>
+
+    </div>
+
+    <div class="topbar-right">
+
+        <!-- Quick Action Buttons -->
+        <div class="quick-actions">
+
+
+            <button class="action-link">
+
+                <i class="bi bi-person"></i>
+
+                <span>Patient</span>
+
+            </button>
+
+            <button class="action-link">
+
+                <i class="bi bi-hospital"></i>
+
+                <span>Referral</span>
+
+            </button>
+
+            <button class="action-link">
+
+                <i class="bi bi-pencil-square"></i>
+
+                <span>New Task</span>
+
+            </button>
+
+        </div>
+
+        <!-- Notification -->
+        <div class="notification">
+
+            <button class="notification-button"
+                    @onclick="ToggleNotifications">
+
+                <i class="bi bi-bell"></i>
+
+                @if (notificationCount > 0)
+                {
+                    <span class="notification-badge">
+                        @notificationCount
+                    </span>
+                }
+
+            </button>
+
+            @if (showNotifications)
+            {
+                <NotificationPanel Visible="@showNotifications" />
+            }
+
+        </div>
+
+        <!-- User -->
+        <div class="user-profile">
+
+            <button class="profile-button"
+                    @onclick="ToggleProfileMenu">
+
+                <img src="images/avatar-placeholder.png"
+                     alt="User"
+                     class="profile-avatar" />
+
+                <div class="profile-info">
+
+                    <span class="profile-name">
+                        Jennifer LVN
+                    </span>
+
+                    <span class="profile-role">
+                        Care Coordinator
+                    </span>
+
+                </div>
+
+                <i class="bi bi-chevron-down profile-arrow"></i>
+
+            </button>
+
+            @if (showProfileMenu)
+            {
+                <UserProfileMenu />
+            }
+
+        </div>
+    </div>
+
+</header>

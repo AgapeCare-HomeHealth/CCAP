@@ -2,13 +2,15 @@
 
 <div class="layout">
 
-    <aside class="sidebar">
-        <NavMenu />
-    </aside>
+    <div class="sidebar @(IsSidebarCollapsed ? "collapsed" : "")">
+
+        <NavMenu IsCollapsed="@IsSidebarCollapsed" />
+
+    </div>
 
     <div class="main-content">
 
-        @* Topbar goes here later *@
+        <Topbar OnToggleSidebar="ToggleSidebar" />
 
         <main class="page-content">
             @Body
@@ -23,3 +25,14 @@
     <a href="." class="reload">Reload</a>
     <span class="dismiss">🗙</span>
 </div>
+
+@code {
+
+    private bool IsSidebarCollapsed;
+
+    private void ToggleSidebar()
+    {
+        IsSidebarCollapsed = !IsSidebarCollapsed;
+    }
+
+}

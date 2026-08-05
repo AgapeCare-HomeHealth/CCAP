@@ -1,0 +1,30 @@
+﻿@if (Visible)
+{
+    <div class="notification-panel">
+        ...
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool Visible { get; set; }
+}
+
+
+<div class="notification-panel">
+
+    <div class="notification-header">
+        <h5>Notifications</h5>
+    </div>
+
+    <div class="notification-empty">
+
+        <i class="bi bi-bell"></i>
+
+        <h6>You're all caught up!</h6>
+
+        <p>No new notifications at the moment.</p>
+
+    </div>
+
+</div>

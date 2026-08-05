@@ -1,4 +1,11 @@
-﻿<div class="sidebar">
+﻿@code {
+
+    [Parameter]
+    public bool IsCollapsed { get; set; }
+
+}
+
+<div class="sidebar @(IsCollapsed ? "collapsed" : "")">
 
     <!-- Logo Section -->
     <div class="sidebar-header">
@@ -6,10 +13,13 @@
 
             <img src="images/logo.png" class="sidebar-logo" />
 
-            <div class="sidebar-title">
-                <h4>AgapeCare</h4>
-                <p>Home Health Inc.</p>
-            </div>
+            @if (!IsCollapsed)
+            {
+                <div class="sidebar-title">
+                    <h4>AgapeCare</h4>
+                    <p>Home Health Inc.</p>
+                </div>
+            }
 
         </div>
     </div>
@@ -21,12 +31,19 @@
 
             <NavLink href="/" Match="NavLinkMatch.All" class="nav-item">
                 <i class="bi bi-grid"></i>
-                <span>Dashboard</span>
+
+                @if (!IsCollapsed)
+                {
+                    <span>Dashboard</span>
+                }
             </NavLink>
 
             <NavLink href="/patients" class="nav-item">
                 <i class="bi bi-people"></i>
-                <span>My Patients</span>
+                @if (!IsCollapsed)
+                {
+                    <span>My Patients</span>
+                }
             </NavLink>
 
         </div>
@@ -38,28 +55,43 @@
         <details class="menu-dropdown">
 
             <summary>
+
                 <div>
                     <i class="bi bi-clipboard-check"></i>
-                    <span>Compliance</span>
+
+                    @if (!IsCollapsed)
+                    {
+                        <span>Compliance</span>
+                    }
                 </div>
 
-                <i class="bi bi-chevron-down arrow"></i>
+                @if (!IsCollapsed)
+                {
+                    <i class="bi bi-chevron-down arrow"></i>
+                }
+
             </summary>
 
-            <NavLink href="/compliance/oasis" class="submenu-item">
-                OASIS Review
-            </NavLink>
+            @if (!IsCollapsed)
+            {
+                <NavLink href="/compliance/oasis" class="submenu-item">
+                    OASIS Review
+                </NavLink>
 
-            <NavLink href="/compliance/orders" class="submenu-item">
-                Physician Orders
-            </NavLink>
+                <NavLink href="/compliance/orders" class="submenu-item">
+                    Physician Orders
+                </NavLink>
 
-            <NavLink href="/compliance/audit" class="submenu-item">
-                QA Audit
-            </NavLink>
+                <NavLink href="/compliance/audit" class="submenu-item">
+                    QA Audit
+                </NavLink>
+            }
 
         </details>
 
+        <!-- ======================= -->
+        <!-- Documents -->
+        <!-- ======================= -->
         <!-- ======================= -->
         <!-- Documents -->
         <!-- ======================= -->
@@ -69,28 +101,43 @@
             <summary>
 
                 <div>
+
                     <i class="bi bi-folder2-open"></i>
-                    <span>Documents</span>
+
+                    @if (!IsCollapsed)
+                    {
+                        <span>Documents</span>
+                    }
+
                 </div>
 
-                <i class="bi bi-chevron-down arrow"></i>
+                @if (!IsCollapsed)
+                {
+                    <i class="bi bi-chevron-down arrow"></i>
+                }
 
             </summary>
 
-            <NavLink href="/documents/upload" class="submenu-item">
-                Upload
-            </NavLink>
+            @if (!IsCollapsed)
+            {
+                <NavLink href="/documents/upload" class="submenu-item">
+                    Upload
+                </NavLink>
 
-            <NavLink href="/documents/archive" class="submenu-item">
-                Archive
-            </NavLink>
+                <NavLink href="/documents/archive" class="submenu-item">
+                    Archive
+                </NavLink>
 
-            <NavLink href="/documents/templates" class="submenu-item">
-                Templates
-            </NavLink>
+                <NavLink href="/documents/templates" class="submenu-item">
+                    Templates
+                </NavLink>
+            }
 
         </details>
 
+        <!-- ======================= -->
+        <!-- Admin -->
+        <!-- ======================= -->
         <!-- ======================= -->
         <!-- Admin -->
         <!-- ======================= -->
@@ -100,33 +147,48 @@
             <summary>
 
                 <div>
+
                     <i class="bi bi-gear"></i>
-                    <span>Admin</span>
+
+                    @if (!IsCollapsed)
+                    {
+                        <span>Admin</span>
+                    }
+
                 </div>
 
-                <i class="bi bi-chevron-down arrow"></i>
+                @if (!IsCollapsed)
+                {
+                    <i class="bi bi-chevron-down arrow"></i>
+                }
 
             </summary>
 
-            <NavLink href="/admin/users" class="submenu-item">
-                Users
-            </NavLink>
+            @if (!IsCollapsed)
+            {
+                <NavLink href="/admin/users" class="submenu-item">
+                    Users
+                </NavLink>
 
-            <NavLink href="/admin/roles" class="submenu-item">
-                Roles
-            </NavLink>
+                <NavLink href="/admin/roles" class="submenu-item">
+                    Roles
+                </NavLink>
 
-            <NavLink href="/admin/settings" class="submenu-item">
-                Settings
-            </NavLink>
+                <NavLink href="/admin/settings" class="submenu-item">
+                    Settings
+                </NavLink>
+            }
 
         </details>
 
     </nav>
 
     <!-- Footer -->
-    <div class="sidebar-footer">
-        Version 1.0
-    </div>
+    @if (!IsCollapsed)
+    {
+        <div class="sidebar-footer">
+            Version 1.0
+        </div>
+    }
 
 </div>
