@@ -1,0 +1,19 @@
+.card {
+    border-radius: 16px;
+}
+
+.form-label {
+    font-size: .85rem;
+}
+
+.form-control,
+.form-select {
+    min-height: 44px;
+}
+
+.btn {
+    min-height: 44px;
+}
+body {
+    margin-top: 10px;
+}

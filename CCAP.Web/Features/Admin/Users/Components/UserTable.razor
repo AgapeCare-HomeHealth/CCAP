@@ -1,0 +1,97 @@
+﻿@using CCAP.Web.Features.Admin.Users.Models
+
+@if (IsLoading)
+{
+    <div class="card shadow-sm border-0">
+
+        <div class="card-body text-center py-5">
+
+            <div class="spinner-border text-success"></div>
+
+            <div class="mt-3">
+
+                Loading users...
+
+            </div>
+
+        </div>
+
+    </div>
+}
+else
+{
+    <div class="card shadow-sm border-0">
+
+        <div class="table-responsive">
+
+            <table class="table table-hover align-middle mb-0">
+
+                <thead class="table-light">
+
+                    <tr>
+
+                        <th>Employee #</th>
+
+                        <th>Name</th>
+
+                        <th>Email</th>
+
+                        <th>Role</th>
+
+                        <th>Discipline</th>
+
+                        <th>Status</th>
+
+                        <th class="text-end">
+
+                            Actions
+
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    @if(Users.Any())
+                    {
+                        foreach(var user in Users)
+                        {
+                            <UserRow User="user"/>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+
+                            <td colspan="7"
+                                class="text-center py-5">
+
+                                No users found.
+
+                            </td>
+
+                        </tr>
+                    }
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+}
+
+@code{
+
+    [Parameter]
+
+    public IEnumerable<UserDto> Users { get; set; } = Enumerable.Empty<UserDto>();
+
+    [Parameter]
+
+    public bool IsLoading { get; set; }
+
+}
