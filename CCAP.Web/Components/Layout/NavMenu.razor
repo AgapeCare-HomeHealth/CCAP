@@ -46,6 +46,14 @@
                 }
             </NavLink>
 
+            <NavLink href="/referrals" class="nav-item">
+                <i class="bi bi-person-plus"></i>
+                @if (!IsCollapsed)
+                {
+                    <span>Referrals</span>
+                }
+            </NavLink>
+
         </div>
 
         <!-- ======================= -->
@@ -172,10 +180,6 @@
 
                 <NavLink href="/admin/roles" class="submenu-item">
                     Roles
-                </NavLink>
-
-                <NavLink href="/admin/settings" class="submenu-item">
-                    Settings
                 </NavLink>
             }
 
