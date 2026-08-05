@@ -1,0 +1,56 @@
+﻿@page "/admin/users"
+
+@using CCAP.Web.Features.Admin.Users.Components
+@using CCAP.Web.Features.Admin.Users.Models
+
+<PageTitle>User Management</PageTitle>
+
+<div class="user-management-page">
+
+    <div class="page-header">
+
+        <div>
+
+            <h2>User Management</h2>
+
+            <p>
+                Manage system users, their roles, and account status.
+            </p>
+
+        </div>
+
+        <button class="btn btn-success">
+
+            <i class="bi bi-person-plus"></i>
+
+            Add New User
+
+        </button>
+
+    </div>
+
+    <UserStatistics Statistics="Statistics" />
+
+    <UserToolbar Filter="Filter" OnFilter="FilterUsers"/>
+
+</div>
+
+@code{
+
+    private UserStatisticsModel Statistics = new()
+        {
+            TotalUsers = 150,
+            ActiveUsers = 120,
+            InactiveUsers = 30,
+            Administrators = 10
+        };
+
+    private UserFilterModel Filter = new();
+
+    private async Task FilterUsers(UserFilterModel filter)
+    {
+        // TODO: Implement filtering logic here, e.g., call an API to fetch filtered users based on the filter criteria.
+
+    }
+
+}
