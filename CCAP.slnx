@@ -1,6 +1,5 @@
 <Solution>
   <Project Path="CCAP.API/CCAP.API.csproj" />
-  <Project Path="CCAP.Domain/CCAP.Domain.csproj" />
-  <Project Path="CCAP.Infrastructure/CCAP.Infrastructure.csproj" />
+  <Project Path="CCAP.Data/CCAP.Data.csproj" Id="dd52a7f2-f1ee-4688-92b0-6b3d77c1fb43" />
   <Project Path="CCAP.Web/CCAP.Web.csproj" />
 </Solution>
