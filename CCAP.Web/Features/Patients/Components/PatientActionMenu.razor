@@ -1,32 +1,32 @@
 ﻿<div class="action-menu">
 
     <button class="action-button"
-            @onclick="ToggleMenu">
+            @onclick="OnToggle">
 
         <i class="bi bi-three-dots-vertical"></i>
 
     </button>
 
-    @if (showMenu)
+    @if (IsOpen)
     {
         <div class="action-dropdown">
 
-            <button>
+         @*   <button>
                 <i class="bi bi-eye"></i>
                 <span>View</span>
-            </button>
+            </button>   *@
 
-            <button>
-                <i class="bi bi-pencil-square"></i>
-                <span>Edit</span>
+            <button class ="danger">
+                <i class="bi-box-arrow-right"></i>
+                <span>Discharge</span>
             </button>
 
             <hr />
 
-            <button class="danger">
+       @*     <button class="danger">
                 <i class="bi bi-archive"></i>
                 <span>Archive</span>
-            </button>
+            </button>  *@
 
         </div>
     }
@@ -35,11 +35,10 @@
 
 @code {
 
-    private bool showMenu;
+    [Parameter]
+    public bool IsOpen { get; set; }
 
-    private void ToggleMenu()
-    {
-        showMenu = !showMenu;
-    }
+    [Parameter]
+    public EventCallback OnToggle { get; set; }
 
 }

@@ -39,9 +39,10 @@
 
 .action-dropdown {
     position: absolute;
-    top: calc(100% + 6px);
-    right: 0;
-    width: 180px;
+    top: auto;
+    bottom: 50%;
+    right: 30px;
+    width: 120px;
     background: white;
     border-radius: 12px;
     box-shadow: 0 8px 20px rgba(0,0,0,.12);

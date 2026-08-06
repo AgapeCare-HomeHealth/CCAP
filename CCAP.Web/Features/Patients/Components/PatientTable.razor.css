@@ -15,9 +15,9 @@
 
 .patient-table {
     width: 100%;
+    min-width: 1050px;
     border-collapse: collapse;
 }
-
     /* ==========================================
    HEADER
 ========================================== */
@@ -44,6 +44,7 @@
         font-size: 14px;
         color: #374151;
         border-bottom: 1px solid #F1F5F9;
+        white-space: nowrap;
     }
 
     .patient-table tbody tr {
@@ -62,4 +63,21 @@
 
 .clickable-row:hover td{
     background:#f5fdf7;
+}
+
+/* ==========================================
+   TABLE WRAPPER
+========================================== */
+
+.patient-table-wrapper {
+    max-height: 500px;
+    overflow-y: auto;
+    overflow-x: auto;
+}
+
+.patient-table thead th {
+    position: sticky;
+    top: 0;
+    background: #F8FAFC;
+    z-index: 5;
 }

@@ -3,7 +3,9 @@
 
 <div class="patient-table-card">
 
-    <table class="patient-table">
+    <div class="patient-table-wrapper">
+
+        <table class="patient-table">
 
         <thead>
 
@@ -43,7 +45,8 @@
                     <td>@patient.NextVisit</td>
 
                     <td @onclick:stopPropagation="true">
-                        <PatientActionMenu />
+                            <PatientActionMenu IsOpen="@(OpenMenuMRN == patient.MRN)"
+                                               OnToggle="() => ToggleMenu(patient.MRN)" />
                     </td>
 
                 </tr>
@@ -51,7 +54,9 @@
 
         </tbody>
 
-    </table>
+        </table>
+
+    </div>
 
 </div>
 
@@ -63,6 +68,15 @@
     private void OpenPatient(PatientListItem patient)
     {
         Navigation.NavigateTo("/tracker/patient");
+    }
+
+    private string? OpenMenuMRN;
+
+    private void ToggleMenu(string mrn)
+    {
+        OpenMenuMRN = OpenMenuMRN == mrn
+            ? null
+            : mrn;
     }
 
 }
