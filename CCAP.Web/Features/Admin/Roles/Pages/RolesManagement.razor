@@ -1,0 +1,93 @@
+﻿@page "/admin/roles"
+
+@using CCAP.Web.Features.Admin.Roles.Components
+@using CCAP.Web.Features.Admin.Roles.Models
+
+<PageTitle>Roles & Permissions</PageTitle>
+
+<div class="user-management-page">
+
+    <div class="page-header">
+
+        <div>
+
+            <h2>Roles & Permissions</h2>
+
+            <p>
+                Manage system roles and their assigned permissions.
+            </p>
+
+        </div>
+
+        <button class="btn btn-success float-right">
+
+            <i class="bi bi-plus-circle"></i>
+
+            Add New Role
+
+        </button>
+
+    </div>
+
+    <RoleStatistics Statistics="Statistics"/>
+
+    <RoleToolbar
+        Filter="Filter"
+        OnFilter="FilterRoles"/>
+
+    <RoleTable
+        Roles="Roles"/>
+
+</div>
+
+@code{
+
+    private RoleStatisticsModel Statistics = new()
+    {
+        TotalRoles = 5,
+        TotalPermissions = 42,
+        AssignedUsers = 26,
+        CustomRoles = 2
+    };
+
+    private RoleFilterModel Filter = new();
+
+    private async Task FilterRoles(RoleFilterModel filter)
+    {
+
+    }
+
+    private List<RoleDto> Roles = new()
+    {
+        new()
+        {
+            RoleId = Guid.NewGuid(),
+            RoleName="Administrator",
+            Description="Full system access",
+            UserCount=2,
+            PermissionCount=42,
+            IsActive=true
+        },
+
+        new()
+        {
+            RoleId = Guid.NewGuid(),
+            RoleName="Care Coordinator",
+            Description="Manage referrals",
+            UserCount=15,
+            PermissionCount=18,
+            IsActive=true
+        },
+
+        new()
+        {
+            RoleId = Guid.NewGuid(),
+            RoleName="Scheduler",
+            Description="Manage scheduling",
+            UserCount=6,
+            PermissionCount=10,
+            IsActive=true
+        }
+    };
+
+}

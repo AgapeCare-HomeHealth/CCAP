@@ -1,0 +1,102 @@
+﻿@using CCAP.Web.Features.Admin.Roles.Models
+
+<div class="toolbar-card">
+
+    <div class="row g-4">
+
+        <!-- Search -->
+
+        <div class="col-12">
+
+            <div class="search-box">
+
+                <i class="bi bi-search"></i>
+
+                <input class="form-control"
+                       placeholder="Search role name or description..."
+                       @bind="Filter.Search" />
+
+            </div>
+
+        </div>
+
+        <!-- Status -->
+
+        <div class="col-lg-3 col-md-6">
+
+            <label class="toolbar-label">
+
+                Status
+
+            </label>
+
+            <select class="form-select"
+                    @bind="Filter.IsActive">
+
+                <option value="">All Status</option>
+
+                <option value="true">Active</option>
+
+                <option value="false">Inactive</option>
+
+            </select>
+
+        </div>
+
+        <!-- Empty Space -->
+
+        <div class="col-lg-5 d-none d-lg-block">
+        </div>
+
+        <!-- Buttons -->
+
+        <div class="col-lg-4 col-md-6">
+
+            <div class="toolbar-buttons">
+
+                <button class="btn btn-filter"
+                        @onclick="ApplyFilter">
+
+                    <i class="bi bi-funnel"></i>
+
+                    Filters
+
+                </button>
+
+                <button class="btn btn-clear"
+                        @onclick="ClearFilter">
+
+                    <i class="bi bi-arrow-clockwise"></i>
+
+                    Clear
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+@code {
+
+    [Parameter]
+    public RoleFilterModel Filter { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<RoleFilterModel> OnFilter { get; set; }
+
+    private async Task ApplyFilter()
+    {
+        await OnFilter.InvokeAsync(Filter);
+    }
+
+    private async Task ClearFilter()
+    {
+        Filter = new();
+        await OnFilter.InvokeAsync(Filter);
+    }
+
+}

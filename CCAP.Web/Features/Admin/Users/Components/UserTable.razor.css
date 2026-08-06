@@ -1,24 +1,145 @@
-.table {
-    margin-bottom: 0;
+.user-table-card {
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 5px 18px rgba(0,0,0,.06);
+    overflow: hidden;
+    margin-top: 30px;
 }
 
-th {
-    font-weight: 600;
-    white-space: nowrap;
+.user-table {
+    margin: 0;
 }
 
-td {
-    vertical-align: middle;
-}
-
-tbody tr {
-    transition: all .2s;
-}
-
-    tbody tr:hover {
-        background: #f8fafc;
+    .user-table thead {
+        background: #fafafa;
     }
 
-.card {
-    border-radius: 16px;
+    .user-table th {
+        padding: 18px 24px;
+        color: #6b7280;
+        font-size: .9rem;
+        font-weight: 600;
+        border-bottom: 1px solid #ececec;
+        white-space: nowrap;
+    }
+
+    .user-table td {
+        padding: 18px 24px;
+        vertical-align: middle;
+        border-top: 1px solid #f3f4f6;
+    }
+
+    .user-table tbody tr {
+        transition: .25s;
+    }
+
+        .user-table tbody tr:hover {
+            background: #f8fafc;
+        }
+
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #0f9d84;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: 700;
+}
+
+.user-name {
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.user-subtitle {
+    color: #94a3b8;
+    font-size: .8rem;
+}
+
+.role-badge {
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: #ecfdf5;
+    color: #059669;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.discipline-badge {
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: #f3f0ff;
+    color: #7c3aed;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-active {
+    color: #16a34a;
+    font-weight: 600;
+}
+
+.status-inactive {
+    color: #ef4444;
+    font-weight: 600;
+}
+
+.action-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+    .action-buttons button {
+        border: none;
+        background: none;
+        color: #0f9d84;
+        font-size: 18px;
+    }
+
+        .action-buttons button:hover {
+            color: #0b7d6a;
+        }
+
+.sort-icon {
+    font-size: 12px;
+    color: #bdbdbd;
+    margin-left: 6px;
+}
+
+.table-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-top: 1px solid #ececec;
+}
+
+.pagination-area {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+    .pagination-area button {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        border: none;
+        background: white;
+    }
+
+.active-page {
+    background: #0f9d84 !important;
+    color: white;
 }

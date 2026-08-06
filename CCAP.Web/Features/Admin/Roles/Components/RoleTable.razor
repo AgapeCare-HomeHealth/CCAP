@@ -1,0 +1,205 @@
+﻿@using CCAP.Web.Features.Admin.Roles.Models
+
+<div class="table-card">
+
+    <div class="table-responsive">
+
+        <table class="table role-table mb-0">
+
+            <thead>
+
+                <tr>
+
+                    <th>
+                        Role
+                        <i class="bi bi-arrow-down-up sort-icon"></i>
+                    </th>
+
+                    <th>
+                        Users
+                        <i class="bi bi-arrow-down-up sort-icon"></i>
+                    </th>
+
+                    <th>
+                        Permissions
+                    </th>
+
+                    <th>
+                        Status
+                    </th>
+
+                    <th class="text-center">
+                        Actions
+                    </th>
+
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+                @if (Roles.Any())
+                {
+                    @foreach (var role in Roles)
+                    {
+                        <tr>
+
+                            <td>
+
+                                <div class="role-info">
+
+                                    @* <div class="role-avatar">
+
+                                        @role.RoleName.Substring(0, 1)
+
+                                    </div> *@
+
+                                    <div>
+
+                                        <div class="role-name">
+
+                                            @role.RoleName
+
+                                        </div>
+
+                                       @*  <div class="role-description text-muted font-size-sm">
+
+                                            @role.Description
+
+                                        </div> *@
+
+                                    </div>
+
+                                </div>
+
+                            </td>
+
+                            <td>
+
+                                <span class="user-count">
+
+                                    @role.UserCount Users
+
+                                </span>
+
+                            </td>
+
+                            <td>
+
+                                <span class="permission-badge">
+
+                                    @role.PermissionCount Permissions
+
+                                </span>
+
+                            </td>
+
+                            <td>
+
+                                @if (role.IsActive)
+                                {
+                                    <span class="status-active">
+
+                                        <span class="status-dot"></span>
+
+                                        Active
+
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="status-inactive">
+
+                                        <span class="status-dot"></span>
+
+                                        Inactive
+
+                                    </span>
+                                }
+
+                            </td>
+
+                            <td class="text-center">
+
+                                <div class="action-buttons">
+
+                                    <button type="button" class="action-btn" title="Edit">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+
+                                    @* <button type="button" class="action-btn" title="Permissions">
+                                        <i class="bi bi-shield-lock"></i>
+                                    </button> *@
+
+                                    <button type="button" class="action-btn" title="More">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+
+                                </div>
+
+                            </td>
+
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+
+                        <td colspan="5" class="text-center py-5">
+
+                            No roles found.
+
+                        </td>
+
+                    </tr>
+                }
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+    <div class="table-footer">
+
+        <div class="footer-left">
+            Showing 1 to 3 of 3 roles
+        </div>
+
+        <div class="footer-right">
+
+            <select class="page-size">
+                <option>10 per page</option>
+            </select>
+
+            <div class="pagination">
+
+                <button>
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+
+                <button class="active-page">
+                    1
+                </button>
+
+                <button>
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+@code {
+
+    [Parameter]
+
+    public IEnumerable<RoleDto> Roles { get; set; }
+        = Enumerable.Empty<RoleDto>();
+
+}

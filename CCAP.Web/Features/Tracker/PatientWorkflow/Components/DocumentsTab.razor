@@ -1,0 +1,351 @@
+﻿<div class="documents-page">
+
+    <!-- ================= Summary ================= -->
+
+    <div class="row g-4 mb-4">
+
+        <div class="col-lg-3">
+
+            <div class="status-card primary">
+
+                <h6>Total Documents</h6>
+
+                <h2>18</h2>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-3">
+
+            <div class="status-card success">
+
+                <h6>OCR Processed</h6>
+
+                <h2>12</h2>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-3">
+
+            <div class="status-card warning">
+
+                <h6>Pending Review</h6>
+
+                <h2>3</h2>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-3">
+
+            <div class="status-card danger">
+
+                <h6>Missing</h6>
+
+                <h2>2</h2>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ================= Toolbar ================= -->
+
+    <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card-body">
+
+            <div class="row g-3 align-items-end">
+
+                <div class="col-lg-4">
+
+                    <label class="form-label">
+
+                        Search
+
+                    </label>
+
+                    <input class="form-control"
+                           placeholder="Search documents..." />
+
+                </div>
+
+                <div class="col-lg-3">
+
+                    <label class="form-label">
+
+                        Category
+
+                    </label>
+
+                    <select class="form-select">
+
+                        <option>All</option>
+                        <option>Referral</option>
+                        <option>Insurance</option>
+                        <option>Orders</option>
+                        <option>Plan of Care</option>
+                        <option>OASIS</option>
+                        <option>Lab</option>
+                        <option>Consent</option>
+
+                    </select>
+
+                </div>
+
+                <div class="col-lg-3">
+
+                    <label class="form-label">
+
+                        Status
+
+                    </label>
+
+                    <select class="form-select">
+
+                        <option>All</option>
+                        <option>Reviewed</option>
+                        <option>Pending Review</option>
+                        <option>Missing</option>
+
+                    </select>
+
+                </div>
+
+                <div class="col-lg-2 d-grid">
+
+                    <button class="btn btn-success">
+
+                        <i class="bi bi-upload me-2"></i>
+
+                        Upload
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ================= Documents ================= -->
+
+    <div class="card shadow-sm border-0">
+
+        <div class="card-header bg-white">
+
+            <h5 class="mb-0">
+
+                Patient Documents
+
+            </h5>
+
+        </div>
+
+        <div class="table-responsive">
+
+            <table class="table table-hover mb-0">
+
+                <thead>
+
+                    <tr>
+
+                        <th>Document</th>
+                        <th>Category</th>
+                        <th>Version</th>
+                        <th>Status</th>
+                        <th>OCR</th>
+                        <th>Uploaded By</th>
+                        <th>Date</th>
+                        <th width="220">Actions</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    <tr>
+
+                        <td>
+
+                            <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
+
+                            Referral.pdf
+
+                        </td>
+
+                        <td>Referral</td>
+
+                        <td>1.0</td>
+
+                        <td>
+
+                            <span class="badge bg-success">
+
+                                Reviewed
+
+                            </span>
+
+                        </td>
+
+                        <td>
+
+                            <span class="badge bg-success">
+
+                                Complete
+
+                            </span>
+
+                        </td>
+
+                        <td>Jennifer LVN</td>
+
+                        <td>08/04/2026</td>
+
+                        <td>
+
+                            <button class="btn btn-sm btn-outline-primary">
+
+                                View
+
+                            </button>
+
+                            <button class="btn btn-sm btn-outline-secondary">
+
+                                Download
+
+                            </button>
+
+                        </td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>
+
+                            <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
+
+                            Insurance Card.pdf
+
+                        </td>
+
+                        <td>Insurance</td>
+
+                        <td>1.0</td>
+
+                        <td>
+
+                            <span class="badge bg-warning text-dark">
+
+                                Pending Review
+
+                            </span>
+
+                        </td>
+
+                        <td>
+
+                            <span class="badge bg-secondary">
+
+                                N/A
+
+                            </span>
+
+                        </td>
+
+                        <td>Jennifer LVN</td>
+
+                        <td>08/05/2026</td>
+
+                        <td>
+
+                            <button class="btn btn-sm btn-outline-primary">
+
+                                View
+
+                            </button>
+
+                            <button class="btn btn-sm btn-outline-secondary">
+
+                                Download
+
+                            </button>
+
+                        </td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>
+
+                            <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
+
+                            Plan of Care.pdf
+
+                        </td>
+
+                        <td>Orders</td>
+
+                        <td>2.0</td>
+
+                        <td>
+
+                            <span class="badge bg-danger">
+
+                                Missing Signature
+
+                            </span>
+
+                        </td>
+
+                        <td>
+
+                            <span class="badge bg-success">
+
+                                Complete
+
+                            </span>
+
+                        </td>
+
+                        <td>Renald LVN</td>
+
+                        <td>08/06/2026</td>
+
+                        <td>
+
+                            <button class="btn btn-sm btn-outline-primary">
+
+                                View
+
+                            </button>
+
+                            <button class="btn btn-sm btn-outline-success">
+
+                                Replace
+
+                            </button>
+
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
