@@ -1,0 +1,200 @@
+.workflow-card {
+    background: white;
+    border-radius: 18px;
+    padding: 30px;
+    box-shadow: 0 3px 10px rgba(0,0,0,.06);
+}
+
+.workflow-header {
+    margin-bottom: 25px;
+}
+
+    .workflow-header h5 {
+        font-weight: 700;
+        margin-bottom: .25rem;
+    }
+
+/* ============================
+   Workflow Container
+============================ */
+
+.workflow-container {
+    display: flex;
+    align-items: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 0;
+    scrollbar-width: thin;
+    scrollbar-color: #198754 transparent;
+    padding-bottom: 10px;
+}
+
+    /* Chrome */
+
+    .workflow-container::-webkit-scrollbar {
+        height: 6px;
+    }
+
+    .workflow-container::-webkit-scrollbar-thumb {
+        background: #198754;
+        border-radius: 20px;
+    }
+
+    .workflow-container::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+/* ============================
+   Steps
+============================ */
+
+.workflow-step {
+    flex: 0 0 150px;
+    min-width: 150px;
+    text-align: center;
+}
+
+/* ============================
+   Circle
+============================ */
+
+.circle {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    margin: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 600;
+}
+
+.completed {
+    background: #198754;
+    color: white;
+}
+
+.current {
+    background: #0d6efd;
+    color: white;
+    animation: pulse 2s infinite;
+}
+
+.pending {
+    background: white;
+    color: #9ca3af;
+    border: 2px solid #d1d5db;
+}
+
+/* ============================
+   Line
+============================ */
+
+.workflow-line {
+    flex: 0 0 80px;
+    margin-top: 28px;
+    height: 3px;
+    background: #d1d5db;
+}
+
+    .workflow-line.completed {
+        background: #198754;
+    }
+
+/* ============================
+   Text
+============================ */
+
+.workflow-title {
+    margin-top: 18px;
+    font-weight: 600;
+    font-size: .95rem;
+    min-height: 48px;
+}
+
+.workflow-status {
+    margin-top: 6px;
+    color: #6c757d;
+    font-size: .85rem;
+}
+
+.workflow-date {
+    margin-top: 8px;
+    color: #6c757d;
+    font-size: .8rem;
+}
+
+/* ============================
+   Pulse Animation
+============================ */
+
+@keyframes pulse {
+
+    0% {
+        box-shadow: 0 0 0 0 rgba(13,110,253,.45);
+    }
+
+    70% {
+        box-shadow: 0 0 0 12px rgba(13,110,253,0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(13,110,253,0);
+    }
+}
+
+/* ============================
+   Tablet
+============================ */
+
+@media (max-width: 992px) {
+
+    .workflow-card {
+        padding: 20px;
+    }
+
+    .workflow-step {
+        flex: 0 0 130px;
+        min-width: 130px;
+    }
+
+    .workflow-line {
+        flex: 0 0 60px;
+    }
+}
+
+/* ============================
+   Mobile
+============================ */
+
+@media (max-width: 576px) {
+
+    .workflow-card {
+        padding: 16px;
+    }
+
+    .workflow-step {
+        flex: 0 0 120px;
+        min-width: 120px;
+    }
+
+    .workflow-line {
+        flex: 0 0 45px;
+    }
+
+    .circle {
+        width: 50px;
+        height: 50px;
+        font-size: 18px;
+    }
+
+    .workflow-title {
+        font-size: .85rem;
+    }
+
+    .workflow-status,
+    .workflow-date {
+        font-size: .75rem;
+    }
+}

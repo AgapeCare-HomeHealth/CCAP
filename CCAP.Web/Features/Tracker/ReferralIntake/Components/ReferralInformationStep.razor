@@ -1,17 +1,268 @@
-﻿<div class="placeholder-step">
+﻿<div class="step-card">
 
-    <i class="bi bi-file-earmark-medical display-3 text-warning"></i>
+    <div class="step-title">
 
-    <h4 class="mt-4">
+        <h4>Referral Information</h4>
 
-        Referral Information
+        <p>
+            Enter the referral, insurance, physician and clinical information.
+        </p>
 
-    </h4>
+    </div>
 
-    <p>
+    <!-- ================= Referral Details ================= -->
 
-        Step 3 of 5
+    <h5 class="section-heading">
+        Referral Details
+    </h5>
 
-    </p>
+    <div class="row g-4">
+
+        <div class="col-md-4">
+
+            <label class="form-label">
+                Referral Date
+            </label>
+
+            <input type="date"
+                   class="form-control" />
+
+        </div>
+
+        <div class="col-md-4">
+
+            <label class="form-label">
+                Referral Source
+            </label>
+
+            <select class="form-select">
+
+                <option>Hospital</option>
+                <option>Physician Office</option>
+                <option>Clinic</option>
+                <option>Insurance</option>
+
+            </select>
+
+        </div>
+
+        <div class="col-md-4">
+
+            <label class="form-label">
+                Priority
+            </label>
+
+            <select class="form-select">
+
+                <option>Routine</option>
+                <option>Urgent</option>
+                <option>STAT</option>
+
+            </select>
+
+        </div>
+
+    </div>
+
+    <hr />
+
+    <!-- ================= Insurance ================= -->
+
+    <h5 class="section-heading">
+
+        Insurance Information
+
+    </h5>
+
+    <div class="row g-4">
+
+        <div class="col-md-4">
+
+            <label class="form-label">
+
+                Primary Insurance
+
+            </label>
+
+            <select class="form-select">
+
+                <option>Medicare</option>
+                <option>Medicaid</option>
+                <option>Blue Cross</option>
+                <option>Aetna</option>
+
+            </select>
+
+        </div>
+
+        <div class="col-md-4">
+
+            <label class="form-label">
+
+                Member ID
+
+            </label>
+
+            <input class="form-control" />
+
+        </div>
+
+        <div class="col-md-4">
+
+            <label class="form-label">
+
+                Authorization Required
+
+            </label>
+
+            <select class="form-select">
+
+                <option>No</option>
+                <option>Yes</option>
+
+            </select>
+
+        </div>
+
+    </div>
+
+    <hr />
+
+    <!-- ================= Physician ================= -->
+
+    <h5 class="section-heading">
+
+        Referring Physician
+
+    </h5>
+
+    <div class="row g-4">
+
+        <div class="col-md-6">
+
+            <label class="form-label">
+
+                Physician
+
+            </label>
+
+            <input class="form-control" />
+
+        </div>
+
+        <div class="col-md-6">
+
+            <label class="form-label">
+
+                Phone Number
+
+            </label>
+
+            <input class="form-control" />
+
+        </div>
+
+    </div>
+
+    <hr />
+
+    <!-- ================= Clinical ================= -->
+
+    <h5 class="section-heading">
+
+        Clinical Information
+
+    </h5>
+
+    <div class="row g-4">
+
+        <div class="col-md-6">
+
+            <label class="form-label">
+
+                Primary Diagnosis
+
+            </label>
+
+            <input class="form-control" />
+
+        </div>
+
+        <div class="col-md-6">
+
+            <label class="form-label">
+
+                Secondary Diagnosis
+
+            </label>
+
+            <input class="form-control" />
+
+        </div>
+
+    </div>
+
+    <div class="row mt-4">
+
+        <div class="col-md-12">
+
+            <label class="form-label">
+
+                Ordered Services
+
+            </label>
+
+            <div class="service-grid">
+
+                <label class="service-item">
+                    <input type="checkbox">
+                    Skilled Nursing
+                </label>
+
+                <label class="service-item">
+                    <input type="checkbox">
+                    Physical Therapy
+                </label>
+
+                <label class="service-item">
+                    <input type="checkbox">
+                    Occupational Therapy
+                </label>
+
+                <label class="service-item">
+                    <input type="checkbox">
+                    Speech Therapy
+                </label>
+
+                <label class="service-item">
+                    <input type="checkbox">
+                    Home Health Aide
+                </label>
+
+                <label class="service-item">
+                    <input type="checkbox">
+                    Medical Social Worker
+                </label>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <hr />
+
+    <!-- ================= Notes ================= -->
+
+    <h5 class="section-heading">
+
+        Referral Notes
+
+    </h5>
+
+    <textarea class="form-control"
+              rows="5"
+              placeholder="Additional referral notes...">
+    </textarea>
 
 </div>

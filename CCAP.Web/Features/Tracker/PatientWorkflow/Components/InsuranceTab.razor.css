@@ -1,0 +1,60 @@
+.insurance-page .card {
+    border-radius: 18px;
+}
+
+.insurance-page .card-header {
+    background: #fff;
+    border-bottom: 1px solid #edf0f3;
+    padding: 18px 24px;
+}
+
+.insurance-page .card-body {
+    padding: 24px;
+}
+
+.status-card {
+    border-radius: 18px;
+    padding: 24px;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+    .status-card i {
+        font-size: 42px;
+    }
+
+    .status-card.success {
+        background: #198754;
+    }
+
+    .status-card.warning {
+        background: #f0ad4e;
+    }
+
+    .status-card.danger {
+        background: #dc3545;
+    }
+
+.timeline-item {
+    display: flex;
+    gap: 18px;
+    margin-bottom: 24px;
+}
+
+.timeline-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink: 0;
+}
+
+.form-label {
+    font-weight: 600;
+}
+
+.table th {
+    white-space: nowrap;
+}

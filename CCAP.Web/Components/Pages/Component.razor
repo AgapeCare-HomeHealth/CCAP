@@ -3,7 +3,9 @@
 <h1>Counter</h1>
 
 <p>@count</p>
+<input @bind="text" />
 
+<p>@text</p>
 <button class="btn btn-primary"
         @onclick="Increment">
     Click
@@ -11,15 +13,18 @@
 
 @code {
 
+    private string text = "testing";
     private int count;
 
     private void Increment()
     {
-        count++;
 
+        text = "clicked";
+        Console.WriteLine("test");
+        count++;
         Console.WriteLine(count);
 
-        throw new Exception("Clicked");
     }
+
 
 }
