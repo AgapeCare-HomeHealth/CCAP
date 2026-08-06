@@ -1,0 +1,52 @@
+.task-card {
+    background: white;
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.05);
+    margin-bottom: 30px;
+}
+
+.task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+    .task-header h5 {
+        margin: 0;
+        font-weight: 700;
+    }
+
+.task-filters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.filter-chip {
+    border: none;
+    background: #f3f4f6;
+    border-radius: 30px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+    .filter-chip.active {
+        background: #2563eb;
+        color: white;
+    }
+
+    .filter-chip.high {
+        color: #dc2626;
+    }
+
+    .filter-chip.due {
+        color: #f59e0b;
+    }
+
+    .filter-chip.upcoming {
+        color: #16a34a;
+    }

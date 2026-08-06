@@ -1,17 +1,17 @@
 .toolbar-card {
-    background: white;
-    border-radius: 18px;
-    padding: 22px;
-    box-shadow: 0 4px 18px rgba(0,0,0,.06);
+    background: #fff;
+    border-radius: 20px;
+    padding: 24px;
     margin-bottom: 30px;
+    box-shadow: 0 5px 20px rgba(0,0,0,.06);
 }
 
 .toolbar-label {
     display: block;
     margin-bottom: 8px;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
-    color: #4b5563;
+    color: #374151;
 }
 
 .search-box {
@@ -20,52 +20,53 @@
 
     .search-box i {
         position: absolute;
-        left: 16px;
+        left: 18px;
         top: 50%;
         transform: translateY(-50%);
         color: #9ca3af;
-        font-size: 16px;
+        font-size: 18px;
     }
 
     .search-box input {
-        padding-left: 45px;
+        padding-left: 48px;
     }
 
 .form-control,
 .form-select {
-    height: 46px;
-    border-radius: 12px;
-    border: 1px solid #dcdfe5;
-    font-size: 14px;
+    height: 50px;
+    border-radius: 14px;
+    border: 1px solid #d6dbe1;
     box-shadow: none;
+    font-size: 15px;
 }
 
     .form-control:focus,
     .form-select:focus {
-        border-color: #0f9d84;
-        box-shadow: 0 0 0 .15rem rgba(15,157,132,.15);
+        border-color: #18a689;
+        box-shadow: 0 0 0 .15rem rgba(24,166,137,.15);
     }
 
 .toolbar-buttons {
     display: flex;
-    align-items: center;
     justify-content: flex-end;
-    gap: 12px;
-    height: 46px;
+    align-items: flex-end;
+    gap: 18px;
+    height: 100%;
 }
 
 .btn-filter {
-    border: 1px solid #0f9d84;
-    color: #0f9d84;
-    background: white;
-    border-radius: 10px;
-    padding: 10px 18px;
+    border: 1px solid #18a689;
+    background: #fff;
+    color: #18a689;
+    padding: 11px 22px;
+    border-radius: 12px;
     font-weight: 600;
+    transition: .2s;
 }
 
     .btn-filter:hover {
-        background: #0f9d84;
-        color: white;
+        background: #18a689;
+        color: #fff;
     }
 
 .btn-clear {
@@ -73,8 +74,9 @@
     border: none;
     color: #6b7280;
     font-weight: 600;
+    padding: 0;
 }
 
     .btn-clear:hover {
-        color: #0f9d84;
+        color: #18a689;
     }

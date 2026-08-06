@@ -7,4 +7,11 @@
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Folder Include="Features\Admin\Roles\Services\" />
+    <Folder Include="Features\Dashboard\Services\" />
+    <Folder Include="Features\Tracker\ReferralIntake\Models\" />
+    <Folder Include="Features\Tracker\ReferralIntake\Services\" />
+  </ItemGroup>
+
 </Project>

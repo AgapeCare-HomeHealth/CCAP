@@ -1,87 +1,56 @@
-﻿@using CCAP.Web.Features.Admin.Users.Models
+﻿@using CCAP.Web.Features.Admin.Roles.Models
 
 <div class="toolbar-card">
 
-    <div class="row g-3 align-items-end">
+    <div class="row g-4">
 
         <!-- Search -->
 
-        <div class="col-xl-4 col-lg-12">
+        <div class="col-12">
 
             <div class="search-box">
 
                 <i class="bi bi-search"></i>
 
                 <input class="form-control"
-                       placeholder="Search by name, email, or employee no..."
+                       placeholder="Search role name or description..."
                        @bind="Filter.Search" />
 
             </div>
 
         </div>
 
-        <!-- Role -->
-
-        <div class="col-xl-2 col-md-4">
-
-            <label class="toolbar-label">
-                Role
-            </label>
-
-            <select class="form-select"
-                    @bind="Filter.RoleId">
-
-                <option value="">All Roles</option>
-                <option value="1">Administrator</option>
-                <option value="2">Scheduler</option>
-                <option value="3">Care Coordinator</option>
-
-            </select>
-
-        </div>
-
-        <!-- Discipline -->
-
-        <div class="col-xl-2 col-md-4">
-
-            <label class="toolbar-label">
-                Discipline
-            </label>
-
-            <select class="form-select"
-                    @bind="Filter.DisciplineId">
-
-                <option value="">All Disciplines</option>
-                <option value="1">RN</option>
-                <option value="2">LVN</option>
-                <option value="3">PT</option>
-
-            </select>
-
-        </div>
-
         <!-- Status -->
 
-        <div class="col-xl-2 col-md-4">
+        <div class="col-lg-3 col-md-6">
 
             <label class="toolbar-label">
+
                 Status
+
             </label>
 
             <select class="form-select"
                     @bind="Filter.IsActive">
 
                 <option value="">All Status</option>
+
                 <option value="true">Active</option>
+
                 <option value="false">Inactive</option>
 
             </select>
 
         </div>
 
+        <!-- Empty Space -->
+
+        <div class="col-lg-5 d-none d-lg-block">
+        </div>
+
         <!-- Buttons -->
 
-        <div class="col-xl-2">
+        <div class="col-lg-4 col-md-6">
 
             <div class="toolbar-buttons">
 
@@ -114,10 +83,10 @@
 @code {
 
     [Parameter]
-    public UserFilterModel Filter { get; set; } = new();
+    public RoleFilterModel Filter { get; set; } = new();
 
     [Parameter]
-    public EventCallback<UserFilterModel> OnFilter { get; set; }
+    public EventCallback<RoleFilterModel> OnFilter { get; set; }
 
     private async Task ApplyFilter()
     {

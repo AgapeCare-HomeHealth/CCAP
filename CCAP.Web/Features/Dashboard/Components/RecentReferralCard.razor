@@ -1,0 +1,57 @@
+﻿@using CCAP.Web.Features.Dashboard.Models
+
+<div class="widget-card">
+
+    <div class="widget-header">
+
+        Recent Referrals
+
+    </div>
+
+    <table class="table mb-0">
+
+        <tbody>
+
+            @foreach (var referral in Referrals)
+            {
+                <tr>
+
+                    <td>
+
+                        <div class="fw-semibold">
+
+                            @referral.PatientName
+
+                        </div>
+
+                        <small>
+
+                            @referral.ReferralNumber
+
+                        </small>
+
+                    </td>
+
+                    <td class="text-end">
+
+                        @referral.ReferralDate.ToString("MM/dd/yyyy")
+
+                    </td>
+
+                </tr>
+            }
+
+        </tbody>
+
+    </table>
+
+</div>
+
+@code {
+
+    [Parameter]
+
+    public IEnumerable<ReferralSummaryDto> Referrals { get; set; }
+        = Enumerable.Empty<ReferralSummaryDto>();
+
+}

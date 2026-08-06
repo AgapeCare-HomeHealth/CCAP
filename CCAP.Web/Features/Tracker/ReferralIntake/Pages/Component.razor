@@ -1,0 +1,25 @@
+﻿@page "/counter"
+
+<h1>Counter</h1>
+
+<p>@count</p>
+
+<button class="btn btn-primary"
+        @onclick="Increment">
+    Click
+</button>
+
+@code {
+
+    private int count;
+
+    private void Increment()
+    {
+        count++;
+
+        Console.WriteLine(count);
+
+        throw new Exception("Clicked");
+    }
+
+}

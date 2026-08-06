@@ -33,6 +33,8 @@
 
     <UserToolbar Filter="Filter" OnFilter="FilterUsers"/>
 
+    <UserTable Users="Users"/>
+
 </div>
 
 @code{
@@ -52,5 +54,68 @@
         // TODO: Implement filtering logic here, e.g., call an API to fetch filtered users based on the filter criteria.
 
     }
+
+    private List<UserDto> Users = new()
+{
+    new UserDto
+    {
+        UserId = Guid.NewGuid(),
+        EmployeeNo = "EMP001",
+        FirstName = "System",
+        LastName = "Administrator",
+        Email = "admin@ccap.com",
+        Role = "Administrator",
+        Discipline = "IT",
+        IsActive = true
+    },
+
+    new UserDto
+    {
+        UserId = Guid.NewGuid(),
+        EmployeeNo = "EMP002",
+        FirstName = "Jennifer",
+        LastName = "Lopez",
+        Email = "jlopez@ccap.com",
+        Role = "Care Coordinator",
+        Discipline = "RN",
+        IsActive = true
+    },
+
+    new UserDto
+    {
+        UserId = Guid.NewGuid(),
+        EmployeeNo = "EMP003",
+        FirstName = "David",
+        LastName = "Smith",
+        Email = "dsmith@ccap.com",
+        Role = "Scheduler",
+        Discipline = "LVN",
+        IsActive = false
+    },
+
+    new UserDto
+    {
+        UserId = Guid.NewGuid(),
+        EmployeeNo = "EMP004",
+        FirstName = "Maria",
+        LastName = "Garcia",
+        Email = "mgarcia@ccap.com",
+        Role = "Administrator",
+        Discipline = "PT",
+        IsActive = true
+    },
+
+    new UserDto
+    {
+        UserId = Guid.NewGuid(),
+        EmployeeNo = "EMP005",
+        FirstName = "John",
+        LastName = "Carter",
+        Email = "jcarter@ccap.com",
+        Role = "Care Coordinator",
+        Discipline = "OT",
+        IsActive = true
+    }
+};
 
 }
