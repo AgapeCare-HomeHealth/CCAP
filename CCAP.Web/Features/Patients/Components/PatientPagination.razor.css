@@ -1,0 +1,55 @@
+/* ==========================================
+   PAGINATION
+========================================== */
+
+.patient-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 24px;
+    border-top: 1px solid #E5E7EB;
+    background: white;
+}
+
+/* ==========================================
+   INFO
+========================================== */
+
+.pagination-info {
+    font-size: 14px;
+    color: #6B7280;
+}
+
+/* ==========================================
+   CONTROLS
+========================================== */
+
+.pagination-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.page-btn {
+    width: 36px;
+    height: 36px;
+    border: 1px solid #D1D5DB;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    transition: .2s;
+}
+
+    .page-btn:hover:not(:disabled) {
+        background: #17584F;
+    }
+
+    .page-btn.active {
+        background: #1D6F64;
+        border-color: #1D6F64;
+        color: white;
+    }
+
+    .page-btn:disabled {
+        opacity: .45;
+        cursor: not-allowed;
+    }

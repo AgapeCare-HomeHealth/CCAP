@@ -1,0 +1,69 @@
+﻿@using CCAP.Web.Features.Patients.Models
+@inject NavigationManager Navigation
+
+<div class="patient-table-card">
+
+    <table class="patient-table">
+
+        <thead>
+
+            <tr>
+
+                <th>Patient</th>
+                <th>MRN</th>
+                <th>Status</th>
+                <th>Primary Diagnosis</th>
+                <th>Assigned Clinician</th>
+                <th>Next Visit</th>
+                <th></th>
+
+            </tr>
+
+        </thead>
+
+        <tbody>
+
+            @foreach (var patient in Patients)
+            {
+                <tr class="clickable-row"
+                    @onclick="() => OpenPatient(patient)">
+
+                    <td>@patient.Name</td>
+
+                    <td>@patient.MRN</td>
+
+                    <td>
+                        <PatientStatusBadge Status="@patient.Status" />
+                    </td>
+
+                    <td>@patient.PrimaryDiagnosis</td>
+
+                    <td>@patient.AssignedClinician</td>
+
+                    <td>@patient.NextVisit</td>
+
+                    <td @onclick:stopPropagation="true">
+                        <PatientActionMenu />
+                    </td>
+
+                </tr>
+            }
+
+        </tbody>
+
+    </table>
+
+</div>
+
+@code {
+
+    [Parameter]
+    public List<PatientListItem> Patients { get; set; } = [];
+
+    private void OpenPatient(PatientListItem patient)
+    {
+        Navigation.NavigateTo("/tracker/patient");
+    }
+
+}
+

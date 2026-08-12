@@ -1,0 +1,174 @@
+@page "/admin/roles"
+@attribute [CcapAuthorize]
+
+@using CCAP.Web.Features.Admin.Roles.Components
+@using CCAP.Web.Features.Admin.Roles.Models
+@using CCAP.Web.Features.Admin.Roles.Services
+@inject RoleService RoleService
+
+<PageTitle>Roles & Permissions</PageTitle>
+
+<div class="user-management-page">
+    <div class="page-header">
+        <div>
+            <h2>Roles & Permissions</h2>
+            <p>Manage system roles and their assigned permissions.</p>
+        </div>
+        <button class="btn btn-success float-right">
+            <i class="bi bi-plus-circle"></i>
+            Add New Role
+        </button>
+    </div>
+
+    @if (IsLoading)
+    {
+        <div class="py-5 text-center">Loading roles...</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert alert-danger">@ErrorMessage</div>
+    }
+    else
+    {
+        <RoleStatistics Statistics="Statistics"/>
+        <RoleToolbar Filter="Filter" OnFilter="FilterRoles"/>
+        <RoleTable Roles="Roles"
+            OnManagePermissions="OpenPermissions" />
+
+<RolePermissionModal Visible="ShowPermissionModal"
+                     RoleName="SelectedRoleName"
+                     Permissions="AllPermissions"
+                     SelectedPermissionIds="SelectedPermissionIds"
+                     Loading="PermissionLoading"
+                     ErrorMessage="PermissionError"
+                     OnSave="SavePermissions"
+                     OnClose="ClosePermissions" />
+    }
+</div>
+
+@code {
+    private RoleStatisticsModel Statistics = new();
+    private RoleFilterModel Filter = new();
+    private List<RoleDto> Roles = [];
+    private bool IsLoading;
+    private string? ErrorMessage;
+
+    private List<PermissionDto> AllPermissions = [];
+    private HashSet<Guid> SelectedPermissionIds = [];
+    private bool ShowPermissionModal;
+    private bool PermissionLoading;
+    private string SelectedRoleName = string.Empty;
+    private Guid SelectedRoleId;
+    private string? PermissionError;
+
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+
+        try
+        {
+            var roles = await RoleService.GetRolesAsync();
+            Roles = roles.Select(x => new RoleDto
+            {
+                RoleId = x.RoleId,
+                RoleName = x.RoleName,
+                Description = x.Description,
+                UserCount = x.UserCount,
+                PermissionCount = x.PermissionCount,
+                IsActive = x.IsActive
+            }).ToList();
+
+            Statistics = new RoleStatisticsModel
+            {
+                TotalRoles = Roles.Count,
+                TotalPermissions = Roles.Sum(x => x.PermissionCount),
+                AssignedUsers = Roles.Sum(x => x.UserCount),
+                CustomRoles = Roles.Count(x =>
+                    !new[] { "Administrator", "Care Coordinator", "Scheduler" }
+                        .Contains(x.RoleName, StringComparer.OrdinalIgnoreCase))
+            };
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Unable to load roles from CCAP API: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private Task FilterRoles(RoleFilterModel filter)
+    {
+        Filter = filter;
+        return Task.CompletedTask;
+    }
+
+    private async Task OpenPermissions(RoleDto role)
+    {
+        SelectedRoleId = role.RoleId;
+        SelectedRoleName = role.RoleName;
+        SelectedPermissionIds = [];
+        PermissionError = null;
+        ShowPermissionModal = true;
+        PermissionLoading = true;
+
+        try
+        {
+            var allTask = RoleService.GetPermissionsAsync();
+            var roleTask = RoleService.GetRoleAsync(role.RoleId);
+
+            AllPermissions = await allTask;
+            var details = await roleTask;
+
+            if (details is not null)
+            {
+                SelectedPermissionIds = details.Permissions
+                    .Select(x => x.PermissionId)
+                    .ToHashSet();
+            }
+        }
+        catch (Exception ex)
+        {
+            PermissionError = $"Unable to load role permissions: {ex.Message}";
+        }
+        finally
+        {
+            PermissionLoading = false;
+        }
+    }
+
+    private async Task SavePermissions()
+    {
+        PermissionError = null;
+        PermissionLoading = true;
+
+        try
+        {
+            await RoleService.SetPermissionsAsync(
+                SelectedRoleId,
+                SelectedPermissionIds);
+
+            ShowPermissionModal = false;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            PermissionError = $"Unable to save permissions: {ex.Message}";
+        }
+        finally
+        {
+            PermissionLoading = false;
+        }
+    }
+
+    private void ClosePermissions()
+    {
+        ShowPermissionModal = false;
+        PermissionError = null;
+    }
+}

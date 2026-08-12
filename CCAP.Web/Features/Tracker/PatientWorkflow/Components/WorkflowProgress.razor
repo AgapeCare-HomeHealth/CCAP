@@ -1,0 +1,92 @@
+﻿@using CCAP.Web.Features.Tracker.PatientWorkflow.Model
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Models
+
+<div class="workflow-card">
+
+    <div class="workflow-header">
+
+        <h5>Patient Workflow</h5>
+
+        <small>
+            Track the patient's current progress.
+        </small>
+
+    </div>
+
+    <div class="workflow-container">
+
+        @for (int i = 0; i < Stages.Count; i++)
+        {
+            var stage = Stages[i];
+
+            <div class="workflow-step">
+
+                <div class="circle @GetCircleClass(stage.Status)">
+
+                    @switch (stage.Status)
+                    {
+                        case WorkflowStatus.Completed:
+                            <i class="bi bi-check-lg"></i>
+                            break;
+
+                        case WorkflowStatus.Current:
+                            <i class="bi bi-hourglass-split"></i>
+                            break;
+
+                        default:
+                            <i class="bi bi-circle"></i>
+                            break;
+                    }
+
+                </div>
+
+                <div class="workflow-title">
+
+                    @stage.StageName
+
+                </div>
+
+                <div class="workflow-status">
+
+                    @stage.Description
+
+                </div>
+
+                @if (stage.CompletedDate.HasValue)
+                {
+                    <div class="workflow-date">
+
+                        @stage.CompletedDate.Value.ToString("MM/dd/yyyy")
+
+                    </div>
+                }
+
+            </div>
+
+            @if (i < Stages.Count - 1)
+            {
+                <div class="workflow-line @(Stages[i].Status == WorkflowStatus.Completed ? "completed" : "")">
+                </div>
+            }
+        }
+
+    </div>
+
+</div>
+
+@code {
+
+    [Parameter]
+    public List<WorkflowStageDto> Stages { get; set; } = new();
+
+    private static string GetCircleClass(WorkflowStatus status)
+    {
+        return status switch
+        {
+            WorkflowStatus.Completed => "completed",
+            WorkflowStatus.Current => "current",
+            _ => "pending"
+        };
+    }
+
+}

@@ -1,0 +1,379 @@
+@page "/admin/users"
+@attribute [CcapAuthorize]
+
+@using CCAP.Web.Features.Admin.Users.Components
+@using CCAP.Web.Features.Admin.Users.Models
+@using CCAP.Web.Features.Admin.Users.Services
+@inject UserServices UserService
+@inject AdminLookupService LookupService
+@inject CCAP.Web.Features.Admin.Roles.Services.RoleService RoleService
+
+<PageTitle>User Management</PageTitle>
+
+<div class="user-management-page">
+    <div class="page-header">
+        <div>
+            <h2>User Management</h2>
+            <p>Manage users, roles, disciplines, and account status.</p>
+        </div>
+
+        <button class="btn btn-success" @onclick="OpenCreate">
+            <i class="bi bi-person-plus"></i>
+            Add New User
+        </button>
+    </div>
+
+    <UserStatistics Statistics="Statistics" />
+
+    <UserToolbar Filter="Filter" Roles="Roles" Disciplines="Disciplines" OnFilter="FilterUsers"/>
+
+    @if (IsLoading)
+    {
+        <div class="py-5 text-center">Loading users...</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert alert-danger">@ErrorMessage</div>
+    }
+    else
+    {
+        <UserTable Users="FilteredUsers"
+                   OnEdit="OpenEdit"
+                   OnActivate="Activate"
+                   OnDeactivate="Deactivate" />
+    }
+</div>
+
+@if (ShowEditor)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        @(IsNew ? "Create User" : "Edit User")
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseEditor"></button>
+                </div>
+
+                <EditForm Model="Editor" OnValidSubmit="SaveUser">
+                    <DataAnnotationsValidator />
+
+                    <div class="modal-body">
+                        @if (!string.IsNullOrWhiteSpace(EditorError))
+                        {
+                            <div class="alert alert-danger">@EditorError</div>
+                        }
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Employee No.</label>
+                                <InputText class="form-control" @bind-Value="Editor.EmployeeNo" />
+                                <ValidationMessage For="() => Editor.EmployeeNo" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Email</label>
+                                <InputText class="form-control" @bind-Value="Editor.Email" />
+                                <ValidationMessage For="() => Editor.Email" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">First Name</label>
+                                <InputText class="form-control" @bind-Value="Editor.FirstName" />
+                                <ValidationMessage For="() => Editor.FirstName" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Last Name</label>
+                                <InputText class="form-control" @bind-Value="Editor.LastName" />
+                                <ValidationMessage For="() => Editor.LastName" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Mobile No.</label>
+                                <InputText class="form-control" @bind-Value="Editor.MobileNo" />
+                            </div>
+
+                            @if (IsNew)
+                            {
+                                <div class="col-md-6">
+                                    <label class="form-label">Temporary Password</label>
+                                    <InputText class="form-control" type="password" @bind-Value="Editor.Password" />
+                                    <small class="text-muted">Use a temporary password for testing.</small>
+                                </div>
+                            }
+
+                            <div class="col-md-6">
+                                <label class="form-label">Role</label>
+                                <InputSelect class="form-select" @bind-Value="Editor.RoleId">
+                                    <option value="@Guid.Empty">Select role</option>
+                                    @foreach (var role in Roles.Where(x => x.IsActive))
+                                    {
+                                        <option value="@role.RoleId">@role.RoleName</option>
+                                    }
+                                </InputSelect>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Discipline</label>
+                                <InputSelect class="form-select" @bind-Value="Editor.DisciplineId">
+                                    <option value="">No discipline</option>
+                                    @foreach (var discipline in Disciplines)
+                                    {
+                                        <option value="@discipline.Id">@discipline.Name</option>
+                                    }
+                                </InputSelect>
+                            </div>
+
+                            @if (!IsNew)
+                            {
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input class="form-check-input"
+                                               type="checkbox"
+                                               @bind="Editor.IsActive" />
+                                        <label class="form-check-label">Active account</label>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" @onclick="CloseEditor">Cancel</button>
+                        <button type="submit" class="btn btn-success" disabled="@IsSaving">
+                            @(IsSaving ? "Saving..." : "Save User")
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private UserStatisticsModel Statistics = new();
+    private UserFilterModel Filter = new();
+    private List<UserDto> Users = [];
+    private List<UserDto> FilteredUsers = [];
+    private List<RoleLookupDto> Roles = [];
+    private List<LookupDto> Disciplines = [];
+
+    private UserEditModel Editor = new();
+    private bool IsLoading;
+    private bool IsSaving;
+    private bool ShowEditor;
+    private bool IsNew;
+    private string? ErrorMessage;
+    private string? EditorError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLookupsAsync();
+        await LoadUsersAsync();
+    }
+
+    private async Task LoadLookupsAsync()
+    {
+        try
+        {
+            var rolesTask = RoleService.GetRolesAsync();
+            var disciplinesTask = LookupService.GetDisciplinesAsync();
+
+            var roles = await rolesTask;
+            Disciplines = await disciplinesTask;
+
+            Roles = roles.Select(x => new RoleLookupDto
+            {
+                RoleId = x.RoleId,
+                RoleName = x.RoleName,
+                IsActive = x.IsActive
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Unable to load roles and disciplines: {ex.Message}";
+        }
+    }
+
+    private async Task LoadUsersAsync()
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+
+        try
+        {
+            Users = await UserService.GetUsersAsync();
+            ApplyFilter();
+            UpdateStatistics();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Unable to load users from CCAP API: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private Task FilterUsers(UserFilterModel filter)
+    {
+        Filter = filter;
+        ApplyFilter();
+        return Task.CompletedTask;
+    }
+
+    private void ApplyFilter()
+    {
+        IEnumerable<UserDto> query = Users;
+
+        if (!string.IsNullOrWhiteSpace(Filter.Search))
+        {
+            var search = Filter.Search.Trim();
+            query = query.Where(x =>
+                x.FullName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                x.Email.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                x.EmployeeNo.Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (Filter.RoleId.HasValue && Filter.RoleId.Value != Guid.Empty)
+        {
+            query = query.Where(x => x.RoleId == Filter.RoleId.Value);
+        }
+
+        if (Filter.DisciplineId.HasValue && Filter.DisciplineId.Value != Guid.Empty)
+        {
+            query = query.Where(x => x.DisciplineId == Filter.DisciplineId.Value);
+        }
+
+        if (Filter.IsActive.HasValue)
+        {
+            query = query.Where(x => x.IsActive == Filter.IsActive.Value);
+        }
+
+        FilteredUsers = query.ToList();
+    }
+
+    private void UpdateStatistics()
+    {
+        Statistics = new UserStatisticsModel
+        {
+            TotalUsers = Users.Count,
+            ActiveUsers = Users.Count(x => x.IsActive),
+            InactiveUsers = Users.Count(x => !x.IsActive),
+            Administrators = Users.Count(x =>
+                string.Equals(x.Role, "Administrator", StringComparison.OrdinalIgnoreCase))
+        };
+    }
+
+    private void OpenCreate()
+    {
+        IsNew = true;
+        EditorError = null;
+        Editor = new UserEditModel
+        {
+            RoleId = Roles.FirstOrDefault(x => x.IsActive)?.RoleId ?? Guid.Empty,
+            IsActive = true
+        };
+        ShowEditor = true;
+    }
+
+    private void OpenEdit(UserDto user)
+    {
+        IsNew = false;
+        EditorError = null;
+        Editor = new UserEditModel
+        {
+            UserId = user.UserId,
+            EmployeeNo = user.EmployeeNo,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Email = user.Email,
+            MobileNo = user.MobileNo,
+            RoleId = user.RoleId,
+            DisciplineId = user.DisciplineId,
+            IsActive = user.IsActive
+        };
+        ShowEditor = true;
+    }
+
+    private void CloseEditor()
+    {
+        ShowEditor = false;
+        EditorError = null;
+    }
+
+    private async Task SaveUser()
+    {
+        IsSaving = true;
+        EditorError = null;
+
+        try
+        {
+            if (Editor.RoleId == Guid.Empty)
+            {
+                EditorError = "Please select a role.";
+                return;
+            }
+
+            if (IsNew)
+            {
+                if (string.IsNullOrWhiteSpace(Editor.Password))
+                {
+                    EditorError = "A temporary password is required for a new user.";
+                    return;
+                }
+
+                await UserService.CreateUserAsync(Editor);
+            }
+            else
+            {
+                await UserService.UpdateUserAsync(Editor);
+
+                if (Editor.IsActive)
+                    await UserService.ActivateUserAsync(Editor.UserId);
+                else
+                    await UserService.DeactivateUserAsync(Editor.UserId);
+            }
+
+            CloseEditor();
+            await LoadUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            EditorError = ex.Message;
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    private async Task Activate(UserDto user)
+    {
+        try
+        {
+            await UserService.ActivateUserAsync(user.UserId);
+            await LoadUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+    }
+
+    private async Task Deactivate(UserDto user)
+    {
+        try
+        {
+            await UserService.DeactivateUserAsync(user.UserId);
+            await LoadUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+    }
+}

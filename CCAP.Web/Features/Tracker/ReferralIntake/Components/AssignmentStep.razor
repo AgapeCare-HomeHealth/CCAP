@@ -1,0 +1,153 @@
+@using CCAP.Web.Features.Admin.Users.Models
+@using CCAP.Web.Features.Admin.Users.Services
+@inject UserServices UserService
+@inject AdminLookupService LookupService
+
+<div class="step-card">
+    <div class="step-title">
+        <h4>Assignment</h4>
+        <p>Assign the referral and initialize the patient's workflow.</p>
+    </div>
+
+    @if (IsLoading)
+    {
+        <div class="py-4 text-center">Loading assignment options...</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert alert-danger">@ErrorMessage</div>
+    }
+    else
+    {
+        <h5 class="section-heading">Assignment Details</h5>
+
+        <div class="row g-4">
+            <div class="col-md-6">
+                <label class="form-label">Care Coordinator</label>
+                <select class="form-select" @bind="SelectedCoordinatorId">
+                    <option value="">Select Coordinator</option>
+                    @foreach (var user in Coordinators)
+                    {
+                        <option value="@user.UserId">@user.FullName</option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Assigned Clinician</label>
+                <select class="form-select" @bind="SelectedClinicianId">
+                    <option value="">Select Clinician</option>
+                    @foreach (var user in Clinicians)
+                    {
+                        <option value="@user.UserId">@user.FullName</option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Discipline</label>
+                <select class="form-select" @bind="SelectedDisciplineId">
+                    <option value="">Select Discipline</option>
+                    @foreach (var discipline in Disciplines)
+                    {
+                        <option value="@discipline.Id">@discipline.Name</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <hr />
+
+        <h5 class="section-heading">Initial Scheduling</h5>
+
+        <div class="row g-4">
+            <div class="col-md-4">
+                <label class="form-label">Target SOC Date</label>
+                <input type="date" class="form-control" @bind="SocDate" />
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Visit Priority</label>
+                <select class="form-select" @bind="VisitPriority">
+                    <option value="">Select Priority</option>
+                    <option value="Routine">Routine</option>
+                    <option value="Urgent">Urgent</option>
+                    <option value="STAT">STAT</option>
+                </select>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Case Status</label>
+                <select class="form-select" @bind="CaseStatus">
+                    <option value="">Select Status</option>
+                    <option value="Active">Active</option>
+                    <option value="Pending">Pending</option>
+                </select>
+            </div>
+        </div>
+
+        <hr />
+
+        <h5 class="section-heading">Workflow Initialization</h5>
+        <p class="text-muted">
+            Workflow tasks will be created by the application after the referral is submitted.
+        </p>
+
+        <hr />
+
+        <h5 class="section-heading">Internal Notes</h5>
+        <textarea class="form-control" rows="5"
+                  @bind="InternalNotes"
+                  placeholder="Coordinator notes..."></textarea>
+    }
+</div>
+
+@code {
+    private List<UserDto> Coordinators = [];
+    private List<UserDto> Clinicians = [];
+    private List<LookupDto> Disciplines = [];
+
+    private string? SelectedCoordinatorId;
+    private string? SelectedClinicianId;
+    private string? SelectedDisciplineId;
+    private DateTime? SocDate;
+    private string? VisitPriority;
+    private string? CaseStatus;
+    private string? InternalNotes;
+
+    private bool IsLoading;
+    private string? ErrorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        IsLoading = true;
+        try
+        {
+            var usersTask = UserService.GetUsersAsync();
+            var disciplinesTask = LookupService.GetDisciplinesAsync();
+
+            var users = await usersTask;
+            Disciplines = await disciplinesTask;
+
+            Coordinators = users
+                .Where(x => x.IsActive && (
+                    x.Role.Contains("Coordinator", StringComparison.OrdinalIgnoreCase) ||
+                    x.Role.Contains("Administrator", StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+
+            Clinicians = users
+                .Where(x => x.IsActive && (
+                    !string.IsNullOrWhiteSpace(x.Discipline) ||
+                    x.Role.Contains("Clinician", StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Unable to load assignment options: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+}

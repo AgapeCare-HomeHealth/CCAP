@@ -1,0 +1,14 @@
+@inject NavigationManager Navigation
+
+<div class="container py-5 text-center">
+    <p class="text-muted">Redirecting to login...</p>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        var relative = Navigation.ToBaseRelativePath(Navigation.Uri);
+        var returnUrl = string.IsNullOrWhiteSpace(relative) ? "/dashboard" : "/" + relative;
+        Navigation.NavigateTo($"/login?returnUrl={Uri.EscapeDataString(returnUrl)}", replace: true);
+    }
+}

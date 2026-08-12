@@ -1,0 +1,90 @@
+@page "/login"
+@attribute [AllowAnonymous]
+@layout LoginLayout
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using CCAP.Web.Features.Authentication.Services
+@using CCAP.Web.Features.Authentication.State
+@inject AuthenticationService AuthenticationService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+
+<PageTitle>Login</PageTitle>
+
+<div class="container py-5" style="max-width: 460px;">
+    <div class="card shadow-sm">
+        <div class="card-body p-4">
+            <h3 class="mb-2">CCAP Login</h3>
+            <p class="text-muted">Sign in to access the CCAP application.</p>
+
+            @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+            {
+                <div class="alert alert-danger">@ErrorMessage</div>
+            }
+
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                <input class="form-control" @bind="Email" @bind:event="oninput" type="email" autocomplete="username" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Password</label>
+                <input class="form-control" @bind="Password" @bind:event="oninput" type="password" autocomplete="current-password" />
+            </div>
+
+            <button class="btn btn-primary w-100"
+                    @onclick="LoginAsync"
+                    disabled="@IsLoading">
+                @(IsLoading ? "Signing in..." : "Sign In")
+            </button>
+
+            <div class="small text-muted mt-3">
+                Development account: <strong>admin@ccap.local</strong> / <strong>Admin123!</strong>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    private string? ReturnUrl { get; set; }
+
+    private string Email = string.Empty;
+    private string Password = string.Empty;
+    private string? ErrorMessage;
+    private bool IsLoading;
+
+    private async Task LoginAsync()
+    {
+        ErrorMessage = null;
+        IsLoading = true;
+
+        try
+        {
+            var result = await AuthenticationService.LoginAsync(Email, Password);
+
+            if (!result.Success)
+            {
+                ErrorMessage = result.Message;
+                return;
+            }
+
+            if (AuthenticationStateProvider is CcapAuthenticationStateProvider provider)
+                await provider.NotifyLoginAsync();
+
+            var target = string.IsNullOrWhiteSpace(ReturnUrl) || !ReturnUrl.StartsWith('/')
+                ? "/dashboard"
+                : ReturnUrl;
+
+            Navigation.NavigateTo(target);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Unable to connect to CCAP API: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+}

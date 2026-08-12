@@ -1,0 +1,57 @@
+﻿@using CCAP.Web.Features.Dashboard.Models
+
+<div class="widget-card">
+
+    <div class="widget-header">
+
+        Upcoming SOC (Next 7 Days)
+
+    </div>
+
+    <table class="table mb-0">
+
+        <tbody>
+
+            @foreach (var visit in Visits)
+            {
+                <tr>
+
+                    <td>
+
+                        <div class="fw-semibold">
+
+                            @visit.PatientName
+
+                        </div>
+
+                        <small>
+
+                            @visit.Clinician
+
+                        </small>
+
+                    </td>
+
+                    <td class="text-end">
+
+                        @visit.VisitDate.ToString("MM/dd/yyyy hh:mm tt")
+
+                    </td>
+
+                </tr>
+            }
+
+        </tbody>
+
+    </table>
+
+</div>
+
+@code {
+
+    [Parameter]
+
+    public IEnumerable<UpcomingVisitDto> Visits { get; set; }
+        = Enumerable.Empty<UpcomingVisitDto>();
+
+}

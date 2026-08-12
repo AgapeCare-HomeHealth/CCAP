@@ -1,0 +1,45 @@
+﻿@using CCAP.Web.Features.Dashboard.Models
+
+<div class="widget-card">
+
+    <div class="widget-header">
+
+        Announcements
+
+    </div>
+
+    <div class="announcement-list">
+
+        @foreach (var item in Announcements)
+        {
+
+            <div class="announcement-item">
+
+                <div class="fw-semibold">
+
+                    @item.Title
+
+                </div>
+
+                <small>
+
+                    @item.Message
+
+                </small>
+
+            </div>
+
+        }
+
+    </div>
+
+</div>
+
+@code {
+
+    [Parameter]
+
+    public IEnumerable<AnnouncementDto> Announcements { get; set; }
+        = Enumerable.Empty<AnnouncementDto>();
+
+}

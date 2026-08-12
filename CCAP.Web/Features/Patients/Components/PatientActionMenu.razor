@@ -1,0 +1,45 @@
+﻿<div class="action-menu">
+
+    <button class="action-button"
+            @onclick="ToggleMenu">
+
+        <i class="bi bi-three-dots-vertical"></i>
+
+    </button>
+
+    @if (showMenu)
+    {
+        <div class="action-dropdown">
+
+            <button>
+                <i class="bi bi-eye"></i>
+                <span>View</span>
+            </button>
+
+            <button>
+                <i class="bi bi-pencil-square"></i>
+                <span>Edit</span>
+            </button>
+
+            <hr />
+
+            <button class="danger">
+                <i class="bi bi-archive"></i>
+                <span>Archive</span>
+            </button>
+
+        </div>
+    }
+
+</div>
+
+@code {
+
+    private bool showMenu;
+
+    private void ToggleMenu()
+    {
+        showMenu = !showMenu;
+    }
+
+}
