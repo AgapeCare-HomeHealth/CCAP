@@ -1,0 +1,79 @@
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Models
+
+@if (Visible)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <EditForm Model="Model" OnValidSubmit="Save">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Edit Patient</h5>
+                        <button type="button" class="btn-close" @onclick="Close"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+                        {
+                            <div class="alert alert-danger">@ErrorMessage</div>
+                        }
+
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">First Name</label>
+                                <InputText class="form-control" @bind-Value="Model.FirstName" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Middle Name</label>
+                                <InputText class="form-control" @bind-Value="Model.MiddleName" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Last Name</label>
+                                <InputText class="form-control" @bind-Value="Model.LastName" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">MRN</label>
+                                <InputText class="form-control" @bind-Value="Model.MRN" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Status</label>
+                                <InputSelect class="form-select" @bind-Value="Model.Status">
+                                    <option>Active</option>
+                                    <option>Pending</option>
+                                    <option>On Hold</option>
+                                    <option>Discharged</option>
+                                </InputSelect>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">SOC Date</label>
+                                <InputDate class="form-control" @bind-Value="Model.SocDate" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Coordinator</label>
+                                <InputText class="form-control" @bind-Value="Model.Coordinator" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" @onclick="Close">Cancel</button>
+                        <button type="submit" class="btn btn-success" disabled="@Saving">
+                            @(Saving ? "Saving..." : "Save Changes")
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public PatientEditModel Model { get; set; } = new();
+    [Parameter] public bool Saving { get; set; }
+    [Parameter] public string? ErrorMessage { get; set; }
+    [Parameter] public EventCallback OnSave { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private Task Save() => OnSave.InvokeAsync();
+    private Task Close() => OnClose.InvokeAsync();
+}

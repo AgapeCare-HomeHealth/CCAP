@@ -1,0 +1,68 @@
+@using CCAP.Web.Features.Admin.Roles.Models
+
+@if (Visible)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <EditForm Model="Model" OnValidSubmit="Save">
+                    <DataAnnotationsValidator />
+                    <div class="modal-header">
+                        <h5 class="modal-title">@(IsNew ? "Add New Role" : "Edit Role")</h5>
+                        <button type="button" class="btn-close" @onclick="Close"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+                        {
+                            <div class="alert alert-danger">@ErrorMessage</div>
+                        }
+
+                        <div class="mb-3">
+                            <label class="form-label">Role Name</label>
+                            <InputText class="form-control" @bind-Value="Model.RoleName" />
+                            @if (string.IsNullOrWhiteSpace(Model.RoleName))
+                            {
+                                <div class="text-danger small mt-1">Role name is required.</div>
+                            }
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <InputTextArea class="form-control" rows="3" @bind-Value="Model.Description" />
+                        </div>
+
+                        <div class="form-check">
+                            <InputCheckbox class="form-check-input" @bind-Value="Model.IsActive" />
+                            <label class="form-check-label">Active role</label>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" @onclick="Close">Cancel</button>
+                        <button type="submit" class="btn btn-success" disabled="@Saving">
+                            @(Saving ? "Saving..." : "Save Role")
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public bool IsNew { get; set; }
+    [Parameter] public RoleEditModel Model { get; set; } = new();
+    [Parameter] public bool Saving { get; set; }
+    [Parameter] public string? ErrorMessage { get; set; }
+    [Parameter] public EventCallback OnSave { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private Task Save() =>
+        string.IsNullOrWhiteSpace(Model.RoleName)
+            ? Task.CompletedTask
+            : OnSave.InvokeAsync();
+
+    private Task Close() => OnClose.InvokeAsync();
+}

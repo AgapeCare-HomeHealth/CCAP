@@ -1,0 +1,90 @@
+@using CCAP.Web.Features.Admin.Roles.Models
+
+<div class="table-card">
+    <div class="table-responsive">
+        <table class="table role-table mb-0">
+            <thead>
+                <tr>
+                    <th>Role</th>
+                    <th>Users</th>
+                    <th>Permissions</th>
+                    <th>Status</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Roles.Any())
+                {
+                    @foreach (var role in Roles)
+                    {
+                        <tr>
+                            <td>
+                                <div class="role-info">
+                                    <div>
+                                        <div class="role-name">@role.RoleName</div>
+                                        @if (!string.IsNullOrWhiteSpace(role.Description))
+                                        {
+                                            <div class="role-description text-muted">@role.Description</div>
+                                        }
+                                    </div>
+                                </div>
+                            </td>
+                            <td><span class="user-count">@role.UserCount Users</span></td>
+                            <td><span class="permission-badge">@role.PermissionCount Permissions</span></td>
+                            <td>
+                                @if (role.IsActive)
+                                {
+                                    <span class="status-active"><span class="status-dot"></span> Active</span>
+                                }
+                                else
+                                {
+                                    <span class="status-inactive"><span class="status-dot"></span> Inactive</span>
+                                }
+                            </td>
+                            <td class="text-center">
+                                @if (CanManage)
+                                {
+                                    <div class="action-buttons">
+                                        <button type="button" class="action-btn" title="Manage Permissions"
+                                                @onclick="() => OnManagePermissions.InvokeAsync(role)">
+                                            <i class="bi bi-shield-lock"></i>
+                                        </button>
+                                        <button type="button" class="action-btn" title="Edit Role"
+                                                @onclick="() => OnEdit.InvokeAsync(role)">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+                                        <button type="button" class="action-btn text-danger" title="Delete Role"
+                                                disabled="@(role.UserCount > 0)"
+                                                @onclick="() => OnDelete.InvokeAsync(role)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">View only</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr><td colspan="5" class="text-center py-5">No roles found.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="table-footer">
+        <div class="footer-left">Showing @Roles.Count() roles</div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public IEnumerable<RoleDto> Roles { get; set; } = [];
+    [Parameter] public bool CanManage { get; set; }
+    [Parameter] public EventCallback<RoleDto> OnManagePermissions { get; set; }
+    [Parameter] public EventCallback<RoleDto> OnEdit { get; set; }
+    [Parameter] public EventCallback<RoleDto> OnDelete { get; set; }
+}

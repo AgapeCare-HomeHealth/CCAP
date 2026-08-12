@@ -1,0 +1,471 @@
+﻿<div class="insurance-page">
+
+    <!-- ================= Status ================= -->
+
+    <div class="row g-4 mb-4">
+
+        <div class="col-lg-4">
+
+            <div class="status-card success">
+
+                <div>
+
+                    <h6>Coverage Status</h6>
+
+                    <h3>Active</h3>
+
+                    <small>Verified Aug 5, 2026</small>
+
+                </div>
+
+                <i class="bi bi-shield-check"></i>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-4">
+
+            <div class="status-card warning">
+
+                <div>
+
+                    <h6>Authorization</h6>
+
+                    <h3>Pending</h3>
+
+                    <small>Waiting for approval</small>
+
+                </div>
+
+                <i class="bi bi-hourglass-split"></i>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-4">
+
+            <div class="status-card danger">
+
+                <div>
+
+                    <h6>Expires</h6>
+
+                    <h3>5 Days</h3>
+
+                    <small>08/12/2026</small>
+
+                </div>
+
+                <i class="bi bi-calendar-x"></i>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ================= Insurance ================= -->
+
+    <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card-header bg-white">
+
+            <h5>Insurance Information</h5>
+
+        </div>
+
+        <div class="card-body">
+
+            <div class="row g-4">
+
+                <div class="col-md-4">
+
+                    <label class="form-label">
+
+                        Primary Payor
+
+                    </label>
+
+                    <select class="form-select">
+
+                        <option>Medicare</option>
+                        <option>Medicaid</option>
+                        <option>Aetna</option>
+
+                    </select>
+
+                </div>
+
+                <div class="col-md-4">
+
+                    <label class="form-label">
+
+                        Member ID
+
+                    </label>
+
+                    <input class="form-control" />
+
+                </div>
+
+                <div class="col-md-4">
+
+                    <label class="form-label">
+
+                        Group Number
+
+                    </label>
+
+                    <input class="form-control" />
+
+                </div>
+
+                <div class="col-md-6">
+
+                    <label class="form-label">
+
+                        Policy Holder
+
+                    </label>
+
+                    <input class="form-control" />
+
+                </div>
+
+                <div class="col-md-6">
+
+                    <label class="form-label">
+
+                        Secondary Insurance
+
+                    </label>
+
+                    <select class="form-select">
+
+                        <option>None</option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ================= Authorization ================= -->
+
+    <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card-header bg-white d-flex justify-content-between">
+
+            <h5>
+
+                Authorization
+
+            </h5>
+
+            <button type="button" class="btn btn-success" @onclick="OpenAuthorization">
+                <i class="bi bi-plus-circle"></i>
+                Add Authorization
+            </button>
+
+        </div>
+
+        <div class="card-body">
+
+            <table class="table table-hover">
+
+                <thead>
+
+                    <tr>
+
+                        <th>Authorization #</th>
+
+                        <th>Service</th>
+
+                        <th>Approved Visits</th>
+
+                        <th>Start</th>
+
+                        <th>End</th>
+
+                        <th>Status</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    <tr>
+
+                        <td>AUTH-12345</td>
+
+                        <td>Skilled Nursing</td>
+
+                        <td>12</td>
+
+                        <td>08/01/2026</td>
+
+                        <td>08/30/2026</td>
+
+                        <td>
+
+                            <span class="badge bg-warning text-dark">
+
+                                Pending
+
+                            </span>
+
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+    <!-- ================= Activity ================= -->
+
+    <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card-header bg-white d-flex justify-content-between">
+
+            <h5>
+
+                Insurance Activity
+
+            </h5>
+
+            <button type="button" class="btn btn-primary" @onclick="OpenActivity">
+                <i class="bi bi-plus-circle"></i>
+                New Activity
+            </button>
+
+        </div>
+
+        <div class="card-body">
+
+            <div class="timeline">
+
+                <div class="timeline-item">
+
+                    <div class="timeline-dot bg-success"></div>
+
+                    <div>
+
+                        <strong>
+
+                            Coverage Verified
+
+                        </strong>
+
+                        <p class="mb-1">
+
+                            Jennifer LVN called Medicare and confirmed eligibility.
+
+                        </p>
+
+                        <small>
+
+                            Ref # A12345678 • Aug 5, 2026 9:15 AM
+
+                        </small>
+
+                    </div>
+
+                </div>
+
+                <div class="timeline-item">
+
+                    <div class="timeline-dot bg-warning"></div>
+
+                    <div>
+
+                        <strong>
+
+                            Authorization Requested
+
+                        </strong>
+
+                        <p class="mb-1">
+
+                            Fax sent to insurance.
+
+                        </p>
+
+                        <small>
+
+                            Aug 5, 2026 10:30 AM
+
+                        </small>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ================= Documents ================= -->
+
+    <div class="card shadow-sm border-0">
+
+        <div class="card-header bg-white d-flex justify-content-between">
+
+            <h5>
+
+                Insurance Documents
+
+            </h5>
+
+            <button type="button" class="btn btn-outline-success" @onclick="OpenUpload">
+                <i class="bi bi-upload"></i>
+                Upload
+            </button>
+
+        </div>
+
+        <div class="card-body p-0">
+
+            <table class="table table-hover mb-0">
+
+                <thead>
+
+                    <tr>
+
+                        <th>Document</th>
+
+                        <th>Category</th>
+
+                        <th>Uploaded By</th>
+
+                        <th>Date</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    <tr>
+
+                        <td>Insurance Card.pdf</td>
+
+                        <td>Insurance Card</td>
+
+                        <td>Jennifer LVN</td>
+
+                        <td>08/05/2026</td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>Authorization Letter.pdf</td>
+
+                        <td>Authorization</td>
+
+                        <td>Jennifer LVN</td>
+
+                        <td>08/06/2026</td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+@if (ShowModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">@ModalTitle</h5><button type="button" class="btn-close" @onclick="CloseModal"></button></div>
+                <div class="modal-body">
+                    @if (ModalType == "Authorization")
+                    {
+                        <div class="mb-3"><label class="form-label">Authorization #</label><input class="form-control" @bind="Field1" /></div>
+                        <div class="mb-3"><label class="form-label">Service</label><input class="form-control" @bind="Field2" /></div>
+                        <div class="row g-3"><div class="col-6"><label class="form-label">Approved Visits</label><input type="number" class="form-control" @bind="NumberField" /></div><div class="col-6"><label class="form-label">End Date</label><input type="date" class="form-control" @bind="DateField" /></div></div>
+                    }
+                    else if (ModalType == "Activity")
+                    {
+                        <div class="mb-3"><label class="form-label">Activity</label><input class="form-control" @bind="Field1" /></div>
+                        <div><label class="form-label">Notes</label><textarea class="form-control" rows="4" @bind="Field2"></textarea></div>
+                    }
+                    else
+                    {
+                        <div class="mb-3"><label class="form-label">Document</label><InputFile OnChange="OnFileSelected" class="form-control" /></div>
+                        @if (!string.IsNullOrWhiteSpace(SelectedFileName)) { <div class="small text-muted">Selected: @SelectedFileName</div> }
+                    }
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-light" @onclick="CloseModal">Cancel</button><button type="button" class="btn btn-success" @onclick="SaveModal">Save</button></div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(ActionMessage))
+{
+    <div class="alert alert-info mt-3">@ActionMessage</div>
+}
+
+@code {
+    private bool ShowModal;
+    private string ModalType = string.Empty;
+    private string ModalTitle = string.Empty;
+    private string Field1 = string.Empty;
+    private string Field2 = string.Empty;
+    private int NumberField = 1;
+    private DateTime DateField = DateTime.Today.AddDays(30);
+    private string? SelectedFileName;
+    private string? ActionMessage;
+
+    private void OpenAuthorization() => OpenModal("Authorization", "Add Authorization");
+    private void OpenActivity() => OpenModal("Activity", "New Insurance Activity");
+    private void OpenUpload() => OpenModal("Upload", "Upload Insurance Document");
+
+    private void OpenModal(string type, string title)
+    {
+        ModalType = type;
+        ModalTitle = title;
+        Field1 = string.Empty;
+        Field2 = string.Empty;
+        SelectedFileName = null;
+        ShowModal = true;
+    }
+
+    private void CloseModal() => ShowModal = false;
+
+    private void OnFileSelected(InputFileChangeEventArgs args) => SelectedFileName = args.File.Name;
+
+    private void SaveModal()
+    {
+        ActionMessage = ModalType switch
+        {
+            "Authorization" => $"Mock authorization {Field1} saved.",
+            "Activity" => "Mock insurance activity saved.",
+            _ => $"Mock insurance document {SelectedFileName ?? "file"} saved."
+        };
+        CloseModal();
+    }
+}

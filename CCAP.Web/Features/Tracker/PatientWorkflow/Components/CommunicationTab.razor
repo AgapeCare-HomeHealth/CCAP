@@ -1,0 +1,413 @@
+<div class="communication-page">
+
+    <!-- ================= Summary ================= -->
+
+    <div class="row g-4 mb-4">
+
+        <div class="col-lg-3">
+
+            <div class="status-card primary">
+
+                <h6>Total Communications</h6>
+
+                <h2>18</h2>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-3">
+
+            <div class="status-card success">
+
+                <h6>Today's Calls</h6>
+
+                <h2>3</h2>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-3">
+
+            <div class="status-card warning">
+
+                <h6>Follow Ups</h6>
+
+                <h2>2</h2>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-3">
+
+            <div class="status-card danger">
+
+                <h6>Unread Notes</h6>
+
+                <h2>1</h2>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ================= Toolbar ================= -->
+
+    <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card-body">
+
+            <div class="row align-items-end g-3">
+
+                <div class="col-lg-3">
+
+                    <label class="form-label">
+
+                        Communication Type
+
+                    </label>
+
+                    <select class="form-select">
+
+                        <option>Phone Call</option>
+                        <option>Email</option>
+                        <option>SMS</option>
+                        <option>Fax</option>
+                        <option>Patient Note</option>
+
+                    </select>
+
+                </div>
+
+                <div class="col-lg-3">
+
+                    <label class="form-label">
+
+                        Contact
+
+                    </label>
+
+                    <select class="form-select">
+
+                        <option>Patient</option>
+                        <option>Physician</option>
+                        <option>Insurance</option>
+                        <option>Clinician</option>
+                        <option>Family</option>
+
+                    </select>
+
+                </div>
+
+                <div class="col-lg-4">
+
+                    <label class="form-label">
+
+                        Subject
+
+                    </label>
+
+                    <input class="form-control"
+                           placeholder="Reason for communication" />
+
+                </div>
+
+                <div class="col-lg-2 d-grid">
+
+                    <button type="button" class="btn btn-success" @onclick="OpenAddModal">
+                        <i class="bi bi-plus-circle me-2"></i>
+                        Add
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ================= Timeline ================= -->
+
+    <div class="card shadow-sm border-0">
+
+        <div class="card-header bg-white">
+
+            <h5 class="mb-0">
+
+                Communication History
+
+            </h5>
+
+        </div>
+
+        <div class="card-body">
+
+            <div class="timeline">
+
+                @foreach (var item in NewCommunications.AsEnumerable().Reverse())
+                {
+                    <div class="timeline-item">
+                        <div class="timeline-icon bg-success"><i class="bi bi-chat-left-text"></i></div>
+                        <div class="timeline-content">
+                            <div class="d-flex justify-content-between">
+                                <strong>@item.Type - @item.Contact</strong>
+                                <small>@item.CreatedAt.ToString("MMM d, yyyy h:mm tt")</small>
+                            </div>
+                            <p class="mb-1">@item.Subject</p>
+                            <small class="text-muted">By Current User</small>
+                        </div>
+                    </div>
+                }
+
+                <div class="timeline-item">
+
+                    <div class="timeline-icon bg-primary">
+
+                        <i class="bi bi-telephone"></i>
+
+                    </div>
+
+                    <div class="timeline-content">
+
+                        <div class="d-flex justify-content-between">
+
+                            <strong>
+
+                                Phone Call - Physician
+
+                            </strong>
+
+                            <small>
+
+                                Aug 6, 2026 10:20 AM
+
+                            </small>
+
+                        </div>
+
+                        <p class="mb-1">
+
+                            Confirmed signed Plan of Care will be faxed this afternoon.
+
+                        </p>
+
+                        <small class="text-muted">
+
+                            By Jennifer LVN
+
+                        </small>
+
+                    </div>
+
+                </div>
+
+                <div class="timeline-item">
+
+                    <div class="timeline-icon bg-success">
+
+                        <i class="bi bi-envelope"></i>
+
+                    </div>
+
+                    <div class="timeline-content">
+
+                        <div class="d-flex justify-content-between">
+
+                            <strong>
+
+                                Email - Insurance
+
+                            </strong>
+
+                            <small>
+
+                                Aug 5, 2026
+
+                            </small>
+
+                        </div>
+
+                        <p class="mb-1">
+
+                            Authorization request submitted.
+
+                        </p>
+
+                        <small class="text-muted">
+
+                            By Jennifer LVN
+
+                        </small>
+
+                    </div>
+
+                </div>
+
+                <div class="timeline-item">
+
+                    <div class="timeline-icon bg-warning">
+
+                        <i class="bi bi-chat-left-text"></i>
+
+                    </div>
+
+                    <div class="timeline-content">
+
+                        <div class="d-flex justify-content-between">
+
+                            <strong>
+
+                                Patient Note
+
+                            </strong>
+
+                            <small>
+
+                                Aug 4, 2026
+
+                            </small>
+
+                        </div>
+
+                        <p class="mb-1">
+
+                            Patient requested morning visits only.
+
+                        </p>
+
+                        <small class="text-muted">
+
+                            By Care Coordinator
+
+                        </small>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+@if (ShowAddModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Communication</h5>
+                    <button type="button" class="btn-close" @onclick="CloseAddModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Communication Type</label>
+                        <select class="form-select" @bind="NewType">
+                            <option>Phone Call</option><option>Email</option><option>SMS</option><option>Fax</option><option>Patient Note</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contact</label>
+                        <select class="form-select" @bind="NewContact">
+                            <option>Patient</option><option>Physician</option><option>Insurance</option><option>Clinician</option><option>Family</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Subject / Note</label>
+                        <textarea class="form-control" rows="4" @bind="NewSubject"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" @onclick="CloseAddModal">Cancel</button>
+                    <button type="button" class="btn btn-success" disabled="@string.IsNullOrWhiteSpace(NewSubject)" @onclick="AddCommunication">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(ActionMessage))
+{
+    <div class="alert alert-info mt-3">@ActionMessage</div>
+}
+
+@code {
+    private bool ShowAddModal;
+    private string NewType = "Phone Call";
+    private string NewContact = "Patient";
+    private string NewSubject = string.Empty;
+    private string? ActionMessage;
+
+    // Mock communications for the current patient profile.
+    // This is intentionally local to the component while MockData mode is enabled.
+    private readonly List<CommunicationEntry> NewCommunications = new()
+    {
+        new()
+        {
+            Type = "Phone Call",
+            Contact = "Patient",
+            Subject = "Confirmed appointment details.",
+            CreatedAt = new DateTime(2026, 8, 12, 9, 15, 0)
+        },
+        new()
+        {
+            Type = "Phone Call",
+            Contact = "Physician",
+            Subject = "Confirmed signed Plan of Care will be faxed this afternoon.",
+            CreatedAt = new DateTime(2026, 8, 6, 10, 20, 0)
+        },
+        new()
+        {
+            Type = "Email",
+            Contact = "Insurance",
+            Subject = "Authorization request submitted.",
+            CreatedAt = new DateTime(2026, 8, 5, 14, 0, 0)
+        },
+        new()
+        {
+            Type = "Patient Note",
+            Contact = "Patient",
+            Subject = "Patient requested morning visits only.",
+            CreatedAt = new DateTime(2026, 8, 4, 11, 30, 0)
+        }
+    };
+
+    private void OpenAddModal() => ShowAddModal = true;
+
+    private void CloseAddModal()
+    {
+        ShowAddModal = false;
+        NewSubject = string.Empty;
+    }
+
+    private void AddCommunication()
+    {
+        if (string.IsNullOrWhiteSpace(NewSubject))
+            return;
+
+        NewCommunications.Add(new CommunicationEntry
+        {
+            Type = NewType,
+            Contact = NewContact,
+            Subject = NewSubject.Trim(),
+            CreatedAt = DateTime.Now
+        });
+
+        ActionMessage = $"Mock {NewType} communication with {NewContact} was recorded.";
+        CloseAddModal();
+    }
+
+    private sealed class CommunicationEntry
+    {
+        public string Type { get; set; } = string.Empty;
+        public string Contact { get; set; } = string.Empty;
+        public string Subject { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+    }
+}

@@ -1,0 +1,159 @@
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using CCAP.Web.Components.Shared
+@using CCAP.Web.Features.Notifications.Models
+@using CCAP.Web.Features.Notifications.Services
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NotificationCenterService NotificationCenter
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<header class="topbar">
+    <div class="topbar-left">
+        <button class="menu-toggle" @onclick="OnToggleSidebar">
+            <i class="bi bi-list"></i>
+        </button>
+    </div>
+
+    <div class="topbar-right">
+        <div class="notification">
+            <button class="notification-button"
+                    type="button"
+                    title="Notifications"
+                    @onclick="ToggleNotifications">
+                <i class="bi bi-bell"></i>
+                @if (UnreadCount > 0)
+                {
+                    <span class="notification-badge">
+                        @(UnreadCount > 99 ? "99+" : UnreadCount)
+                    </span>
+                }
+            </button>
+
+            @if (showNotifications)
+            {
+                <NotificationPanel Visible="true"
+                                    Notifications="notifications"
+                                    NotificationSelected="OpenNotification" />
+            }
+        </div>
+
+        <AuthorizeView>
+            <Authorized Context="auth">
+                <div class="user-profile">
+                    <button class="profile-button" @onclick="ToggleProfileMenu">
+                        <img src="images/avatar-placeholder.png" alt="User" class="profile-avatar" />
+                        <div class="profile-info">
+                            <span class="profile-name">
+                                @(auth.User.Identity?.Name ?? "User")
+                            </span>
+                            <span class="profile-role">
+                                @(auth.User.FindFirst(ClaimTypes.Role)?.Value ?? "User")
+                            </span>
+                        </div>
+                        <i class="bi bi-chevron-down profile-arrow"></i>
+                    </button>
+
+                    @if (showProfileMenu)
+                    {
+                        <UserProfileMenu />
+                    }
+                </div>
+            </Authorized>
+        </AuthorizeView>
+    </div>
+</header>
+
+@code {
+    [Parameter]
+    public EventCallback OnToggleSidebar { get; set; }
+
+    private bool showNotifications;
+    private bool showProfileMenu;
+    private List<UserNotificationDto> notifications = [];
+
+    private int UnreadCount => notifications.Count(x => !x.IsRead);
+
+    protected override void OnInitialized()
+    {
+        AuthenticationStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        await LoadNotificationsAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
+    {
+        try
+        {
+            await task;
+            await LoadNotificationsAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            notifications = [];
+        }
+    }
+
+    public void Dispose()
+    {
+        AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+    }
+
+    private async Task LoadNotificationsAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+        if (authState.User.Identity?.IsAuthenticated != true)
+            return;
+
+        var canView = authState.User.Claims.Any(x =>
+            x.Type == "permission" &&
+            x.Value.Equals("notifications.view", StringComparison.OrdinalIgnoreCase));
+
+        if (!canView)
+            return;
+
+        try
+        {
+            notifications = await NotificationCenter.GetAsync();
+        }
+        catch
+        {
+            // Notification retrieval must never prevent the main layout from rendering.
+            notifications = [];
+        }
+    }
+
+    private async Task ToggleNotifications()
+    {
+        showNotifications = !showNotifications;
+        if (showNotifications)
+        {
+            showProfileMenu = false;
+            await LoadNotificationsAsync();
+        }
+    }
+
+    private void ToggleProfileMenu()
+    {
+        showProfileMenu = !showProfileMenu;
+        if (showProfileMenu)
+            showNotifications = false;
+    }
+
+    private async Task OpenNotification(UserNotificationDto notification)
+    {
+        await NotificationCenter.MarkReadAsync(notification);
+        showNotifications = false;
+        await InvokeAsync(StateHasChanged);
+        Navigation.NavigateTo($"/tracker/patient/{notification.PatientId}");
+    }
+}

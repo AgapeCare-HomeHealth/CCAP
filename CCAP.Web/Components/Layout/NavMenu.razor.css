@@ -1,0 +1,217 @@
+/* ==========================================
+   NAV MENU
+========================================== */
+
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: linear-gradient(180deg, #20786C 0%, #1C6C61 55%, #155A50 100%);
+    color: #fff;
+    overflow: hidden;
+    box-shadow: 4px 0 15px rgba(0,0,0,.08);
+}
+
+/* ==========================================
+   HEADER
+========================================== */
+
+.sidebar-header {
+    height: 56px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    border-bottom: 1px solid rgba(255,255,255,.10);
+}
+
+.sidebar-header-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    transition: .25s;
+}
+
+.sidebar.collapsed .sidebar-header-content {
+    justify-content: center;
+}
+
+.sidebar-logo {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.sidebar-title {
+    overflow: hidden;
+}
+
+    .sidebar-title h4 {
+        margin: 0;
+        font-size: 17px;
+        font-weight: 700;
+        line-height: 1.2;
+        color: white;
+    }
+
+    .sidebar-title p {
+        margin: 2px 0 0;
+        font-size: 12px;
+        color: rgba(255,255,255,.75);
+    }
+
+/* ==========================================
+   NAVIGATION
+========================================== */
+
+.sidebar-nav {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 18px 14px;
+}
+
+    /* ==========================================
+   LINKS
+========================================== */
+
+    .sidebar-nav ::deep a {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        height: 48px;
+        padding: 0 16px;
+        border-radius: 12px;
+        text-decoration: none;
+        color: rgba(255,255,255,.88);
+        font-size: 15px;
+        font-weight: 500;
+        transition: .2s;
+    }
+
+        .sidebar-nav ::deep a:hover {
+            background: rgba(255,255,255,.10);
+            color: white;
+        }
+
+        .sidebar-nav ::deep a.active {
+            background: rgba(255,255,255,.18);
+            color: white;
+        }
+
+    .sidebar-nav i {
+        width: 20px;
+        text-align: center;
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+
+/* ==========================================
+   DROPDOWN
+========================================== */
+
+.menu-dropdown {
+    margin: 0;
+}
+
+    .menu-dropdown summary {
+        list-style: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 48px;
+        padding: 0 16px;
+        border-radius: 12px;
+        cursor: pointer;
+        color: rgba(255,255,255,.88);
+        transition: .2s;
+    }
+
+        .menu-dropdown summary:hover {
+            background: rgba(255,255,255,.10);
+        }
+
+        .menu-dropdown summary div {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .menu-dropdown summary::-webkit-details-marker {
+            display: none;
+        }
+
+/* ==========================================
+   SUBMENU
+========================================== */
+
+.submenu-item {
+    display: block;
+    margin-top: 4px;
+    padding: 10px 16px 10px 52px;
+    border-radius: 8px;
+    text-decoration: none;
+    color: rgba(255,255,255,.72);
+    font-size: 14px;
+    transition: .2s;
+}
+
+.sidebar-nav ::deep .submenu-item:hover {
+    background: rgba(255,255,255,.08);
+    color: white;
+}
+
+.sidebar-nav ::deep .submenu-item.active {
+    background: rgba(255,255,255,.15);
+    color: white;
+}
+
+/* ==========================================
+   ARROW
+========================================== */
+
+.arrow {
+    transition: transform .25s ease;
+}
+
+.menu-dropdown[open] .arrow {
+    transform: rotate(180deg);
+}
+
+/* ==========================================
+   COLLAPSED
+========================================== */
+
+.sidebar.collapsed .sidebar-title,
+.sidebar.collapsed .submenu-item {
+    display: none;
+}
+
+.sidebar.collapsed .sidebar-nav ::deep a,
+.sidebar.collapsed .menu-dropdown summary {
+    justify-content: center;
+    padding: 0;
+}
+
+    .sidebar.collapsed .menu-dropdown summary div {
+        justify-content: center;
+        width: 100%;
+    }
+
+.sidebar.collapsed .arrow {
+    display: none;
+}
+
+/* ==========================================
+   FOOTER
+========================================== */
+
+.sidebar-footer {
+    padding: 16px;
+    text-align: center;
+    font-size: 12px;
+    color: rgba(255,255,255,.60);
+    border-top: 1px solid rgba(255,255,255,.08);
+}

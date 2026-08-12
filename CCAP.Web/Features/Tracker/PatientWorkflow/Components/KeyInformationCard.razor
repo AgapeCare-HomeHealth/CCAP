@@ -1,0 +1,14 @@
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Model
+<div class="card shadow-sm border-0 h-100">
+    <div class="card-header bg-white"><h6 class="mb-0">Key Information</h6></div>
+    <div class="card-body small">
+        <div><strong>Coordinator:</strong> @Data.Coordinator</div>
+        <div><strong>Clinician:</strong> @Data.Clinician</div>
+        <div><strong>Discipline:</strong> @Data.Discipline</div>
+        <div><strong>Episode:</strong> @Data.Episode</div>
+        <div><strong>Branch:</strong> @Data.Branch</div>
+        <div><strong>Payor:</strong> @Data.Payor</div>
+        <div><strong>Priority:</strong> @Data.Priority</div>
+    </div>
+</div>
+@code { [Parameter] public KeyInformationDto Data { get; set; } = new(); }

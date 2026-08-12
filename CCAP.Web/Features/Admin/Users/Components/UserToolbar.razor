@@ -1,0 +1,71 @@
+@using CCAP.Web.Features.Admin.Users.Models
+
+<div class="toolbar-card">
+    <div class="row g-3 align-items-end">
+        <div class="col-xl-4 col-lg-12">
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input class="form-control"
+                       placeholder="Search by name, email, or employee no..."
+                       @bind="Filter.Search" />
+            </div>
+        </div>
+
+        <div class="col-xl-2 col-md-4">
+            <label class="toolbar-label">Role</label>
+            <select class="form-select" @bind="Filter.RoleId">
+                <option value="">All Roles</option>
+                @foreach (var role in Roles.Where(x => x.IsActive))
+                {
+                    <option value="@role.RoleId">@role.RoleName</option>
+                }
+            </select>
+        </div>
+
+        <div class="col-xl-2 col-md-4">
+            <label class="toolbar-label">Discipline</label>
+            <select class="form-select" @bind="Filter.DisciplineId">
+                <option value="">All Disciplines</option>
+                @foreach (var discipline in Disciplines)
+                {
+                    <option value="@discipline.DisciplineId">@discipline.Name</option>
+                }
+            </select>
+        </div>
+
+        <div class="col-xl-2 col-md-4">
+            <label class="toolbar-label">Status</label>
+            <select class="form-select" @bind="Filter.IsActive">
+                <option value="">All Status</option>
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+            </select>
+        </div>
+
+        <div class="col-xl-2">
+            <div class="toolbar-buttons">
+                <button class="btn btn-filter" @onclick="ApplyFilter">
+                    <i class="bi bi-funnel"></i> Filters
+                </button>
+                <button class="btn btn-clear" @onclick="ClearFilter">
+                    <i class="bi bi-arrow-clockwise"></i> Clear
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public UserFilterModel Filter { get; set; } = new();
+    [Parameter] public IEnumerable<RoleLookupDto> Roles { get; set; } = [];
+    [Parameter] public IEnumerable<LookupDto> Disciplines { get; set; } = [];
+    [Parameter] public EventCallback<UserFilterModel> OnFilter { get; set; }
+
+    private Task ApplyFilter() => OnFilter.InvokeAsync(Filter);
+
+    private Task ClearFilter()
+    {
+        Filter = new();
+        return OnFilter.InvokeAsync(Filter);
+    }
+}

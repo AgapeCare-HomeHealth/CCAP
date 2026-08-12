@@ -1,0 +1,39 @@
+@if (Visible)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete Role</h5>
+                    <button type="button" class="btn-close" @onclick="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">Are you sure you want to delete <strong>@RoleName</strong>?</p>
+                    <p class="text-muted small mb-0">This action is disabled for roles that still have assigned users.</p>
+                    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+                    {
+                        <div class="alert alert-danger mt-3 mb-0">@ErrorMessage</div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" @onclick="Close">Cancel</button>
+                    <button type="button" class="btn btn-danger" disabled="@Deleting" @onclick="Delete">
+                        @(Deleting ? "Deleting..." : "Delete Role")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public string RoleName { get; set; } = string.Empty;
+    [Parameter] public bool Deleting { get; set; }
+    [Parameter] public string? ErrorMessage { get; set; }
+    [Parameter] public EventCallback OnDelete { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private Task Delete() => OnDelete.InvokeAsync();
+    private Task Close() => OnClose.InvokeAsync();
+}

@@ -1,0 +1,428 @@
+﻿<div class="documents-page">
+
+    <!-- ================= Summary ================= -->
+
+    <div class="row g-4 mb-4">
+
+        <div class="col-lg-3">
+
+            <div class="status-card primary">
+
+                <h6>Total Documents</h6>
+
+                <h2>18</h2>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-3">
+
+            <div class="status-card success">
+
+                <h6>OCR Processed</h6>
+
+                <h2>12</h2>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-3">
+
+            <div class="status-card warning">
+
+                <h6>Pending Review</h6>
+
+                <h2>3</h2>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-3">
+
+            <div class="status-card danger">
+
+                <h6>Missing</h6>
+
+                <h2>2</h2>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ================= Toolbar ================= -->
+
+    <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card-body">
+
+            <div class="row g-3 align-items-end">
+
+                <div class="col-lg-4">
+
+                    <label class="form-label">
+
+                        Search
+
+                    </label>
+
+                    <input class="form-control"
+                           placeholder="Search documents..." />
+
+                </div>
+
+                <div class="col-lg-3">
+
+                    <label class="form-label">
+
+                        Category
+
+                    </label>
+
+                    <select class="form-select">
+
+                        <option>All</option>
+                        <option>Referral</option>
+                        <option>Insurance</option>
+                        <option>Orders</option>
+                        <option>Plan of Care</option>
+                        <option>OASIS</option>
+                        <option>Lab</option>
+                        <option>Consent</option>
+
+                    </select>
+
+                </div>
+
+                <div class="col-lg-3">
+
+                    <label class="form-label">
+
+                        Status
+
+                    </label>
+
+                    <select class="form-select">
+
+                        <option>All</option>
+                        <option>Reviewed</option>
+                        <option>Pending Review</option>
+                        <option>Missing</option>
+
+                    </select>
+
+                </div>
+
+                <div class="col-lg-2 d-grid">
+
+                    <button type="button" class="btn btn-success" @onclick="OpenUpload">
+                        <i class="bi bi-upload me-2"></i>
+                        Upload
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ================= Documents ================= -->
+
+    <div class="card shadow-sm border-0">
+
+        <div class="card-header bg-white">
+
+            <h5 class="mb-0">
+
+                Patient Documents
+
+            </h5>
+
+        </div>
+
+        <div class="table-responsive">
+
+            <table class="table table-hover mb-0">
+
+                <thead>
+
+                    <tr>
+
+                        <th>Document</th>
+                        <th>Category</th>
+                        <th>Version</th>
+                        <th>Status</th>
+                        <th>OCR</th>
+                        <th>Uploaded By</th>
+                        <th>Date</th>
+                        <th width="220">Actions</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    <tr>
+
+                        <td>
+
+                            <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
+
+                            Referral.pdf
+
+                        </td>
+
+                        <td>Referral</td>
+
+                        <td>1.0</td>
+
+                        <td>
+
+                            <span class="badge bg-success">
+
+                                Reviewed
+
+                            </span>
+
+                        </td>
+
+                        <td>
+
+                            <span class="badge bg-success">
+
+                                Complete
+
+                            </span>
+
+                        </td>
+
+                        <td>Jennifer LVN</td>
+
+                        <td>08/04/2026</td>
+
+                        <td>
+
+                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick='() => ViewDocument("Referral.pdf")'>View</button>
+
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick='() => DownloadDocument("Referral.pdf")'>Download</button>
+
+                        </td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>
+
+                            <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
+
+                            Insurance Card.pdf
+
+                        </td>
+
+                        <td>Insurance</td>
+
+                        <td>1.0</td>
+
+                        <td>
+
+                            <span class="badge bg-warning text-dark">
+
+                                Pending Review
+
+                            </span>
+
+                        </td>
+
+                        <td>
+
+                            <span class="badge bg-secondary">
+
+                                N/A
+
+                            </span>
+
+                        </td>
+
+                        <td>Jennifer LVN</td>
+
+                        <td>08/05/2026</td>
+
+                        <td>
+
+                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick='() => ViewDocument("Insurance Card.pdf")'>View</button>
+
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick='() => DownloadDocument("Insurance Card.pdf")'>Download</button>
+
+                        </td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>
+
+                            <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
+
+                            Plan of Care.pdf
+
+                        </td>
+
+                        <td>Orders</td>
+
+                        <td>2.0</td>
+
+                        <td>
+
+                            <span class="badge bg-danger">
+
+                                Missing Signature
+
+                            </span>
+
+                        </td>
+
+                        <td>
+
+                            <span class="badge bg-success">
+
+                                Complete
+
+                            </span>
+
+                        </td>
+
+                        <td>Renald LVN</td>
+
+                        <td>08/06/2026</td>
+
+                        <td>
+
+                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick='() => ViewDocument("Plan of Care.pdf")'>View</button>
+
+                            <button type="button" class="btn btn-sm btn-outline-success" @onclick='() => OpenReplace("Plan of Care.pdf")'>Replace</button>
+
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+@if (ShowUploadModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(ReplaceDocumentName is null ? "Upload Document" : "Replace Document")</h5>
+                    <button type="button" class="btn-close" @onclick="CloseUpload"></button>
+                </div>
+                <div class="modal-body">
+                    @if (!string.IsNullOrWhiteSpace(ReplaceDocumentName))
+                    {
+                        <div class="alert alert-info">Replacing: <strong>@ReplaceDocumentName</strong></div>
+                    }
+                    <div class="mb-3">
+                        <label class="form-label">Document</label>
+                        <InputFile OnChange="OnFileSelected" class="form-control" />
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(SelectedFileName))
+                    {
+                        <div class="small text-muted">Selected: @SelectedFileName</div>
+                    }
+                    <div class="mt-3">
+                        <label class="form-label">Category</label>
+                        <select class="form-select" @bind="UploadCategory">
+                            <option>Referral</option>
+                            <option>Insurance</option>
+                            <option>Orders</option>
+                            <option>Plan of Care</option>
+                            <option>OASIS</option>
+                            <option>Lab</option>
+                            <option>Consent</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" @onclick="CloseUpload">Cancel</button>
+                    <button type="button" class="btn btn-success" disabled="@string.IsNullOrWhiteSpace(SelectedFileName)" @onclick="CompleteUpload">
+                        @(ReplaceDocumentName is null ? "Upload" : "Replace")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(ActionMessage))
+{
+    <div class="alert alert-info mt-3">@ActionMessage</div>
+}
+
+@code {
+    private bool ShowUploadModal;
+    private string? ReplaceDocumentName;
+    private string? SelectedFileName;
+    private string UploadCategory = "Referral";
+    private string? ActionMessage;
+
+    private void OpenUpload()
+    {
+        ReplaceDocumentName = null;
+        SelectedFileName = null;
+        ActionMessage = null;
+        ShowUploadModal = true;
+    }
+
+    private void OpenReplace(string name)
+    {
+        ReplaceDocumentName = name;
+        SelectedFileName = null;
+        ActionMessage = null;
+        ShowUploadModal = true;
+    }
+
+    private void CloseUpload()
+    {
+        ShowUploadModal = false;
+        SelectedFileName = null;
+        ReplaceDocumentName = null;
+    }
+
+    private void OnFileSelected(InputFileChangeEventArgs args)
+    {
+        SelectedFileName = args.File.Name;
+    }
+
+    private void CompleteUpload()
+    {
+        ActionMessage = ReplaceDocumentName is null
+            ? $"Mock upload completed for {SelectedFileName}."
+            : $"Mock replacement completed for {ReplaceDocumentName} using {SelectedFileName}.";
+        CloseUpload();
+    }
+
+    private void ViewDocument(string name)
+    {
+        ActionMessage = $"Mock preview opened for {name}.";
+    }
+
+    private void DownloadDocument(string name)
+    {
+        ActionMessage = $"Mock download requested for {name}.";
+    }
+}

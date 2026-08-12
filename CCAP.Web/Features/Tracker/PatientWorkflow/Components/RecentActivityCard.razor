@@ -1,0 +1,11 @@
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Model
+<div class="card shadow-sm border-0 h-100">
+    <div class="card-header bg-white"><h6 class="mb-0">Recent Activity</h6></div>
+    <div class="card-body">
+        @foreach (var activity in Activities.Take(3))
+        {
+            <div class="mb-3"><strong>@activity.Title</strong><div class="small text-muted">@activity.Description</div><div class="small">@activity.ActivityDate.ToString("MM/dd/yyyy h:mm tt") · @activity.PerformedBy</div></div>
+        }
+    </div>
+</div>
+@code { [Parameter] public List<ActivityDto> Activities { get; set; } = []; }

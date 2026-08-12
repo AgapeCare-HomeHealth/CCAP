@@ -1,0 +1,106 @@
+@using System.Reflection
+@using System.Security.Claims
+@using CCAP.Web.Features.Authentication.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Navigation
+
+@if (_isChecking)
+{
+    <div class="d-flex min-vh-100 align-items-center justify-content-center">
+        <div class="spinner-border" role="status" aria-hidden="true"></div>
+    </div>
+}
+else if (_authorized)
+{
+    <RouteView RouteData="RouteData"
+               DefaultLayout="DefaultLayout" />
+}
+else
+{
+    <RedirectToLogin />
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public RouteData RouteData { get; set; } = default!;
+
+    [Parameter]
+    public Type? DefaultLayout { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private bool _isChecking = true;
+    private bool _authorized;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _isChecking = true;
+        _authorized = false;
+
+        var pageType = RouteData.PageType;
+
+        var authorizeAttributes = pageType
+            .GetCustomAttributes<CcapAuthorizeAttribute>(inherit: true)
+            .ToArray();
+
+        // No CCAP authorization requirement.
+        if (authorizeAttributes.Length == 0)
+        {
+            _authorized = true;
+            _isChecking = false;
+            return;
+        }
+
+        if (AuthenticationStateTask is null)
+        {
+            _isChecking = false;
+            return;
+        }
+
+        var authState = await AuthenticationStateTask;
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            _isChecking = false;
+            return;
+        }
+
+        _authorized = authorizeAttributes.All(attribute =>
+            MatchesRoles(user, attribute.Roles) &&
+            MatchesPolicy(user, attribute.Policy));
+
+        _isChecking = false;
+    }
+
+    private static bool MatchesRoles(
+        ClaimsPrincipal user,
+        string? roles)
+    {
+        if (string.IsNullOrWhiteSpace(roles))
+            return true;
+
+        return roles
+            .Split(
+                ',',
+                StringSplitOptions.RemoveEmptyEntries |
+                StringSplitOptions.TrimEntries)
+            .Any(user.IsInRole);
+    }
+
+    private static bool MatchesPolicy(
+        ClaimsPrincipal user,
+        string? policy)
+    {
+        if (string.IsNullOrWhiteSpace(policy))
+            return true;
+
+        return user.Claims.Any(c =>
+            c.Type == "permission" &&
+            string.Equals(
+                c.Value,
+                policy,
+                StringComparison.OrdinalIgnoreCase));
+    }
+}

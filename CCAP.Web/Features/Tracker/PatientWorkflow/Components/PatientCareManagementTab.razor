@@ -1,0 +1,352 @@
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Models
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject PatientCareManagementService CareService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<div class="patient-care-management">
+
+    @if (IsLoading)
+    {
+        <div class="text-center py-5"><div class="spinner-border"></div></div>
+    }
+    else if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert alert-danger">@ErrorMessage</div>
+    }
+    else if (Care is not null)
+    {
+        <!-- Fax Information -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-1">Fax Information</h5>
+                    <small class="text-muted">Referring office and incoming referral fax details.</small>
+                </div>
+                @if (CanFaxManage)
+                {
+                    <button class="btn btn-outline-primary btn-sm" @onclick="OpenFaxModal">
+                    <i class="bi bi-pencil me-1"></i>Edit Fax
+                    </button>
+                }
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3"><strong>Fax Number</strong><div>@Care.Fax.FaxNumber</div></div>
+                    <div class="col-md-3"><strong>Referring Provider</strong><div>@Care.Fax.ReferringProvider</div></div>
+                    <div class="col-md-3"><strong>Organization</strong><div>@Care.Fax.Organization</div></div>
+                    <div class="col-md-3"><strong>Received</strong><div>@Care.Fax.ReceivedAt.ToString("MM/dd/yyyy h:mm tt")</div></div>
+                </div>
+                <div class="mt-3">
+                    <span class="badge @(Care.Fax.Verified ? "bg-success" : "bg-warning text-dark")">
+                        @(Care.Fax.Verified ? "Verified" : "Needs Verification")
+                    </span>
+                    @if (!string.IsNullOrWhiteSpace(Care.Fax.Notes))
+                    {
+                        <span class="text-muted ms-2">@Care.Fax.Notes</span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Order Alerts -->
+            <div class="col-xl-6">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-1">Orders Management Alerts</h5>
+                            <small class="text-muted">POC/OASIS PCP signature follow-up at 30 and 60 days.</small>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light"><tr><th>Order</th><th>Age</th><th>30-Day</th><th>60-Day</th><th>Alert</th><th></th></tr></thead>
+                                <tbody>
+                                @foreach (var item in Care.OrderAlerts.OrderByDescending(x => x.OrderDate))
+                                {
+                                    <tr>
+                                        <td><strong>@item.OrderType</strong><div class="small text-muted">@item.OrderDate.ToString("MM/dd/yyyy")</div></td>
+                                        <td>@item.AgeInDays days</td>
+                                        <td>@(item.SignatureDue30Date?.ToString("MM/dd/yyyy") ?? "-")</td>
+                                        <td>@(item.SignatureDue60Date?.ToString("MM/dd/yyyy") ?? "-")</td>
+                                        <td><span class="badge @GetAlertClass(item.AlertLevel)">@item.AlertLevel</span></td>
+                                        <td>
+                                            @if (!item.Signed && CanOrdersManage)
+                                            {
+                                                <button class="btn btn-sm btn-outline-success" @onclick="() => MarkOrderSigned(item.OrderAlertId)">Mark Signed</button>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-success"><i class="bi bi-check-circle"></i></span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lab Orders -->
+            <div class="col-xl-6">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Lab Orders Tracking</h5>
+                        @if (CanLabsManage)
+                        {<button class="btn btn-primary btn-sm" @onclick="OpenLabModal"><i class="bi bi-plus-lg me-1"></i>Add Lab Order</button>}
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light"><tr><th>Test</th><th>Ordered</th><th>Due</th><th>Status</th><th></th></tr></thead>
+                                <tbody>
+                                @foreach (var item in Care.LabOrders.OrderBy(x => x.DueDate))
+                                {
+                                    <tr>
+                                        <td><strong>@item.TestName</strong><div class="small text-muted">@item.OrderingProvider</div></td>
+                                        <td>@item.OrderedDate.ToString("MM/dd/yyyy")</td>
+                                        <td class="@(item.DueDate.Date < DateTime.Today && item.Status != "Completed" ? "text-danger fw-semibold" : "")">@item.DueDate.ToString("MM/dd/yyyy")</td>
+                                        <td><span class="badge @GetStatusClass(item.Status)">@item.Status</span></td>
+                                        <td>
+                                            @if (item.Status != "Completed" && CanLabsManage)
+                                            {
+                                                <button class="btn btn-sm btn-outline-success" @onclick="() => CompleteLabOrder(item.LabOrderId)">Complete</button>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wound Supplies -->
+            <div class="col-xl-6">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Wound Supplies</h5>
+                        @if (CanSuppliesManage)
+                        {<button class="btn btn-primary btn-sm" @onclick="OpenSupplyModal"><i class="bi bi-plus-lg me-1"></i>Add Supply</button>}
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light"><tr><th>Supply</th><th>Qty</th><th>Frequency</th><th>Needed By</th><th>Status</th></tr></thead>
+                                <tbody>
+                                @foreach (var item in Care.WoundSupplies)
+                                {
+                                    <tr>
+                                        <td>@item.SupplyName</td><td>@item.Quantity</td><td>@item.Frequency</td><td>@(item.NeededBy?.ToString("MM/dd/yyyy") ?? "-")</td>
+                                        <td>
+                                            <select class="form-select form-select-sm" value="@item.Status" disabled="@(!CanSuppliesManage)" @onchange="e => UpdateSupplyStatus(item.SupplyId, e.Value?.ToString())">
+                                                <option>Required</option><option>Ordered</option><option>Received</option><option>Needs Order</option>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Foley -->
+            <div class="col-xl-6">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Foley Catheter Changes</h5>
+                        @if (CanFoleyManage)
+                        {<button class="btn btn-primary btn-sm" @onclick="OpenFoleyModal"><i class="bi bi-plus-lg me-1"></i>Record Change</button>}
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light"><tr><th>Change Date</th><th>Next Due</th><th>Size</th><th>Balloon</th><th>Changed By</th></tr></thead>
+                                <tbody>
+                                @foreach (var item in Care.FoleyChanges.OrderByDescending(x => x.ChangeDate))
+                                {
+                                    <tr><td>@item.ChangeDate.ToString("MM/dd/yyyy")</td><td>@(item.NextDueDate?.ToString("MM/dd/yyyy") ?? "-")</td><td>@item.CatheterSize</td><td>@item.BalloonSize</td><td>@item.ChangedBy</td></tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    }
+
+    @if (ModalOpen)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">@ModalTitle</h5>
+                        <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        @if (!string.IsNullOrWhiteSpace(ModalError)) { <div class="alert alert-danger">@ModalError</div> }
+
+                        @if (ModalType == "Fax")
+                        {
+                            <div class="row g-3">
+                                <div class="col-md-6"><label class="form-label">Referring Fax Number *</label><input class="form-control" @bind="FaxNumber" /></div>
+                                <div class="col-md-6"><label class="form-label">Referring Provider *</label><input class="form-control" @bind="FaxProvider" /></div>
+                                <div class="col-md-6"><label class="form-label">Organization</label><input class="form-control" @bind="FaxOrganization" /></div>
+                                <div class="col-md-6"><label class="form-label">Document Type</label><input class="form-control" @bind="FaxDocumentType" /></div>
+                                <div class="col-12"><label class="form-label">Notes</label><textarea class="form-control" rows="3" @bind="FaxNotes"></textarea></div>
+                                <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" @bind="FaxVerified" /><label class="form-check-label">Fax information verified</label></div></div>
+                            </div>
+                        }
+                        else if (ModalType == "Lab")
+                        {
+                            <div class="row g-3">
+                                <div class="col-md-6"><label class="form-label">Lab/Test *</label><input class="form-control" @bind="LabName" /></div>
+                                <div class="col-md-6"><label class="form-label">Ordering Provider *</label><input class="form-control" @bind="LabProvider" /></div>
+                                <div class="col-md-6"><label class="form-label">Ordered Date *</label><input class="form-control" type="date" @bind="LabOrderedDate" /></div>
+                                <div class="col-md-6"><label class="form-label">Due Date *</label><input class="form-control" type="date" @bind="LabDueDate" /></div>
+                                <div class="col-12"><label class="form-label">Notes</label><textarea class="form-control" rows="3" @bind="LabNotes"></textarea></div>
+                            </div>
+                        }
+                        else if (ModalType == "Supply")
+                        {
+                            <div class="row g-3">
+                                <div class="col-md-6"><label class="form-label">Supply *</label><input class="form-control" @bind="SupplyName" /></div>
+                                <div class="col-md-2"><label class="form-label">Qty *</label><input class="form-control" type="number" min="1" @bind="SupplyQuantity" /></div>
+                                <div class="col-md-4"><label class="form-label">Frequency</label><input class="form-control" @bind="SupplyFrequency" /></div>
+                                <div class="col-md-6"><label class="form-label">Needed By</label><input class="form-control" type="date" @bind="SupplyNeededBy" /></div>
+                                <div class="col-md-6"><label class="form-label">Status</label><select class="form-select" @bind="SupplyStatus"><option>Required</option><option>Needs Order</option><option>Ordered</option><option>Received</option></select></div>
+                                <div class="col-12"><label class="form-label">Notes</label><textarea class="form-control" rows="3" @bind="SupplyNotes"></textarea></div>
+                            </div>
+                        }
+                        else if (ModalType == "Foley")
+                        {
+                            <div class="row g-3">
+                                <div class="col-md-4"><label class="form-label">Change Date *</label><input class="form-control" type="date" @bind="FoleyChangeDate" /></div>
+                                <div class="col-md-4"><label class="form-label">Next Due Date</label><input class="form-control" type="date" @bind="FoleyNextDueDate" /></div>
+                                <div class="col-md-4"><label class="form-label">Catheter Size</label><input class="form-control" @bind="FoleySize" placeholder="16 Fr" /></div>
+                                <div class="col-md-4"><label class="form-label">Balloon Size</label><input class="form-control" @bind="FoleyBalloon" placeholder="10 mL" /></div>
+                                <div class="col-md-8"><label class="form-label">Changed By</label><input class="form-control" @bind="FoleyChangedBy" /></div>
+                                <div class="col-12"><label class="form-label">Notes</label><textarea class="form-control" rows="3" @bind="FoleyNotes"></textarea></div>
+                            </div>
+                        }
+
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-light" @onclick="CloseModal">Cancel</button>
+                        <button class="btn btn-primary" disabled="@Saving" @onclick="SaveModal">@(Saving ? "Saving..." : "Save")</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid PatientId { get; set; }
+
+    private PatientCareProfileDto? Care;
+    private bool IsLoading;
+    private bool Saving;
+    private string? ErrorMessage;
+    private bool ModalOpen;
+    private string ModalType = string.Empty;
+    private string ModalTitle = string.Empty;
+    private string? ModalError;
+
+    private string FaxNumber = ""; private string FaxProvider = ""; private string FaxOrganization = ""; private string FaxDocumentType = ""; private string FaxNotes = ""; private bool FaxVerified;
+    private string LabName = ""; private string LabProvider = ""; private DateTime LabOrderedDate = DateTime.Today; private DateTime LabDueDate = DateTime.Today.AddDays(7); private string LabNotes = "";
+    private string SupplyName = ""; private int SupplyQuantity = 1; private string SupplyFrequency = "Daily"; private DateTime? SupplyNeededBy = DateTime.Today.AddDays(7); private string SupplyStatus = "Required"; private string SupplyNotes = "";
+    private DateTime FoleyChangeDate = DateTime.Today; private DateTime? FoleyNextDueDate = DateTime.Today.AddDays(30); private string FoleySize = "16 Fr"; private string FoleyBalloon = "10 mL"; private string FoleyChangedBy = ""; private string FoleyNotes = "";
+
+    private bool CanFaxManage;
+    private bool CanLabsManage;
+    private bool CanSuppliesManage;
+    private bool CanFoleyManage;
+    private bool CanOrdersManage;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var permissions = authState.User.Claims
+            .Where(c => c.Type == "permission")
+            .Select(c => c.Value)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        CanFaxManage = permissions.Contains("fax.manage");
+        CanLabsManage = permissions.Contains("labs.manage");
+        CanSuppliesManage = permissions.Contains("supplies.manage");
+        CanFoleyManage = permissions.Contains("foley.manage");
+        CanOrdersManage = permissions.Contains("orders.manage");
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        IsLoading = true; ErrorMessage = null;
+        try { Care = await CareService.GetAsync(PatientId); }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { IsLoading = false; }
+    }
+
+    private void OpenFaxModal()
+    {
+        ModalType = "Fax"; ModalTitle = "Referring Fax Information"; ModalError = null;
+        FaxNumber = Care?.Fax.FaxNumber ?? ""; FaxProvider = Care?.Fax.ReferringProvider ?? ""; FaxOrganization = Care?.Fax.Organization ?? ""; FaxDocumentType = Care?.Fax.DocumentType ?? ""; FaxNotes = Care?.Fax.Notes ?? ""; FaxVerified = Care?.Fax.Verified ?? false;
+        ModalOpen = true;
+    }
+    private void OpenLabModal() { ModalType = "Lab"; ModalTitle = "Add Lab Order"; ModalError = null; LabName = ""; LabProvider = ""; LabOrderedDate = DateTime.Today; LabDueDate = DateTime.Today.AddDays(7); LabNotes = ""; ModalOpen = true; }
+    private void OpenSupplyModal() { ModalType = "Supply"; ModalTitle = "Add Wound Supply"; ModalError = null; SupplyName = ""; SupplyQuantity = 1; SupplyFrequency = "Daily"; SupplyNeededBy = DateTime.Today.AddDays(7); SupplyStatus = "Required"; SupplyNotes = ""; ModalOpen = true; }
+    private void OpenFoleyModal() { ModalType = "Foley"; ModalTitle = "Record Foley Catheter Change"; ModalError = null; FoleyChangeDate = DateTime.Today; FoleyNextDueDate = DateTime.Today.AddDays(30); FoleySize = "16 Fr"; FoleyBalloon = "10 mL"; FoleyChangedBy = ""; FoleyNotes = ""; ModalOpen = true; }
+    private void CloseModal() { ModalOpen = false; ModalError = null; }
+
+    private async Task SaveModal()
+    {
+        ModalError = null; Saving = true;
+        try
+        {
+            if (ModalType == "Fax")
+            {
+                if (string.IsNullOrWhiteSpace(FaxNumber) || string.IsNullOrWhiteSpace(FaxProvider)) { ModalError = "Fax number and referring provider are required."; return; }
+                await CareService.SaveFaxAsync(new FaxInformationDto { FaxId = Care?.Fax.FaxId ?? Guid.Empty, PatientId = PatientId, FaxNumber = FaxNumber.Trim(), ReferringProvider = FaxProvider.Trim(), Organization = FaxOrganization.Trim(), DocumentType = FaxDocumentType.Trim(), ReceivedAt = Care?.Fax.ReceivedAt ?? DateTime.Now, Verified = FaxVerified, Notes = FaxNotes.Trim() });
+            }
+            else if (ModalType == "Lab")
+            {
+                if (string.IsNullOrWhiteSpace(LabName) || string.IsNullOrWhiteSpace(LabProvider)) { ModalError = "Lab/test and ordering provider are required."; return; }
+                if (LabDueDate.Date < LabOrderedDate.Date) { ModalError = "Due date cannot be before the ordered date."; return; }
+                await CareService.AddLabOrderAsync(new LabOrderDto { PatientId = PatientId, TestName = LabName.Trim(), OrderingProvider = LabProvider.Trim(), OrderedDate = LabOrderedDate, DueDate = LabDueDate, Notes = LabNotes.Trim() });
+            }
+            else if (ModalType == "Supply")
+            {
+                if (string.IsNullOrWhiteSpace(SupplyName) || SupplyQuantity <= 0) { ModalError = "Supply name and a quantity greater than zero are required."; return; }
+                await CareService.AddWoundSupplyAsync(new WoundSupplyDto { PatientId = PatientId, SupplyName = SupplyName.Trim(), Quantity = SupplyQuantity, Frequency = SupplyFrequency.Trim(), Status = SupplyStatus, NeededBy = SupplyNeededBy, Notes = SupplyNotes.Trim() });
+            }
+            else if (ModalType == "Foley")
+            {
+                if (string.IsNullOrWhiteSpace(FoleyChangedBy)) { ModalError = "Changed By is required."; return; }
+                if (FoleyNextDueDate.HasValue && FoleyNextDueDate.Value.Date < FoleyChangeDate.Date) { ModalError = "Next due date cannot be before the change date."; return; }
+                await CareService.AddFoleyChangeAsync(new FoleyChangeDto { PatientId = PatientId, ChangeDate = FoleyChangeDate, NextDueDate = FoleyNextDueDate, CatheterSize = FoleySize.Trim(), BalloonSize = FoleyBalloon.Trim(), ChangedBy = FoleyChangedBy.Trim(), Notes = FoleyNotes.Trim() });
+            }
+
+            if (string.IsNullOrWhiteSpace(ModalError)) { CloseModal(); await LoadAsync(); }
+        }
+        catch (Exception ex) { ModalError = ex.Message; }
+        finally { Saving = false; }
+    }
+    private async Task CompleteLabOrder(Guid id) { await CareService.UpdateLabOrderStatusAsync(PatientId, id, "Completed"); await LoadAsync(); }
+    private async Task UpdateSupplyStatus(Guid id, string? status) { if (!string.IsNullOrWhiteSpace(status)) { await CareService.UpdateWoundSupplyStatusAsync(PatientId, id, status); await LoadAsync(); } }
+    private async Task MarkOrderSigned(Guid id) { await CareService.MarkOrderSignedAsync(PatientId, id); await LoadAsync(); }
+
+    private static string GetStatusClass(string status) => status switch { "Completed" or "Received" or "Signed" => "bg-success", "Ordered" => "bg-primary", "Needs Order" => "bg-warning text-dark", _ => "bg-secondary" };
+    private static string GetAlertClass(string level) => level switch { "Critical" => "bg-danger", "Due" => "bg-warning text-dark", "Complete" => "bg-success", _ => "bg-secondary" };
+}

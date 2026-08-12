@@ -1,0 +1,114 @@
+@using CCAP.Web.Features.Admin.Roles.Models
+
+@if (Visible)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title">Role Permissions</h5>
+                        <small class="text-muted">@RoleName</small>
+                    </div>
+                    <button type="button" class="btn-close" @onclick="Close"></button>
+                </div>
+
+                <div class="modal-body">
+                    @if (Loading)
+                    {
+                        <div class="text-center py-4">Loading permissions...</div>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(ErrorMessage))
+                    {
+                        <div class="alert alert-danger">@ErrorMessage</div>
+                    }
+                    else if (Permissions is null || Permissions.Count == 0)
+                    {
+                        <div class="alert alert-warning mb-0">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            No permissions are available for this role.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="mb-3">
+                            <div class="text-muted small">
+                                Select the permissions that this role is allowed to use.
+                            </div>
+                        </div>
+
+                        @foreach (var group in Permissions.GroupBy(x => string.IsNullOrWhiteSpace(x.Module) ? "General" : x.Module).OrderBy(x => x.Key))
+                        {
+                            <div class="mb-4">
+                                <h6 class="fw-semibold">@group.Key</h6>
+
+                                @foreach (var permission in group)
+                                {
+                                    <div class="form-check mb-3 p-3 border rounded bg-light-subtle">
+                                        <input class="form-check-input"
+                                               id="permission-@permission.PermissionId"
+                                               type="checkbox"
+                                               checked="@IsSelected(permission.PermissionId)"
+                                               @onchange="e => Toggle(permission.PermissionId, e.Value)" />
+                                        <label class="form-check-label w-100" for="permission-@permission.PermissionId">
+                                            <strong>@permission.PermissionName</strong>
+                                            <div class="small text-muted">
+                                                @permission.PermissionCode
+                                            </div>
+                                            @if (!string.IsNullOrWhiteSpace(permission.Description))
+                                            {
+                                                <div class="small text-secondary mt-1">
+                                                    @permission.Description
+                                                </div>
+                                            }
+                                        </label>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" @onclick="Close">Cancel</button>
+                    <button type="button"
+                            class="btn btn-success"
+                            disabled="@Loading"
+                            @onclick="Save">
+                        Save Permissions
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public string RoleName { get; set; } = "";
+    [Parameter] public List<PermissionDto> Permissions { get; set; } = [];
+    [Parameter] public HashSet<Guid> SelectedPermissionIds { get; set; } = [];
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public string? ErrorMessage { get; set; }
+    [Parameter] public EventCallback OnSave { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private bool IsSelected(Guid permissionId) =>
+        SelectedPermissionIds?.Contains(permissionId) == true;
+
+    private void Toggle(Guid permissionId, object? value)
+    {
+        if (SelectedPermissionIds is null)
+            return;
+
+        if (value is bool selected && selected)
+            SelectedPermissionIds.Add(permissionId);
+        else
+            SelectedPermissionIds.Remove(permissionId);
+
+        StateHasChanged();
+    }
+
+    private Task Save() => OnSave.InvokeAsync();
+    private Task Close() => OnClose.InvokeAsync();
+}

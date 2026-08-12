@@ -1,0 +1,158 @@
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Models
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Services
+@inject PatientClinicalService ClinicalService
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Ordered Services</h5>
+        <button type="button" class="btn btn-success btn-sm" @onclick="OpenAddService">
+            <i class="bi bi-plus-circle"></i>
+            Add Service
+        </button>
+    </div>
+
+    <div class="card-body">
+        @if (IsLoading)
+        {
+            <div class="py-4 text-center">Loading service types...</div>
+        }
+        else if (!string.IsNullOrWhiteSpace(ErrorMessage))
+        {
+            <div class="alert alert-danger">@ErrorMessage</div>
+        }
+        else if (!Services.Any())
+        {
+            <div class="alert alert-info">No active service types are configured in the database.</div>
+        }
+        else
+        {
+            <div class="row g-4">
+                @foreach (var service in Services)
+                {
+                    <div class="col-xl-3 col-lg-4 col-md-6">
+                        <div class="service-card">
+                            <div class="service-icon @service.CssClass"><i class="@service.Icon"></i></div>
+                            <h6>@service.Name</h6>
+                            <p class="text-muted mb-2">Available service</p>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            @if (OrderedServices.Any())
+            {
+                <hr class="my-4" />
+                <h6 class="mb-3">Ordered for this patient</h6>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead><tr><th>Service</th><th>Frequency</th><th>Duration</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (var item in OrderedServices)
+                            {
+                                <tr>
+                                    <td>@item.ServiceName</td>
+                                    <td>@item.Frequency</td>
+                                    <td>@item.Duration</td>
+                                    <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => RemoveService(item)">Remove</button></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@if (ShowAddModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Clinical Service</h5>
+                    <button type="button" class="btn-close" @onclick="CloseAddService"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Service</label>
+                        <select class="form-select" @bind="SelectedServiceId">
+                            <option value="">Select service</option>
+                            @foreach (var service in Services)
+                            {
+                                <option value="@service.ServiceTypeId">@service.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Frequency</label>
+                        <input class="form-control" @bind="Frequency" placeholder="Example: 3 Visits / Week" />
+                    </div>
+                    <div>
+                        <label class="form-label">Duration</label>
+                        <input class="form-control" @bind="Duration" placeholder="Example: 8 Weeks" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" @onclick="CloseAddService">Cancel</button>
+                    <button type="button" class="btn btn-success" disabled="@string.IsNullOrWhiteSpace(SelectedServiceId)" @onclick="AddService">Add Service</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private sealed class OrderedService
+    {
+        public Guid ServiceTypeId { get; init; }
+        public string ServiceName { get; init; } = string.Empty;
+        public string Frequency { get; init; } = string.Empty;
+        public string Duration { get; init; } = string.Empty;
+    }
+
+    private List<ServiceTypeDto> Services = [];
+    private List<OrderedService> OrderedServices = [];
+    private string? SelectedServiceId;
+    private string? Frequency;
+    private string? Duration;
+    private bool IsLoading;
+    private bool ShowAddModal;
+    private string? ErrorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        IsLoading = true;
+        try { Services = await ClinicalService.GetServiceTypesAsync(); }
+        catch (Exception ex) { ErrorMessage = $"Unable to load service types: {ex.Message}"; }
+        finally { IsLoading = false; }
+    }
+
+    private void OpenAddService() => ShowAddModal = true;
+
+    private void CloseAddService()
+    {
+        ShowAddModal = false;
+        SelectedServiceId = null;
+        Frequency = null;
+        Duration = null;
+    }
+
+    private void AddService()
+    {
+        if (!Guid.TryParse(SelectedServiceId, out var id)) return;
+        var service = Services.FirstOrDefault(x => x.ServiceTypeId == id);
+        if (service is null) return;
+
+        OrderedServices.Add(new OrderedService
+        {
+            ServiceTypeId = id,
+            ServiceName = service.Name,
+            Frequency = Frequency ?? string.Empty,
+            Duration = Duration ?? string.Empty
+        });
+        CloseAddService();
+    }
+
+    private void RemoveService(OrderedService item) => OrderedServices.Remove(item);
+}

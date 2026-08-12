@@ -1,0 +1,10 @@
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Model
+<div class="card shadow-sm border-0 h-100">
+    <div class="card-header bg-white"><h6 class="mb-0">Next Action</h6></div>
+    <div class="card-body">
+        <h5>@Data.Title</h5>
+        <p class="text-muted">@Data.Description</p>
+        <small class="text-muted">Due @Data.DueDate.ToString("MM/dd/yyyy h:mm tt")</small>
+    </div>
+</div>
+@code { [Parameter] public NextActionDto Data { get; set; } = new(); }

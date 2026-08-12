@@ -1,0 +1,356 @@
+﻿<div class="timeline-page">
+
+    <!-- ================= Summary ================= -->
+
+    <div class="row g-4 mb-4">
+
+        <div class="col-lg-3">
+
+            <div class="status-card primary">
+
+                <h6>Total Events</h6>
+
+                <h2>42</h2>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-3">
+
+            <div class="status-card success">
+
+                <h6>Completed</h6>
+
+                <h2>35</h2>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-3">
+
+            <div class="status-card warning">
+
+                <h6>Upcoming</h6>
+
+                <h2>4</h2>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-3">
+
+            <div class="status-card danger">
+
+                <h6>Overdue</h6>
+
+                <h2>3</h2>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ================= Filters ================= -->
+
+    <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card-body">
+
+            <div class="row g-3">
+
+                <div class="col-lg-4">
+
+                    <input class="form-control"
+                           placeholder="Search timeline..."
+                           @bind="Search" />
+
+                </div>
+
+                <div class="col-lg-3">
+
+                    <select class="form-select" @bind="EventType">
+
+                        <option>All Events</option>
+                        <option>Referral</option>
+                        <option>Insurance</option>
+                        <option>Clinical</option>
+                        <option>Compliance</option>
+                        <option>Communication</option>
+                        <option>Documents</option>
+                        <option>Visits</option>
+
+                    </select>
+
+                </div>
+
+                <div class="col-lg-3">
+
+                    <input type="date"
+                           class="form-control"
+                           @bind="EventDate" />
+
+                </div>
+
+                <div class="col-lg-2 d-grid">
+
+                    <button type="button" class="btn btn-success" @onclick="ApplyFilter">
+                        Filter
+                    </button>
+                    @if (!string.IsNullOrWhiteSpace(FilterMessage))
+                    {
+                        <div class="small text-muted mt-2">@FilterMessage</div>
+                    }
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ================= Timeline ================= -->
+
+    <div class="card shadow-sm border-0">
+
+        <div class="card-header bg-white">
+
+            <h5 class="mb-0">
+
+                Patient Timeline
+
+            </h5>
+
+        </div>
+
+        <div class="card-body">
+
+            <div class="timeline">
+
+                <!-- Referral -->
+
+                <div class="timeline-item">
+
+                    <div class="timeline-icon bg-primary">
+
+                        <i class="bi bi-file-earmark-medical"></i>
+
+                    </div>
+
+                    <div class="timeline-content">
+
+                        <div class="timeline-header">
+
+                            <strong>
+
+                                Referral Received
+
+                            </strong>
+
+                            <span>
+
+                                Aug 04, 2026 · 8:30 AM
+
+                            </span>
+
+                        </div>
+
+                        <p>
+
+                            Referral received from St. Luke's Medical Center.
+
+                        </p>
+
+                        <small>
+
+                            Jennifer LVN
+
+                        </small>
+
+                    </div>
+
+                </div>
+
+                <!-- Insurance -->
+
+                <div class="timeline-item">
+
+                    <div class="timeline-icon bg-success">
+
+                        <i class="bi bi-shield-check"></i>
+
+                    </div>
+
+                    <div class="timeline-content">
+
+                        <div class="timeline-header">
+
+                            <strong>
+
+                                Insurance Verified
+
+                            </strong>
+
+                            <span>
+
+                                Aug 05, 2026 · 9:15 AM
+
+                            </span>
+
+                        </div>
+
+                        <p>
+
+                            Medicare eligibility confirmed.
+
+                        </p>
+
+                        <small>
+
+                            Jennifer LVN
+
+                        </small>
+
+                    </div>
+
+                </div>
+
+                <!-- Assignment -->
+
+                <div class="timeline-item">
+
+                    <div class="timeline-icon bg-info">
+
+                        <i class="bi bi-person-check"></i>
+
+                    </div>
+
+                    <div class="timeline-content">
+
+                        <div class="timeline-header">
+
+                            <strong>
+
+                                Coordinator Assigned
+
+                            </strong>
+
+                            <span>
+
+                                Aug 05, 2026 · 10:30 AM
+
+                            </span>
+
+                        </div>
+
+                        <p>
+
+                            Jennifer LVN assigned as Care Coordinator.
+
+                        </p>
+
+                    </div>
+
+                </div>
+
+                <!-- Document -->
+
+                <div class="timeline-item">
+
+                    <div class="timeline-icon bg-warning">
+
+                        <i class="bi bi-folder2-open"></i>
+
+                    </div>
+
+                    <div class="timeline-content">
+
+                        <div class="timeline-header">
+
+                            <strong>
+
+                                Plan of Care Uploaded
+
+                            </strong>
+
+                            <span>
+
+                                Aug 06, 2026
+
+                            </span>
+
+                        </div>
+
+                        <p>
+
+                            Initial physician orders uploaded.
+
+                        </p>
+
+                    </div>
+
+                </div>
+
+                <!-- SOC -->
+
+                <div class="timeline-item">
+
+                    <div class="timeline-icon bg-danger">
+
+                        <i class="bi bi-calendar-check"></i>
+
+                    </div>
+
+                    <div class="timeline-content">
+
+                        <div class="timeline-header">
+
+                            <strong>
+
+                                SOC Scheduled
+
+                            </strong>
+
+                            <span>
+
+                                Aug 08, 2026
+
+                            </span>
+
+                        </div>
+
+                        <p>
+
+                            Start of Care scheduled for Aug 8.
+
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+@code {
+    private string? Search;
+    private string EventType = "All Events";
+    private DateTime? EventDate;
+    private string? FilterMessage;
+
+    private void ApplyFilter()
+    {
+        var dateText = EventDate.HasValue ? EventDate.Value.ToString("MM/dd/yyyy") : "any date";
+        var searchText = string.IsNullOrWhiteSpace(Search) ? "all entries" : $"'{Search}'";
+        FilterMessage = $"Timeline filter applied to {searchText}, {EventType}, {dateText}.";
+    }
+}

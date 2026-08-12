@@ -1,0 +1,679 @@
+﻿@using CCAP.Web.Features.Tracker.PatientWorkflow.Models
+@using CCAP.Web.Features.Notifications.Models
+
+<div class="overview-tab">
+
+    <!-- ===================================================== -->
+    <!-- Quick Actions                                         -->
+    <!-- ===================================================== -->
+
+    <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card-header bg-white">
+            <h5 class="mb-0">
+                Quick Actions
+            </h5>
+        </div>
+
+        <div class="card-body">
+
+            <div class="row g-3">
+
+                <div class="col-md-3">
+
+                    <button class="btn btn-success w-100"
+                            @onclick="OpenInsurance">
+
+                        <i class="bi bi-shield-check me-2"></i>
+
+                        Verify Insurance
+
+                    </button>
+
+                </div>
+
+
+                <div class="col-md-3">
+
+                    <button class="btn btn-primary w-100"
+                            @onclick="OpenClinical">
+
+                        <i class="bi bi-calendar-plus me-2"></i>
+
+                        Schedule SOC
+
+                    </button>
+
+                </div>
+
+
+                <div class="col-md-3">
+
+                    <button class="btn btn-warning w-100"
+                            @onclick="OpenDocuments">
+
+                        <i class="bi bi-folder2-open me-2"></i>
+
+                        Review Documents
+
+                    </button>
+
+                </div>
+
+
+                <div class="col-md-3">
+
+                    <button class="btn btn-outline-success w-100"
+                            @onclick="OpenCommunication">
+
+                        <i class="bi bi-chat-dots me-2"></i>
+
+                        Add Note
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- Current Status / Next Action                          -->
+    <!-- ===================================================== -->
+
+    <div class="row g-4 mb-4">
+
+        <!-- Current Status -->
+
+        <div class="col-md-6">
+
+            <div class="card shadow-sm border-0 h-100">
+
+                <div class="card-header bg-white">
+
+                    <h5 class="mb-0">
+                        Current Status
+                    </h5>
+
+                </div>
+
+                <div class="card-body">
+
+                    <span class="badge bg-success mb-3">
+                        Active
+                    </span>
+
+                    <h5>
+                        Intake / Assessment
+                    </h5>
+
+                    <p class="text-muted mb-0">
+                        Patient is currently in the assessment stage.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Next Action -->
+
+        <div class="col-md-6">
+
+            <div class="card shadow-sm border-0 h-100">
+
+                <div class="card-header bg-white">
+
+                    <h5 class="mb-0">
+                        Next Action
+                    </h5>
+
+                </div>
+
+                <div class="card-body">
+
+                    <h5>
+                        Complete Initial Assessment
+                    </h5>
+
+                    <p class="text-muted">
+                        Complete the assessment before proceeding
+                        to the next workflow stage.
+                    </p>
+
+                    <button class="btn btn-primary btn-sm"
+                            @onclick="OpenClinical">
+
+                        Open Task
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- Patient Notes / Notifications / Fax                  -->
+    <!-- ===================================================== -->
+
+    <div class="row g-4 mb-4">
+
+        <!-- Patient Notes -->
+
+        <div class="col-xl-4">
+
+            <div class="card shadow-sm border-0 h-100">
+
+                <div class="card-header bg-white
+                    d-flex justify-content-between
+                    align-items-center">
+
+                    <h5 class="mb-0">
+                        Patient Notes
+                    </h5>
+
+                    <button class="btn btn-sm btn-outline-primary"
+                            @onclick="OpenCommunication">
+
+                        View All
+
+                    </button>
+
+                </div>
+
+
+                <div class="card-body">
+
+                    @if (Care?.Notes?.Any() == true)
+                    {
+                        @foreach (var note in Care.Notes
+                            .OrderByDescending(x => x.CreatedAt)
+                            .Take(3))
+                        {
+                            <div class="border-bottom pb-3 mb-3">
+
+                                <div class="d-flex
+                                    justify-content-between
+                                    align-items-start">
+
+                                    <strong>
+                                        @note.Subject
+                                    </strong>
+
+                                    <span class="badge
+                                        @GetPriorityClass(note.Priority)">
+
+                                        @note.Priority
+
+                                    </span>
+
+                                </div>
+
+                                <div class="small text-muted mt-1">
+
+                                    @note.CreatedBy
+                                    ·
+                                    @note.CreatedAt.ToString("MM/dd/yyyy")
+
+                                </div>
+
+                                <div class="small mt-2">
+
+                                    @note.Content
+
+                                </div>
+
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-muted text-center py-3">
+
+                            No patient notes.
+
+                        </div>
+                    }
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Active Alerts -->
+
+        <div class="col-xl-4">
+
+            <div class="card shadow-sm border-0 h-100">
+
+                <div class="card-header bg-white
+                    d-flex justify-content-between
+                    align-items-center">
+
+                    <h5 class="mb-0">
+                        Active Alerts
+                    </h5>
+
+                    <button class="btn btn-sm btn-outline-primary"
+                            @onclick="OpenOrdersCare">
+                        View Details
+                    </button>
+
+                </div>
+
+                <div class="card-body">
+                    @if (ActiveNotifications.Any())
+                    {
+                        @foreach (var notification in ActiveNotifications.Take(3))
+                        {
+                            <div class="border-bottom pb-3 mb-3">
+                                <div class="d-flex justify-content-between gap-2">
+                                    <strong class="small">@notification.Title</strong>
+                                    <span class="badge @GetNotificationBadgeClass(notification.Severity)">
+                                        @notification.Severity
+                                    </span>
+                                </div>
+                                <div class="small text-muted mt-1">
+                                    @notification.PatientName
+                                </div>
+                                <div class="small mt-1">
+                                    @notification.Message
+                                </div>
+                                @if (notification.DueDate.HasValue)
+                                {
+                                    <div class="small text-muted mt-1">
+                                        Due @notification.DueDate.Value.ToString("MM/dd/yyyy")
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center text-muted py-3">
+                            <i class="bi bi-check-circle text-success fs-4"></i>
+                            <div class="mt-2 small">No active alerts.</div>
+                        </div>
+                    }
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Fax Information -->
+
+        <div class="col-xl-4">
+
+            <div class="card shadow-sm border-0 h-100">
+
+                <div class="card-header bg-white
+                    d-flex justify-content-between
+                    align-items-center">
+
+                    <h5 class="mb-0">
+                        Fax Information
+                    </h5>
+
+                    <button class="btn btn-sm btn-outline-primary"
+                            @onclick="OpenOrdersCare">
+
+                        View
+
+                    </button>
+
+                </div>
+
+
+                <div class="card-body">
+
+                    @if (Care?.Fax is not null)
+                    {
+                        <div class="mb-3">
+
+                            <div class="small text-muted">
+                                Referring Provider
+                            </div>
+
+                            <div class="fw-semibold">
+                                @Care.Fax.ReferringProvider
+                            </div>
+
+                        </div>
+
+
+                        <div class="mb-3">
+
+                            <div class="small text-muted">
+                                Fax Number
+                            </div>
+
+                            <div>
+                                @Care.Fax.FaxNumber
+                            </div>
+
+                        </div>
+
+
+                        <div class="mb-3">
+
+                            <div class="small text-muted">
+                                Organization
+                            </div>
+
+                            <div>
+                                @Care.Fax.Organization
+                            </div>
+
+                        </div>
+
+
+                        <div>
+
+                            <span class="badge
+                                @(Care.Fax.Verified
+                                    ? "bg-success"
+                                    : "bg-warning text-dark")">
+
+                                @(Care.Fax.Verified
+                                    ? "Verified"
+                                    : "Needs Verification")
+
+                            </span>
+
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-muted text-center py-3">
+
+                            No fax information available.
+
+                        </div>
+                    }
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- Recent Activity                                       -->
+    <!-- ===================================================== -->
+
+    <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card-header bg-white">
+
+            <h5 class="mb-0">
+                Recent Activity
+            </h5>
+
+        </div>
+
+        <div class="card-body p-0">
+
+            <div class="list-group list-group-flush">
+
+                <div class="list-group-item">
+
+                    <strong>
+                        Call completed
+                    </strong>
+
+                    <div class="small text-muted">
+                        Notes recorded · Aug 12, 2026
+                    </div>
+
+                </div>
+
+
+                <div class="list-group-item">
+
+                    <strong>
+                        Insurance verified
+                    </strong>
+
+                    <div class="small text-muted">
+                        Insurance information reviewed · Aug 11, 2026
+                    </div>
+
+                </div>
+
+
+                <div class="list-group-item">
+
+                    <strong>
+                        Referral assigned
+                    </strong>
+
+                    <div class="small text-muted">
+                        Patient assigned to coordinator · Aug 10, 2026
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ===================================================== -->
+    <!-- Upcoming Schedule                                    -->
+    <!-- ===================================================== -->
+
+    <div class="card shadow-sm border-0">
+
+        <div class="card-header bg-white">
+
+            <h5 class="mb-0">
+                Upcoming Schedule
+            </h5>
+
+        </div>
+
+        <div class="card-body p-0">
+
+            <table class="table table-hover mb-0">
+
+                <thead class="table-light">
+
+                    <tr>
+
+                        <th>
+                            Date
+                        </th>
+
+                        <th>
+                            Visit
+                        </th>
+
+                        <th>
+                            Assigned To
+                        </th>
+
+                        <th>
+                            Status
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    <tr>
+
+                        <td>
+                            Aug 14, 2026
+                        </td>
+
+                        <td>
+                            Start of Care
+                        </td>
+
+                        <td>
+                            Renald LVN
+                        </td>
+
+                        <td>
+
+                            <span class="badge bg-primary">
+                                Scheduled
+                            </span>
+
+                        </td>
+
+                    </tr>
+
+
+                    <tr>
+
+                        <td>
+                            Aug 16, 2026
+                        </td>
+
+                        <td>
+                            Skilled Nursing
+                        </td>
+
+                        <td>
+                            Jennifer LVN
+                        </td>
+
+                        <td>
+
+                            <span class="badge bg-secondary">
+                                Pending
+                            </span>
+
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+@code {
+
+    [Parameter]
+    public Guid PatientId { get; set; }
+
+
+    [Parameter]
+    public PatientCareProfileDto? Care { get; set; }
+
+
+    [Parameter]
+    public IReadOnlyList<UserNotificationDto> Notifications { get; set; } = [];
+
+    [Parameter]
+    public EventCallback<string> OnChangeTab { get; set; }
+
+
+    private IEnumerable<UserNotificationDto> ActiveNotifications =>
+        Notifications
+            .Where(x => !x.IsRead)
+            .OrderBy(x => x.DueDate ?? DateTime.MaxValue)
+            .ThenByDescending(x => x.CreatedAt);
+
+
+    private async Task OpenInsurance()
+    {
+        await OnChangeTab.InvokeAsync("Insurance");
+    }
+
+
+    private async Task OpenClinical()
+    {
+        await OnChangeTab.InvokeAsync("Clinical");
+    }
+
+
+    private async Task OpenDocuments()
+    {
+        await OnChangeTab.InvokeAsync("Documents");
+    }
+
+
+    private async Task OpenCommunication()
+    {
+        await OnChangeTab.InvokeAsync("Communication");
+    }
+
+
+    private async Task OpenOrdersCare()
+    {
+        await OnChangeTab.InvokeAsync("Orders & Care");
+    }
+
+
+    private static string GetPriorityClass(string priority)
+    {
+        return priority?.ToLowerInvariant() switch
+        {
+            "high" => "bg-danger",
+            "medium" => "bg-warning text-dark",
+            "low" => "bg-success",
+            _ => "bg-secondary"
+        };
+    }
+
+
+    private static string GetNotificationBadgeClass(string severity) => severity switch
+    {
+        "Critical" => "bg-danger",
+        "Warning" => "bg-warning text-dark",
+        _ => "bg-secondary"
+    };
+
+    private static string GetNotificationIcon(string type)
+    {
+        return type?.ToLowerInvariant() switch
+        {
+            "order" => "bi bi-file-earmark-text-fill",
+            "lab" => "bi bi-eyedropper",
+            "supply" => "bi bi-box-seam-fill",
+            "foley" => "bi bi-heart-pulse-fill",
+            "fax" => "bi bi-printer-fill",
+            _ => "bi bi-bell-fill"
+        };
+    }
+
+    private static string GetNotificationTextClass(UserNotificationDto notification) =>
+        notification.Severity switch
+        {
+            "Critical" => "text-danger",
+            "Warning" => "text-warning",
+            _ => "text-muted"
+        };
+
+}

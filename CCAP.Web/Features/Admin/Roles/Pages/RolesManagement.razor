@@ -1,0 +1,353 @@
+@page "/admin/roles"
+@attribute [CcapAuthorize(Policy = "roles.view")]
+
+@using CCAP.Web.Features.Admin.Roles.Components
+@using CCAP.Web.Features.Admin.Roles.Models
+@using CCAP.Web.Features.Admin.Roles.Services
+@inject RoleService RoleService
+@inject CCAP.Web.Features.Authentication.Services.AuthenticationService AuthenticationService
+@inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Roles & Permissions</PageTitle>
+
+<div class="user-management-page">
+    <div class="page-header">
+        <div>
+            <h2>Roles & Permissions</h2>
+            <p>Manage system roles and their assigned permissions.</p>
+        </div>
+        @if (CanManage)
+        {
+            <button type="button" class="btn btn-success float-right" @onclick="OpenCreate">
+                <i class="bi bi-plus-circle"></i>
+                Add New Role
+            </button>
+        }
+    </div>
+
+    @if (IsLoading)
+    {
+        <div class="py-5 text-center">Loading roles...</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert alert-danger">@ErrorMessage</div>
+    }
+    else
+    {
+        <RoleStatistics Statistics="Statistics"/>
+        <RoleToolbar Filter="Filter" OnFilter="FilterRoles"/>
+        <RoleTable Roles="FilteredRoles"
+            CanManage="CanManage"
+            OnManagePermissions="OpenPermissions"
+            OnEdit="OpenEdit"
+            OnDelete="OpenDelete" />
+
+        <AddEditRoleModal Visible="ShowRoleModal"
+                           IsNew="IsNewRole"
+                           Model="RoleEditor"
+                           Saving="RoleSaving"
+                           ErrorMessage="RoleError"
+                           OnSave="SaveRole"
+                           OnClose="CloseRoleModal" />
+
+        <DeleteRoleModal Visible="ShowDeleteModal"
+                         RoleName="DeleteRoleName"
+                         Deleting="RoleDeleting"
+                         ErrorMessage="DeleteError"
+                         OnDelete="DeleteRole"
+                         OnClose="CloseDeleteModal" />
+
+        <RolePermissionModal Visible="ShowPermissionModal"
+                     RoleName="SelectedRoleName"
+                     Permissions="AllPermissions"
+                     SelectedPermissionIds="SelectedPermissionIds"
+                     Loading="PermissionLoading"
+                     ErrorMessage="PermissionError"
+                     OnSave="SavePermissions"
+                     OnClose="ClosePermissions" />
+    }
+</div>
+
+@code {
+    private RoleStatisticsModel Statistics = new();
+    private RoleFilterModel Filter = new();
+    private List<RoleDto> Roles = [];
+    private List<RoleDto> FilteredRoles = [];
+    private bool IsLoading;
+    private string? ErrorMessage;
+
+    private List<PermissionDto> AllPermissions = [];
+    private HashSet<Guid> SelectedPermissionIds = [];
+    private bool ShowPermissionModal;
+    private bool PermissionLoading;
+    private string SelectedRoleName = string.Empty;
+    private Guid SelectedRoleId;
+    private string? PermissionError;
+
+    private bool ShowRoleModal;
+    private bool IsNewRole;
+    private bool RoleSaving;
+    private string? RoleError;
+    private RoleEditModel RoleEditor = new();
+
+    private bool ShowDeleteModal;
+    private bool RoleDeleting;
+    private Guid DeleteRoleId;
+    private string DeleteRoleName = string.Empty;
+    private string? DeleteError;
+    private bool CanManage;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        CanManage = authState.User.Claims.Any(c =>
+            c.Type == "permission" &&
+            string.Equals(c.Value, "roles.manage", StringComparison.OrdinalIgnoreCase));
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+
+        try
+        {
+            var roles = await RoleService.GetRolesAsync();
+            Roles = roles.Select(x => new RoleDto
+            {
+                RoleId = x.RoleId,
+                RoleName = x.RoleName,
+                Description = x.Description,
+                UserCount = x.UserCount,
+                PermissionCount = x.PermissionCount,
+                IsActive = x.IsActive
+            }).ToList();
+
+            ApplyRoleFilter();
+
+            Statistics = new RoleStatisticsModel
+            {
+                TotalRoles = Roles.Count,
+                TotalPermissions = Roles.Sum(x => x.PermissionCount),
+                AssignedUsers = Roles.Sum(x => x.UserCount),
+                CustomRoles = Roles.Count(x =>
+                    !new[] { "Administrator", "Care Coordinator", "Clinician", "Scheduler" }
+                        .Contains(x.RoleName, StringComparer.OrdinalIgnoreCase))
+            };
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Unable to load roles from CCAP API: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private Task FilterRoles(RoleFilterModel filter)
+    {
+        Filter = filter;
+        ApplyRoleFilter();
+        return Task.CompletedTask;
+    }
+
+    private void ApplyRoleFilter()
+    {
+        IEnumerable<RoleDto> query = Roles;
+
+        if (!string.IsNullOrWhiteSpace(Filter.Search))
+        {
+            var search = Filter.Search.Trim();
+            query = query.Where(x =>
+                x.RoleName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                x.Description.Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (Filter.IsActive.HasValue)
+            query = query.Where(x => x.IsActive == Filter.IsActive.Value);
+
+        FilteredRoles = query.ToList();
+    }
+
+    private void OpenCreate()
+    {
+        if (!CanManage) return;
+        IsNewRole = true;
+        RoleError = null;
+        RoleEditor = new RoleEditModel { IsActive = true };
+        ShowRoleModal = true;
+    }
+
+    private void OpenEdit(RoleDto role)
+    {
+        if (!CanManage) return;
+        IsNewRole = false;
+        RoleError = null;
+        RoleEditor = new RoleEditModel
+        {
+            RoleId = role.RoleId,
+            RoleName = role.RoleName,
+            Description = role.Description,
+            IsActive = role.IsActive
+        };
+        ShowRoleModal = true;
+    }
+
+    private void CloseRoleModal()
+    {
+        ShowRoleModal = false;
+        RoleError = null;
+    }
+
+    private async Task SaveRole()
+    {
+        if (!CanManage) return;
+        RoleSaving = true;
+        RoleError = null;
+        try
+        {
+            if (IsNewRole)
+                await RoleService.CreateRoleAsync(RoleEditor);
+            else
+                await RoleService.UpdateRoleAsync(RoleEditor);
+
+            CloseRoleModal();
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            RoleError = ex.Message;
+        }
+        finally
+        {
+            RoleSaving = false;
+        }
+    }
+
+    private void OpenDelete(RoleDto role)
+    {
+        if (!CanManage) return;
+        DeleteRoleId = role.RoleId;
+        DeleteRoleName = role.RoleName;
+        DeleteError = null;
+        ShowDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        ShowDeleteModal = false;
+        DeleteError = null;
+    }
+
+    private async Task DeleteRole()
+    {
+        if (!CanManage) return;
+        RoleDeleting = true;
+        DeleteError = null;
+        try
+        {
+            await RoleService.DeleteRoleAsync(DeleteRoleId);
+            CloseDeleteModal();
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            DeleteError = ex.Message;
+        }
+        finally
+        {
+            RoleDeleting = false;
+        }
+    }
+
+    private async Task OpenPermissions(RoleDto role)
+    {
+        if (!CanManage) return;
+        SelectedRoleId = role.RoleId;
+        SelectedRoleName = role.RoleName;
+        SelectedPermissionIds = [];
+        PermissionError = null;
+        ShowPermissionModal = true;
+        PermissionLoading = true;
+
+        try
+        {
+            // Load the complete permission catalog first so the modal always
+            // has fields to display, then load the permissions assigned to
+            // this specific role.
+            AllPermissions = await RoleService.GetPermissionsAsync();
+
+            var details = await RoleService.GetRoleAsync(role.RoleId);
+
+            SelectedPermissionIds = details?.Permissions
+                .Select(x => x.PermissionId)
+                .ToHashSet()
+                ?? [];
+
+            if (AllPermissions.Count == 0)
+            {
+                PermissionError = "No permissions were returned. Check MockData permissions or the API permissions endpoint.";
+            }
+        }
+        catch (Exception ex)
+        {
+            PermissionError = $"Unable to load role permissions: {ex.Message}";
+        }
+        finally
+        {
+            PermissionLoading = false;
+        }
+    }
+
+    private async Task SavePermissions()
+    {
+        if (!CanManage) return;
+        PermissionError = null;
+        PermissionLoading = true;
+
+        try
+        {
+            await RoleService.SetPermissionsAsync(
+                SelectedRoleId,
+                SelectedPermissionIds);
+
+            // If the currently logged-in mock user belongs to this role,
+            // rebuild their permission claims immediately.
+            if (AuthenticationStateProvider is CCAP.Web.Features.Authentication.State.CcapAuthenticationStateProvider)
+            {
+                var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+                var userIdValue = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (Guid.TryParse(userIdValue, out var currentUserId))
+                {
+                    var currentUser = (await RoleService.GetRolesAsync())
+                        .FirstOrDefault(x => x.RoleId == SelectedRoleId);
+                    await AuthenticationService.RefreshMockAuthorizationAsync(currentUserId);
+                    if (AuthenticationStateProvider is CCAP.Web.Features.Authentication.State.CcapAuthenticationStateProvider provider)
+                        await provider.NotifyLoginAsync();
+                }
+            }
+
+            ShowPermissionModal = false;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            PermissionError = $"Unable to save permissions: {ex.Message}";
+        }
+        finally
+        {
+            PermissionLoading = false;
+        }
+    }
+
+    private void ClosePermissions()
+    {
+        ShowPermissionModal = false;
+        PermissionError = null;
+    }
+}

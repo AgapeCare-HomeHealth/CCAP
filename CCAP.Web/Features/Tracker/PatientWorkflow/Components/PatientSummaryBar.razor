@@ -1,0 +1,3 @@
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Model
+<div class="card shadow-sm border-0"><div class="card-body"><div class="row g-3 small"><div class="col-md-3"><strong>Diagnosis</strong><div>@Data.PrimaryDiagnosis</div></div><div class="col-md-2"><strong>Insurance</strong><div>@Data.Insurance</div></div><div class="col-md-2"><strong>SOC</strong><div>@(Data.SocDate?.ToString("MM/dd/yyyy") ?? "-")</div></div><div class="col-md-2"><strong>Authorized Visits</strong><div>@Data.AuthorizedVisits</div></div><div class="col-md-3"><strong>Phone</strong><div>@Data.PhoneNumber</div></div></div></div></div>
+@code { [Parameter] public PatientSummaryDto Data { get; set; } = new(); }

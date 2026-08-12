@@ -1,0 +1,50 @@
+@page "/dashboard"
+@attribute [CcapAuthorize(Policy = "dashboard.view")]
+
+@using CCAP.Web.Features.Dashboard.Components
+@using CCAP.Web.Features.Dashboard.Models
+@using CCAP.Web.Features.Dashboard.Services
+@inject DashboardService DashboardService
+
+<PageTitle>My Work</PageTitle>
+
+@if (IsLoading)
+{
+    <div class="d-flex justify-content-center py-5"><div class="spinner-border" role="status"></div></div>
+}
+else if (!string.IsNullOrWhiteSpace(ErrorMessage))
+{
+    <div class="alert alert-danger">@ErrorMessage</div>
+}
+else
+{
+    <div class="mywork-page">
+        <HeaderSection UserName="@UserName" />
+        <StatisticsSection Statistics="@Data.Statistics" />
+        <TaskSection Tasks="@Data.Tasks" />
+        <BottomWidgets Referrals="@Data.RecentReferrals" Visits="@Data.UpcomingVisits" Announcements="@Data.Announcements" />
+    </div>
+}
+
+@code {
+    private DashboardData Data = new();
+    private string UserName = "Jennifer";
+    private bool IsLoading = true;
+    private string? ErrorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Data = await DashboardService.GetAsync();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Unable to load dashboard data: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+}
