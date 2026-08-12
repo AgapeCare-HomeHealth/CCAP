@@ -1,0 +1,82 @@
+.toolbar-card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 30px;
+    box-shadow: 0 5px 20px rgba(0,0,0,.06);
+}
+
+.toolbar-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.search-box {
+    position: relative;
+}
+
+    .search-box i {
+        position: absolute;
+        left: 18px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #9ca3af;
+        font-size: 18px;
+    }
+
+    .search-box input {
+        padding-left: 48px;
+    }
+
+.form-control,
+.form-select {
+    height: 50px;
+    border-radius: 14px;
+    border: 1px solid #d6dbe1;
+    box-shadow: none;
+    font-size: 15px;
+}
+
+    .form-control:focus,
+    .form-select:focus {
+        border-color: #18a689;
+        box-shadow: 0 0 0 .15rem rgba(24,166,137,.15);
+    }
+
+.toolbar-buttons {
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-end;
+    gap: 18px;
+    height: 100%;
+}
+
+.btn-filter {
+    border: 1px solid #18a689;
+    background: #fff;
+    color: #18a689;
+    padding: 11px 22px;
+    border-radius: 12px;
+    font-weight: 600;
+    transition: .2s;
+}
+
+    .btn-filter:hover {
+        background: #18a689;
+        color: #fff;
+    }
+
+.btn-clear {
+    background: none;
+    border: none;
+    color: #6b7280;
+    font-weight: 600;
+    padding: 0;
+}
+
+    .btn-clear:hover {
+        color: #18a689;
+    }

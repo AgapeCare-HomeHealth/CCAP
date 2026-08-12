@@ -1,0 +1,204 @@
+﻿@code {
+
+    [Parameter]
+    public bool IsCollapsed { get; set; }
+
+}
+
+<div class="sidebar @(IsCollapsed ? "collapsed" : "")">
+
+    <!-- Logo Section -->
+    <div class="sidebar-header">
+        <div class="sidebar-header-content">
+
+            <img src="images/logo.png" class="sidebar-logo" />
+
+            @if (!IsCollapsed)
+            {
+                <div class="sidebar-title">
+                    <h4>AgapeCare</h4>
+                    <p>Home Health Inc.</p>
+                </div>
+            }
+
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="sidebar-nav">
+
+        <div class="menu-group">
+
+            <NavLink href="/" Match="NavLinkMatch.All" class="nav-item">
+                <i class="bi bi-grid"></i>
+
+                @if (!IsCollapsed)
+                {
+                    <span>Dashboard</span>
+                }
+            </NavLink>
+
+            <NavLink href="/patients" class="nav-item">
+                <i class="bi bi-people"></i>
+                @if (!IsCollapsed)
+                {
+                    <span>My Patients</span>
+                }
+            </NavLink>
+
+            <NavLink href="/referrals" class="nav-item">
+                <i class="bi bi-person-plus"></i>
+                @if (!IsCollapsed)
+                {
+                    <span>Referrals</span>
+                }
+            </NavLink>
+
+        </div>
+
+        <!-- ======================= -->
+        <!-- Workflow Tracker -->
+        <!-- ======================= -->
+
+        @* <details class="menu-dropdown">
+
+            <summary>
+
+                <div>
+                    <i class="bi bi-clipboard-check"></i>
+
+                    @if (!IsCollapsed)
+                    {
+                        <span>Workflow Tracker</span>
+                    }
+                </div>
+
+                @if (!IsCollapsed)
+                {
+                    <i class="bi bi-chevron-down arrow"></i>
+                }
+
+            </summary>
+
+            @if (!IsCollapsed)
+            {
+                <NavLink href="/tracker/referral" class="submenu-item">
+                    Referral Intake
+                </NavLink>
+
+
+                @* <NavLink href="/compliance/orders" class="submenu-item">
+                    Physician Orders
+                </NavLink>
+
+                <NavLink href="/compliance/audit" class="submenu-item">
+                    QA Audit
+                </NavLink> 
+            }
+
+        </details>
+        *@
+        <!-- ======================= -->
+        <!-- Documents -->
+        <!-- ======================= -->
+        <!-- ======================= -->
+        <!-- Documents -->
+        <!-- ======================= -->
+
+        @* <details class="menu-dropdown">
+
+            <summary>
+
+                <div>
+
+                    <i class="bi bi-folder2-open"></i>
+
+                    @if (!IsCollapsed)
+                    {
+                        <span>Documents</span>
+                    }
+
+                </div>
+
+                @if (!IsCollapsed)
+                {
+                    <i class="bi bi-chevron-down arrow"></i>
+                }
+
+            </summary>
+
+            @if (!IsCollapsed)
+            {
+                <NavLink href="/documents/upload" class="submenu-item">
+                    Upload
+                </NavLink>
+
+                <NavLink href="/documents/archive" class="submenu-item">
+                    Archive
+                </NavLink>
+
+                <NavLink href="/documents/templates" class="submenu-item">
+                    Templates
+                </NavLink>
+            }
+
+        </details> *@
+
+        <!-- ======================= -->
+        <!-- Admin -->
+        <!-- ======================= -->
+        <!-- ======================= -->
+        <!-- Admin -->
+        <!-- ======================= -->
+
+        <details class="menu-dropdown">
+
+            <summary>
+
+                <div>
+
+                    <i class="bi bi-gear"></i>
+
+                    @if (!IsCollapsed)
+                    {
+                        <span>Admin</span>
+                    }
+
+                </div>
+
+                @if (!IsCollapsed)
+                {
+                    <i class="bi bi-chevron-down arrow"></i>
+                }
+
+            </summary>
+
+            @if (!IsCollapsed)
+            {
+                <NavLink href="/admin/users" class="submenu-item">
+                    Users
+                </NavLink>
+
+                <NavLink href="/admin/roles" class="submenu-item">
+                    Roles
+                </NavLink>
+
+                @* <NavLink href="/admin/settings" class="submenu-item">
+                    Settings
+                </NavLink> *@
+
+            }
+
+        </details>
+
+    </nav>
+
+    <!-- Footer -->
+    @if (!IsCollapsed)
+    {
+        <div class="sidebar-footer">
+            Version 1.0
+        </div>
+    }
+
+</div>

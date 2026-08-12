@@ -1,0 +1,117 @@
+@page "/dashboard"
+@attribute [CcapAuthorize]
+
+@using CCAP.Web.Features.Dashboard.Components
+@using CCAP.Web.Features.Dashboard.Models
+
+<PageTitle>My Work</PageTitle>
+
+<div class="mywork-page">
+
+    <HeaderSection UserName="Jennifer" />
+
+    <StatisticsSection Statistics="Statistics" />
+
+    <TaskSection Tasks="Tasks" />
+
+    <BottomWidgets Referrals="RecentReferrals"
+                   Visits="UpcomingVisits"
+                   Announcements="Announcements" />
+</div>
+
+@code {
+
+    private WorkStatisticsModel Statistics = new()
+    {
+        MyTasks = 14,
+        HighPriority = 5,
+        DueToday = 6,
+        CompletedToday = 8
+    };
+
+    private List<MyTaskDto> Tasks = new()
+    {
+        new()
+        {
+            TransactionId = Guid.NewGuid(),
+            Priority = "High",
+            TaskName = "Verify Insurance",
+            PatientName = "John Smith",
+            CurrentStage = "Insurance Verification",
+            AssignedTo = "Jennifer RN",
+            DueDate = DateTime.Today.AddHours(10)
+        },
+
+        new()
+        {
+            TransactionId = Guid.NewGuid(),
+            Priority = "High",
+            TaskName = "Schedule SOC",
+            PatientName = "Maria Cruz",
+            CurrentStage = "SOC Scheduling",
+            AssignedTo = "Jennifer RN",
+            DueDate = DateTime.Today.AddHours(13)
+        },
+
+        new()
+        {
+            TransactionId = Guid.NewGuid(),
+            Priority = "Medium",
+            TaskName = "Upload Plan of Care",
+            PatientName = "James Brown",
+            CurrentStage = "Compliance",
+            AssignedTo = "Jennifer RN",
+            DueDate = DateTime.Today.AddDays(1)
+        }
+    };
+
+    private List<ReferralSummaryDto> RecentReferrals = new()
+    {
+        new()
+        {
+            PatientName="John Smith",
+            ReferralNumber="RF-2305-0018",
+            ReferralDate=DateTime.Today
+        },
+
+        new()
+        {
+            PatientName="Ana Reyes",
+            ReferralNumber="RF-2305-0019",
+            ReferralDate=DateTime.Today
+        }
+    };
+
+    private List<UpcomingVisitDto> UpcomingVisits = new()
+    {
+        new()
+        {
+            PatientName="John Smith",
+            Clinician="Jennifer RN",
+            VisitDate=DateTime.Today.AddDays(1).AddHours(9)
+        },
+
+        new()
+        {
+            PatientName="Maria Cruz",
+            Clinician="Renaldi LVN",
+            VisitDate=DateTime.Today.AddDays(2).AddHours(10)
+        }
+    };
+
+    private List<AnnouncementDto> Announcements = new()
+    {
+        new()
+        {
+            Title="System Maintenance",
+            Message="Scheduled maintenance tonight from 10:00 PM to 12:00 AM."
+        },
+
+        new()
+        {
+            Title="Policy Update",
+            Message="Updated SOC documentation guidelines are now available."
+        }
+    };
+
+}

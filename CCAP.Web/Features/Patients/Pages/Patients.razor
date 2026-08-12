@@ -1,0 +1,60 @@
+@page "/patients"
+@attribute [CcapAuthorize]
+
+@using CCAP.Web.Features.Patients.Models
+@using CCAP.Web.Features.Patients.Components
+@inject CCAP.Web.Features.Patients.Services.PatientService PatientService
+
+<PageTitle>Patients</PageTitle>
+
+<div class="patients-page">
+
+    <div class="page-header">
+        <h2>My Patients</h2>
+        <p>Manage and monitor patient records.</p>
+    </div>
+
+    <PatientToolbar />
+
+    @if (IsLoading)
+    {
+        <div class="py-5 text-center">
+            Loading patients...
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert alert-danger">
+            @ErrorMessage
+        </div>
+    }
+    else
+    {
+        <PatientTable Patients="PatientList" />
+        <PatientPagination TotalItems="@PatientList.Count" />
+    }
+</div>
+
+@code {
+    private List<PatientListItem> PatientList = [];
+    private bool IsLoading;
+    private string? ErrorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        IsLoading = true;
+
+        try
+        {
+            PatientList = await PatientService.GetPatientsAsync();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Unable to load patients from CCAP API: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+}

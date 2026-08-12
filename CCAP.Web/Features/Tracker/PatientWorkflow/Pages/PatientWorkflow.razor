@@ -1,0 +1,287 @@
+@* @page "/tracker/patient/{id:int}" *@
+@page "/tracker/patient"
+@attribute [CcapAuthorize]
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Components
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Models
+
+<PageTitle>Patient Workflow</PageTitle>
+
+<div class="patient-workflow-page">
+
+    <!-- ================= Header ================= -->
+
+    <PatientHeader Patient="@Header" />
+
+    <!-- ================= Workflow ================= -->
+
+    <section class="mt-4">
+        <WorkflowTabs Tabs="@Tabs"
+                      OnTabChanged="OnTabChanged" />
+    </section>
+
+    <section class="mt-4">
+
+        <WorkflowProgress Stages="@WorkflowStages" />
+
+    </section>
+
+    <!-- ================= Dashboard ================= -->
+
+    <section class="mt-4">
+
+        <div class="row g-4">
+
+            <div class="col-xl-4 col-lg-6">
+
+                <NextActionCard />
+
+            </div>
+
+            <div class="col-xl-4 col-lg-6">
+
+                <KeyInformationCard />
+
+            </div>
+
+            <div class="col-xl-4 col-lg-12">
+
+                <RecentActivityCard />
+
+            </div>
+
+        </div>
+
+    </section>
+
+    <!-- ================= Summary ================= -->
+
+    <section class="mt-4">
+
+        <PatientSummaryBar />
+
+    </section>
+
+    <!-- ================= Dynamic Content ================= -->
+
+<section class="mt-4">
+
+    @switch (SelectedTab)
+    {
+        case "Overview":
+
+                <OverviewTab OnChangeTab="OnTabChanged" />
+
+            break;
+
+        case "Insurance":
+
+            <InsuranceTab />
+
+            break;
+
+        case "Clinical":
+
+            <ClinicalTab />
+
+            break;
+
+        case "Compliance":
+
+            <ComplianceTab />
+
+            break;
+
+        case "Documents":
+
+            <DocumentsTab />
+
+            break;
+
+        case "Communication":
+
+            <CommunicationTab />
+
+            break;
+
+        case "Timeline":
+
+            <TimelineTab />
+
+            break;
+
+        case "Audit Log":
+
+            <AuditLogTab />
+
+            break;
+    }
+
+</section>
+
+</div>
+
+@code {
+
+    private string SelectedTab = "Overview";
+
+    private void OnTabChanged(string tabTitle)
+    {
+        SelectedTab = tabTitle;
+
+        foreach (var tab in Tabs)
+        {
+            tab.Active = tab.Title == tabTitle;
+        }
+    }
+
+    private readonly List<WorkflowStageDto> WorkflowStages =
+    [
+        new()
+        {
+            Sequence = 1,
+            StageCode = "REFERRAL",
+            StageName = "Referral",
+            Description = "Completed",
+            Status = WorkflowStatus.Completed,
+            CompletedDate = DateTime.Today.AddDays(-4),
+            IsClickable = true,
+            Route = "/overview"
+        },
+
+        new()
+        {
+            Sequence = 2,
+            StageCode = "INSURANCE",
+            StageName = "Insurance",
+            Description = "Completed",
+            Status = WorkflowStatus.Completed,
+            CompletedDate = DateTime.Today.AddDays(-3),
+            IsClickable = true,
+            Route = "/insurance"
+        },
+
+        new()
+        {
+            Sequence = 3,
+            StageCode = "SOC",
+            StageName = "SOC Scheduled",
+            Description = "Current Stage",
+            Status = WorkflowStatus.Current,
+            CompletedDate = DateTime.Today,
+            IsClickable = true,
+            Route = "/clinical"
+        },
+
+        new()
+        {
+            Sequence = 4,
+            StageCode = "ADMISSION",
+            StageName = "Admission",
+            Description = "Pending",
+            Status = WorkflowStatus.Pending
+        },
+
+        new()
+        {
+            Sequence = 5,
+            StageCode = "VISITS",
+            StageName = "Visits",
+            Description = "Pending",
+            Status = WorkflowStatus.Pending
+        },
+
+        new()
+        {
+            Sequence = 6,
+            StageCode = "RECERT",
+            StageName = "Recertification",
+            Description = "Pending",
+            Status = WorkflowStatus.Pending
+        },
+
+        new()
+        {
+            Sequence = 7,
+            StageCode = "DISCHARGE",
+            StageName = "Discharge",
+            Description = "Pending",
+            Status = WorkflowStatus.Pending
+        }
+    ];
+
+    private readonly PatientHeaderDto Header = new()
+    {
+        FirstName = "John",
+        MiddleName = "Michael",
+        LastName = "Smith",
+
+        Age = 65,
+
+        MRN = "123456789",
+
+        ReferralNumber = "REF-2026-000123",
+
+        Status = "Active",
+
+        Coordinator = "Jennifer LVN",
+
+        Branch = "Main Office",
+
+        EpisodeNumber = 1,
+
+        SocDate = new DateOnly(2026, 8, 8)
+    };
+
+    private readonly List<WorkflowTabDto> Tabs =
+[
+    new()
+    {
+        Title = "Overview",
+        Icon = "bi bi-house",
+        Active = true
+    },
+
+    new()
+    {
+        Title = "Insurance",
+        Icon = "bi bi-shield-check"
+    },
+
+    new()
+    {
+        Title = "Clinical",
+        Icon = "bi bi-heart-pulse"
+    },
+
+    new()
+    {
+        Title = "Compliance",
+        Icon = "bi bi-clipboard-check"
+    },
+
+    new()
+    {
+        Title = "Documents",
+        Icon = "bi bi-folder2-open"
+    },
+
+    new()
+    {
+        Title = "Communication",
+        Icon = "bi bi-chat-left-text"
+    },
+
+    new()
+    {
+        Title = "Timeline",
+        Icon = "bi bi-clock-history"
+    },
+
+    new()
+    {
+        Title = "Audit Log",
+        Icon = "bi bi-journal-text"
+    }
+];
+
+}

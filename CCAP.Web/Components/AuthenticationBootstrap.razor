@@ -1,0 +1,40 @@
+@using CCAP.Web.Features.Authentication.Services
+@using CCAP.Web.Features.Authentication.State
+@using Microsoft.AspNetCore.Components.Authorization
+@inject TokenStore TokenStore
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+@if (_ready)
+{
+    @ChildContent
+}
+else
+{
+    <div class="d-flex min-vh-100 align-items-center justify-content-center">
+        <div class="text-center text-muted">
+            <div class="spinner-border mb-3" role="status" aria-hidden="true"></div>
+            <div>Loading CCAP...</div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private bool _ready;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        await TokenStore.LoadPersistedAsync();
+
+        if (AuthenticationStateProvider is CcapAuthenticationStateProvider provider)
+            await provider.NotifyLoginAsync();
+
+        _ready = true;
+        StateHasChanged();
+    }
+}
