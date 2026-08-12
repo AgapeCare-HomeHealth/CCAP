@@ -1,10 +1,9 @@
 # CCAP Development Documentation
 
-> **Document purpose:** This is the development documentation for the actual CCAP codebase contained in `CCAP-CleanArchitecture-DeploymentReady-FINAL-v2.2.zip`.
+> **Document purpose:** This is the development documentation for the actual CCAP codebase
 >
 > It consolidates and corrects the existing repository Markdown documentation against the source code. It describes what is implemented, how the layers communicate, how authentication/authorization currently works, how the database is modeled, and which UI areas are currently API-backed versus still prototype/static.
 >
-> This is **not** a machine setup guide. For machine setup and deployment configuration, use the separate environment/deployment documentation.
 
 ---
 
@@ -3626,33 +3625,3 @@ Patient.Status = Completed
 This is the core development pattern that should be followed for future CCAP features.
 
 ---
-
-# 106. Documentation Status
-
-This document reflects the source code in:
-
-```text
-CCAP-CleanArchitecture-DeploymentReady-FINAL-v2.2.zip
-```
-
-and corrects the older repository Markdown where the older documentation described functionality that is not yet wired end-to-end.
-
-In particular, this documentation intentionally distinguishes:
-
-```text
-Implemented backend
-```
-
-from:
-
-```text
-Connected Web feature
-```
-
-and from:
-
-```text
-UI prototype
-```
-
-That distinction should be maintained as the system continues development.
