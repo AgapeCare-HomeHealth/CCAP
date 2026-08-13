@@ -31,13 +31,13 @@
         </div>
 
         <!-- Error -->
-        @if (!string.IsNullOrWhiteSpace(ErrorMessage))
-        {
+            @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+            {
             <div class="login-error">
                 <i class="bi bi-exclamation-circle"></i>
                 <span>@ErrorMessage</span>
             </div>
-        }
+            }
 
         <!-- Email -->
         <div class="form-group">
@@ -85,16 +85,19 @@
 
             </div>
 
-        </div>
+            <div class="mb-3">
+                <label class="form-label">Password</label>
+                <input class="form-control" @bind="Password" @bind:event="oninput" type="password" autocomplete="current-password" />
+            </div>
 
         <!-- Login Button -->
         <button class="login-button"
-                @onclick="LoginAsync"
-                disabled="@IsLoading">
+                    @onclick="LoginAsync"
+                    disabled="@IsLoading">
 
-            @(IsLoading ? "Signing in..." : "Sign In")
+                @(IsLoading ? "Signing in..." : "Sign In")
 
-        </button>
+            </button>
 
         <!-- Divider -->
         <div class="login-divider">
@@ -157,8 +160,8 @@
 
             var target =
                 string.IsNullOrWhiteSpace(ReturnUrl) || !ReturnUrl.StartsWith('/')
-                    ? "/dashboard"
-                    : ReturnUrl;
+                ? "/dashboard"
+                : ReturnUrl;
 
             Navigation.NavigateTo(target);
         }

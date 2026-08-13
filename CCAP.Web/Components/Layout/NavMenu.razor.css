@@ -27,6 +27,7 @@
 .sidebar-header-content {
     display: flex;
     align-items: center;
+    gap: 12px;
     width: 100%;
     transition: .25s ease;
 }
@@ -55,12 +56,15 @@
     display: block;
 }
 
+.sidebar-title {
+    overflow: hidden;
+}
 
 /* Center logo when sidebar is collapsed */
 
 .sidebar.collapsed .sidebar-header-content {
     justify-content: center;
-}
+    }
 
 /* ==========================================
    NAVIGATION
