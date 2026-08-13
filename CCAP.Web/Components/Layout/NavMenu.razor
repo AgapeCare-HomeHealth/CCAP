@@ -7,18 +7,22 @@
 
 <div class="sidebar @(IsCollapsed ? "collapsed" : "")">
 
+   
     <!-- Logo Section -->
     <div class="sidebar-header">
         <div class="sidebar-header-content">
 
-            <img src="images/logo.png" class="sidebar-logo" />
-
-            @if (!IsCollapsed)
+            @if (IsCollapsed)
             {
-                <div class="sidebar-title">
-                    <h4>AgapeCare</h4>
-                    <p>Home Health Inc.</p>
-                </div>
+                <img src="images/logo11.png"
+                     alt="AgapeCare"
+                     class="sidebar-logo sidebar-logo-collapsed" />
+            }
+            else
+            {
+                <img src="images/logo.png"
+                     alt="AgapeCare Home Health Inc."
+                     class="sidebar-logo sidebar-logo-expanded" />
             }
 
         </div>
