@@ -51,14 +51,24 @@ public sealed class CcapAuthenticationStateProvider
             GetAuthenticationStateAsync());
     }
 
+    //public async Task NotifyLoginAsync()
+    //{
+    //    _initialized = true;
+
+    //    NotifyAuthenticationStateChanged(
+    //        GetAuthenticationStateAsync());
+
+    //    await Task.CompletedTask;
+    //}
     public async Task NotifyLoginAsync()
     {
         _initialized = true;
 
-        NotifyAuthenticationStateChanged(
-            GetAuthenticationStateAsync());
+        var authenticationState =
+            await GetAuthenticationStateAsync();
 
-        await Task.CompletedTask;
+        NotifyAuthenticationStateChanged(
+            Task.FromResult(authenticationState));
     }
 
     public async Task NotifyLogoutAsync()
@@ -131,8 +141,11 @@ public sealed class CcapAuthenticationStateProvider
 
             return new ClaimsPrincipal(identity);
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine(
+                $"[CCAP AUTH] Failed to parse JWT: {ex}");
+
             return Anonymous;
         }
     }

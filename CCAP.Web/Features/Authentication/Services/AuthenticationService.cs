@@ -21,20 +21,83 @@ public sealed class AuthenticationService
         _mock = mock;
     }
 
-    public async Task<LoginResultDto> LoginAsync(string email, string password, CancellationToken cancellationToken = default)
+    public async Task<LoginResultDto> LoginAsync(
+        string email,
+        string password,
+        CancellationToken cancellationToken = default)
     {
         if (_options.Enabled)
+        {
             return await MockLoginAsync(email, password);
+        }
 
-        var client = _httpClientFactory.CreateClient("CCAP.Api");
-        using var response = await client.PostAsJsonAsync("api/auth/login", new { email, password }, cancellationToken);
-        var result = await response.Content.ReadFromJsonAsync<LoginResultDto>(cancellationToken: cancellationToken)
-            ?? new LoginResultDto { Success = false, Message = "Invalid API response." };
+        try
+        {
+            var client = _httpClientFactory.CreateClient("CCAP.Api");
 
-        if (result.Success && !string.IsNullOrWhiteSpace(result.Token))
-            await _tokenStore.SetAsync(result.Token);
+            using var response = await client.PostAsJsonAsync(
+                "api/auth/login",
+                new
+                {
+                    email = email.Trim(),
+                    password
+                },
+                cancellationToken);
 
-        return result;
+            var responseBody = await response.Content.ReadAsStringAsync(
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return new LoginResultDto
+                {
+                    Success = false,
+                    Message =
+                        $"API login failed ({(int)response.StatusCode}): " +
+                        responseBody
+                };
+            }
+
+            var result = JsonSerializer.Deserialize<LoginResultDto>(
+                responseBody,
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+            if (result is null)
+            {
+                return new LoginResultDto
+                {
+                    Success = false,
+                    Message = "Invalid API response."
+                };
+            }
+
+            if (result.Success &&
+                !string.IsNullOrWhiteSpace(result.Token))
+            {
+                await _tokenStore.SetAsync(result.Token);
+            }
+
+            return result;
+        }
+        catch (HttpRequestException ex)
+        {
+            return new LoginResultDto
+            {
+                Success = false,
+                Message = $"Unable to connect to CCAP API: {ex.Message}"
+            };
+        }
+        catch (TaskCanceledException)
+        {
+            return new LoginResultDto
+            {
+                Success = false,
+                Message = "The API login request timed out."
+            };
+        }
     }
 
     public Task LogoutAsync() => _tokenStore.DeleteAsync();
