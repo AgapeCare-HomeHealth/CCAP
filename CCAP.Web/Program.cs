@@ -1,10 +1,11 @@
 using CCAP.Web.Components;
 using CCAP.Web.Features.Authentication.Services;
 using CCAP.Web.Features.Authentication.State;
-using CCAP.Web.Features.MockData;
 using CCAP.Web.Features.Dashboard.Services;
-using CCAP.Web.Features.Tracker.PatientWorkflow.Services;
+using CCAP.Web.Features.MockData;
 using CCAP.Web.Features.Notifications.Services;
+using CCAP.Web.Features.Tracker.PatientWorkflow.Services;
+using CCAP.Web.Features.Tracker.ReferralIntake.Services;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 
@@ -39,6 +40,7 @@ builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<PatientWorkflowService>();
 builder.Services.AddScoped<PatientCareManagementService>();
 builder.Services.AddScoped<NotificationCenterService>();
+builder.Services.AddScoped<ReferralIntakeService>();
 
 builder.Services.AddScoped<
     CCAP.Web.Features.Admin.Users.Services.UserServices>();
@@ -54,6 +56,7 @@ builder.Services.AddScoped<
 
 builder.Services.AddScoped<
     CCAP.Web.Features.Tracker.PatientWorkflow.Services.PatientClinicalService>();
+
 
 var apiBaseUrl =
     builder.Configuration["Api:BaseUrl"]

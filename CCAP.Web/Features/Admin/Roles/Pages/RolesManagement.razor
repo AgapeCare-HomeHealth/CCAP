@@ -43,29 +43,29 @@
             OnEdit="OpenEdit"
             OnDelete="OpenDelete" />
 
-        <AddEditRoleModal Visible="ShowRoleModal"
-                           IsNew="IsNewRole"
-                           Model="RoleEditor"
-                           Saving="RoleSaving"
-                           ErrorMessage="RoleError"
-                           OnSave="SaveRole"
-                           OnClose="CloseRoleModal" />
+        <AddEditRoleModal Visible="@ShowRoleModal"
+                           IsNew="@IsNewRole"
+                           Model="@RoleEditor"
+                           Saving="@RoleSaving"
+                           ErrorMessage="@RoleError"
+                           OnSave="@SaveRole"
+                           OnClose="@CloseRoleModal" />
 
-        <DeleteRoleModal Visible="ShowDeleteModal"
-                         RoleName="DeleteRoleName"
-                         Deleting="RoleDeleting"
-                         ErrorMessage="DeleteError"
-                         OnDelete="DeleteRole"
-                         OnClose="CloseDeleteModal" />
+        <DeleteRoleModal Visible="@ShowDeleteModal"
+                         RoleName="@DeleteRoleName"
+                         Deleting="@RoleDeleting"
+                         ErrorMessage="@DeleteError"
+                         OnDelete="@DeleteRole"
+                         OnClose="@CloseDeleteModal" />
 
-        <RolePermissionModal Visible="ShowPermissionModal"
-                     RoleName="SelectedRoleName"
-                     Permissions="AllPermissions"
-                     SelectedPermissionIds="SelectedPermissionIds"
-                     Loading="PermissionLoading"
-                     ErrorMessage="PermissionError"
-                     OnSave="SavePermissions"
-                     OnClose="ClosePermissions" />
+        <RolePermissionModal Visible="@ShowPermissionModal"
+                     RoleName="@SelectedRoleName"
+                     Permissions="@AllPermissions"
+                     SelectedPermissionIds="@SelectedPermissionIds"
+                     Loading="@PermissionLoading"
+                     ErrorMessage="@PermissionError"
+                     OnSave="@SavePermissions"
+                     OnClose="@ClosePermissions" />
     }
 </div>
 

@@ -22,33 +22,48 @@
         </thead>
 
         <tbody>
-
-            @foreach (var patient in Patients)
+            @if (Patients.Any())
             {
-                <tr class="clickable-row"
-                    @onclick="() => OpenPatient(patient)">
+                @foreach (var patient in Patients)
+                {
+                    <tr class="clickable-row"
+                        @onclick="() => OpenPatient(patient)">
 
-                    <td>@patient.Name</td>
+                        <td>@patient.Name</td>
 
-                    <td>@patient.MRN</td>
+                        <td>@patient.MRN</td>
 
-                    <td>
-                        <PatientStatusBadge Status="@patient.Status" />
-                    </td>
+                        <td>
+                            <PatientStatusBadge Status="@patient.Status" />
+                        </td>
 
-                    <td>@patient.PrimaryDiagnosis</td>
+                        <td>@patient.PrimaryDiagnosis</td>
 
-                    <td>@patient.AssignedClinician</td>
+                        <td>@patient.AssignedClinician</td>
 
-                    <td>@patient.NextVisit</td>
+                        <td>@patient.NextVisit</td>
 
-                    <td @onclick:stopPropagation="true">
-                        <PatientActionMenu />
+                        <td @onclick:stopPropagation="true">
+                            <PatientActionMenu />
+                        </td>
+
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+
+                    <td colspan="7"
+                        class="text-center py-5">
+
+                        No data available.
+
                     </td>
 
                 </tr>
             }
-
+            
         </tbody>
 
     </table>

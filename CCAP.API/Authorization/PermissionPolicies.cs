@@ -5,6 +5,7 @@ namespace CCAP.API.Authorization;
 
 public static class PermissionPolicies
 {
+    public const string DashboardView = "dashboard.view";
     public const string UsersView = "users.view";
     public const string UsersManage = "users.manage";
     public const string RolesView = "roles.view";
@@ -35,6 +36,7 @@ public static class PermissionPolicies
 
         services.AddAuthorization(options =>
         {
+            Add(options, DashboardView);
             Add(options, UsersView);
             Add(options, UsersManage);
             Add(options, RolesView);

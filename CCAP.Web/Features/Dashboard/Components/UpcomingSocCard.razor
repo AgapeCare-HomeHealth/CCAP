@@ -11,34 +11,50 @@
     <table class="table mb-0">
 
         <tbody>
+            @if (Visits.Any())
+            {
+                @foreach (var visit in Visits)
+                {
+                    <tr>
 
-            @foreach (var visit in Visits)
+                        <td>
+
+                            <div class="fw-semibold">
+
+                                @visit.PatientName
+
+                            </div>
+
+                            <small>
+
+                                @visit.Clinician
+
+                            </small>
+
+                        </td>
+
+                        <td class="text-end">
+
+                            @visit.VisitDate.ToString("MM/dd/yyyy hh:mm tt")
+
+                        </td>
+
+                    </tr>
+                }
+            }
+            else
             {
                 <tr>
 
-                    <td>
+                    <td colspan="2"
+                        class="text-center py-5">
 
-                        <div class="fw-semibold">
-
-                            @visit.PatientName
-
-                        </div>
-
-                        <small>
-
-                            @visit.Clinician
-
-                        </small>
-
-                    </td>
-
-                    <td class="text-end">
-
-                        @visit.VisitDate.ToString("MM/dd/yyyy hh:mm tt")
+                        No data available.
 
                     </td>
 
                 </tr>
+            
             }
 
         </tbody>

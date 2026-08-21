@@ -11,8 +11,7 @@
     <Folder Include="Features\Admin\Roles\Services\" />
     <Folder Include="Features\Dashboard\Services\" />
     <Folder Include="Features\Tracker\PatientWorkflow\Services\" />
-    <Folder Include="Features\Tracker\ReferralIntake\Models\" />
-    <Folder Include="Features\Tracker\ReferralIntake\Services\" />
+    <Folder Include="wwwroot\js\" />
   </ItemGroup>
 
   <ItemGroup>

@@ -15,6 +15,7 @@ public static class DatabaseSeeder
 
         var permissions = new (string Code, string Name, string Module)[]
         {
+            ("dashboard.view", "View Dashboard", "Dashboard"),
             ("users.view", "View Users", "Users"),
             ("users.manage", "Manage Users", "Users"),
             ("roles.view", "View Roles", "Roles"),
@@ -89,23 +90,26 @@ public static class DatabaseSeeder
         foreach (var permission in permissionEntities)
         {
             if (!existingAdminPermissionIds.Contains(permission.PermissionId))
-                context.RolePermissions.Add(new RolePermission(adminRole.RoleId, permission.PermissionId));
+                context.RolePermissions.Add(
+                    new RolePermission(
+                        adminRole.RoleId,
+                        permission.PermissionId));
         }
 
         // Other roles receive only the permissions needed for their initial workflow.
         var rolePermissionCodes = new Dictionary<string, string[]>
         {
             ["Care Coordinator"] =
-            ["users.view", "roles.view", "patients.view", "patients.manage", "referrals.view", "referrals.manage",
+            ["dashboard.view", "users.view", "roles.view", "patients.view", "patients.manage", "referrals.view", "referrals.manage",
              "fax.view", "fax.manage", "notifications.view", "notifications.manage", "notes.view", "notes.manage",
              "labs.view", "labs.manage", "supplies.view", "supplies.manage", "foley.view", "foley.manage",
              "orders.view", "orders.manage"],
             ["Clinician"] =
-            ["patients.view", "patients.manage", "referrals.view", "fax.view", "fax.manage", "notifications.view", "notifications.manage",
+            ["dashboard.view", "patients.view", "patients.manage", "referrals.view", "fax.view", "fax.manage", "notifications.view", "notifications.manage",
              "notes.view", "notes.manage", "labs.view", "labs.manage", "supplies.view", "supplies.manage",
              "foley.view", "foley.manage", "orders.view", "orders.manage"],
             ["Scheduler"] =
-            ["patients.view", "referrals.view", "referrals.manage"]
+            ["dashboard.view", "patients.view", "referrals.view", "referrals.manage"]
         };
 
         foreach (var pair in rolePermissionCodes)
@@ -201,6 +205,15 @@ public static class DatabaseSeeder
         else if (!adminUser.IsActive)
         {
             adminUser.Activate();
+        }
+
+        if (!await context.Locations.AnyAsync(
+        cancellationToken))
+        {
+            context.Locations.Add(
+                new Location(
+                    "Main Office",
+                    isDefault: true));
         }
 
         await context.SaveChangesAsync(cancellationToken);

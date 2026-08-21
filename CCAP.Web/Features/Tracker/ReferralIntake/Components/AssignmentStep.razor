@@ -1,7 +1,5 @@
+@using CCAP.Web.Features.Tracker.ReferralIntake.Models 
 @using CCAP.Web.Features.Admin.Users.Models
-@using CCAP.Web.Features.Admin.Users.Services
-@inject UserServices UserService
-@inject AdminLookupService LookupService
 
 <div class="step-card">
     <div class="step-title">
@@ -24,7 +22,7 @@
         <div class="row g-4">
             <div class="col-md-6">
                 <label class="form-label">Care Coordinator</label>
-                <select class="form-select" @bind="SelectedCoordinatorId">
+                <select class="form-select" @bind="Model.CoordinatorId">
                     <option value="">Select Coordinator</option>
                     @foreach (var user in Coordinators)
                     {
@@ -35,7 +33,7 @@
 
             <div class="col-md-6">
                 <label class="form-label">Assigned Clinician</label>
-                <select class="form-select" @bind="SelectedClinicianId">
+                <select class="form-select" @bind="Model.ClinicianId">
                     <option value="">Select Clinician</option>
                     @foreach (var user in Clinicians)
                     {
@@ -46,7 +44,7 @@
 
             <div class="col-md-6">
                 <label class="form-label">Discipline</label>
-                <select class="form-select" @bind="SelectedDisciplineId">
+                <select class="form-select" @bind="Model.DisciplineId">
                     <option value="">Select Discipline</option>
                     @foreach (var discipline in Disciplines)
                     {
@@ -63,12 +61,12 @@
         <div class="row g-4">
             <div class="col-md-4">
                 <label class="form-label">Target SOC Date</label>
-                <input type="date" class="form-control" @bind="SocDate" />
+                <input type="date" class="form-control" @bind="Model.SocDate" />
             </div>
 
             <div class="col-md-4">
                 <label class="form-label">Visit Priority</label>
-                <select class="form-select" @bind="VisitPriority">
+                <select class="form-select" @bind="Model.VisitPriority">
                     <option value="">Select Priority</option>
                     <option value="Routine">Routine</option>
                     <option value="Urgent">Urgent</option>
@@ -78,7 +76,7 @@
 
             <div class="col-md-4">
                 <label class="form-label">Case Status</label>
-                <select class="form-select" @bind="CaseStatus">
+                <select class="form-select" @bind="Model.CaseStatus">
                     <option value="">Select Status</option>
                     <option value="Active">Active</option>
                     <option value="Pending">Pending</option>
@@ -97,57 +95,28 @@
 
         <h5 class="section-heading">Internal Notes</h5>
         <textarea class="form-control" rows="5"
-                  @bind="InternalNotes"
+                  @bind="Model.InternalNotes"
                   placeholder="Coordinator notes..."></textarea>
     }
 </div>
 
 @code {
-    private List<UserDto> Coordinators = [];
-    private List<UserDto> Clinicians = [];
-    private List<LookupDto> Disciplines = [];
+    [Parameter]
+    public ReferralIntakeModel Model { get; set; } = null!;
 
-    private string? SelectedCoordinatorId;
-    private string? SelectedClinicianId;
-    private string? SelectedDisciplineId;
-    private DateTime? SocDate;
-    private string? VisitPriority;
-    private string? CaseStatus;
-    private string? InternalNotes;
+    [Parameter]
+    public List<UserDto> Coordinators { get; set; } = [];
 
-    private bool IsLoading;
-    private string? ErrorMessage;
+    [Parameter]
+    public List<UserDto> Clinicians { get; set; } = [];
 
-    protected override async Task OnInitializedAsync()
-    {
-        IsLoading = true;
-        try
-        {
-            var usersTask = UserService.GetUsersAsync();
-            var disciplinesTask = LookupService.GetDisciplinesAsync();
+    [Parameter]
+    public List<LookupDto> Disciplines { get; set; } = [];
 
-            var users = await usersTask;
-            Disciplines = await disciplinesTask;
+    [Parameter]
+    public bool IsLoading { get; set; }
 
-            Coordinators = users
-                .Where(x => x.IsActive && (
-                    x.Role.Contains("Coordinator", StringComparison.OrdinalIgnoreCase) ||
-                    x.Role.Contains("Administrator", StringComparison.OrdinalIgnoreCase)))
-                .ToList();
+    [Parameter]
+    public string? ErrorMessage { get; set; }
 
-            Clinicians = users
-                .Where(x => x.IsActive && (
-                    !string.IsNullOrWhiteSpace(x.Discipline) ||
-                    x.Role.Contains("Clinician", StringComparison.OrdinalIgnoreCase)))
-                .ToList();
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = $"Unable to load assignment options: {ex.Message}";
-        }
-        finally
-        {
-            IsLoading = false;
-        }
-    }
 }

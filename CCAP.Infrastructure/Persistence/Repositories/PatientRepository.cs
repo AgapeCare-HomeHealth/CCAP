@@ -23,6 +23,14 @@ public sealed class PatientRepository : IPatientRepository
             .ThenBy(x => x.FirstName)
             .ToListAsync(cancellationToken);
 
+    public Task<Patient?> GetByMrnAsync(
+    string mrn,
+    CancellationToken cancellationToken) =>
+    _context.Patients
+        .FirstOrDefaultAsync(
+            x => x.MRN == mrn.Trim(),
+            cancellationToken);
+
     public Task AddAsync(Patient patient, CancellationToken cancellationToken) =>
         _context.Patients.AddAsync(patient, cancellationToken).AsTask();
 

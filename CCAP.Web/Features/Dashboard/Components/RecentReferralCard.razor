@@ -11,35 +11,51 @@
     <table class="table mb-0">
 
         <tbody>
+            @if (Referrals.Any())
+            {
+                @foreach (var referral in Referrals)
+                {
+                    <tr>
 
-            @foreach (var referral in Referrals)
+                        <td>
+
+                            <div class="fw-semibold">
+
+                                @referral.PatientName
+
+                            </div>
+
+                            <small>
+
+                                @referral.ReferralNumber
+
+                            </small>
+
+                        </td>
+
+                        <td class="text-end">
+
+                            @referral.ReferralDate.ToString("MM/dd/yyyy")
+
+                        </td>
+
+                    </tr>
+                }
+            }
+            else
             {
                 <tr>
 
-                    <td>
+                    <td colspan="2"
+                        class="text-center py-5">
 
-                        <div class="fw-semibold">
-
-                            @referral.PatientName
-
-                        </div>
-
-                        <small>
-
-                            @referral.ReferralNumber
-
-                        </small>
-
-                    </td>
-
-                    <td class="text-end">
-
-                        @referral.ReferralDate.ToString("MM/dd/yyyy")
+                        No data available.
 
                     </td>
 
                 </tr>
             }
+
 
         </tbody>
 

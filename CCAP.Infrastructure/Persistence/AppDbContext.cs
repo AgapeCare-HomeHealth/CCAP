@@ -7,6 +7,7 @@ public sealed class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
+    public DbSet<Announcement> Announcements => Set<Announcement>();
     public DbSet<ApplicationUser> ApplicationUsers => Set<ApplicationUser>();
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<Permission> Permissions => Set<Permission>();
@@ -22,10 +23,22 @@ public sealed class AppDbContext : DbContext
     public DbSet<Visit> Visits => Set<Visit>();
     public DbSet<ServiceType> ServiceTypes => Set<ServiceType>();
     public DbSet<PatientServiceOrder> PatientServiceOrders => Set<PatientServiceOrder>();
-
+    public DbSet<ReferralDocument> ReferralDocuments => Set<ReferralDocument>();
+    public DbSet<Location> Locations => Set<Location>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Announcement>(e =>
+        {
+            e.ToTable("Announcements");
+            e.HasKey(x => x.AnnouncementId);
+            e.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Message).HasMaxLength(2000).IsRequired();
+            e.Property(x => x.PublishedAt).IsRequired();
+            e.Property(x => x.IsActive).IsRequired();
+            e.HasOne(x => x.CreatedByUser).WithMany().HasForeignKey(x => x.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+        });
 
         modelBuilder.Entity<Role>(e =>
         {
@@ -86,26 +99,111 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<Patient>(e =>
         {
             e.ToTable("Patients");
+
             e.HasKey(x => x.PatientId);
-            e.Property(x => x.MRN).HasMaxLength(50).IsRequired();
-            e.Property(x => x.FirstName).HasMaxLength(100).IsRequired();
-            e.Property(x => x.MiddleName).HasMaxLength(100);
-            e.Property(x => x.LastName).HasMaxLength(100).IsRequired();
-            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(30);
-            e.HasIndex(x => x.MRN).IsUnique();
-            e.HasOne(x => x.Coordinator).WithMany().HasForeignKey(x => x.CoordinatorId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne(x => x.Clinician).WithMany().HasForeignKey(x => x.ClinicianId).OnDelete(DeleteBehavior.Restrict);
+
+            e.Property(x => x.MRN)
+                .HasMaxLength(50)
+                .IsRequired();
+
+            e.Property(x => x.FirstName)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            e.Property(x => x.MiddleName)
+                .HasMaxLength(100);
+
+            e.Property(x => x.LastName)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            e.Property(x => x.Gender)
+                .HasMaxLength(30);
+
+            e.Property(x => x.State)
+                .HasMaxLength(50);
+
+            e.Property(x => x.ZipCode)
+                .HasMaxLength(20);
+
+            e.Property(x => x.Status)
+                .HasConversion<string>()
+                .HasMaxLength(30);
+
+            e.HasIndex(x => x.MRN)
+                .IsUnique();
+
+            e.HasOne(x => x.Coordinator)
+                .WithMany()
+                .HasForeignKey(x => x.CoordinatorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(x => x.Clinician)
+                .WithMany()
+                .HasForeignKey(x => x.ClinicianId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Referral>(e =>
         {
             e.ToTable("Referrals");
+
             e.HasKey(x => x.ReferralId);
-            e.Property(x => x.ReferralNumber).HasMaxLength(50).IsRequired();
-            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(40);
-            e.HasIndex(x => x.ReferralNumber).IsUnique();
-            e.HasOne(x => x.Patient).WithMany(x => x.Referrals).HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne(x => x.AssignedUser).WithMany().HasForeignKey(x => x.AssignedUserId).OnDelete(DeleteBehavior.Restrict);
+
+            e.Property(x => x.ReferralNumber)
+                .HasMaxLength(50)
+                .IsRequired();
+
+            e.Property(x => x.Status)
+                .HasConversion<string>()
+                .HasMaxLength(40);
+
+            e.Property(x => x.Source)
+                .HasMaxLength(150);
+
+            e.Property(x => x.Priority)
+                .HasMaxLength(50);
+
+            e.Property(x => x.VisitPriority)
+                .HasMaxLength(50);
+
+            e.Property(x => x.CaseStatus)
+                .HasMaxLength(50);
+
+            e.Property(x => x.PrimaryInsurance)
+                .HasMaxLength(150);
+
+            e.Property(x => x.InsuranceMemberId)
+                .HasMaxLength(100);
+
+            e.Property(x => x.ReferringPhysician)
+                .HasMaxLength(200);
+
+            e.Property(x => x.PhysicianPhone)
+                .HasMaxLength(50);
+
+            e.HasIndex(x => x.ReferralNumber)
+                .IsUnique();
+
+            e.HasOne(x => x.Patient)
+                .WithMany(x => x.Referrals)
+                .HasForeignKey(x => x.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(x => x.AssignedUser)
+                .WithMany()
+                .HasForeignKey(x => x.AssignedUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(x => x.Location)
+                .WithMany()
+                .HasForeignKey(x => x.LocationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(x => x.Discipline)
+                .WithMany()
+                .HasForeignKey(x => x.DisciplineId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<CallNote>(e =>
@@ -138,6 +236,7 @@ public sealed class AppDbContext : DbContext
             e.ToTable("PatientTasks");
             e.HasKey(x => x.TaskId);
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(30);
+            e.Property(x => x.CompletedAt).HasColumnType("datetime2");
             e.HasOne(x => x.Patient).WithMany(x => x.Tasks).HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.AssignedUser).WithMany().HasForeignKey(x => x.AssignedUserId).OnDelete(DeleteBehavior.Restrict);
         });
@@ -149,7 +248,6 @@ public sealed class AppDbContext : DbContext
             e.HasOne(x => x.Patient).WithMany(x => x.Activities).HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.PerformedBy).WithMany().HasForeignKey(x => x.PerformedByUserId).OnDelete(DeleteBehavior.Restrict);
         });
-
 
         modelBuilder.Entity<ServiceType>(e =>
         {
@@ -181,6 +279,57 @@ public sealed class AppDbContext : DbContext
             e.HasKey(x => x.VisitId);
             e.HasOne(x => x.Patient).WithMany(x => x.Visits).HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Clinician).WithMany().HasForeignKey(x => x.ClinicianId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ReferralDocument>(e =>
+        {
+            e.ToTable("ReferralDocuments");
+
+            e.HasKey(x => x.ReferralDocumentId);
+
+            e.Property(x => x.StorageKey)
+                .HasMaxLength(500)
+                .IsRequired();
+
+            e.Property(x => x.OriginalFileName)
+                .HasMaxLength(255)
+                .IsRequired();
+
+            e.Property(x => x.ContentType)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            e.Property(x => x.FileSize)
+                .IsRequired();
+
+            e.Property(x => x.UploadedAt)
+                .IsRequired();
+
+            e.HasOne(x => x.Referral)
+                .WithMany(x => x.Documents)
+                .HasForeignKey(x => x.ReferralId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasIndex(x => x.ReferralId);
+        });
+        modelBuilder.Entity<Location>(e =>
+        {
+            e.ToTable("Locations");
+
+            e.HasKey(x => x.LocationId);
+
+            e.Property(x => x.Name)
+                .HasMaxLength(150)
+                .IsRequired();
+
+            e.Property(x => x.IsActive)
+                .IsRequired();
+
+            e.Property(x => x.IsDefault)
+                .IsRequired();
+
+            e.HasIndex(x => x.Name)
+                .IsUnique();
         });
     }
 }

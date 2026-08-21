@@ -92,6 +92,7 @@
     [Parameter] public string? ErrorMessage { get; set; }
     [Parameter] public EventCallback OnSave { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public bool CanManage { get; set; }
 
     private bool IsSelected(Guid permissionId) =>
         SelectedPermissionIds?.Contains(permissionId) == true;
