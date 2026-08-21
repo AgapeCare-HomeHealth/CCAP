@@ -1,5 +1,4 @@
 using CCAP.API.Authorization;
-using System.Text;
 using CCAP.Application;
 using CCAP.Infrastructure;
 using CCAP.Infrastructure.Identity;
@@ -7,6 +6,7 @@ using CCAP.Infrastructure.Seed;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -66,6 +66,7 @@ builder.Services
     });
 
 builder.Services.AddCcapPolicies();
+
 
 var app = builder.Build();
 

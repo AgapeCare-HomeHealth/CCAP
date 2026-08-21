@@ -1,56 +1,73 @@
 @page "/referrals"
+
 @attribute [CcapAuthorize(Policy = "referrals.view")]
 
+@using Microsoft.JSInterop
+@using CCAP.Web.Features.Admin.Users.Services
+@using CCAP.Web.Features.Admin.Users.Models
 @using CCAP.Web.Features.Tracker.ReferralIntake.Components
+@using CCAP.Web.Features.Tracker.ReferralIntake.Models
+@using CCAP.Web.Features.Tracker.ReferralIntake.Services
+
+@inject IJSRuntime JS
+@inject ReferralIntakeService ReferralIntakeService
+@inject NavigationManager Navigation
+@inject UserServices UserService
+@inject AdminLookupService LookupService
 
 <PageTitle>Referral Intake</PageTitle>
 
 <div class="referral-page">
 
-    <!-- Header -->
-
     <WizardHeader />
-
-    <!-- Progress -->
 
     <WizardProgress CurrentStep="@CurrentStep" />
 
-    <!-- Content -->
-
     <div class="wizard-body">
-        <h3>Current Step: @CurrentStep</h3>
+
+        @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+        {
+            <div class="alert alert-danger">
+                @ErrorMessage
+            </div>
+        }
+
         @switch (CurrentStep)
         {
             case 1:
-                <UploadStep />
+                <UploadStep Model="@Model" />
                 break;
 
             case 2:
-                <PatientInformationStep />
+                <PatientInformationStep Model="@Model" />
                 break;
 
             case 3:
-                <ReferralInformationStep />
+                <ReferralInformationStep Model="@Model" />
                 break;
 
             case 4:
-                <AssignmentStep />
+                <AssignmentStep Model="@Model"
+                                Coordinators="@Coordinators"
+                                Clinicians="@Clinicians"
+                                Disciplines="@Disciplines"
+                                IsLoading="@AssignmentOptionsLoading"
+                                ErrorMessage="@AssignmentOptionsError" />
                 break;
 
             case 5:
-                <ReviewStep />
+                <ReviewStep Model="@Model" />
                 break;
         }
 
     </div>
 
-    <!-- Footer -->
-
     <div class="wizard-footer">
 
-        <button class="btn btn-outline-secondary"
+        <button type="button"
+                class="btn btn-outline-secondary"
                 @onclick="PreviousStep"
-                disabled="@(CurrentStep == 1)">
+                disabled="@(CurrentStep == 1 || IsSubmitting)">
 
             <i class="bi bi-arrow-left"></i>
 
@@ -60,8 +77,11 @@
 
         @if (CurrentStep < 5)
         {
-            <button class="btn btn-success"
-                    @onclick="NextStep">
+            <button type="button"
+                    class="btn btn-success"
+                    @onclick="NextStep"
+                    disabled="@IsSubmitting">
+
                 Next
 
                 <i class="bi bi-arrow-right"></i>
@@ -70,11 +90,21 @@
         }
         else
         {
-            <button class="btn btn-success">
+            <button type="button"
+                    class="btn btn-success"
+                    @onclick="CreateReferral"
+                    disabled="@IsSubmitting">
 
-                <i class="bi bi-check-circle"></i>
-
-                Create Referral
+                @if (IsSubmitting)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    <span>Creating...</span>
+                }
+                else
+                {
+                    <i class="bi bi-check-circle me-2"></i>
+                    <span>Create Referral</span>
+                }
 
             </button>
         }
@@ -83,23 +113,319 @@
 
 </div>
 
-@code{
+@code {
+
+    private List<UserDto> Coordinators = [];
+    private List<UserDto> Clinicians = [];
+    private List<LookupDto> Disciplines = [];
+
+    private bool AssignmentOptionsLoaded;
+    private bool AssignmentOptionsLoading;
+    private string? AssignmentOptionsError;
 
     private int CurrentStep = 1;
 
-    private void NextStep()
+    private ReferralIntakeModel Model = new();
+
+    private bool IsSubmitting;
+
+    private string? ErrorMessage;
+
+    private async Task LoadAssignmentOptionsAsync()
     {
-        if (CurrentStep < 5)
-            CurrentStep++;
-        StateHasChanged();
+        if (AssignmentOptionsLoaded)
+            return;
+
+        AssignmentOptionsLoading = true;
+        AssignmentOptionsError = null;
+
+        try
+        {
+            var usersTask =
+                UserService.GetUsersAsync();
+
+            var disciplinesTask =
+                LookupService.GetDisciplinesAsync();
+
+            var users = await usersTask;
+
+            Disciplines =
+                await disciplinesTask;
+
+            Coordinators = users
+                .Where(x =>
+                    x.IsActive &&
+                    (
+                        x.Role.Contains(
+                            "Coordinator",
+                            StringComparison.OrdinalIgnoreCase)
+                        ||
+                        x.Role.Contains(
+                            "Administrator",
+                            StringComparison.OrdinalIgnoreCase)
+                    ))
+                .ToList();
+
+            Clinicians = users
+                .Where(x =>
+                    x.IsActive &&
+                    (
+                        !string.IsNullOrWhiteSpace(x.Discipline)
+                        ||
+                        x.Role.Contains(
+                            "Clinician",
+                            StringComparison.OrdinalIgnoreCase)
+                    ))
+                .ToList();
+
+            AssignmentOptionsLoaded = true;
+        }
+        catch (Exception ex)
+        {
+            AssignmentOptionsError =
+                $"Unable to load assignment options: {ex.Message}";
+        }
+        finally
+        {
+            AssignmentOptionsLoading = false;
+        }
+    }
+
+    private async Task NextStep()
+    {
+        ErrorMessage = null;
+
+        if (!ValidateCurrentStep())
+            return;
+
+        if (CurrentStep >= 5)
+            return;
+
+        CurrentStep++;
+
+        if (CurrentStep == 4)
+        {
+            await LoadAssignmentOptionsAsync();
+        }
     }
 
     private void PreviousStep()
     {
+        ErrorMessage = null;
+
         if (CurrentStep > 1)
             CurrentStep--;
-        StateHasChanged();
     }
 
-}
+    private bool ValidateCurrentStep()
+    {
+        switch (CurrentStep)
+        {
+            case 1:
 
+                if (Model.ReferralPdf is null)
+                {
+                    ErrorMessage =
+                        "Please upload the referral PDF.";
+
+                    return false;
+                }
+
+                if (!Model.ReferralPdf.Name.EndsWith(
+                        ".pdf",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    ErrorMessage =
+                        "Only PDF files are accepted.";
+
+                    return false;
+                }
+
+                break;
+
+            case 2:
+
+                if (string.IsNullOrWhiteSpace(Model.MRN))
+                {
+                    ErrorMessage =
+                        "MRN is required.";
+
+                    return false;
+                }
+
+                if (string.IsNullOrWhiteSpace(Model.FirstName))
+                {
+                    ErrorMessage =
+                        "First name is required.";
+
+                    return false;
+                }
+
+                if (string.IsNullOrWhiteSpace(Model.LastName))
+                {
+                    ErrorMessage =
+                        "Last name is required.";
+
+                    return false;
+                }
+
+                break;
+
+            case 3:
+
+                if (string.IsNullOrWhiteSpace(
+                        Model.ReferralNumber))
+                {
+                    ErrorMessage =
+                        "Referral number is required.";
+
+                    return false;
+                }
+
+                if (Model.ReferralDate.Date >
+                    DateTime.Today)
+                {
+                    ErrorMessage =
+                        "Referral date cannot be in the future.";
+
+                    return false;
+                }
+
+                if (string.IsNullOrWhiteSpace(
+                        Model.ReferralSource))
+                {
+                    ErrorMessage =
+                        "Referral source is required.";
+
+                    return false;
+                }
+
+                break;
+
+            case 4:
+
+                if (Model.CoordinatorId is null)
+                {
+                    ErrorMessage =
+                        "Please select a care coordinator.";
+
+                    return false;
+                }
+
+                if (Model.DisciplineId is null)
+                {
+                    ErrorMessage =
+                        "Please select a discipline.";
+
+                    return false;
+                }
+
+                if (Model.SocDate is null)
+                {
+                    ErrorMessage =
+                        "Please select the SOC date.";
+
+                    return false;
+                }
+
+                if (string.IsNullOrWhiteSpace(
+                        Model.CaseStatus))
+                {
+                    ErrorMessage =
+                        "Please select the case status.";
+
+                    return false;
+                }
+
+                break;
+        }
+
+        return true;
+    }
+
+    private async Task CreateReferral()
+    {
+        if (IsSubmitting)
+            return;
+
+        IsSubmitting = true;
+
+        try
+        {
+            var result =
+                await ReferralIntakeService.CreateAsync(
+                    Model);
+
+            await ShowSuccessAlert(
+                "The referral has been created successfully.");
+
+            // Reload after user presses OK
+            Navigation.NavigateTo(
+                Navigation.Uri,
+                forceLoad: true);
+        }
+        catch (InvalidOperationException ex)
+        {
+            await ShowFailedAlert(
+                ex.Message);
+        }
+        catch (HttpRequestException ex)
+        {
+            await ShowErrorAlert(
+                "Unable to communicate with the API. " +
+                "Please try again.");
+        }
+        catch (Exception)
+        {
+            await ShowErrorAlert(
+                "An unexpected error occurred while " +
+                "creating the referral.");
+        }
+        finally
+        {
+            IsSubmitting = false;
+        }
+    }
+
+    private async Task ShowSuccessAlert(
+    string message)
+    {
+        await JS.InvokeVoidAsync(
+            "Swal.fire",
+            new
+            {
+                icon = "success",
+                title = "Success",
+                text = message,
+                confirmButtonText = "OK"
+            });
+    }
+
+    private async Task ShowFailedAlert(
+        string message)
+    {
+        await JS.InvokeVoidAsync(
+            "Swal.fire",
+            new
+            {
+                icon = "warning",
+                title = "Failed",
+                text = message,
+                confirmButtonText = "OK"
+            });
+    }
+
+    private async Task ShowErrorAlert(
+        string message)
+    {
+        await JS.InvokeVoidAsync(
+            "Swal.fire",
+            new
+            {
+                icon = "error",
+                title = "Error",
+                text = message,
+                confirmButtonText = "OK"
+            });
+    }
+}

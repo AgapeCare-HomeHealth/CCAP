@@ -24,4 +24,11 @@ public sealed class ServiceTypeRepository : IServiceTypeRepository
             .Where(x => x.PatientId == patientId)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
+
+    public Task AddOrderAsync(
+    PatientServiceOrder order,
+    CancellationToken cancellationToken) =>
+    _context.PatientServiceOrders
+        .AddAsync(order, cancellationToken)
+        .AsTask();
 }

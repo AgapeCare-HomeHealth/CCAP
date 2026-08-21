@@ -1,5 +1,7 @@
-﻿using System.Net.Http.Headers;
+﻿using System.Diagnostics;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace CCAP.Web.Features.Authentication.Services;
 
@@ -64,9 +66,31 @@ public sealed class CcapApiClient
 
         response.EnsureSuccessStatusCode();
 
-        return await response.Content
-            .ReadFromJsonAsync<T>(
-                cancellationToken: cancellationToken);
+        //return await response.Content
+        //    .ReadFromJsonAsync<T>(
+        //        cancellationToken: cancellationToken);
+
+        var body = await response.Content.ReadAsStringAsync(
+    cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException(
+                $"API request failed. " +
+                $"Status: {(int)response.StatusCode} {response.ReasonPhrase}. " +
+                $"Endpoint: {requestUri}. " +
+                $"Response: {body}");
+        }
+
+        if (string.IsNullOrWhiteSpace(body))
+            return default;
+
+        return JsonSerializer.Deserialize<T>(
+            body,
+            new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
     }
 
     public async Task<HttpResponseMessage> PostAsJsonAsync<T>(
@@ -135,6 +159,33 @@ public sealed class CcapApiClient
                 requestUri);
 
         await AddAuthorizationAsync(request);
+
+        return await _client.SendAsync(
+            request,
+            cancellationToken);
+    }
+
+    public async Task<HttpResponseMessage> PostMultipartAsync(
+        string requestUri,
+        MultipartFormDataContent content,
+        CancellationToken cancellationToken = default)
+    {
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                requestUri);
+
+        request.Content = content;
+
+        await AddAuthorizationAsync(request);
+
+        var fullUrl =
+        new Uri(
+            _client.BaseAddress!,
+            requestUri);
+
+        Debug.WriteLine(
+            $"CCAP API REQUEST: POST {fullUrl}");
 
         return await _client.SendAsync(
             request,

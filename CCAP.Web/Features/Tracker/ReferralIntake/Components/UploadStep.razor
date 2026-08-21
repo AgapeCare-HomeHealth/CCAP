@@ -1,17 +1,13 @@
-﻿@using Microsoft.AspNetCore.Components.Forms
+﻿@using CCAP.Web.Features.Tracker.ReferralIntake.Models
+@using Microsoft.AspNetCore.Components.Forms
 
 <div class="step-card">
 
     <div class="step-title">
-
         <h4>Upload Referral PDF</h4>
-
-
     </div>
 
     <div class="row g-4">
-
-        <!-- Upload Area -->
 
         <div class="col-lg-7">
 
@@ -19,21 +15,24 @@
 
                 <InputFile id="uploadReferral"
                            class="d-none"
-                           OnChange="OnFileSelected" />
+                           OnChange="OnFileSelected"
+                           accept=".pdf,application/pdf" />
 
                 <label for="uploadReferral"
                        class="upload-dropzone">
 
                     <i class="bi bi-cloud-arrow-up upload-icon"></i>
 
-                    <h5>Drag & Drop Referral PDF Here</h5>
+                    <h5>
+                        Choose Referral PDF
+                    </h5>
 
-                    <span>or</span>
+                    <span>
+                        PDF files only
+                    </span>
 
                     <div class="btn btn-success">
-
                         Choose File
-
                     </div>
 
                 </label>
@@ -42,21 +41,21 @@
 
         </div>
 
-        <!-- Uploaded File -->
-
         <div class="col-lg-5">
 
             <div class="info-card">
 
                 <h5>Uploaded File</h5>
 
-                @if (SelectedFile is null)
+                @if (Model.ReferralPdf is null)
                 {
                     <div class="empty-file">
 
                         <i class="bi bi-file-earmark"></i>
 
-                        <span>No file selected.</span>
+                        <span>
+                            No file selected.
+                        </span>
 
                     </div>
                 }
@@ -64,21 +63,21 @@
                 {
                     <div class="uploaded-file">
 
-                        <i class="bi bi-file-earmark-fill text-success fs-1"></i>
+                        <i class="bi bi-file-earmark-pdf-fill text-danger fs-1"></i>
 
                         <div class="flex-grow-1">
 
-                            <strong>@SelectedFile.Name</strong>
+                            <strong>
+                                @Model.ReferralPdf.Name
+                            </strong>
 
                             <small class="d-block text-muted">
 
-                                @(Math.Round((double)SelectedFile.Size / 1024 / 1024, 2)) MB
-
-                            </small>
-
-                            <small class="text-success">
-
-                                Uploaded Successfully
+                                @(Math.Round(
+                                    (double)Model.ReferralPdf.Size
+                                    / 1024
+                                    / 1024,
+                                    2)) MB
 
                             </small>
 
@@ -88,18 +87,10 @@
 
                     <hr />
 
-                    <div class="d-flex gap-2 flex-wrap">
-
-                        <button class="btn btn-outline-primary btn-sm">
-
-                            <i class="bi bi-eye"></i>
-
-                            View
-
-                        </button>
+                    <div class="d-flex gap-2">
 
                         <label for="uploadReferral"
-                               class="btn btn-outline-success btn-sm mb-0">
+                               class="btn btn-outline-success btn-sm">
 
                             <i class="bi bi-arrow-repeat"></i>
 
@@ -107,7 +98,8 @@
 
                         </label>
 
-                        <button class="btn btn-outline-danger btn-sm"
+                        <button type="button"
+                                class="btn btn-outline-danger btn-sm"
                                 @onclick="RemoveFile">
 
                             <i class="bi bi-trash"></i>
@@ -129,7 +121,8 @@
 
         <i class="bi bi-info-circle-fill text-success"></i>
 
-        Accepted format: PDF
+        Accepted format: PDF.
+        Maximum size: 10 MB.
 
     </div>
 
@@ -137,16 +130,72 @@
 
 @code {
 
-    private IBrowserFile? SelectedFile;
+    [Parameter]
+    public ReferralIntakeModel Model { get; set; } = null!;
 
-    private void OnFileSelected(InputFileChangeEventArgs e)
+    private const long MaxFileSize = 10 * 1024 * 1024;
+
+    private async Task OnFileSelected(
+        InputFileChangeEventArgs e)
     {
-        SelectedFile = e.File;
+        var file = e.File;
+
+        if (file is null)
+            return;
+
+        if (!file.Name.EndsWith(
+                ".pdf",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            ClearFile();
+
+            return;
+        }
+
+        if (file.Size > MaxFileSize)
+        {
+            ClearFile();
+
+            return;
+        }
+
+        try
+        {
+            await using var input =
+                file.OpenReadStream(MaxFileSize);
+
+            using var memoryStream =
+                new MemoryStream();
+
+            await input.CopyToAsync(memoryStream);
+
+            Model.ReferralPdfBytes =
+                memoryStream.ToArray();
+
+            Model.ReferralPdfFileName =
+                file.Name;
+
+            Model.ReferralPdfContentType =
+                file.ContentType;
+
+            Model.ReferralPdf = file;
+        }
+        catch
+        {
+            ClearFile();
+        }
+    }
+
+    private void ClearFile()
+    {
+        Model.ReferralPdf = null;
+        Model.ReferralPdfBytes = null;
+        Model.ReferralPdfFileName = null;
+        Model.ReferralPdfContentType = null;
     }
 
     private void RemoveFile()
     {
-        SelectedFile = null;
+        ClearFile();
     }
-
 }

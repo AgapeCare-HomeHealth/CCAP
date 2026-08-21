@@ -9,27 +9,42 @@
     </div>
 
     <div class="announcement-list">
-
-        @foreach (var item in Announcements)
+        @if (Announcements.Any())
         {
+            @foreach (var item in Announcements)
+            {
 
+                <div class="announcement-item">
+
+                    <div class="fw-semibold">
+
+                        @item.Title
+
+                    </div>
+
+                    <small>
+
+                        @item.Message
+
+                    </small>
+
+                </div>
+
+            }
+        }
+        else
+        {
             <div class="announcement-item">
 
                 <div class="fw-semibold">
 
-                    @item.Title
+                    <small>No announcement available</small>
 
                 </div>
 
-                <small>
-
-                    @item.Message
-
-                </small>
-
             </div>
-
         }
+        
 
     </div>
 

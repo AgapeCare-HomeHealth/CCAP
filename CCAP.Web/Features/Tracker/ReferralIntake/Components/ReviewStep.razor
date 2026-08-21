@@ -1,204 +1,235 @@
-﻿<div class="step-card">
+﻿@using CCAP.Web.Features.Tracker.ReferralIntake.Models
+
+<div class="step-card">
 
     <div class="step-title">
-
         <h4>Review & Submit</h4>
 
         <p>
-            Review all referral information before creating the patient workflow.
+            Review all referral information before creating
+            the patient workflow.
         </p>
-
     </div>
 
-    <!-- ================= Patient ================= -->
-
     <h5 class="section-heading">
-
         Patient Information
-
     </h5>
 
     <div class="summary-grid">
 
         <div class="summary-item">
+            <label>MRN</label>
+            <span>@Model.MRN</span>
+        </div>
+
+        <div class="summary-item">
             <label>Patient Name</label>
-            <span>John Michael Smith</span>
+
+            <span>
+                @($"{Model.FirstName} {Model.MiddleName} {Model.LastName}"
+                    .Replace("  ", " ")
+                    .Trim())
+            </span>
         </div>
 
         <div class="summary-item">
             <label>Date of Birth</label>
-            <span>01/15/1960</span>
+
+            <span>
+                @Model.DateOfBirth?.ToString("MM/dd/yyyy")
+            </span>
         </div>
 
         <div class="summary-item">
             <label>Gender</label>
-            <span>Male</span>
+
+            <span>
+                @Model.Gender
+            </span>
         </div>
 
         <div class="summary-item">
             <label>Phone</label>
-            <span>(555) 123-4567</span>
+
+            <span>
+                @Model.PrimaryPhone
+            </span>
         </div>
 
         <div class="summary-item full-width">
             <label>Address</label>
-            <span>123 Main Street, San Diego, CA 92101</span>
+
+            <span>
+                @Model.StreetAddress,
+                @Model.City,
+                @Model.State
+                @Model.ZipCode
+            </span>
         </div>
 
     </div>
 
     <hr />
 
-    <!-- ================= Referral ================= -->
-
     <h5 class="section-heading">
-
         Referral Information
-
     </h5>
 
     <div class="summary-grid">
 
         <div class="summary-item">
-            <label>Referral Source</label>
-            <span>ACC Hospital</span>
+            <label>Referral Number</label>
+            <span>@Model.ReferralNumber</span>
         </div>
 
         <div class="summary-item">
             <label>Referral Date</label>
-            <span>08/05/2026</span>
+            <span>
+                @Model.ReferralDate.ToString("MM/dd/yyyy")
+            </span>
+        </div>
+
+        <div class="summary-item">
+            <label>Source</label>
+            <span>@Model.ReferralSource</span>
         </div>
 
         <div class="summary-item">
             <label>Priority</label>
-            <span>Routine</span>
+            <span>@Model.Priority</span>
         </div>
 
         <div class="summary-item">
             <label>Insurance</label>
-            <span>Medicare</span>
+            <span>@Model.PrimaryInsurance</span>
+        </div>
+
+        <div class="summary-item">
+            <label>Member ID</label>
+            <span>@Model.InsuranceMemberId</span>
         </div>
 
         <div class="summary-item">
             <label>Physician</label>
-            <span>Dr. Michael Brown</span>
+            <span>@Model.ReferringPhysician</span>
         </div>
 
         <div class="summary-item">
             <label>Primary Diagnosis</label>
-            <span>I50.9 Heart Failure</span>
+            <span>@Model.PrimaryDiagnosis</span>
         </div>
 
     </div>
 
     <hr />
 
-    <!-- ================= Assignment ================= -->
+    <h5 class="section-heading">
+        Ordered Services
+    </h5>
+
+    @if (Model.OrderedServices.Count == 0)
+    {
+        <div class="text-muted">
+            No services selected.
+        </div>
+    }
+    else
+    {
+        <div class="workflow-preview">
+
+            @foreach (var service in Model.OrderedServices)
+            {
+                <div class="workflow-badge">
+                    @service
+                </div>
+            }
+
+        </div>
+    }
+
+    <hr />
 
     <h5 class="section-heading">
-
         Assignment
-
     </h5>
 
     <div class="summary-grid">
 
         <div class="summary-item">
             <label>Coordinator</label>
-            <span>Jennifer LVN</span>
+            <span>
+                @Model.CoordinatorId
+            </span>
         </div>
 
         <div class="summary-item">
-            <label>Assigned Clinician</label>
-            <span>Renald LVN</span>
+            <label>Clinician</label>
+            <span>
+                @Model.ClinicianId
+            </span>
         </div>
 
-        @* <div class="summary-item">
-            <label>Branch</label>
-            <span>San Diego Branch</span>
-        </div> *@
+        <div class="summary-item">
+            <label>Discipline</label>
+            <span>
+                @Model.DisciplineId
+            </span>
+        </div>
 
         <div class="summary-item">
             <label>SOC Date</label>
-            <span>08/08/2026</span>
+            <span>
+                @Model.SocDate?.ToString("MM/dd/yyyy")
+            </span>
         </div>
 
     </div>
 
     <hr />
 
-    <!-- ================= Uploaded File ================= -->
-
     <h5 class="section-heading">
-
         Uploaded Referral
-
     </h5>
 
-    <div class="uploaded-summary">
+    @if (Model.ReferralPdf is not null)
+    {
+        <div class="uploaded-summary">
 
-        <i class="bi bi-file-earmark-pdf-fill text-danger"></i>
+            <i class="bi bi-file-earmark-pdf-fill text-danger"></i>
 
-        <div>
+            <div>
 
-            <strong>Referral_JohnSmith.pdf</strong>
+                <strong>
+                    @Model.ReferralPdf.Name
+                </strong>
 
-            <small>1.28 MB</small>
+                <small>
+                    @(Math.Round(
+                        (double)Model.ReferralPdf.Size
+                        / 1024
+                        / 1024,
+                        2)) MB
+                </small>
+
+            </div>
 
         </div>
-
-    </div>
+    }
 
     <hr />
-
-    <!-- ================= Workflow ================= -->
-
-    <h5 class="section-heading">
-
-        Workflow To Be Created
-
-    </h5>
-
-    <div class="workflow-preview">
-
-        <div class="workflow-badge">
-            Insurance Verification
-        </div>
-
-        <div class="workflow-badge">
-            Physician Orders
-        </div>
-
-        <div class="workflow-badge">
-            Eligibility Check
-        </div>
-
-        <div class="workflow-badge">
-            Schedule SOC Visit
-        </div>
-
-        <div class="workflow-badge">
-            Compliance Checklist
-        </div>
-
-        <div class="workflow-badge">
-            Patient Tracking
-        </div>
-
-    </div>
-
-    <hr />
-
-    <!-- ================= Confirmation ================= -->
 
     <div class="alert alert-success">
 
         <i class="bi bi-check-circle-fill"></i>
 
-        Review completed. Clicking
-        <strong>Create Referral</strong>
-        will create the patient, referral, workflow tasks, and compliance tracking.
+        The referral is ready to be created.
 
     </div>
 
 </div>
+
+@code {
+
+    [Parameter]
+    public ReferralIntakeModel Model { get; set; } = null!;
+}

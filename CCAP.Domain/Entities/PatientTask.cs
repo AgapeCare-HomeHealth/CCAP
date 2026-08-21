@@ -17,6 +17,7 @@ public sealed class PatientTask
 
     public Patient Patient { get; private set; } = null!;
     public ApplicationUser? AssignedUser { get; private set; }
+    public DateTime? CompletedAt { get; private set; }
 
     public PatientTask(Guid patientId, string title, string description, DateTime dueDate, string? pageRoute)
     {
@@ -41,9 +42,11 @@ public sealed class PatientTask
     public void Complete()
     {
         if (Status == PatientTaskStatus.Cancelled)
-            throw new InvalidOperationException("A cancelled task cannot be completed.");
+            throw new InvalidOperationException(
+                "A cancelled task cannot be completed.");
 
         Status = PatientTaskStatus.Completed;
+        CompletedAt = DateTime.UtcNow;
     }
 
     public void Cancel()

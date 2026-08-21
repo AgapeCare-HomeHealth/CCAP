@@ -2,11 +2,12 @@
 @attribute [AllowAnonymous]
 @layout LoginLayout
 
-@using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Components.Authorization
+@using System.Diagnostics
 @using CCAP.Web.Features.Authentication.Services
 @using CCAP.Web.Features.Authentication.State
 @using CCAP.Web.Features.MockData
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 
 @inject MockDataOptions MockOptions 
 @inject AuthenticationService AuthenticationService
@@ -223,6 +224,7 @@
             {
                 await provider.NotifyLoginAsync();
             }
+
 
             // ============================================
             // Redirect
