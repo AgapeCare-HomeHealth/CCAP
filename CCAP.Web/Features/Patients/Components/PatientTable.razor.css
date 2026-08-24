@@ -5,7 +5,7 @@
 .patient-table-card {
     background: white;
     border-radius: 14px;
-    overflow: hidden;
+    overflow: visible;
     box-shadow: 0 2px 10px rgba(0,0,0,.05);
 }
 
