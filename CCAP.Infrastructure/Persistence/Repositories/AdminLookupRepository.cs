@@ -17,12 +17,13 @@ public sealed class AdminLookupRepository : IAdminLookupRepository
             .OrderBy(x => x.RoleName)
             .ToListAsync(cancellationToken);
 
-    public Task<List<Permission>> GetPermissionsAsync(CancellationToken cancellationToken) =>
-        _context.Permissions
-            .AsNoTracking()
-            .OrderBy(x => x.Module)
-            .ThenBy(x => x.PermissionName)
-            .ToListAsync(cancellationToken);
+    public Task<List<Permission>> GetPermissionsAsync(
+    CancellationToken cancellationToken) =>
+    _context.Permissions
+        .AsNoTracking()
+        .OrderBy(x => x.Module)
+        .ThenBy(x => x.PermissionName)
+        .ToListAsync(cancellationToken);
 
     public Task<List<Discipline>> GetDisciplinesAsync(CancellationToken cancellationToken) =>
         _context.Disciplines

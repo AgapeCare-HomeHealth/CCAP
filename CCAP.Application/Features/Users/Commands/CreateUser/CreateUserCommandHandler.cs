@@ -6,7 +6,8 @@ using CCAP.Domain.Entities;
 
 namespace CCAP.Application.Features.Users.Commands.CreateUser;
 
-public sealed class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, UserDto>
+public sealed class CreateUserCommandHandler
+    : IRequestHandler<CreateUserCommand, UserDto>
 {
     private readonly IUserRepository _users;
     private readonly IRoleRepository _roles;
@@ -25,17 +26,54 @@ public sealed class CreateUserCommandHandler : IRequestHandler<CreateUserCommand
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<UserDto> Handle(CreateUserCommand request, CancellationToken cancellationToken)
+    public async Task<UserDto> Handle(
+        CreateUserCommand request,
+        CancellationToken cancellationToken)
     {
-        if (await _users.ExistsByEmailAsync(request.Email, cancellationToken))
-            throw new InvalidOperationException("Email already exists.");
+        // =========================================================
+        // DUPLICATE EMAIL
+        // =========================================================
 
-        if (await _users.ExistsByEmployeeNoAsync(request.EmployeeNo, cancellationToken))
-            throw new InvalidOperationException("Employee number already exists.");
+        if (await _users.ExistsByEmailAsync(
+                request.Email,
+                null,
+                cancellationToken))
+        {
+            throw new InvalidOperationException(
+                "Email already exists.");
+        }
 
-        var role = await _roles.GetByIdAsync(request.RoleId, cancellationToken);
+        // =========================================================
+        // DUPLICATE EMPLOYEE NUMBER
+        // =========================================================
+
+        if (await _users.ExistsByEmployeeNoAsync(
+                request.EmployeeNo,
+                null,
+                cancellationToken))
+        {
+            throw new InvalidOperationException(
+                "Employee number already exists.");
+        }
+
+        // =========================================================
+        // ROLE
+        // =========================================================
+
+        var role =
+            await _roles.GetByIdAsync(
+                request.RoleId,
+                cancellationToken);
+
         if (role is null || !role.IsActive)
-            throw new InvalidOperationException("Invalid or inactive role.");
+        {
+            throw new InvalidOperationException(
+                "Invalid or inactive role.");
+        }
+
+        // =========================================================
+        // CREATE USER
+        // =========================================================
 
         var user = new ApplicationUser(
             request.EmployeeNo,
@@ -47,10 +85,29 @@ public sealed class CreateUserCommandHandler : IRequestHandler<CreateUserCommand
             request.DisciplineId,
             request.MobileNo);
 
-        user.SetPasswordHash(_passwordHasher.HashPassword(user, request.Password));
+        // =========================================================
+        // PASSWORD
+        // =========================================================
 
-        await _users.AddAsync(user, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        user.SetPasswordHash(
+            _passwordHasher.HashPassword(
+                user,
+                request.Password));
+
+        // =========================================================
+        // SAVE
+        // =========================================================
+
+        await _users.AddAsync(
+            user,
+            cancellationToken);
+
+        await _unitOfWork.SaveChangesAsync(
+            cancellationToken);
+
+        // =========================================================
+        // RESULT
+        // =========================================================
 
         return new UserDto(
             user.UserId,

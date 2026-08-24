@@ -1,4 +1,4 @@
-﻿using CCAP.Application.Features.Dashboard.DTOs;
+﻿using CCAP.Application.Features.Announcements.DTOs;
 using CCAP.Domain.Entities;
 
 namespace CCAP.Application.Abstractions.Persistence;
@@ -14,8 +14,5 @@ public interface IAnnouncementRepository
 
     Task AddAsync(
         Announcement announcement,
-        CancellationToken cancellationToken);
-
-    Task SaveChangesAsync(
         CancellationToken cancellationToken);
 }

@@ -192,6 +192,15 @@ public sealed class DashboardRepository : IDashboardRepository
             await _announcementRepository.GetActiveAsync(
                 cancellationToken);
 
+                var dashboardAnnouncements =
+                    announcements
+                        .Select(x => new AnnouncementDto
+                        {
+                            Title = x.Title,
+                            Message = x.Message
+                        })
+                        .ToList();
+
         // =========================================================
         // RESULT
         // =========================================================
@@ -212,7 +221,7 @@ public sealed class DashboardRepository : IDashboardRepository
 
             UpcomingVisits = visits,
 
-            Announcements = announcements
+            Announcements = dashboardAnnouncements
         };
     }
 }

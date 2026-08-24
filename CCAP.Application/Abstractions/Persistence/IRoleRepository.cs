@@ -8,7 +8,9 @@ public interface IRoleRepository
     Task<List<Role>> GetAllAsync(CancellationToken cancellationToken);
     Task<List<Permission>> GetPermissionsAsync(CancellationToken cancellationToken);
     Task<List<Permission>> GetPermissionsByRoleIdAsync(Guid roleId, CancellationToken cancellationToken);
+    Task<bool> ExistsByNameAsync(string roleName, Guid? excludeRoleId, CancellationToken cancellationToken);
     Task ReplacePermissionsAsync(Guid roleId, IReadOnlyCollection<Guid> permissionIds, CancellationToken cancellationToken);
     Task AddAsync(Role role, CancellationToken cancellationToken);
+    void Update(Role role);
     void Remove(Role role);
 }

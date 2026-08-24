@@ -27,6 +27,10 @@ public static class DependencyInjection
             configuration.GetSection("Jwt"));
 
         services.AddScoped<
+            INotificationRepository,
+            NotificationRepository>();
+
+        services.AddScoped<
             IAnnouncementRepository,
             AnnouncementRepository>();
 

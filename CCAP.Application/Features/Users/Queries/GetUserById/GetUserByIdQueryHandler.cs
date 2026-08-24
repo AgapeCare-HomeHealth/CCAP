@@ -4,28 +4,43 @@ using CCAP.Application.Features.Users.DTOs;
 
 namespace CCAP.Application.Features.Users.Queries.GetUserById;
 
-public sealed class GetUserByIdQueryHandler : IRequestHandler<GetUserByIdQuery, UserDto?>
+public sealed class GetUserByIdQueryHandler
+    : IRequestHandler<GetUserByIdQuery, UserDto?>
 {
     private readonly IUserRepository _users;
-    public GetUserByIdQueryHandler(IUserRepository users) => _users = users;
 
-    public async Task<UserDto?> Handle(GetUserByIdQuery request, CancellationToken cancellationToken)
+    public GetUserByIdQueryHandler(
+        IUserRepository users)
     {
-        var x = await _users.GetByIdAsync(request.UserId, cancellationToken);
-        if (x is null) return null;
+        _users = users;
+    }
+
+    public async Task<UserDto?> Handle(
+        GetUserByIdQuery request,
+        CancellationToken cancellationToken)
+    {
+        var user =
+            await _users.GetByIdAsync(
+                request.UserId,
+                cancellationToken);
+
+        if (user is null)
+        {
+            return null;
+        }
 
         return new UserDto(
-            x.UserId,
-            x.EmployeeNo,
-            x.FirstName,
-            x.LastName,
-            x.Email,
-            x.MobileNo,
-            x.IsActive,
-            x.RoleId,
-            x.DisciplineId,
-            x.Role?.RoleName ?? string.Empty,
-            x.Discipline?.Name ?? string.Empty,
+            user.UserId,
+            user.EmployeeNo,
+            user.FirstName,
+            user.LastName,
+            user.Email,
+            user.MobileNo,
+            user.IsActive,
+            user.RoleId,
+            user.DisciplineId,
+            user.Role?.RoleName ?? string.Empty,
+            user.Discipline?.Name ?? string.Empty,
             null);
     }
 }

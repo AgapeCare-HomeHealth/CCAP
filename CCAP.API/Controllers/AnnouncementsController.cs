@@ -1,6 +1,7 @@
 ﻿using System.Security.Claims;
-using CCAP.Application.Abstractions.Persistence;
-using CCAP.Domain.Entities;
+using CCAP.Application.Features.Announcements.Commands.CreateAnnouncement;
+using CCAP.Application.Features.Announcements.Queries.GetAnnouncements;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,25 +10,27 @@ namespace CCAP.API.Controllers;
 [ApiController]
 [Route("api/announcements")]
 [Authorize]
-public sealed class AnnouncementsController : ControllerBase
+public sealed class AnnouncementsController
+    : ControllerBase
 {
-    private readonly IAnnouncementRepository _repository;
+    private readonly ISender _sender;
 
     public AnnouncementsController(
-        IAnnouncementRepository repository)
+        ISender sender)
     {
-        _repository = repository;
+        _sender = sender;
     }
 
     [HttpGet]
     public async Task<IActionResult> Get(
         CancellationToken cancellationToken)
     {
-        var announcements =
-            await _repository.GetActiveAsync(
+        var result =
+            await _sender.Send(
+                new GetAnnouncementsQuery(),
                 cancellationToken);
 
-        return Ok(announcements);
+        return Ok(result);
     }
 
     [HttpPost]
@@ -40,29 +43,23 @@ public sealed class AnnouncementsController : ControllerBase
                 ClaimTypes.NameIdentifier);
 
         Guid? userId =
-            Guid.TryParse(userIdValue, out var parsed)
+            Guid.TryParse(
+                userIdValue,
+                out var parsed)
                 ? parsed
                 : null;
 
-        var announcement = new Announcement(
-            request.Title,
-            request.Message,
-            request.PublishedAt ?? DateTime.UtcNow,
-            request.ExpiresAt,
-            userId);
+        var result =
+            await _sender.Send(
+                new CreateAnnouncementCommand(
+                    request.Title,
+                    request.Message,
+                    request.PublishedAt,
+                    request.ExpiresAt,
+                    userId),
+                cancellationToken);
 
-        await _repository.AddAsync(
-            announcement,
-            cancellationToken);
-
-        await _repository.SaveChangesAsync(
-            cancellationToken);
-
-        return Ok(new
-        {
-            announcementId =
-                announcement.AnnouncementId
-        });
+        return Ok(result);
     }
 }
 

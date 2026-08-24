@@ -1,5 +1,5 @@
 ﻿using CCAP.Application.Abstractions.Persistence;
-using CCAP.Application.Features.Dashboard.DTOs;
+using CCAP.Application.Features.Announcements.DTOs;
 using CCAP.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,14 +29,12 @@ public sealed class AnnouncementRepository
                  x.ExpiresAt > now))
             .OrderByDescending(x => x.PublishedAt)
             .Take(10)
-            .Select(x => new AnnouncementDto
-            {
-                AnnouncementId = x.AnnouncementId,
-                Title = x.Title,
-                Message = x.Message,
-                PublishedAt = x.PublishedAt,
-                ExpiresAt = x.ExpiresAt
-            })
+            .Select(x => new AnnouncementDto(
+                x.AnnouncementId,
+                x.Title,
+                x.Message,
+                x.PublishedAt,
+                x.ExpiresAt))
             .ToListAsync(cancellationToken);
     }
 
@@ -46,16 +44,16 @@ public sealed class AnnouncementRepository
     {
         return await _db.Announcements
             .AsNoTracking()
-            .Where(x => x.AnnouncementId == announcementId)
-            .Select(x => new AnnouncementDto
-            {
-                AnnouncementId = x.AnnouncementId,
-                Title = x.Title,
-                Message = x.Message,
-                PublishedAt = x.PublishedAt,
-                ExpiresAt = x.ExpiresAt
-            })
-            .FirstOrDefaultAsync(cancellationToken);
+            .Where(x =>
+                x.AnnouncementId == announcementId)
+            .Select(x => new AnnouncementDto(
+                x.AnnouncementId,
+                x.Title,
+                x.Message,
+                x.PublishedAt,
+                x.ExpiresAt))
+            .FirstOrDefaultAsync(
+                cancellationToken);
     }
 
     public async Task AddAsync(
@@ -65,11 +63,5 @@ public sealed class AnnouncementRepository
         await _db.Announcements.AddAsync(
             announcement,
             cancellationToken);
-    }
-
-    public Task SaveChangesAsync(
-        CancellationToken cancellationToken)
-    {
-        return _db.SaveChangesAsync(cancellationToken);
     }
 }

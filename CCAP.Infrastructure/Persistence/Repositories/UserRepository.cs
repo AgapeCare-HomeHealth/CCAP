@@ -7,31 +7,79 @@ namespace CCAP.Infrastructure.Persistence.Repositories;
 public sealed class UserRepository : IUserRepository
 {
     private readonly AppDbContext _context;
-    public UserRepository(AppDbContext context) => _context = context;
 
-    public Task<ApplicationUser?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
+    public UserRepository(AppDbContext context)
+    {
+        _context = context;
+    }
+
+    public Task<ApplicationUser?> GetByIdAsync(
+        Guid id,
+        CancellationToken cancellationToken) =>
         _context.ApplicationUsers
             .Include(x => x.Role)
                 .ThenInclude(x => x.RolePermissions)
                     .ThenInclude(x => x.Permission)
             .Include(x => x.Discipline)
-            .FirstOrDefaultAsync(x => x.UserId == id, cancellationToken);
+            .FirstOrDefaultAsync(
+                x => x.UserId == id,
+                cancellationToken);
 
-    public Task<ApplicationUser?> GetByEmailAsync(string email, CancellationToken cancellationToken) =>
-        _context.ApplicationUsers
+    public Task<ApplicationUser?> GetByEmailAsync(
+        string email,
+        CancellationToken cancellationToken)
+    {
+        var normalizedEmail =
+            email.Trim().ToLower();
+
+        return _context.ApplicationUsers
             .Include(x => x.Role)
                 .ThenInclude(x => x.RolePermissions)
                     .ThenInclude(x => x.Permission)
             .Include(x => x.Discipline)
-            .FirstOrDefaultAsync(x => x.Email == email.Trim().ToLower(), cancellationToken);
+            .FirstOrDefaultAsync(
+                x => x.Email == normalizedEmail,
+                cancellationToken);
+    }
 
-    public Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken) =>
-        _context.ApplicationUsers.AnyAsync(x => x.Email == email.Trim().ToLower(), cancellationToken);
+    public Task<bool> ExistsByEmailAsync(
+        string email,
+        Guid? excludeUserId,
+        CancellationToken cancellationToken)
+    {
+        var normalizedEmail =
+            email.Trim().ToLower();
 
-    public Task<bool> ExistsByEmployeeNoAsync(string employeeNo, CancellationToken cancellationToken) =>
-        _context.ApplicationUsers.AnyAsync(x => x.EmployeeNo == employeeNo, cancellationToken);
+        return _context.ApplicationUsers
+            .AsNoTracking()
+            .AnyAsync(
+                x =>
+                    x.Email == normalizedEmail &&
+                    (!excludeUserId.HasValue ||
+                     x.UserId != excludeUserId.Value),
+                cancellationToken);
+    }
 
-    public Task<List<ApplicationUser>> GetAllAsync(CancellationToken cancellationToken) =>
+    public Task<bool> ExistsByEmployeeNoAsync(
+        string employeeNo,
+        Guid? excludeUserId,
+        CancellationToken cancellationToken)
+    {
+        var normalizedEmployeeNo =
+            employeeNo.Trim();
+
+        return _context.ApplicationUsers
+            .AsNoTracking()
+            .AnyAsync(
+                x =>
+                    x.EmployeeNo == normalizedEmployeeNo &&
+                    (!excludeUserId.HasValue ||
+                     x.UserId != excludeUserId.Value),
+                cancellationToken);
+    }
+
+    public Task<List<ApplicationUser>> GetAllAsync(
+        CancellationToken cancellationToken) =>
         _context.ApplicationUsers
             .Include(x => x.Role)
                 .ThenInclude(x => x.RolePermissions)
@@ -42,9 +90,20 @@ public sealed class UserRepository : IUserRepository
             .ThenBy(x => x.FirstName)
             .ToListAsync(cancellationToken);
 
-    public Task AddAsync(ApplicationUser user, CancellationToken cancellationToken) =>
-        _context.ApplicationUsers.AddAsync(user, cancellationToken).AsTask();
+    public Task AddAsync(
+        ApplicationUser user,
+        CancellationToken cancellationToken) =>
+        _context.ApplicationUsers
+            .AddAsync(
+                user,
+                cancellationToken)
+            .AsTask();
 
-    public void Update(ApplicationUser user) => _context.ApplicationUsers.Update(user);
-    public void Remove(ApplicationUser user) => _context.ApplicationUsers.Remove(user);
+    public void Update(
+        ApplicationUser user) =>
+        _context.ApplicationUsers.Update(user);
+
+    public void Remove(
+        ApplicationUser user) =>
+        _context.ApplicationUsers.Remove(user);
 }

@@ -52,7 +52,6 @@ public sealed class CreateReferralIntakeCommandHandler
         CreateReferralIntakeCommand request,
         CancellationToken cancellationToken)
     {
-        CreateReferralIntakeValidator.Validate(request);
 
         // =========================================================
         // DUPLICATE CHECKS
