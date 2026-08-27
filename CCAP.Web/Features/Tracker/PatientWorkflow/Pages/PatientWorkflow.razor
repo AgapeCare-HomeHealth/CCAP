@@ -221,10 +221,12 @@ else
 
             if (Workflow is not null)
             {
-                Care = await CareService.GetAsync(PatientId);
-                Notifications = (await NotificationCenter.GetAsync())
-                    .Where(x => x.PatientId == PatientId)
-                    .ToList();
+                // Care Management API is not implemented yet.
+                // Keep Care null so the Patient Workflow page can load.
+                Care = null;
+
+                // Notification API can also be enabled later.
+                Notifications = [];
             }
         }
         finally

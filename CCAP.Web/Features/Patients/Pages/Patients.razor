@@ -8,6 +8,7 @@
 <PageTitle>Patients</PageTitle>
 
 <div class="patients-page">
+
     <div class="page-header">
         <h2>My Patients</h2>
         <p>Manage and monitor patient records.</p>
@@ -17,38 +18,39 @@
 
     @if (IsLoading)
     {
-        <div class="py-5 text-center">Loading patients...</div>
+        <div class="py-5 text-center">
+            Loading patients...
+        </div>
     }
     else if (!string.IsNullOrWhiteSpace(ErrorMessage))
     {
-        <div class="alert alert-danger">@ErrorMessage</div>
+        <div class="alert alert-danger">
+            @ErrorMessage
+        </div>
     }
     else
     {
-        <PatientTable Patients="PatientList" />
+        <PatientTable Patients="PatientList" /> 
         <PatientPagination TotalItems="@PatientList.Count" />
     }
+
 </div>
 
 @code {
-    private List<PatientListItem> PatientList = [];
-    private bool IsLoading;
-    private string? ErrorMessage;
 
-    protected override async Task OnInitializedAsync()
-    {
-        IsLoading = true;
-        try
-        {
-            PatientList = await PatientService.GetPatientsAsync();
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = $"Unable to load patients: {ex.Message}";
-        }
-        finally
-        {
-            IsLoading = false;
-        }
+    private List<PatientListItem> PatientList = [];
+    private bool IsLoading; private string? ErrorMessage;
+    protected override async Task OnInitializedAsync() { IsLoading = true;
+        try 
+        { 
+            PatientList = await PatientService.GetPatientsAsync(); 
+        } 
+        catch (Exception ex) { ErrorMessage = $"Unable to load patients: {ex.Message}";
+        } 
+        finally 
+        { 
+            IsLoading = false; 
+        } 
     }
+}
 }
