@@ -9,11 +9,32 @@ public sealed class PatientRepository : IPatientRepository
     private readonly AppDbContext _context;
     public PatientRepository(AppDbContext context) => _context = context;
 
-    public Task<Patient?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
-        _context.Patients
-            .Include(x => x.Coordinator)
-            .Include(x => x.Clinician)
-            .FirstOrDefaultAsync(x => x.PatientId == id, cancellationToken);
+    public Task<Patient?> GetByIdAsync(
+    Guid id,
+    CancellationToken cancellationToken) =>
+    _context.Patients
+        .Include(x => x.Coordinator)
+        .Include(x => x.Clinician)
+
+        .Include(x => x.Referrals)
+            .ThenInclude(x => x.Location)
+
+        .Include(x => x.Referrals)
+            .ThenInclude(x => x.Discipline)
+
+        .Include(x => x.Referrals)
+            .ThenInclude(x => x.AssignedUser)
+
+        .Include(x => x.Tasks)
+            .ThenInclude(x => x.AssignedUser)
+
+        .Include(x => x.Activities)
+            .ThenInclude(x => x.PerformedBy)
+
+        .AsNoTracking()
+        .FirstOrDefaultAsync(
+            x => x.PatientId == id,
+            cancellationToken);
 
     public Task<List<Patient>> GetAllAsync(CancellationToken cancellationToken) =>
         _context.Patients
