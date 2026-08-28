@@ -11,31 +11,42 @@ public sealed class CreateReferralIntakeCommandHandler
         CreateReferralIntakeResult>
 {
     private readonly IPatientRepository _patients;
-
     private readonly IReferralRepository _referrals;
-
     private readonly ILocationRepository _locations;
-
     private readonly IServiceTypeRepository _serviceTypes;
-
     private readonly IPatientTaskRepository _tasks;
-
     private readonly IComplianceRepository _compliance;
 
+    // =========================================================
+    // FILE STORAGE
+    // =========================================================
+    // Kept intentionally so storage can be restored later.
+    // =========================================================
+
+    private readonly IReferralDocumentRepository _documentRepository;
     private readonly IFileStorage _fileStorage;
 
     private readonly IUnitOfWork _unitOfWork;
 
+
     public CreateReferralIntakeCommandHandler(
-    IPatientRepository patients,
-    IReferralRepository referrals,
-    ILocationRepository locations,
-    IServiceTypeRepository serviceTypes,
-    IPatientTaskRepository tasks,
-    IComplianceRepository compliance,
-    IReferralDocumentRepository documentRepository,
-    IFileStorage fileStorage,
-    IUnitOfWork unitOfWork)
+        IPatientRepository patients,
+        IReferralRepository referrals,
+        ILocationRepository locations,
+        IServiceTypeRepository serviceTypes,
+        IPatientTaskRepository tasks,
+        IComplianceRepository compliance,
+
+        // =====================================================
+        // FILE STORAGE
+        // =====================================================
+        // Keep these dependencies for easy re-enabling later.
+        // =====================================================
+
+        IReferralDocumentRepository documentRepository,
+        IFileStorage fileStorage,
+
+        IUnitOfWork unitOfWork)
     {
         _patients = patients;
         _referrals = referrals;
@@ -43,16 +54,18 @@ public sealed class CreateReferralIntakeCommandHandler
         _serviceTypes = serviceTypes;
         _tasks = tasks;
         _compliance = compliance;
+
         _documentRepository = documentRepository;
         _fileStorage = fileStorage;
+
         _unitOfWork = unitOfWork;
     }
+
 
     public async Task<CreateReferralIntakeResult> Handle(
         CreateReferralIntakeCommand request,
         CancellationToken cancellationToken)
     {
-
         // =========================================================
         // DUPLICATE CHECKS
         // =========================================================
@@ -68,6 +81,7 @@ public sealed class CreateReferralIntakeCommandHandler
                 $"A patient with MRN '{request.MRN}' already exists.");
         }
 
+
         var referralExists =
             await _referrals.ExistsByReferralNumberAsync(
                 request.ReferralNumber,
@@ -78,6 +92,7 @@ public sealed class CreateReferralIntakeCommandHandler
             throw new InvalidOperationException(
                 $"Referral number '{request.ReferralNumber}' already exists.");
         }
+
 
         // =========================================================
         // DEFAULT LOCATION
@@ -98,6 +113,7 @@ public sealed class CreateReferralIntakeCommandHandler
                 location,
                 cancellationToken);
         }
+
 
         // =========================================================
         // PATIENT
@@ -138,6 +154,7 @@ public sealed class CreateReferralIntakeCommandHandler
             patient,
             cancellationToken);
 
+
         // =========================================================
         // REFERRAL
         // =========================================================
@@ -164,15 +181,18 @@ public sealed class CreateReferralIntakeCommandHandler
         referral.ConvertToPatient(
             patient.PatientId);
 
+
         if (request.CoordinatorId.HasValue)
         {
             referral.Assign(
                 request.CoordinatorId.Value);
         }
 
+
         await _referrals.AddAsync(
             referral,
             cancellationToken);
+
 
         // =========================================================
         // SERVICE ORDERS
@@ -182,10 +202,13 @@ public sealed class CreateReferralIntakeCommandHandler
             await _serviceTypes.GetActiveAsync(
                 cancellationToken);
 
-        foreach (var requestedService
-         in request.OrderedServices
-             .Where(x => !string.IsNullOrWhiteSpace(x))
-             .Distinct(StringComparer.OrdinalIgnoreCase))
+        foreach (
+            var requestedService
+            in request.OrderedServices
+                .Where(x =>
+                    !string.IsNullOrWhiteSpace(x))
+                .Distinct(
+                    StringComparer.OrdinalIgnoreCase))
         {
             var service =
                 activeServices.FirstOrDefault(
@@ -197,6 +220,7 @@ public sealed class CreateReferralIntakeCommandHandler
             if (service is null)
                 continue;
 
+
             var order =
                 new PatientServiceOrder(
                     patient.PatientId,
@@ -205,10 +229,12 @@ public sealed class CreateReferralIntakeCommandHandler
                     null,
                     false);
 
+
             await _serviceTypes.AddOrderAsync(
                 order,
                 cancellationToken);
         }
+
 
         // =========================================================
         // INITIAL WORKFLOW TASKS
@@ -220,6 +246,7 @@ public sealed class CreateReferralIntakeCommandHandler
         var baseDate =
             DateTime.UtcNow;
 
+
         await AddTask(
             patient.PatientId,
             "Review Referral",
@@ -228,6 +255,7 @@ public sealed class CreateReferralIntakeCommandHandler
             "/referrals",
             coordinator,
             cancellationToken);
+
 
         await AddTask(
             patient.PatientId,
@@ -238,6 +266,7 @@ public sealed class CreateReferralIntakeCommandHandler
             coordinator,
             cancellationToken);
 
+
         await AddTask(
             patient.PatientId,
             "Verify Physician Orders",
@@ -246,6 +275,7 @@ public sealed class CreateReferralIntakeCommandHandler
             $"/tracker/patient/{patient.PatientId}",
             coordinator,
             cancellationToken);
+
 
         await AddTask(
             patient.PatientId,
@@ -258,16 +288,27 @@ public sealed class CreateReferralIntakeCommandHandler
             coordinator,
             cancellationToken);
 
+
         // =========================================================
         // INITIAL COMPLIANCE
         // =========================================================
+
+        // PDF is currently NOT stored.
+        //
+        // We still create a compliance item so the user can see
+        // that the referral document needs to be handled.
+        //
+        // When file storage is restored, this can be changed to:
+        //
+        // "Referral document received and attached."
 
         await _compliance.AddAsync(
             new ComplianceRecord(
                 patient.PatientId,
                 "REFERRAL_DOCUMENT",
-                "Referral document received and attached."),
+                "Referral document has not been uploaded or stored."),
             cancellationToken);
+
 
         await _compliance.AddAsync(
             new ComplianceRecord(
@@ -276,12 +317,14 @@ public sealed class CreateReferralIntakeCommandHandler
                 "Insurance verification is required."),
             cancellationToken);
 
+
         await _compliance.AddAsync(
             new ComplianceRecord(
                 patient.PatientId,
                 "PHYSICIAN_ORDERS",
                 "Physician orders must be reviewed."),
             cancellationToken);
+
 
         await _compliance.AddAsync(
             new ComplianceRecord(
@@ -290,67 +333,105 @@ public sealed class CreateReferralIntakeCommandHandler
                 "Start of Care visit must be scheduled."),
             cancellationToken);
 
-        // =========================================================
-        // STORE PDF
-        // =========================================================
-
-        var now = DateTime.UtcNow;
-
-        var storageFolder =
-            $"Referrals/{now:yyyy}/{now:MM}/{referral.ReferralId}";
-
-        var storedFile = await _fileStorage.SaveAsync(
-            request.PdfStream,
-            request.PdfFileName,
-            request.PdfContentType,
-            storageFolder,
-            cancellationToken);
-
 
         // =========================================================
-        // DOCUMENT RECORD
+        // PDF STORAGE
+        // =========================================================
+        //
+        // TEMPORARILY DISABLED
+        //
+        // The PDF may still be received by the API, but it is
+        // intentionally NOT written to disk, Plesk, cloud storage,
+        // or the database.
+        //
+        // To restore storage later, uncomment the block below.
+        //
         // =========================================================
 
-        var document =
-            new ReferralDocument(
-                referral.ReferralId,
-                storedFile.StorageKey,
-                storedFile.OriginalFileName,
-                storedFile.ContentType,
-                storedFile.Size);
+        Guid? referralDocumentId = null;
 
-        await AddDocumentAsync(
-            document,
-            cancellationToken);
+        string? storageKey = null;
 
-        try
+
+        /*
+        // =========================================================
+        // RESTORE PDF STORAGE HERE
+        // =========================================================
+
+        if (request.PdfStream is not null)
         {
-            await _unitOfWork.SaveChangesAsync(
-                cancellationToken);
-        }
-        catch
-        {
-            try
-            {
-                await _fileStorage.DeleteAsync(
-                    storedFile.StorageKey,
+            var now =
+                DateTime.UtcNow;
+
+            var storageFolder =
+                $"Referrals/{now:yyyy}/{now:MM}/{referral.ReferralId}";
+
+
+            var storedFile =
+                await _fileStorage.SaveAsync(
+                    request.PdfStream,
+                    request.PdfFileName!,
+                    request.PdfContentType!,
+                    storageFolder,
                     cancellationToken);
-            }
-            catch
-            {
-                // Preserve the original database exception.
-            }
 
-            throw;
+
+            storageKey =
+                storedFile.StorageKey;
+
+
+            // =====================================================
+            // CREATE DOCUMENT RECORD
+            // =====================================================
+
+            var document =
+                new ReferralDocument(
+                    referral.ReferralId,
+                    storedFile.StorageKey,
+                    storedFile.OriginalFileName,
+                    storedFile.ContentType,
+                    storedFile.Size);
+
+
+            await AddDocumentAsync(
+                document,
+                cancellationToken);
+
+
+            referralDocumentId =
+                document.ReferralDocumentId;
         }
+        */
+
+
+        // =========================================================
+        // DATABASE SAVE
+        // =========================================================
+
+        await _unitOfWork.SaveChangesAsync(
+            cancellationToken);
+
+
+        // =========================================================
+        // RESULT
+        // =========================================================
 
         return new CreateReferralIntakeResult(
             patient.PatientId,
             referral.ReferralId,
             referral.ReferralNumber,
-            document.ReferralDocumentId,
-            storedFile.StorageKey);
+
+            // NULL because document storage is disabled.
+            referralDocumentId,
+
+            // NULL because no file is being stored.
+            storageKey);
     }
+
+
+    // =============================================================
+    // ADD TASK
+    // =============================================================
 
     private async Task AddTask(
         Guid patientId,
@@ -369,18 +450,28 @@ public sealed class CreateReferralIntakeCommandHandler
                 dueDate,
                 pageRoute);
 
+
         if (assignedUserId.HasValue)
         {
             task.Assign(
                 assignedUserId.Value);
         }
 
+
         await _tasks.AddAsync(
             task,
             cancellationToken);
     }
 
-    
+
+    // =============================================================
+    // ADD DOCUMENT
+    // =============================================================
+    //
+    // Currently unused because PDF storage is disabled.
+    //
+    // Keep it here so restoring document storage later is easy.
+    // =============================================================
 
     private async Task AddDocumentAsync(
         ReferralDocument document,
@@ -390,7 +481,4 @@ public sealed class CreateReferralIntakeCommandHandler
             document,
             cancellationToken);
     }
-
-    private readonly IReferralDocumentRepository
-        _documentRepository;
 }

@@ -4,6 +4,8 @@ using CCAP.Application.Features.Patients.Commands.ArchivePatient;
 using CCAP.Application.Features.Patients.Commands.CompleteCare;
 using CCAP.Application.Features.Patients.Queries.GetPatients;
 using CCAP.Application.Features.Patients.Queries.GetServiceTypes;
+using CCAP.Application.Features.Patients.Queries.GetPatientWorkflow;
+using CCAP.Application.Features.Patients.Queries.GetPatientCareManagement;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,16 +18,41 @@ namespace CCAP.API.Controllers;
 public sealed class PatientsController : ControllerBase
 {
     private readonly ISender _sender;
+
     public PatientsController(ISender sender) => _sender = sender;
 
     [HttpGet]
-    public async Task<IActionResult> GetPatients(CancellationToken cancellationToken) =>
-        Ok(await _sender.Send(new GetPatientsQuery(), cancellationToken));
+    public async Task<IActionResult> GetPatients(
+        CancellationToken cancellationToken) =>
+        Ok(await _sender.Send(
+            new GetPatientsQuery(),
+            cancellationToken));
 
     [HttpGet("service-types")]
     [Authorize(Policy = PermissionPolicies.PatientsView)]
-    public async Task<IActionResult> GetServiceTypes(CancellationToken cancellationToken) =>
-        Ok(await _sender.Send(new GetServiceTypesQuery(), cancellationToken));
+    public async Task<IActionResult> GetServiceTypes(
+        CancellationToken cancellationToken) =>
+        Ok(await _sender.Send(
+            new GetServiceTypesQuery(),
+            cancellationToken));
+
+    // NEW
+    [HttpGet("{patientId:guid}/workflow")]
+    [Authorize(Policy = PermissionPolicies.PatientsView)]
+    public async Task<IActionResult> GetWorkflow(
+    Guid patientId,
+    CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new GetPatientWorkflowQuery(patientId),
+            cancellationToken);
+
+        if (result is null)
+            return NotFound();
+
+        return Ok(result);
+    }
+
 
     [HttpPost("{patientId:guid}/call-notes")]
     [Authorize(Policy = PermissionPolicies.PatientsManage)]
@@ -38,6 +65,7 @@ public sealed class PatientsController : ControllerBase
             return BadRequest("Route ID and command PatientId do not match.");
 
         var id = await _sender.Send(command, cancellationToken);
+
         return Ok(new { CallNoteId = id });
     }
 
@@ -52,6 +80,7 @@ public sealed class PatientsController : ControllerBase
             return BadRequest("Route ID and command PatientId do not match.");
 
         await _sender.Send(command, cancellationToken);
+
         return NoContent();
     }
 
@@ -66,6 +95,23 @@ public sealed class PatientsController : ControllerBase
             return BadRequest("Route ID and command PatientId do not match.");
 
         await _sender.Send(command, cancellationToken);
+
         return NoContent();
+    }
+
+    [HttpGet("{patientId:guid}/care-management")]
+    [Authorize(Policy = PermissionPolicies.PatientsView)]
+    public async Task<IActionResult> GetCareManagement(
+    Guid patientId,
+    CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new GetPatientCareManagementQuery(patientId),
+            cancellationToken);
+
+        if (result is null)
+            return NotFound();
+
+        return Ok(result);
     }
 }

@@ -1,27 +1,44 @@
 /* ==========================================
-   NAV MENU
+   NAV MENU / SIDEBAR
+========================================== */
+
+
+/* ==========================================
+   SIDEBAR
 ========================================== */
 
 .sidebar {
     display: flex;
     flex-direction: column;
-    height: 100%;
-    background: linear-gradient(180deg, #20786C 0%, #1C6C61 55%, #155A50 100%);
-    color: #fff;
+    width: 260px;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    background: #F8FAF9;
+    color: #334155;
     overflow: hidden;
-    box-shadow: 4px 0 15px rgba(0,0,0,.08);
+    z-index: 1000;
+    /* Subtle vertical separation */
+    border-right: 1px solid #DDE7E4;
+    /* Card-like popup shadow */
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.10);
+    transition: width 0.25s ease, box-shadow 0.25s ease;
 }
 
+
 /* ==========================================
-   HEADER
+   HEADER / LOGO AREA
 ========================================== */
 
 .sidebar-header {
     height: 76px;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     padding: 0 16px;
-    border-bottom: 1px solid rgba(255,255,255,.10);
+    background: #FFFFFF;
+    border-bottom: 1px solid #E5E7EB;
 }
 
 .sidebar-header-content {
@@ -29,7 +46,7 @@
     align-items: center;
     gap: 12px;
     width: 100%;
-    transition: .25s ease;
+    transition: 0.25s ease;
 }
 
 
@@ -40,6 +57,7 @@
 .sidebar-logo-expanded {
     width: 210px;
     height: auto;
+    max-height: 62px;
     object-fit: contain;
     display: block;
 }
@@ -56,167 +74,340 @@
     display: block;
 }
 
+
+/* ==========================================
+   SIDEBAR TITLE
+========================================== */
+
 .sidebar-title {
     overflow: hidden;
 }
 
-/* Center logo when sidebar is collapsed */
+
+/* ==========================================
+   CENTER LOGO WHEN COLLAPSED
+========================================== */
 
 .sidebar.collapsed .sidebar-header-content {
     justify-content: center;
 }
 
+
 /* ==========================================
-   NAVIGATION
+   NAVIGATION CONTAINER
 ========================================== */
 
 .sidebar-nav {
     flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 18px 14px;
+    gap: 5px;
+    padding: 20px 12px;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
+
     /* ==========================================
-   LINKS
+   NAVIGATION ITEMS
 ========================================== */
 
-    .sidebar-nav ::deep a {
+    .sidebar-nav ::deep .nav-item {
         display: flex;
         align-items: center;
-        gap: 16px;
-        height: 48px;
-        padding: 0 16px;
-        border-radius: 12px;
+        gap: 15px;
+        height: 46px;
+        min-height: 46px;
+        padding: 0 14px;
+        border-radius: 9px;
         text-decoration: none;
-        color: rgba(255,255,255,.88);
-        font-size: 15px;
+        color: #475569 !important;
+        font-size: 14px;
         font-weight: 500;
-        transition: .2s;
+        transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
     }
 
-        .sidebar-nav ::deep a:hover {
-            background: rgba(255,255,255,.10);
-            color: white;
+
+        /* ==========================================
+   NAVIGATION ICONS
+========================================== */
+
+        .sidebar-nav ::deep .nav-item i {
+            width: 20px;
+            text-align: center;
+            font-size: 17px;
+            color: #64748B !important;
+            flex-shrink: 0;
+            transition: color 0.2s ease;
         }
 
-        .sidebar-nav ::deep a.active {
-            background: rgba(255,255,255,.18);
-            color: white;
+
+        /* ==========================================
+   NAVIGATION HOVER
+========================================== */
+
+        .sidebar-nav ::deep .nav-item:hover {
+            background: #F0F7F5;
+            color: #20786C !important;
         }
 
-    .sidebar-nav i {
-        width: 20px;
-        text-align: center;
-        font-size: 18px;
-        flex-shrink: 0;
-    }
+            .sidebar-nav ::deep .nav-item:hover i {
+                color: #20786C !important;
+            }
+
+
+        /* ==========================================
+   NAVIGATION ACTIVE
+========================================== */
+
+        .sidebar-nav ::deep .nav-item.active {
+            background: #E3F2EF !important;
+            color: #176B60 !important;
+            font-weight: 600;
+            box-shadow: inset 3px 0 0 #20786C;
+        }
+
+            .sidebar-nav ::deep .nav-item.active i {
+                color: #176B60 !important;
+            }
+
 
 /* ==========================================
-   DROPDOWN
+   DROPDOWN / EXPANDING MENU
 ========================================== */
 
 .menu-dropdown {
     margin: 0;
 }
 
+
+    /* ==========================================
+   DROPDOWN SUMMARY
+========================================== */
+
     .menu-dropdown summary {
         list-style: none;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        height: 48px;
-        padding: 0 16px;
-        border-radius: 12px;
+        height: 46px;
+        min-height: 46px;
+        padding: 0 14px;
+        border-radius: 9px;
         cursor: pointer;
-        color: rgba(255,255,255,.88);
-        transition: .2s;
+        color: #475569 !important;
+        font-size: 14px;
+        font-weight: 500;
+        transition: background 0.2s ease, color 0.2s ease;
     }
 
-        .menu-dropdown summary:hover {
-            background: rgba(255,255,255,.10);
-        }
 
-        .menu-dropdown summary div {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
+        /* Remove browser marker */
 
         .menu-dropdown summary::-webkit-details-marker {
             display: none;
         }
 
+
+        /* ==========================================
+   DROPDOWN CONTENT
+========================================== */
+
+        .menu-dropdown summary div {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+
+            /* ==========================================
+   DROPDOWN ICON
+========================================== */
+
+            .menu-dropdown summary div i {
+                width: 20px;
+                text-align: center;
+                font-size: 17px;
+                color: #64748B !important;
+                flex-shrink: 0;
+                transition: color 0.2s ease;
+            }
+
+
+        /* ==========================================
+   DROPDOWN HOVER
+========================================== */
+
+        .menu-dropdown summary:hover {
+            background: #F0F7F5;
+            color: #20786C !important;
+        }
+
+            .menu-dropdown summary:hover div i {
+                color: #20786C !important;
+            }
+
+
+    /* ==========================================
+   DROPDOWN OPEN
+========================================== */
+
+    .menu-dropdown[open] summary {
+        background: #F0F7F5;
+        color: #20786C !important;
+    }
+
+        .menu-dropdown[open] summary div i {
+            color: #20786C !important;
+        }
+
+
+    /* ==========================================
+   ARROW
+========================================== */
+
+    .menu-dropdown summary .arrow {
+        width: auto;
+        color: #64748B !important;
+        font-size: 12px;
+        transition: transform 0.25s ease, color 0.2s ease;
+    }
+
+    .menu-dropdown[open] summary .arrow {
+        color: #20786C !important;
+        transform: rotate(180deg);
+    }
+
+
 /* ==========================================
    SUBMENU
 ========================================== */
 
-.submenu-item {
+.sidebar-nav ::deep .submenu-item {
     display: block;
-    margin-top: 4px;
-    padding: 10px 16px 10px 52px;
+    margin-top: 3px;
+    padding: 9px 14px 9px 49px;
     border-radius: 8px;
     text-decoration: none;
-    color: rgba(255,255,255,.72);
-    font-size: 14px;
-    transition: .2s;
+    color: #64748B !important;
+    font-size: 13px;
+    transition: background 0.2s ease, color 0.2s ease;
 }
 
-.sidebar-nav ::deep .submenu-item:hover {
-    background: rgba(255,255,255,.08);
-    color: white;
-}
 
-.sidebar-nav ::deep .submenu-item.active {
-    background: rgba(255,255,255,.15);
-    color: white;
-}
-
-/* ==========================================
-   ARROW
+    /* ==========================================
+   SUBMENU HOVER
 ========================================== */
 
-.arrow {
-    transition: transform .25s ease;
-}
-
-.menu-dropdown[open] .arrow {
-    transform: rotate(180deg);
-}
-
-/* ==========================================
-   COLLAPSED
-========================================== */
-
-.sidebar.collapsed .sidebar-title,
-.sidebar.collapsed .submenu-item {
-    display: none;
-}
-
-.sidebar.collapsed .sidebar-nav ::deep a,
-.sidebar.collapsed .menu-dropdown summary {
-    justify-content: center;
-    padding: 0;
-}
-
-    .sidebar.collapsed .menu-dropdown summary div {
-        justify-content: center;
-        width: 100%;
+    .sidebar-nav ::deep .submenu-item:hover {
+        background: #F0F7F5;
+        color: #20786C !important;
     }
 
-.sidebar.collapsed .arrow {
-    display: none;
+
+    /* ==========================================
+   SUBMENU ACTIVE
+========================================== */
+
+    .sidebar-nav ::deep .submenu-item.active {
+        background: #E3F2EF;
+        color: #176B60 !important;
+        font-weight: 600;
+        box-shadow: inset 3px 0 0 #20786C;
+    }
+
+
+/* ==========================================
+   COLLAPSED SIDEBAR
+========================================== */
+
+.sidebar.collapsed {
+    width: 72px;
 }
+
+
+    /* Hide text/submenus */
+
+    .sidebar.collapsed .sidebar-title,
+    .sidebar.collapsed .submenu-item {
+        display: none;
+    }
+
+
+    /* ==========================================
+   COLLAPSED NAVIGATION
+========================================== */
+
+    .sidebar.collapsed .sidebar-nav ::deep .nav-item {
+        justify-content: center;
+        padding: 0;
+    }
+
+
+    /* ==========================================
+   COLLAPSED DROPDOWN
+========================================== */
+
+    .sidebar.collapsed .menu-dropdown summary {
+        justify-content: center;
+        padding: 0;
+    }
+
+        .sidebar.collapsed .menu-dropdown summary div {
+            justify-content: center;
+            width: 100%;
+        }
+
+
+    /* Hide arrow */
+
+    .sidebar.collapsed .arrow {
+        display: none;
+    }
+
+
+    /* ==========================================
+   COLLAPSED ICON SIZE
+========================================== */
+
+    .sidebar.collapsed .sidebar-nav ::deep .nav-item i {
+        font-size: 18px;
+    }
+
 
 /* ==========================================
    FOOTER
 ========================================== */
 
 .sidebar-footer {
+    flex-shrink: 0;
     padding: 16px;
     text-align: center;
     font-size: 12px;
-    color: rgba(255,255,255,.60);
-    border-top: 1px solid rgba(255,255,255,.08);
+    color: #9CA3AF;
+    background: #FFFFFF;
+    border-top: 1px solid #E5E7EB;
 }
+
+
+/* ==========================================
+   SCROLLBAR
+========================================== */
+
+.sidebar-nav::-webkit-scrollbar {
+    width: 5px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+    background: #D1D5DB;
+    border-radius: 10px;
+}
+
+    .sidebar-nav::-webkit-scrollbar-thumb:hover {
+        background: #9CA3AF;
+    }

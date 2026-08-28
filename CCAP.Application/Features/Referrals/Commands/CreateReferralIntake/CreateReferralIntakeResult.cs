@@ -4,5 +4,6 @@ public sealed record CreateReferralIntakeResult(
     Guid PatientId,
     Guid ReferralId,
     string ReferralNumber,
-    Guid ReferralDocumentId,
-    string StorageKey);
+    // PDF is temporarily optional
+    Guid? ReferralDocumentId,
+    string? StorageKey);

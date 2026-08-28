@@ -39,35 +39,36 @@ public sealed class CreateReferralIntakeValidator
                 "Referral date cannot be in the future.");
         }
 
-        if (request.PdfStream is null)
-        {
-            throw new ArgumentException(
-                "Referral PDF is required.");
-        }
+        // PDF is temporarily optional
+        //if (request.PdfStream is null)
+        //{
+        //    throw new ArgumentException(
+        //        "Referral PDF is required.");
+        //}
 
-        if (string.IsNullOrWhiteSpace(
-                request.PdfFileName))
-        {
-            throw new ArgumentException(
-                "Referral PDF file name is required.");
-        }
+        //if (string.IsNullOrWhiteSpace(
+        //        request.PdfFileName))
+        //{
+        //    throw new ArgumentException(
+        //        "Referral PDF file name is required.");
+        //}
 
-        if (!request.PdfFileName.EndsWith(
-                ".pdf",
-                StringComparison.OrdinalIgnoreCase))
-        {
-            throw new ArgumentException(
-                "Only PDF files are accepted.");
-        }
+        //if (!request.PdfFileName.EndsWith(
+        //        ".pdf",
+        //        StringComparison.OrdinalIgnoreCase))
+        //{
+        //    throw new ArgumentException(
+        //        "Only PDF files are accepted.");
+        //}
 
-        if (!string.Equals(
-            request.PdfContentType,
-            "application/pdf",
-            StringComparison.OrdinalIgnoreCase))
-        {
-            throw new ArgumentException(
-                "Only PDF files are accepted.");
-        }
+        //if (!string.Equals(
+        //    request.PdfContentType,
+        //    "application/pdf",
+        //    StringComparison.OrdinalIgnoreCase))
+        //{
+        //    throw new ArgumentException(
+        //        "Only PDF files are accepted.");
+        //}
 
         if (request.CoordinatorId is null)
         {

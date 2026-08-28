@@ -9,8 +9,7 @@ public sealed class ReferralIntakeResultDto
     public string ReferralNumber { get; set; }
         = string.Empty;
 
-    public Guid ReferralDocumentId { get; set; }
+    public Guid? ReferralDocumentId { get; set; }
 
-    public string StorageKey { get; set; }
-        = string.Empty;
+    public string? StorageKey { get; set; }
 }
