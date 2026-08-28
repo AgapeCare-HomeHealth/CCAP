@@ -1,3 +1,4 @@
+using CCAP.Web.Features.Authentication.Services;
 using CCAP.Web.Features.MockData;
 using CCAP.Web.Features.Tracker.PatientWorkflow.Models;
 
@@ -11,21 +12,31 @@ namespace CCAP.Web.Features.Tracker.PatientWorkflow.Services;
 /// </summary>
 public sealed class PatientCareManagementService
 {
+    private readonly CcapApiClient _api;
     private readonly MockDataStore _mock;
     private readonly MockDataOptions _options;
 
-    public PatientCareManagementService(MockDataStore mock, MockDataOptions options)
+
+    public PatientCareManagementService(
+      CcapApiClient api,
+      MockDataStore mock,
+      MockDataOptions options)
     {
+        _api = api;
         _mock = mock;
         _options = options;
     }
 
-    public Task<PatientCareProfileDto> GetAsync(Guid patientId, CancellationToken cancellationToken = default)
+    public async Task<PatientCareProfileDto?> GetAsync(
+       Guid patientId,
+       CancellationToken cancellationToken = default)
     {
-        if (!_options.Enabled)
-            throw new NotSupportedException("Patient care-management API endpoints are not enabled yet. Set MockData:Enabled=true while these endpoints are being implemented.");
+        if (_options.Enabled)
+            return _mock.GetPatientCareProfile(patientId);
 
-        return Task.FromResult(_mock.GetPatientCareProfile(patientId));
+        return await _api.GetFromJsonAsync<PatientCareProfileDto>(
+            $"api/patients/{patientId}/care-management",
+            cancellationToken);
     }
 
     public Task SaveFaxAsync(FaxInformationDto fax, CancellationToken cancellationToken = default)
