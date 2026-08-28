@@ -9,12 +9,25 @@
     justify-content: space-between;
     padding: 0 18px;
     background: #1D6F64;
-    color: #fff;
-    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    color: #FFFFFF;
+    /* ======================================
+       FIXED POSITION
+       Sidebar = 260px
+    ====================================== */
+
+    position: fixed;
+    top: 0;
+    left: 260px;
+    right: 0;
+    z-index: 999;
+    /* Subtle elevation below header */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10);
+    transition: left 0.25s ease;
 }
 
+
 /* ==========================================
-   LEFT
+   LEFT SECTION
 ========================================== */
 
 .topbar-left {
@@ -25,8 +38,9 @@
     flex-shrink: 0;
 }
 
+
 /* ==========================================
-   CENTER
+   CENTER SECTION
 ========================================== */
 
 .topbar-center {
@@ -38,8 +52,9 @@
     min-width: 0;
 }
 
+
 /* ==========================================
-   RIGHT
+   RIGHT SECTION
 ========================================== */
 
 .topbar-right {
@@ -49,8 +64,9 @@
     flex-shrink: 0;
 }
 
+
 /* ==========================================
-   HAMBURGER
+   HAMBURGER BUTTON
 ========================================== */
 
 .menu-toggle {
@@ -62,18 +78,21 @@
     border: none;
     border-radius: 8px;
     background: transparent;
-    color: white;
+    color: #FFFFFF;
     cursor: pointer;
-    transition: .2s;
+    transition: background 0.2s ease, color 0.2s ease;
 }
 
+
     .menu-toggle:hover {
-        background: rgba(255,255,255,.08);
+        background: rgba(255, 255, 255, 0.10);
     }
+
 
     .menu-toggle i {
         font-size: 22px;
     }
+
 
 /* ==========================================
    SEARCH
@@ -88,9 +107,11 @@
     align-items: center;
     gap: 12px;
     padding: 0 16px;
-    background: white;
+    background: #FFFFFF;
     border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
+
 
 .search-icon {
     color: #8A8F98;
@@ -98,18 +119,21 @@
     flex-shrink: 0;
 }
 
+
 .search-container input {
     flex: 1;
     border: none;
     outline: none;
     background: transparent;
-    color: #333;
+    color: #333333;
     font-size: 14px;
 }
+
 
     .search-container input::placeholder {
         color: #8A8F98;
     }
+
 
 /* ==========================================
    QUICK ACTIONS
@@ -121,6 +145,7 @@
     gap: 4px;
 }
 
+
 .action-link {
     display: flex;
     align-items: center;
@@ -130,20 +155,23 @@
     border: none;
     border-radius: 8px;
     background: transparent;
-    color: white;
+    color: #FFFFFF;
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    transition: .2s;
+    transition: background 0.2s ease;
 }
 
+
     .action-link:hover {
-        background: rgba(255,255,255,.08);
+        background: rgba(255, 255, 255, 0.10);
     }
+
 
     .action-link i {
         font-size: 15px;
     }
+
 
 /* ==========================================
    NOTIFICATION
@@ -152,6 +180,7 @@
 .notification {
     position: relative;
 }
+
 
 .notification-button {
     width: 40px;
@@ -162,18 +191,25 @@
     border: none;
     border-radius: 8px;
     background: transparent;
-    color: white;
+    color: #FFFFFF;
     cursor: pointer;
-    transition: .2s;
+    transition: background 0.2s ease;
 }
 
+
     .notification-button:hover {
-        background: rgba(255,255,255,.08);
+        background: rgba(255, 255, 255, 0.10);
     }
+
 
     .notification-button i {
         font-size: 18px;
     }
+
+
+/* ==========================================
+   NOTIFICATION BADGE
+========================================== */
 
 .notification-badge {
     position: absolute;
@@ -188,10 +224,11 @@
     border-radius: 999px;
     background: #E53935;
     border: 2px solid #1D6F64;
-    color: white;
+    color: #FFFFFF;
     font-size: 10px;
     font-weight: 600;
 }
+
 
 /* ==========================================
    USER PROFILE
@@ -205,23 +242,34 @@
     border: none;
     border-radius: 10px;
     background: transparent;
-    color: white;
+    color: #FFFFFF;
     cursor: pointer;
-    transition: .2s;
+    transition: background 0.2s ease;
 }
 
+
     .profile-button:hover {
-        background: rgba(255,255,255,.08);
+        background: rgba(255, 255, 255, 0.10);
     }
+
+
+/* ==========================================
+   PROFILE AVATAR
+========================================== */
 
 .profile-avatar {
     width: 38px;
     height: 38px;
     border-radius: 50%;
     object-fit: cover;
-    border: 2px solid rgba(255,255,255,.20);
+    border: 2px solid rgba(255, 255, 255, 0.25);
     flex-shrink: 0;
 }
+
+
+/* ==========================================
+   PROFILE INFORMATION
+========================================== */
 
 .profile-info {
     display: flex;
@@ -232,26 +280,50 @@
     text-align: left;
 }
 
+
 .profile-name {
     font-size: 13px;
     font-weight: 600;
 }
 
+
 .profile-role {
     font-size: 11px;
-    opacity: .75;
+    opacity: 0.75;
 }
+
 
 .profile-arrow {
     font-size: 11px;
     margin-left: 2px;
 }
 
+
+/* ==========================================
+   COLLAPSED SIDEBAR SUPPORT
+========================================== */
+
+/*
+   Expanded sidebar:
+   260px
+
+   Collapsed sidebar:
+   72px
+
+   Add .collapsed to the topbar from
+   your MainLayout when the sidebar collapses.
+*/
+
+.topbar.collapsed {
+    left: 72px;
+}
+
+
 /* ==========================================
    RESPONSIVE
 ========================================== */
 
-@media (max-width:1100px) {
+@media (max-width: 1100px) {
 
     .search-container {
         max-width: 420px;
@@ -262,14 +334,8 @@
     }
 }
 
-@media (max-width:900px) {
 
-    .quick-actions {
-        display: none;
-    }
-
-}
-@media (max-width:992px) {
+@media (max-width: 992px) {
 
     .profile-info,
     .profile-arrow {
@@ -278,5 +344,30 @@
 
     .search-container {
         min-width: 180px;
+    }
+}
+
+
+@media (max-width: 900px) {
+
+    .quick-actions {
+        display: none;
+    }
+}
+
+
+@media (max-width: 700px) {
+
+    .topbar {
+        left: 0;
+    }
+
+    .topbar-center {
+        padding: 0 12px;
+    }
+
+    .search-container {
+        min-width: 120px;
+        max-width: none;
     }
 }
