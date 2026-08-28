@@ -1,4 +1,5 @@
 ﻿using System.Net.Http.Headers;
+using System.Text.Json;
 using CCAP.Web.Features.Authentication.Services;
 using CCAP.Web.Features.MockData;
 using CCAP.Web.Features.Patients.Models;
@@ -12,9 +13,7 @@ public sealed class ReferralIntakeService
         10 * 1024 * 1024;
 
     private readonly CcapApiClient _api;
-
     private readonly MockDataStore _mock;
-
     private readonly MockDataOptions _options;
 
     public ReferralIntakeService(
@@ -27,10 +26,18 @@ public sealed class ReferralIntakeService
         _options = options;
     }
 
+    // =========================================================
+    // CREATE
+    // =========================================================
+
     public async Task<ReferralIntakeResultDto> CreateAsync(
         ReferralIntakeModel model,
         CancellationToken cancellationToken = default)
     {
+        // =====================================================
+        // VALIDATION
+        // =====================================================
+
         Validate(model);
 
         // =====================================================
@@ -40,23 +47,6 @@ public sealed class ReferralIntakeService
         if (_options.Enabled)
         {
             return CreateMock(model);
-        }
-
-        // =====================================================
-        // PDF VALIDATION
-        // =====================================================
-
-        if (model.ReferralPdfBytes is null ||
-            model.ReferralPdfBytes.Length == 0)
-        {
-            throw new InvalidOperationException(
-                "Referral PDF is required.");
-        }
-
-        if (model.ReferralPdfBytes.Length > MaxFileSize)
-        {
-            throw new InvalidOperationException(
-                "Referral PDF cannot exceed 10 MB.");
         }
 
         // =====================================================
@@ -70,20 +60,36 @@ public sealed class ReferralIntakeService
         // PATIENT
         // =====================================================
 
-        Add(form, "MRN", model.MRN);
+        Add(
+            form,
+            "MRN",
+            model.MRN);
 
-        Add(form, "FirstName", model.FirstName);
+        Add(
+            form,
+            "FirstName",
+            model.FirstName);
 
-        Add(form, "MiddleName", model.MiddleName);
+        Add(
+            form,
+            "MiddleName",
+            model.MiddleName);
 
-        Add(form, "LastName", model.LastName);
+        Add(
+            form,
+            "LastName",
+            model.LastName);
 
         Add(
             form,
             "DateOfBirth",
-            model.DateOfBirth?.ToString("yyyy-MM-dd"));
+            model.DateOfBirth?
+                .ToString("yyyy-MM-dd"));
 
-        Add(form, "Gender", model.Gender);
+        Add(
+            form,
+            "Gender",
+            model.Gender);
 
         Add(
             form,
@@ -261,38 +267,50 @@ public sealed class ReferralIntakeService
         // ORDERED SERVICES
         // =====================================================
 
-        foreach (var service in model.OrderedServices)
+        if (model.OrderedServices is not null)
         {
-            Add(
-                form,
-                "OrderedServices",
-                service);
+            foreach (var service in model.OrderedServices)
+            {
+                Add(
+                    form,
+                    "OrderedServices",
+                    service);
+            }
         }
 
         // =====================================================
         // PDF
         // =====================================================
-        // IMPORTANT:
-        // Do NOT use model.ReferralPdf.OpenReadStream() here.
         //
-        // The browser file was already copied into
-        // ReferralPdfBytes when the user selected it.
+        // TEMPORARILY DISABLED.
+        //
+        // The PDF is intentionally NOT sent to the API.
+        //
+        // When cloud/hosted file storage is available,
+        // restore this block.
+        //
         // =====================================================
 
-        using var fileContent =
-            new ByteArrayContent(
-                model.ReferralPdfBytes);
+        /*
+        if (model.ReferralPdfBytes is not null &&
+            model.ReferralPdfBytes.Length > 0)
+        {
+            using var fileContent =
+                new ByteArrayContent(
+                    model.ReferralPdfBytes);
 
-        fileContent.Headers.ContentType =
-            new MediaTypeHeaderValue(
-                model.ReferralPdfContentType
-                ?? "application/pdf");
+            fileContent.Headers.ContentType =
+                new MediaTypeHeaderValue(
+                    model.ReferralPdfContentType
+                    ?? "application/pdf");
 
-        form.Add(
-            fileContent,
-            "Pdf",
-            model.ReferralPdfFileName
-            ?? "referral.pdf");
+            form.Add(
+                fileContent,
+                "Pdf",
+                model.ReferralPdfFileName
+                ?? "referral.pdf");
+        }
+        */
 
         // =====================================================
         // SEND TO API
@@ -307,6 +325,10 @@ public sealed class ReferralIntakeService
         var body =
             await response.Content.ReadAsStringAsync(
                 cancellationToken);
+
+        // =====================================================
+        // API ERROR
+        // =====================================================
 
         if (!response.IsSuccessStatusCode)
         {
@@ -323,16 +345,16 @@ public sealed class ReferralIntakeService
         // =====================================================
 
         return
-            System.Text.Json.JsonSerializer
-                .Deserialize<ReferralIntakeResultDto>(
-                    body,
-                    new System.Text.Json.JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true
-                    })
+            JsonSerializer.Deserialize<ReferralIntakeResultDto>(
+                body,
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                })
             ?? throw new InvalidOperationException(
                 "API returned an empty referral creation response.");
     }
+
 
     // =========================================================
     // MOCK
@@ -358,9 +380,11 @@ public sealed class ReferralIntakeService
                             " ")
                         .Trim(),
 
-                MRN = model.MRN,
+                MRN =
+                    model.MRN,
 
-                Status = "Active",
+                Status =
+                    "Active",
 
                 PrimaryDiagnosis =
                     model.PrimaryDiagnosis
@@ -370,8 +394,8 @@ public sealed class ReferralIntakeService
                     "Assigned",
 
                 NextVisit =
-                    model.SocDate?.ToString(
-                        "MM/dd/yyyy")
+                    model.SocDate?
+                        .ToString("MM/dd/yyyy")
                     ?? string.Empty
             };
 
@@ -381,7 +405,8 @@ public sealed class ReferralIntakeService
 
         return new ReferralIntakeResultDto
         {
-            PatientId = patientId,
+            PatientId =
+                patientId,
 
             ReferralId =
                 Guid.NewGuid(),
@@ -389,13 +414,18 @@ public sealed class ReferralIntakeService
             ReferralNumber =
                 model.ReferralNumber,
 
+            // =================================================
+            // PDF STORAGE DISABLED
+            // =================================================
+
             ReferralDocumentId =
-                Guid.NewGuid(),
+                null,
 
             StorageKey =
-                string.Empty
+                null
         };
     }
+
 
     // =========================================================
     // VALIDATION
@@ -404,6 +434,10 @@ public sealed class ReferralIntakeService
     private static void Validate(
         ReferralIntakeModel model)
     {
+        // =====================================================
+        // PATIENT
+        // =====================================================
+
         if (string.IsNullOrWhiteSpace(
                 model.MRN))
         {
@@ -425,11 +459,66 @@ public sealed class ReferralIntakeService
                 "Last name is required.");
         }
 
+        // =====================================================
+        // PHONE NUMBERS
+        // =====================================================
+
+        ValidatePhone(
+            model.PrimaryPhone,
+            "Primary phone",
+            required: true);
+
+        ValidatePhone(
+            model.AlternatePhone,
+            "Alternate phone",
+            required: false);
+
+        ValidatePhone(
+            model.EmergencyContactPhone,
+            "Emergency contact phone",
+            required: false);
+
+        ValidatePhone(
+            model.PhysicianPhone,
+            "Physician phone",
+            required: false);
+
+        // =====================================================
+        // ZIP CODE
+        // =====================================================
+
+        if (!string.IsNullOrWhiteSpace(
+                model.ZipCode))
+        {
+            if (!model.ZipCode.All(
+                    char.IsDigit))
+            {
+                throw new InvalidOperationException(
+                    "ZIP code must contain numbers only.");
+            }
+
+            if (model.ZipCode.Length != 5)
+            {
+                throw new InvalidOperationException(
+                    "ZIP code must contain exactly 5 digits.");
+            }
+        }
+
+        // =====================================================
+        // REFERRAL
+        // =====================================================
+
         if (string.IsNullOrWhiteSpace(
                 model.ReferralNumber))
         {
             throw new InvalidOperationException(
                 "Referral number is required.");
+        }
+
+        if (model.ReferralDate == default)
+        {
+            throw new InvalidOperationException(
+                "Referral date is required.");
         }
 
         if (model.ReferralDate.Date >
@@ -439,30 +528,172 @@ public sealed class ReferralIntakeService
                 "Referral date cannot be in the future.");
         }
 
-        if (model.ReferralPdfBytes is null ||
-            model.ReferralPdfBytes.Length == 0)
+        // =====================================================
+        // INSURANCE
+        // =====================================================
+
+        if (model.AuthorizationRequired &&
+            string.IsNullOrWhiteSpace(
+                model.InsuranceMemberId))
         {
             throw new InvalidOperationException(
-                "Referral PDF is required.");
+                "Insurance member ID is required when authorization is required.");
         }
 
-        if (model.ReferralPdfBytes.Length >
-            MaxFileSize)
-        {
-            throw new InvalidOperationException(
-                "Referral PDF cannot exceed 10 MB.");
-        }
+        // =====================================================
+        // PHYSICIAN
+        // =====================================================
 
         if (string.IsNullOrWhiteSpace(
-                model.ReferralPdfFileName) ||
-            !model.ReferralPdfFileName.EndsWith(
-                ".pdf",
-                StringComparison.OrdinalIgnoreCase))
+                model.ReferringPhysician))
         {
             throw new InvalidOperationException(
-                "Only PDF files are accepted.");
+                "Referring physician is required.");
+        }
+
+        // =====================================================
+        // CLINICAL
+        // =====================================================
+
+        if (string.IsNullOrWhiteSpace(
+                model.PrimaryDiagnosis))
+        {
+            throw new InvalidOperationException(
+                "Primary diagnosis is required.");
+        }
+
+        if (model.OrderedServices is null ||
+            model.OrderedServices.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "At least one ordered service is required.");
+        }
+
+        // =====================================================
+        // ASSIGNMENT
+        // =====================================================
+
+        if (model.CoordinatorId is null ||
+            model.CoordinatorId == Guid.Empty)
+        {
+            throw new InvalidOperationException(
+                "Care Coordinator is required.");
+        }
+
+        if (model.DisciplineId is null ||
+            model.DisciplineId == Guid.Empty)
+        {
+            throw new InvalidOperationException(
+                "Discipline is required.");
+        }
+
+        // =====================================================
+        // SOC
+        // =====================================================
+
+        if (model.SocDate is null)
+        {
+            throw new InvalidOperationException(
+                "SOC date is required.");
+        }
+
+        if (model.SocDate.Value <
+            DateOnly.FromDateTime(
+                DateTime.Today))
+        {
+            throw new InvalidOperationException(
+                "SOC date cannot be in the past.");
+        }
+
+        // =====================================================
+        // CASE STATUS
+        // =====================================================
+
+        if (string.IsNullOrWhiteSpace(
+                model.CaseStatus))
+        {
+            throw new InvalidOperationException(
+                "Case status is required.");
+        }
+
+        // =====================================================
+        // PDF VALIDATION
+        // =====================================================
+        //
+        // TEMPORARILY DISABLED.
+        //
+        // PDF is optional and is NOT sent to the API.
+        //
+        // When file storage is ready, restore this block.
+        //
+        // =====================================================
+
+        /*
+        if (model.ReferralPdfBytes is not null &&
+            model.ReferralPdfBytes.Length > 0)
+        {
+            if (model.ReferralPdfBytes.Length >
+                MaxFileSize)
+            {
+                throw new InvalidOperationException(
+                    "Referral PDF cannot exceed 10 MB.");
+            }
+
+            if (string.IsNullOrWhiteSpace(
+                    model.ReferralPdfFileName))
+            {
+                throw new InvalidOperationException(
+                    "Referral PDF file name is missing.");
+            }
+
+            if (!model.ReferralPdfFileName.EndsWith(
+                    ".pdf",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "Only PDF files are accepted.");
+            }
+        }
+        */
+    }
+
+
+    // =========================================================
+    // PHONE VALIDATION
+    // =========================================================
+
+    private static void ValidatePhone(
+        string? phone,
+        string fieldName,
+        bool required)
+    {
+        if (string.IsNullOrWhiteSpace(phone))
+        {
+            if (required)
+            {
+                throw new InvalidOperationException(
+                    $"{fieldName} is required.");
+            }
+
+            return;
+        }
+
+        // Numbers only
+        if (!phone.All(char.IsDigit))
+        {
+            throw new InvalidOperationException(
+                $"{fieldName} must contain numbers only.");
+        }
+
+        // 10-15 digits
+        if (phone.Length < 10 ||
+            phone.Length > 15)
+        {
+            throw new InvalidOperationException(
+                $"{fieldName} must contain between 10 and 15 digits.");
         }
     }
+
 
     // =========================================================
     // FORM HELPER

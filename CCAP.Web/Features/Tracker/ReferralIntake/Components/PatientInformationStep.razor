@@ -1,5 +1,7 @@
 ﻿@using CCAP.Web.Features.Tracker.ReferralIntake.Models
 
+@using CCAP.Web.Common.Validation
+
 <div class="step-card">
 
     <div class="step-title">
@@ -85,8 +87,17 @@
                 Primary Phone
             </label>
 
-            <input class="form-control"
-                   @bind="Model.PrimaryPhone" />
+            <InputText class="@FieldValidation.InputClass(PrimaryPhoneError)"
+                       type="tel"
+                       @bind-Value="Model.PrimaryPhone"
+                       @onblur="ValidatePrimaryPhone" />
+
+            @if (!string.IsNullOrWhiteSpace(PrimaryPhoneError))
+            {
+                <div class="invalid-feedback">
+                    @PrimaryPhoneError
+                </div>
+            }
         </div>
 
         <div class="col-md-6">
@@ -94,8 +105,17 @@
                 Alternate Phone
             </label>
 
-            <input class="form-control"
-                   @bind="Model.AlternatePhone" />
+            <InputText class="@FieldValidation.InputClass(AlternatePhoneError)"
+                       type="tel"
+                       @bind-Value="Model.AlternatePhone"
+                       @onblur="ValidateAlternatePhone" />
+
+            @if (!string.IsNullOrWhiteSpace(AlternatePhoneError))
+            {
+                <div class="invalid-feedback">
+                    @AlternatePhoneError
+                </div>
+            }
         </div>
 
         <div class="col-12">
@@ -179,4 +199,24 @@
 
     [Parameter]
     public ReferralIntakeModel Model { get; set; } = null!;
+
+    private string? PrimaryPhoneError;
+    private string? AlternatePhoneError;
+
+    private void ValidatePrimaryPhone()
+    {
+        PrimaryPhoneError =
+            FieldValidation.Phone(
+                Model.PrimaryPhone,
+                "Primary phone",
+                required: true);
+    }
+
+    private void ValidateAlternatePhone()
+    {
+        AlternatePhoneError =
+            FieldValidation.Phone(
+                Model.AlternatePhone,
+                "Alternate phone");
+    }
 }

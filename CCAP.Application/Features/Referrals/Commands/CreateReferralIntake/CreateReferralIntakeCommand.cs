@@ -38,6 +38,7 @@ public sealed record CreateReferralIntakeCommand(
     string? VisitPriority,
     string? CaseStatus,
     string? InternalNotes,
-    Stream PdfStream,
-    string PdfFileName,
-    string PdfContentType) : IRequest<CreateReferralIntakeResult>;
+    // PDF is temporarily optional
+    Stream? PdfStream,
+    string? PdfFileName,
+    string? PdfContentType) : IRequest<CreateReferralIntakeResult>;

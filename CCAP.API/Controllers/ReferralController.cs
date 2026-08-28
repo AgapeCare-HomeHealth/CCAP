@@ -28,75 +28,80 @@ public sealed class ReferralController : ControllerBase
 
     [HttpPost("intake")]
     [Authorize(
-        Policy = PermissionPolicies.ReferralsManage)]
+    Policy = PermissionPolicies.ReferralsManage)]
     [RequestSizeLimit(MaxFileSize)]
     public async Task<IActionResult> CreateIntake(
-        [FromForm] CreateReferralIntakeRequest request,
-        CancellationToken cancellationToken)
+    [FromForm] CreateReferralIntakeRequest request,
+    CancellationToken cancellationToken)
     {
-        // =====================================================
-        // VALIDATE PDF
-        // =====================================================
+        // =========================================================
+        // OPTIONAL PDF VALIDATION
+        // =========================================================
 
-        if (request.Pdf is null)
+        if (request.Pdf is not null)
         {
-            return BadRequest(new
+            if (request.Pdf.Length <= 0)
             {
-                message = "Referral PDF is required."
-            });
+                return BadRequest(new
+                {
+                    message = "Referral PDF is empty."
+                });
+            }
+
+            if (request.Pdf.Length > MaxFileSize)
+            {
+                return BadRequest(new
+                {
+                    message =
+                        "Referral PDF cannot exceed 10 MB."
+                });
+            }
+
+            // Validate content type
+            if (!string.Equals(
+                    request.Pdf.ContentType,
+                    "application/pdf",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new
+                {
+                    message =
+                        "Only PDF files are allowed."
+                });
+            }
+
+            // Validate extension
+            if (!request.Pdf.FileName.EndsWith(
+                    ".pdf",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new
+                {
+                    message =
+                        "Only PDF files are allowed."
+                });
+            }
         }
 
-        if (request.Pdf.Length <= 0)
+
+        // =========================================================
+        // OPTIONAL PDF STREAM
+        // =========================================================
+
+        Stream? stream = null;
+
+        if (request.Pdf is not null)
         {
-            return BadRequest(new
-            {
-                message = "Referral PDF is empty."
-            });
+            stream =
+                request.Pdf.OpenReadStream();
         }
 
-        if (request.Pdf.Length > MaxFileSize)
-        {
-            return BadRequest(new
-            {
-                message = "Referral PDF cannot exceed 10 MB."
-            });
-        }
-
-        // Validate PDF content type
-        if (!string.Equals(
-                request.Pdf.ContentType,
-                "application/pdf",
-                StringComparison.OrdinalIgnoreCase))
-        {
-            return BadRequest(new
-            {
-                message = "Only PDF files are allowed."
-            });
-        }
-
-        // Validate file extension
-        if (!request.Pdf.FileName.EndsWith(
-                ".pdf",
-                StringComparison.OrdinalIgnoreCase))
-        {
-            return BadRequest(new
-            {
-                message = "Only PDF files are allowed."
-            });
-        }
-
-        // =====================================================
-        // OPEN PDF STREAM
-        // =====================================================
-
-        await using var stream =
-            request.Pdf.OpenReadStream();
 
         try
         {
-            // =================================================
+            // =====================================================
             // SEND APPLICATION COMMAND
-            // =================================================
+            // =====================================================
 
             var result = await _sender.Send(
                 new CreateReferralIntakeCommand(
@@ -149,16 +154,22 @@ public sealed class ReferralController : ControllerBase
 
                     request.InternalNotes,
 
-                    // PDF
+                    // =================================================
+                    // OPTIONAL PDF
+                    // =================================================
+
                     stream,
-                    request.Pdf.FileName,
-                    request.Pdf.ContentType
+
+                    request.Pdf?.FileName,
+
+                    request.Pdf?.ContentType
                 ),
                 cancellationToken);
 
-            // =================================================
+
+            // =====================================================
             // SUCCESS
-            // =================================================
+            // =====================================================
 
             return Ok(result);
         }
@@ -183,15 +194,22 @@ public sealed class ReferralController : ControllerBase
                 message = ex.Message
             });
         }
+        finally
+        {
+            if (stream is not null)
+            {
+                await stream.DisposeAsync();
+            }
+        }
     }
 }
 
 
-// =============================================================
-// CREATE REFERRAL INTAKE REQUEST
-// =============================================================
+    // =============================================================
+    // CREATE REFERRAL INTAKE REQUEST
+    // =============================================================
 
-public sealed class CreateReferralIntakeRequest
+    public sealed class CreateReferralIntakeRequest
 {
     // =========================================================
     // PATIENT
