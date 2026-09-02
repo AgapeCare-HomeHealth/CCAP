@@ -5,15 +5,24 @@ namespace CCAP.Web.Features.Tracker.ReferralIntake.Models;
 public sealed class ReferralIntakeModel
 {
     // =========================
+    // Draft
+    // =========================
+
+    public Guid? ReferralDraftId { get; set; }
+
+    // =========================
     // Upload
     // =========================
 
     public IBrowserFile? ReferralPdf { get; set; }
+
     public byte[]? ReferralPdfBytes { get; set; }
 
     public string? ReferralPdfFileName { get; set; }
 
     public string? ReferralPdfContentType { get; set; }
+
+    public long? ReferralPdfSize { get; set; }
 
     // =========================
     // Patient

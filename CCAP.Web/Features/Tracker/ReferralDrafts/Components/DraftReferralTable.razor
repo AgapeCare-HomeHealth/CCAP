@@ -1,0 +1,127 @@
+﻿@using CCAP.Web.Features.Tracker.ReferralDrafts.Models
+@inject NavigationManager Navigation
+
+<div class="patient-table-card">
+
+    <table class="patient-table">
+
+        <thead>
+            <tr>
+                <th>Draft ID</th>
+                <th>Patient</th>
+                <th>Referral #</th>
+                <th>Saved By</th>
+                <th>Created</th>
+                <th>Last Updated</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+            @if (Drafts.Any())
+            {
+                @foreach (var draft in Drafts)
+                {
+                    <tr class="clickable-row"
+                        @onclick="() => OpenDraft(draft)">
+
+                        <!-- Draft ID -->
+                        <td>
+                            <span class="draft-id">
+                                @GetShortDraftId(draft.ReferralDraftId)
+                            </span>
+                        </td>
+
+                        <!-- Patient -->
+                        <td>
+                            @draft.PatientName
+                        </td>
+
+                        <!-- Referral Number -->
+                        <td>
+                            @draft.ReferralNumber
+                        </td>
+
+                        <!-- Saved By -->
+                        <td>
+                            <div class="saved-by">
+                                <span class="saved-by-name">
+                                    @draft.SavedByName
+                                </span>
+                            </div>
+                        </td>
+
+                        <!-- Created -->
+                        <td>
+                            @FormatDateTime(draft.CreatedAt)
+                        </td>
+
+                        <!-- Last Updated -->
+                        <td>
+                            @FormatDateTime(draft.UpdatedAt)
+                        </td>
+
+                        <!-- Status -->
+                        <td>
+                            <DraftReferralStatusBadge Status="@draft.Status" />
+                        </td>
+
+                        <!-- Actions -->
+                        <td @onclick:stopPropagation="true">
+
+                            <DraftReferralActionMenu DraftId="@draft.ReferralDraftId" />
+
+                        </td>
+
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="8"
+                        class="text-center py-5">
+
+                        No draft referrals found.
+
+                    </td>
+                </tr>
+            }
+
+        </tbody>
+
+    </table>
+
+</div>
+
+@code {
+
+    [Parameter]
+    public List<ReferralDraftListItem> Drafts { get; set; } = [];
+
+
+    private void OpenDraft(
+        ReferralDraftListItem draft)
+    {
+        Navigation.NavigateTo(
+            $"/referrals/drafts/{draft.ReferralDraftId}");
+    }
+
+
+    private static string GetShortDraftId(Guid id)
+    {
+        return $"DRF-{id.ToString("N")[..6].ToUpperInvariant()}";
+    }
+
+
+    private static string FormatDateTime(
+        DateTime dateTime)
+    {
+        return dateTime
+            .ToLocalTime()
+            .ToString("MMM d, yyyy hh:mm tt");
+    }
+
+}

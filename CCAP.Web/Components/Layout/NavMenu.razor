@@ -49,15 +49,58 @@
                 }
             </NavLink>
 
-            <NavLink href="/referrals" class="nav-item">
+            @* <NavLink href="/referrals" class="nav-item">
                 <i class="bi bi-person-plus"></i>
                 @if (!IsCollapsed)
                 {
                     <span>Referrals</span>
                 }
-            </NavLink>
+            </NavLink> *@
 
         </div>
+
+        <!-- ======================= -->
+        <!-- Referrals -->
+        <!-- ======================= -->
+
+        <details class="menu-dropdown">
+
+            <summary>
+
+                <div>
+
+                    <i class="bi bi-person-plus"></i>
+
+                    @if (!IsCollapsed)
+                    {
+                        <span>Referrals</span>
+                    }
+
+                </div>
+
+                @if (!IsCollapsed)
+                {
+                    <i class="bi bi-chevron-down arrow"></i>
+                }
+
+            </summary>
+
+            @if (!IsCollapsed)
+            {
+                <NavLink href="/referrals"
+                         Match="NavLinkMatch.All"
+                         class="submenu-item">
+                    New Referral
+                </NavLink>
+
+                <NavLink href="/referrals/drafts"
+                         Match="NavLinkMatch.All"
+                         class="submenu-item">
+                    Draft Referrals
+                </NavLink>
+            }
+
+        </details>
 
         <!-- ======================= -->
         <!-- Workflow Tracker -->

@@ -4,6 +4,10 @@
 @using CCAP.Web.Features.Dashboard.Components
 @using CCAP.Web.Features.Dashboard.Models
 @using CCAP.Web.Features.Dashboard.Services
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject DashboardService DashboardService
 
 <PageTitle>My Work</PageTitle>
@@ -28,7 +32,8 @@ else
 
 @code {
     private DashboardData Data = new();
-    private string UserName = "Jennifer";
+    private string UserName = string.Empty;
+
     private bool IsLoading = true;
     private string? ErrorMessage;
 
@@ -36,11 +41,25 @@ else
     {
         try
         {
+            // Get currently logged-in user
+            var authState =
+                await AuthenticationStateProvider
+                    .GetAuthenticationStateAsync();
+
+            var user = authState.User;
+
+            UserName =
+                user.FindFirst(ClaimTypes.Name)?.Value
+                ?? user.Identity?.Name
+                ?? "Unknown User";
+
+            // Load dashboard data
             Data = await DashboardService.GetAsync();
         }
         catch (Exception ex)
         {
-            ErrorMessage = $"Unable to load dashboard data: {ex.Message}";
+            ErrorMessage =
+                $"Unable to load dashboard data: {ex.Message}";
         }
         finally
         {

@@ -10,6 +10,11 @@ public sealed class AppDbContext : DbContext
     public DbSet<Announcement> Announcements => Set<Announcement>();
     public DbSet<ApplicationUser> ApplicationUsers => Set<ApplicationUser>();
     public DbSet<Role> Roles => Set<Role>();
+    public DbSet<ReferralDraft> ReferralDrafts
+    {
+        get;
+        set;
+    }
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<Discipline> Disciplines => Set<Discipline>();
@@ -68,6 +73,38 @@ public sealed class AppDbContext : DbContext
             e.HasOne(x => x.Permission).WithMany(x => x.RolePermissions)
                 .HasForeignKey(x => x.PermissionId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => new { x.RoleId, x.PermissionId }).IsUnique();
+        });
+
+        modelBuilder.Entity<ReferralDraft>(
+        entity =>
+        {
+            entity.HasKey(
+                x => x.ReferralDraftId);
+
+            entity.Property(
+                x => x.Data)
+                .IsRequired();
+
+            entity.Property(
+                x => x.Status)
+                .IsRequired();
+
+            entity.Property(
+                x => x.CreatedAt)
+                .IsRequired();
+
+            entity.Property(
+                x => x.UpdatedAt)
+                .IsRequired();
+
+            entity.HasIndex(
+                x => x.CreatedByUserId);
+
+            entity.HasIndex(
+                x => x.Status);
+
+            entity.HasIndex(
+                x => x.UpdatedAt);
         });
 
         modelBuilder.Entity<Discipline>(e =>

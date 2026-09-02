@@ -1,0 +1,58 @@
+﻿@inject NavigationManager Navigation
+
+<div class="action-menu">
+
+    <button type="button"
+            class="action-button"
+            @onclick="ToggleMenu">
+
+        <i class="bi bi-three-dots-vertical"></i>
+
+    </button>
+
+    @if (IsOpen)
+    {
+        <div class="action-dropdown">
+
+            <button type="button"
+                    @onclick="OpenDraft">
+
+                <i class="bi bi-pencil-square"></i>
+
+                <span>Open Draft</span>
+
+            </button>
+
+            @*
+            PDF opening will be added later
+            when Azure Blob Storage is implemented.
+
+            <button type="button">
+                <i class="bi bi-file-earmark-pdf"></i>
+                <span>Open PDF</span>
+            </button>
+            *@
+
+        </div>
+    }
+
+</div>
+
+@code {
+
+    [Parameter]
+    public Guid DraftId { get; set; }
+
+    private bool IsOpen;
+
+    private void ToggleMenu()
+    {
+        IsOpen = !IsOpen;
+    }
+
+    private void OpenDraft()
+    {
+        Navigation.NavigateTo(
+            $"/referrals/drafts/{DraftId}");
+    }
+}

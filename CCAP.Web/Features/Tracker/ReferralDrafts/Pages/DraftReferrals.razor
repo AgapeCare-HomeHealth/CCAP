@@ -1,0 +1,150 @@
+﻿@page "/referrals/drafts"
+@attribute [CcapAuthorize(Policy = "referrals.view")]
+
+@using CCAP.Web.Common.Components
+@using CCAP.Web.Common.Models
+@using CCAP.Web.Features.Tracker.ReferralDrafts.Components
+@using CCAP.Web.Features.Tracker.ReferralDrafts.Models
+
+@inject CCAP.Web.Features.Tracker.ReferralIntake.Services.ReferralIntakeService ReferralIntakeService
+
+<PageTitle>Draft Referrals</PageTitle>
+
+<div class="patients-page">
+
+    <div class="page-header">
+
+        <h2>Draft Referrals</h2>
+
+        <p>
+            Manage and continue referral drafts.
+        </p>
+
+    </div>
+
+    <DraftReferralToolbar SearchText="@SearchText"
+                          SearchTextChanged="@SearchChanged" />
+
+    @if (IsLoading)
+    {
+        <div class="py-5 text-center">
+            Loading draft referrals...
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert alert-danger">
+            @ErrorMessage
+        </div>
+    }
+    else
+    {
+        <DraftReferralTable Drafts="@Drafts" />
+
+        <div class="patient-pagination">
+
+            <div class="pagination-info">
+
+                @if (Result is not null &&
+                     Result.TotalCount > 0)
+                {
+                    var start =
+                        ((CurrentPage - 1) * PageSize) + 1;
+
+                    var end =
+                        Math.Min(
+                            CurrentPage * PageSize,
+                            Result.TotalCount);
+
+                    <span>
+                        Showing @start to @end
+                        of @Result.TotalCount draft referrals
+                    </span>
+                }
+                else
+                {
+                    <span>
+                        Showing 0 of 0 draft referrals
+                    </span>
+                }
+
+            </div>
+
+            <Pagination CurrentPage="@CurrentPage"
+                        TotalPages="@(Result?.TotalPages ?? 0)"
+                        OnPageChanged="@GoToPage" />
+
+        </div>
+    }
+
+</div>
+
+@code {
+
+    private const int PageSize = 20;
+
+    private int CurrentPage = 1;
+
+    private string SearchText = string.Empty;
+
+    private PagedResult<ReferralDraftListItem>? Result;
+
+    private List<ReferralDraftListItem> Drafts = [];
+
+    private bool IsLoading;
+
+    private string? ErrorMessage;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDrafts();
+    }
+
+
+    private async Task LoadDrafts()
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+
+        try
+        {
+            Result =
+                await ReferralIntakeService.GetDraftsAsync(
+                    CurrentPage,
+                    PageSize,
+                    SearchText);
+
+            Drafts = Result.Items;
+        }
+        catch (Exception ex)
+        {
+            Drafts = [];
+
+            ErrorMessage =
+                $"Unable to load draft referrals: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+
+    private async Task SearchChanged(string value)
+    {
+        SearchText = value;
+
+        CurrentPage = 1;
+
+        await LoadDrafts();
+    }
+
+
+    private async Task GoToPage(int page)
+    {
+        CurrentPage = page;
+
+        await LoadDrafts();
+    }
+}

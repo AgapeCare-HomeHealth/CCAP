@@ -1,9 +1,11 @@
-﻿using System.Net.Http.Headers;
-using System.Text.Json;
+﻿using CCAP.Web.Common.Models;
 using CCAP.Web.Features.Authentication.Services;
 using CCAP.Web.Features.MockData;
 using CCAP.Web.Features.Patients.Models;
+using CCAP.Web.Features.Tracker.ReferralDrafts.Models;
 using CCAP.Web.Features.Tracker.ReferralIntake.Models;
+using System.Net.Http.Headers;
+using System.Text.Json;
 
 namespace CCAP.Web.Features.Tracker.ReferralIntake.Services;
 
@@ -711,4 +713,404 @@ public sealed class ReferralIntakeService
             new StringContent(value),
             name);
     }
+
+    // =========================================================
+    // SAVE DRAFT
+    // =========================================================
+
+    public async Task<SaveReferralDraftResultDto> SaveDraftAsync(
+    ReferralIntakeModel model,
+    CancellationToken cancellationToken = default)
+    {
+        var draftData =
+            new ReferralIntakeDraftData
+            {
+                // =====================================================
+                // UPLOAD METADATA
+                // =====================================================
+
+                ReferralPdfFileName =
+                    model.ReferralPdfFileName,
+
+                ReferralPdfContentType =
+                    model.ReferralPdfContentType,
+
+                ReferralPdfSize =
+                    model.ReferralPdfSize,
+
+                // =====================================================
+                // PATIENT
+                // =====================================================
+
+                MRN = model.MRN,
+
+                FirstName =
+                    model.FirstName,
+
+                MiddleName =
+                    model.MiddleName,
+
+                LastName =
+                    model.LastName,
+
+                DateOfBirth =
+                    model.DateOfBirth,
+
+                Gender =
+                    model.Gender,
+
+                PrimaryPhone =
+                    model.PrimaryPhone,
+
+                AlternatePhone =
+                    model.AlternatePhone,
+
+                StreetAddress =
+                    model.StreetAddress,
+
+                City =
+                    model.City,
+
+                State =
+                    model.State,
+
+                ZipCode =
+                    model.ZipCode,
+
+                EmergencyContactName =
+                    model.EmergencyContactName,
+
+                EmergencyContactRelationship =
+                    model.EmergencyContactRelationship,
+
+                EmergencyContactPhone =
+                    model.EmergencyContactPhone,
+
+                ReferralNumber =
+                    model.ReferralNumber,
+
+                ReferralDate =
+                    model.ReferralDate,
+
+                ReferralSource =
+                    model.ReferralSource,
+
+                Priority =
+                    model.Priority,
+
+                PrimaryInsurance =
+                    model.PrimaryInsurance,
+
+                InsuranceMemberId =
+                    model.InsuranceMemberId,
+
+                AuthorizationRequired =
+                    model.AuthorizationRequired,
+
+                ReferringPhysician =
+                    model.ReferringPhysician,
+
+                PhysicianPhone =
+                    model.PhysicianPhone,
+
+                PrimaryDiagnosis =
+                    model.PrimaryDiagnosis,
+
+                SecondaryDiagnosis =
+                    model.SecondaryDiagnosis,
+
+                OrderedServices =
+                    model.OrderedServices,
+
+                ReferralNotes =
+                    model.ReferralNotes,
+
+                CoordinatorId =
+                    model.CoordinatorId,
+
+                ClinicianId =
+                    model.ClinicianId,
+
+                DisciplineId =
+                    model.DisciplineId,
+
+                SocDate =
+                    model.SocDate,
+
+                VisitPriority =
+                    model.VisitPriority,
+
+                CaseStatus =
+                    model.CaseStatus,
+
+                InternalNotes =
+                    model.InternalNotes
+            };
+
+        var json =
+            JsonSerializer.Serialize(
+                draftData);
+
+        var request = new
+        {
+            ReferralDraftId =
+        model.ReferralDraftId,
+
+            Data =
+        json
+        };
+
+        using var response =
+            await _api.PostAsJsonAsync(
+                "api/referrals/draft",
+                request,
+                cancellationToken);
+
+        var body =
+            await response.Content.ReadAsStringAsync(
+                cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(
+                string.IsNullOrWhiteSpace(body)
+                    ? "Unable to save referral draft."
+                    : body);
+        }
+
+        var result =
+            JsonSerializer.Deserialize<
+                SaveReferralDraftResultDto>(
+                    body,
+                    new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+
+        if (result is null)
+        {
+            throw new InvalidOperationException(
+                "API returned an empty draft response.");
+        }
+
+        model.ReferralDraftId =
+            result.ReferralDraftId;
+
+        return result;
+    }
+
+    // =========================================================
+    // GET DRAFT
+    // =========================================================
+    public async Task<PagedResult<ReferralDraftListItem>>
+    GetDraftsAsync(
+        int pageNumber,
+        int pageSize,
+        string? search = null,
+        CancellationToken cancellationToken = default)
+    {
+        var url =
+            $"api/referrals/drafts" +
+            $"?pageNumber={pageNumber}" +
+            $"&pageSize={pageSize}";
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            url +=
+                $"&search={Uri.EscapeDataString(search.Trim())}";
+        }
+
+        return await _api.GetFromJsonAsync<
+            PagedResult<ReferralDraftListItem>>(
+            url,
+            cancellationToken)
+            ?? new PagedResult<ReferralDraftListItem>();
+    }
+
+    public async Task<ReferralIntakeModel> LoadDraftAsync(
+    Guid draftId,
+    CancellationToken cancellationToken = default)
+    {
+        var json =
+            await _api.GetFromJsonAsync<ReferralDraftDetails>(
+                $"api/referrals/drafts/{draftId}",
+                cancellationToken);
+
+        if (json is null ||
+            string.IsNullOrWhiteSpace(json.Data))
+        {
+            throw new InvalidOperationException(
+                "Referral draft was not found.");
+        }
+
+        var draftData =
+            JsonSerializer.Deserialize<ReferralIntakeDraftData>(
+                json.Data,
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+        if (draftData is null)
+        {
+            throw new InvalidOperationException(
+                "The referral draft data could not be loaded.");
+        }
+
+        var model =
+            new ReferralIntakeModel
+            {
+                ReferralDraftId =
+                    draftId,
+
+                // =================================================
+                // PDF METADATA
+                // =================================================
+
+                ReferralPdfFileName =
+                    draftData.ReferralPdfFileName,
+
+                ReferralPdfContentType =
+                    draftData.ReferralPdfContentType,
+
+                ReferralPdfSize =
+                    draftData.ReferralPdfSize,
+
+                // =================================================
+                // PATIENT
+                // =================================================
+
+                MRN =
+                    draftData.MRN,
+
+                FirstName =
+                    draftData.FirstName,
+
+                MiddleName =
+                    draftData.MiddleName,
+
+                LastName =
+                    draftData.LastName,
+
+                DateOfBirth =
+                    draftData.DateOfBirth,
+
+                Gender =
+                    draftData.Gender,
+
+                PrimaryPhone =
+                    draftData.PrimaryPhone,
+
+                AlternatePhone =
+                    draftData.AlternatePhone,
+
+                StreetAddress =
+                    draftData.StreetAddress,
+
+                City =
+                    draftData.City,
+
+                State =
+                    draftData.State,
+
+                ZipCode =
+                    draftData.ZipCode,
+
+                // =================================================
+                // EMERGENCY CONTACT
+                // =================================================
+
+                EmergencyContactName =
+                    draftData.EmergencyContactName,
+
+                EmergencyContactRelationship =
+                    draftData.EmergencyContactRelationship,
+
+                EmergencyContactPhone =
+                    draftData.EmergencyContactPhone,
+
+                // =================================================
+                // REFERRAL
+                // =================================================
+
+                ReferralNumber =
+                    draftData.ReferralNumber,
+
+                ReferralDate =
+                    draftData.ReferralDate,
+
+                ReferralSource =
+                    draftData.ReferralSource,
+
+                Priority =
+                    draftData.Priority,
+
+                // =================================================
+                // INSURANCE
+                // =================================================
+
+                PrimaryInsurance =
+                    draftData.PrimaryInsurance,
+
+                InsuranceMemberId =
+                    draftData.InsuranceMemberId,
+
+                AuthorizationRequired =
+                    draftData.AuthorizationRequired,
+
+                // =================================================
+                // PHYSICIAN
+                // =================================================
+
+                ReferringPhysician =
+                    draftData.ReferringPhysician,
+
+                PhysicianPhone =
+                    draftData.PhysicianPhone,
+
+                // =================================================
+                // CLINICAL
+                // =================================================
+
+                PrimaryDiagnosis =
+                    draftData.PrimaryDiagnosis,
+
+                SecondaryDiagnosis =
+                    draftData.SecondaryDiagnosis,
+
+                OrderedServices =
+                    draftData.OrderedServices ?? [],
+
+                ReferralNotes =
+                    draftData.ReferralNotes,
+
+                // =================================================
+                // ASSIGNMENT
+                // =================================================
+
+                CoordinatorId =
+                    draftData.CoordinatorId,
+
+                ClinicianId =
+                    draftData.ClinicianId,
+
+                DisciplineId =
+                    draftData.DisciplineId,
+
+                SocDate =
+                    draftData.SocDate,
+
+                VisitPriority =
+                    draftData.VisitPriority,
+
+                CaseStatus =
+                    draftData.CaseStatus,
+
+                InternalNotes =
+                    draftData.InternalNotes
+            };
+
+        return model;
+    }
+
 }

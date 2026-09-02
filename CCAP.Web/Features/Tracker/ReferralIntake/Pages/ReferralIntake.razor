@@ -1,4 +1,5 @@
 @page "/referrals"
+@page "/referrals/drafts/{DraftId:guid}"
 
 @attribute [CcapAuthorize(Policy = "referrals.view")]
 
@@ -35,7 +36,7 @@
         @switch (CurrentStep)
         {
             case 1:
-                <UploadStep Model="@Model" />
+                <UploadStep Model="@Model" @key="UploadStepKey" />
                 break;
 
             case 2:
@@ -75,7 +76,7 @@
 
         </button>
 
-        @if (CurrentStep < 5)
+        @* @if (CurrentStep < 5)
         {
             <button type="button"
                     class="btn btn-success"
@@ -107,13 +108,85 @@
                 }
 
             </button>
-        }
+        } *@
+
+        <!-- RIGHT SIDE ACTIONS -->
+        <div class="wizard-footer-actions">
+
+            <!-- SAVE DRAFT -->
+            <button type="button"
+                    class="btn btn-outline-primary save-draft-btn"
+                    @onclick="SaveDraft"
+                    disabled="@(IsSubmitting || IsSavingDraft)">
+
+                @if (IsSavingDraft)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"
+                          role="status">
+                    </span>
+
+                    <span>Saving...</span>
+                }
+                else
+                {
+                    <i class="bi bi-save me-1"></i>
+
+                    <span>Save Draft</span>
+                }
+
+            </button>
+
+
+            <!-- NEXT -->
+            @if (CurrentStep < 5)
+            {
+                <button type="button"
+                        class="btn btn-success"
+                        @onclick="NextStep"
+                        disabled="@(IsSubmitting || IsSavingDraft)">
+
+                    Next
+
+                    <i class="bi bi-arrow-right ms-1"></i>
+
+                </button>
+            }
+            else
+            {
+                <!-- FINAL SUBMIT -->
+                <button type="button"
+                        class="btn btn-success"
+                        @onclick="CreateReferral"
+                        disabled="@(IsSubmitting || IsSavingDraft)">
+
+                    @if (IsSubmitting)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"
+                              role="status">
+                        </span>
+
+                        <span>Submitting...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-check-circle me-1"></i>
+
+                        <span>Submit Referral</span>
+                    }
+
+                </button>
+            }
+
+        </div>
 
     </div>
 
 </div>
 
 @code {
+
+    [Parameter]
+    public Guid? DraftId { get; set; }
 
     private List<UserDto> Coordinators = [];
     private List<UserDto> Clinicians = [];
@@ -125,11 +198,82 @@
 
     private int CurrentStep = 1;
 
+    private int UploadStepKey = 0;
+
     private ReferralIntakeModel Model = new();
 
     private bool IsSubmitting;
 
+    private bool IsSavingDraft;
+
     private string? ErrorMessage;
+
+    // protected override async Task OnInitializedAsync()
+    // {
+    //     if (DraftId.HasValue)
+    //     {
+    //         await LoadDraftAsync(DraftId.Value);
+    //     }
+    // }
+
+    private Guid? _loadedDraftId;
+    private bool _parametersInitialized;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Prevent unnecessary reload/reset when the component
+        // receives the same route parameters again.
+        if (_parametersInitialized &&
+            DraftId == _loadedDraftId)
+        {
+            return;
+        }
+
+        _parametersInitialized = true;
+
+        // ==========================================
+        // OPEN EXISTING DRAFT
+        // ==========================================
+
+        if (DraftId.HasValue)
+        {
+            _loadedDraftId = DraftId.Value;
+
+            await LoadDraftAsync(DraftId.Value);
+
+            return;
+        }
+
+        // ==========================================
+        // NEW REFERRAL
+        // ==========================================
+
+        _loadedDraftId = null;
+
+        ResetForm();
+    }
+
+    private async Task LoadDraftAsync(
+    Guid draftId)
+    {
+        ErrorMessage = null;
+
+        try
+        {
+            Model =
+                await ReferralIntakeService.LoadDraftAsync(
+                    draftId);
+
+            CurrentStep = 1;
+
+            UploadStepKey++;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage =
+                $"Unable to load referral draft: {ex.Message}";
+        }
+    }
 
     private async Task LoadAssignmentOptionsAsync()
     {
@@ -223,20 +367,56 @@
         {
             case 1:
 
-                if (Model.ReferralPdf is null)
+                // =====================================================
+                // NEW REFERRAL
+                // =====================================================
+
+                if (!Model.ReferralDraftId.HasValue)
+                {
+                    if (Model.ReferralPdf is null)
+                    {
+                        ErrorMessage =
+                            "Please upload the referral PDF.";
+
+                        return false;
+                    }
+
+                    if (!Model.ReferralPdf.Name.EndsWith(
+                            ".pdf",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        ErrorMessage =
+                            "Only PDF files are accepted.";
+
+                        return false;
+                    }
+
+                    break;
+                }
+
+                // =====================================================
+                // EXISTING DRAFT
+                // =====================================================
+
+                // The PDF itself is not stored yet.
+                // Existing draft metadata is enough to show
+                // the previously uploaded file in Step 1.
+
+                if (string.IsNullOrWhiteSpace(
+                        Model.ReferralPdfFileName))
                 {
                     ErrorMessage =
-                        "Please upload the referral PDF.";
+                        "The referral PDF information is missing.";
 
                     return false;
                 }
 
-                if (!Model.ReferralPdf.Name.EndsWith(
+                if (!Model.ReferralPdfFileName.EndsWith(
                         ".pdf",
                         StringComparison.OrdinalIgnoreCase))
                 {
                     ErrorMessage =
-                        "Only PDF files are accepted.";
+                        "The saved referral file is not a PDF.";
 
                     return false;
                 }
@@ -427,5 +607,64 @@
                 text = message,
                 confirmButtonText = "OK"
             });
+    }
+
+    private async Task SaveDraft()
+    {
+        ErrorMessage = null;
+
+        if (!ValidateCurrentStep())
+            return;
+
+        if (IsSavingDraft)
+            return;
+
+        try
+        {
+            IsSavingDraft = true;
+
+            await ReferralIntakeService.SaveDraftAsync(
+                Model);
+
+            await ShowSuccessAlert(
+                "The referral draft has been saved successfully.");
+
+            // ==========================================
+            // RESET FORM AFTER SUCCESSFUL SAVE
+            // ==========================================
+
+            ResetForm();
+
+            // ==========================================
+            // RETURN TO NEW REFERRAL
+            // Removes /drafts/{id} from the URL
+            // ==========================================
+
+            Navigation.NavigateTo(
+                "/referrals",
+                replace: true);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage =
+                ex.Message;
+        }
+        finally
+        {
+            IsSavingDraft = false;
+        }
+    }
+
+    private void ResetForm()
+    {
+        Model = new ReferralIntakeModel();
+
+        CurrentStep = 1;
+
+        ErrorMessage = null;
+
+        AssignmentOptionsError = null;
+
+        UploadStepKey++;
     }
 }

@@ -93,3 +93,21 @@
     height: 420px;
     text-align: center;
 }*/
+
+.wizard-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.wizard-footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.save-draft-btn {
+    min-width: 130px;
+    font-weight: 600;
+}
