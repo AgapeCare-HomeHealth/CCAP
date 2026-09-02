@@ -1,4 +1,5 @@
 ﻿@using CCAP.Web.Features.Tracker.ReferralIntake.Models
+@using CCAP.Web.Common.Validation
 
 <div class="step-card">
 
@@ -29,9 +30,17 @@
             </label>
 
             <input type="text"
-                   class="form-control"
+                   class="@ReferralNumberInputClass"
                    @bind="Model.ReferralNumber"
+                   @onblur="ValidateReferralNumber"
                    placeholder="Enter referral number" />
+
+            @if (!string.IsNullOrWhiteSpace(ReferralNumberError))
+            {
+                <div class="invalid-feedback">
+                    @ReferralNumberError
+                </div>
+            }
 
             <div class="form-text">
                 Referral number provided by the referring source.
@@ -62,10 +71,25 @@
             <select class="form-select"
                     @bind="Model.ReferralSource">
 
-                <option>Hospital</option>
-                <option>Physician Office</option>
-                <option>Clinic</option>
-                <option>Insurance</option>
+                <option value="">
+                    Select Referral Source
+                </option>
+
+                <option value="Hospital">
+                    Hospital
+                </option>
+
+                <option value="Physician Office">
+                    Physician Office
+                </option>
+
+                <option value="Clinic">
+                    Clinic
+                </option>
+
+                <option value="Insurance">
+                    Insurance
+                </option>
 
             </select>
 
@@ -81,9 +105,17 @@
             <select class="form-select"
                     @bind="Model.Priority">
 
-                <option>Routine</option>
-                <option>Urgent</option>
-                <option>STAT</option>
+                <option value="Routine">
+                    Routine
+                </option>
+
+                <option value="Urgent">
+                    Urgent
+                </option>
+
+                <option value="STAT">
+                    STAT
+                </option>
 
             </select>
 
@@ -96,39 +128,51 @@
     <!-- ================= Insurance ================= -->
 
     <h5 class="section-heading">
-
         Insurance Information
-
     </h5>
 
+    <!-- Insurance Row 1 -->
     <div class="row g-4">
 
-        <div class="col-md-4">
+        <!-- Primary Insurance -->
+        <div class="col-md-6">
 
             <label class="form-label">
-
                 Primary Insurance
-
             </label>
 
             <select class="form-select"
                     @bind="Model.PrimaryInsurance">
 
-                <option>Medicare</option>
-                <option>Medicaid</option>
-                <option>Blue Cross</option>
-                <option>Aetna</option>
+                <option value="">
+                    Select Insurance
+                </option>
+
+                <option value="Medicare">
+                    Medicare
+                </option>
+
+                <option value="Medicaid">
+                    Medicaid
+                </option>
+
+                <option value="Blue Cross">
+                    Blue Cross
+                </option>
+
+                <option value="Aetna">
+                    Aetna
+                </option>
 
             </select>
 
         </div>
 
-        <div class="col-md-4">
+        <!-- Member ID -->
+        <div class="col-md-6">
 
             <label class="form-label">
-
                 Member ID
-
             </label>
 
             <input class="form-control"
@@ -136,7 +180,44 @@
 
         </div>
 
-        <div class="form-check mt-4">
+    </div>
+
+    <!-- Insurance Row 2 -->
+    <div class="row g-4 mt-1">
+
+        <!-- Authorization Date -->
+        <div class="col-md-6">
+
+            <label class="form-label">
+                Authorization Date
+            </label>
+
+            <input type="date"
+                   class="form-control"
+                   @bind="Model.AuthorizationDate" />
+
+        </div>
+
+        <!-- Number of Approved Visits -->
+        <div class="col-md-6">
+
+            <label class="form-label">
+                Number of Approved Visits
+            </label>
+
+            <input type="number"
+                   min="0"
+                   class="form-control"
+                   @bind="Model.ApprovedVisits" />
+
+        </div>
+
+    </div>
+
+    <!-- Authorization Required -->
+    <div class="mt-4">
+
+        <div class="form-check">
 
             <input class="form-check-input"
                    type="checkbox"
@@ -151,6 +232,7 @@
             </label>
 
         </div>
+
     </div>
 
     <hr />
@@ -158,19 +240,17 @@
     <!-- ================= Physician ================= -->
 
     <h5 class="section-heading">
-
-        Referring Physician
-
+        @* Referring Physician *@
+        Primary Care Physician (PCP)
     </h5>
 
     <div class="row g-4">
 
+        <!-- Physician -->
         <div class="col-md-6">
 
             <label class="form-label">
-
                 Physician
-
             </label>
 
             <input class="form-control"
@@ -178,12 +258,11 @@
 
         </div>
 
+        <!-- Phone -->
         <div class="col-md-6">
 
             <label class="form-label">
-
                 Phone Number
-
             </label>
 
             <input class="form-control"
@@ -198,19 +277,16 @@
     <!-- ================= Clinical ================= -->
 
     <h5 class="section-heading">
-
         Clinical Information
-
     </h5>
 
     <div class="row g-4">
 
+        <!-- Primary Diagnosis -->
         <div class="col-md-6">
 
             <label class="form-label">
-
                 Primary Diagnosis
-
             </label>
 
             <input class="form-control"
@@ -218,12 +294,11 @@
 
         </div>
 
+        <!-- Secondary Diagnosis -->
         <div class="col-md-6">
 
             <label class="form-label">
-
                 Secondary Diagnosis
-
             </label>
 
             <input class="form-control"
@@ -233,14 +308,13 @@
 
     </div>
 
+    <!-- Ordered Services -->
     <div class="row mt-4">
 
         <div class="col-md-12">
 
             <label class="form-label">
-
                 Ordered Services
-
             </label>
 
             <div class="service-grid">
@@ -252,9 +326,9 @@
                         <input type="checkbox"
                                checked="@Model.OrderedServices.Contains(service)"
                                @onchange="e =>
-                                                            ToggleService(
-                                                                service,
-                                                                e.Value)" />
+                                                           ToggleService(
+                                                               service,
+                                                               e.Value)" />
 
 @service
 
@@ -272,9 +346,7 @@
     <!-- ================= Notes ================= -->
 
     <h5 class="section-heading">
-
         Referral Notes
-
     </h5>
 
     <textarea class="form-control"
@@ -291,14 +363,38 @@
     [Parameter]
     public ReferralIntakeModel Model { get; set; } = null!;
 
+    private string? ReferralNumberError;
+
     private static readonly string[] ServiceOptions =
     [
         "Skilled Nursing",
         "Physical Therapy",
         "Occupational Therapy",
         "Speech Therapy",
-        "Home Health Aide"
+        "Home Health Aide",
+        "Medical Social Work (MSW)"
     ];
+
+    private string ReferralNumberInputClass =>
+        string.IsNullOrWhiteSpace(ReferralNumberError)
+            ? "form-control"
+            : "form-control is-invalid";
+
+    private void ValidateReferralNumber()
+    {
+        ReferralNumberError =
+            string.IsNullOrWhiteSpace(Model.ReferralNumber)
+                ? "Referral number is required."
+                : null;
+    }
+
+    public bool ValidateStep()
+    {
+        ValidateReferralNumber();
+
+        return string.IsNullOrWhiteSpace(
+            ReferralNumberError);
+    }
 
     private void ToggleService(
         string service,

@@ -80,6 +80,10 @@ public sealed class ReferralIntakeModel
 
     public string InsuranceMemberId { get; set; } = string.Empty;
 
+    public DateOnly? AuthorizationDate { get; set; }
+
+    public int? ApprovedVisits { get; set; }
+
     public bool AuthorizationRequired { get; set; }
 
     // =========================
