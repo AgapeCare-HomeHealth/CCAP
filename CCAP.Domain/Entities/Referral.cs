@@ -169,4 +169,71 @@ public sealed class Referral
             ? null
             : value.Trim();
     }
+
+    public void UpdateDraft(
+    string referralNumber,
+    DateTime? referralDate,
+    string? source,
+    string? priority,
+    Guid? disciplineId,
+    string? visitPriority,
+    string? caseStatus,
+    string? primaryInsurance,
+    string? insuranceMemberId,
+    bool authorizationRequired,
+    string? referringPhysician,
+    string? physicianPhone,
+    string? secondaryDiagnosis,
+    string? referralNotes,
+    string? internalNotes)
+    {
+        if (Status != ReferralStatus.Draft)
+        {
+            throw new InvalidOperationException(
+                "Only draft referrals can be edited as drafts.");
+        }
+
+        ReferralNumber = referralNumber.Trim();
+
+        ReferralDate = referralDate ?? ReferralDate;
+
+        Source = Normalize(source);
+
+        Priority = Normalize(priority);
+
+        DisciplineId = disciplineId;
+
+        VisitPriority = Normalize(visitPriority);
+
+        CaseStatus = Normalize(caseStatus);
+
+        PrimaryInsurance =
+            Normalize(primaryInsurance);
+
+        InsuranceMemberId =
+            Normalize(insuranceMemberId);
+
+        AuthorizationRequired =
+            authorizationRequired;
+
+        ReferringPhysician =
+            Normalize(referringPhysician);
+
+        PhysicianPhone =
+            Normalize(physicianPhone);
+
+        SecondaryDiagnosis =
+            Normalize(secondaryDiagnosis);
+
+        ReferralNotes =
+            Normalize(referralNotes);
+
+        InternalNotes =
+            Normalize(internalNotes);
+    }
+
+    public void MarkAsDraft()
+    {
+        Status = ReferralStatus.Draft;
+    }
 }

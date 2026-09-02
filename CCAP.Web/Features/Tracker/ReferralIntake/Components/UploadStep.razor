@@ -47,7 +47,7 @@
 
                 <h5>Uploaded File</h5>
 
-                @if (Model.ReferralPdf is null)
+                @if (!HasFileMetadata)
                 {
                     <div class="empty-file">
 
@@ -68,18 +68,24 @@
                         <div class="flex-grow-1">
 
                             <strong>
-                                @Model.ReferralPdf.Name
+                                @Model.ReferralPdfFileName
                             </strong>
 
                             <small class="d-block text-muted">
 
-                                @(Math.Round(
-                                    (double)Model.ReferralPdf.Size
-                                    / 1024
-                                    / 1024,
-                                    2)) MB
+                                @FormatFileSize(Model.ReferralPdfSize)
 
                             </small>
+
+                            @if (!string.IsNullOrWhiteSpace(
+                                Model.ReferralPdfContentType))
+                            {
+                                <small class="d-block text-muted">
+
+                                    @Model.ReferralPdfContentType
+
+                                </small>
+                            }
 
                         </div>
 
@@ -108,7 +114,29 @@
 
                         </button>
 
+                        @* =================================================
+                           TEMPORARILY DISABLED
+
+The actual PDF is not stored yet.
+                           Enable this button after Azure Blob Storage
+                           is implemented and a secure PDF URL/storage key
+                           is available.
+                           =================================================
+
+                        <button type="button"
+                                class="btn btn-outline-secondary btn-sm"
+                                @onclick="ViewPdf">
+
+                            <i class="bi bi-eye"></i>
+
+                            View PDF
+
+                        </button>
+
+                        *@
+
                     </div>
+
                 }
 
             </div>
@@ -133,7 +161,12 @@
     [Parameter]
     public ReferralIntakeModel Model { get; set; } = null!;
 
-    private const long MaxFileSize = 10 * 1024 * 1024;
+    private const long MaxFileSize =
+        10 * 1024 * 1024;
+
+    private bool HasFileMetadata =>
+        !string.IsNullOrWhiteSpace(
+            Model.ReferralPdfFileName);
 
     private async Task OnFileSelected(
         InputFileChangeEventArgs e)
@@ -148,14 +181,12 @@
                 StringComparison.OrdinalIgnoreCase))
         {
             ClearFile();
-
             return;
         }
 
         if (file.Size > MaxFileSize)
         {
             ClearFile();
-
             return;
         }
 
@@ -167,7 +198,8 @@
             using var memoryStream =
                 new MemoryStream();
 
-            await input.CopyToAsync(memoryStream);
+            await input.CopyToAsync(
+                memoryStream);
 
             Model.ReferralPdfBytes =
                 memoryStream.ToArray();
@@ -176,9 +208,15 @@
                 file.Name;
 
             Model.ReferralPdfContentType =
-                file.ContentType;
+                string.IsNullOrWhiteSpace(file.ContentType)
+                    ? "application/pdf"
+                    : file.ContentType;
 
-            Model.ReferralPdf = file;
+            Model.ReferralPdfSize =
+                file.Size;
+
+            Model.ReferralPdf =
+                file;
         }
         catch
         {
@@ -189,13 +227,54 @@
     private void ClearFile()
     {
         Model.ReferralPdf = null;
+
         Model.ReferralPdfBytes = null;
+
         Model.ReferralPdfFileName = null;
+
         Model.ReferralPdfContentType = null;
+
+        Model.ReferralPdfSize = null;
     }
 
     private void RemoveFile()
     {
         ClearFile();
     }
+
+    private static string FormatFileSize(
+        long? bytes)
+    {
+        if (!bytes.HasValue ||
+            bytes.Value <= 0)
+        {
+            return "Size unavailable";
+        }
+
+        return Math.Round(
+                bytes.Value / 1024d / 1024d,
+                2)
+            .ToString("0.##")
+            + " MB";
+    }
+
+    @* =========================================================
+       FUTURE PDF VIEWING
+
+       this method can retrieve a secure URL and open
+       the PDF in a new browser tab.
+
+       private async Task ViewPdf()
+       {
+           var url =
+               await FileStorageService.GetReadUrlAsync(
+                   Model.ReferralDraftId!.Value);
+
+           await JS.InvokeVoidAsync(
+               "open",
+               url,
+               "_blank");
+       }
+
+       ========================================================= *@
 }

@@ -1,9 +1,13 @@
 ﻿using CCAP.API.Authorization;
+using CCAP.Application.Features.ReferralDrafts.Queries;
 using CCAP.Application.Features.Referrals.Commands.CreateReferralIntake;
+using CCAP.Application.Features.Referrals.Commands.SaveReferralDraft;
+using CCAP.Application.Features.ReferralDrafts.Queries.GetReferralDraftById;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace CCAP.API.Controllers;
 
@@ -20,6 +24,127 @@ public sealed class ReferralController : ControllerBase
     public ReferralController(ISender sender)
     {
         _sender = sender;
+    }
+
+    // =========================================================
+    // SAVE REFERRAL DRAFT
+    // =========================================================
+
+    [HttpPost("draft")]
+    [Authorize(
+    Policy = PermissionPolicies.ReferralsManage)]
+    public async Task<IActionResult> SaveDraft(
+    [FromBody] SaveReferralDraftRequest request,
+    CancellationToken cancellationToken)
+    {
+        var userIdValue =
+            User.FindFirstValue(
+                ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(
+                userIdValue,
+                out var currentUserId))
+        {
+            return Unauthorized(new
+            {
+                message =
+                    "Unable to determine the authenticated user."
+            });
+        }
+
+        try
+        {
+            var result =
+                await _sender.Send(
+                    new SaveReferralDraftCommand(
+                        request.ReferralDraftId,
+                        currentUserId,
+                        request.Data),
+                    cancellationToken);
+
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (DbUpdateException ex)
+        {
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                new
+                {
+                    message = ex.Message,
+                    innerException =
+                        ex.InnerException?.Message
+                });
+        }
+    }
+
+    // ========================================================
+    // GET REFERRAL DRAFTS
+    // ========================================================
+
+    [HttpGet("drafts")]
+    [Authorize(
+    Policy = PermissionPolicies.ReferralsView)]
+    public async Task<IActionResult> GetDrafts(
+    [FromQuery] int pageNumber = 1,
+    [FromQuery] int pageSize = 20,
+    [FromQuery] string? search = null,
+    CancellationToken cancellationToken = default)
+    {
+        var result =
+            await _sender.Send(
+                new GetReferralDraftsQuery(
+                    pageNumber,
+                    pageSize,
+                    search),
+                cancellationToken);
+
+        return Ok(result);
+    }
+
+    [HttpGet("drafts/{draftId:guid}")]
+    [Authorize(
+    Policy = PermissionPolicies.ReferralsView)]
+    public async Task<IActionResult> GetDraft(
+    Guid draftId,
+    CancellationToken cancellationToken)
+    {
+        var data =
+            await _sender.Send(
+                new GetReferralDraftByIdQuery(
+                    draftId),
+                cancellationToken);
+
+        if (data is null)
+        {
+            return NotFound(new
+            {
+                message =
+                    "Referral draft was not found."
+            });
+        }
+
+        return Ok(data);
     }
 
     // =========================================================
@@ -205,11 +330,23 @@ public sealed class ReferralController : ControllerBase
 }
 
 
-    // =============================================================
-    // CREATE REFERRAL INTAKE REQUEST
-    // =============================================================
+// =============================================================
+// SAVE REFERRAL DRAFT INTAKE REQUEST
+// =============================================================
+public sealed class SaveReferralDraftRequest
+{
+    public Guid? ReferralDraftId { get; set; }
 
-    public sealed class CreateReferralIntakeRequest
+    public string Data { get; set; }
+        = string.Empty;
+}
+
+
+// =============================================================
+// CREATE REFERRAL INTAKE REQUEST
+// =============================================================
+
+public sealed class CreateReferralIntakeRequest
 {
     // =========================================================
     // PATIENT

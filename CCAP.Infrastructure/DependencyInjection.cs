@@ -55,6 +55,10 @@ public static class DependencyInjection
             ReferralRepository>();
 
         services.AddScoped<
+            IReferralDraftRepository,
+            ReferralDraftRepository>();
+
+        services.AddScoped<
             ILocationRepository,
             LocationRepository>();
 

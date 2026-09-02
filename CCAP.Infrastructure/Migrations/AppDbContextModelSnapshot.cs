@@ -675,6 +675,39 @@ namespace CCAP.Infrastructure.Migrations
                     b.ToTable("ReferralDocuments", (string)null);
                 });
 
+            modelBuilder.Entity("CCAP.Domain.Entities.ReferralDraft", b =>
+                {
+                    b.Property<Guid>("ReferralDraftId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Data")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("ReferralDraftId");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("UpdatedAt");
+
+                    b.ToTable("ReferralDrafts");
+                });
+
             modelBuilder.Entity("CCAP.Domain.Entities.Role", b =>
                 {
                     b.Property<Guid>("RoleId")

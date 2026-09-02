@@ -1,0 +1,81 @@
+﻿<div class="pagination-controls">
+
+    <button class="page-btn"
+            type="button"
+            disabled="@(CurrentPage <= 1)"
+            @onclick="PreviousPage">
+
+        <i class="bi bi-chevron-left"></i>
+
+    </button>
+
+    @foreach (var page in GetPageNumbers())
+    {
+        <button class="page-btn @(page == CurrentPage ? "active" : "")"
+                type="button"
+                @onclick="() => SelectPage(page)">
+
+            @(page)
+
+        </button>
+    }
+
+    <button class="page-btn"
+            type="button"
+            disabled="@(CurrentPage >= TotalPages)"
+            @onclick="NextPage">
+
+        <i class="bi bi-chevron-right"></i>
+
+    </button>
+
+</div>
+
+@code {
+
+    [Parameter]
+    public int CurrentPage { get; set; }
+
+    [Parameter]
+    public int TotalPages { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnPageChanged { get; set; }
+
+    private async Task PreviousPage()
+    {
+        if (CurrentPage <= 1)
+            return;
+
+        await SelectPage(CurrentPage - 1);
+    }
+
+    private async Task NextPage()
+    {
+        if (CurrentPage >= TotalPages)
+            return;
+
+        await SelectPage(CurrentPage + 1);
+    }
+
+    private async Task SelectPage(int page)
+    {
+        if (page < 1 || page > TotalPages)
+            return;
+
+        await OnPageChanged.InvokeAsync(page);
+    }
+
+    private IEnumerable<int> GetPageNumbers()
+    {
+        if (TotalPages <= 7)
+            return Enumerable.Range(1, TotalPages);
+
+        var start = Math.Max(1, CurrentPage - 2);
+        var end = Math.Min(TotalPages, CurrentPage + 2);
+
+        return Enumerable.Range(
+            start,
+            end - start + 1);
+    }
+}
