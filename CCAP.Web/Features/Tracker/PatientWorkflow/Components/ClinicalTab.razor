@@ -1,158 +1,522 @@
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Model
 @using CCAP.Web.Features.Tracker.PatientWorkflow.Models
 @using CCAP.Web.Features.Tracker.PatientWorkflow.Services
+
 @inject PatientClinicalService ClinicalService
 
-<div class="card shadow-sm border-0 mb-4">
-    <div class="card-header bg-white d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Ordered Services</h5>
-        <button type="button" class="btn btn-success btn-sm" @onclick="OpenAddService">
-            <i class="bi bi-plus-circle"></i>
-            Add Service
-        </button>
-    </div>
+<div class="clinical-page">
 
-    <div class="card-body">
-        @if (IsLoading)
-        {
-            <div class="py-4 text-center">Loading service types...</div>
-        }
-        else if (!string.IsNullOrWhiteSpace(ErrorMessage))
-        {
-            <div class="alert alert-danger">@ErrorMessage</div>
-        }
-        else if (!Services.Any())
-        {
-            <div class="alert alert-info">No active service types are configured in the database.</div>
-        }
-        else
-        {
-            <div class="row g-4">
-                @foreach (var service in Services)
-                {
-                    <div class="col-xl-3 col-lg-4 col-md-6">
-                        <div class="service-card">
-                            <div class="service-icon @service.CssClass"><i class="@service.Icon"></i></div>
-                            <h6>@service.Name</h6>
-                            <p class="text-muted mb-2">Available service</p>
-                        </div>
-                    </div>
-                }
-            </div>
+    <!-- ========================================================= -->
+    <!-- Clinical Information                                     -->
+    <!-- ========================================================= -->
 
-            @if (OrderedServices.Any())
+    <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card-header bg-white">
+            <h5 class="mb-0">
+                Clinical Information
+            </h5>
+        </div>
+
+        <div class="card-body">
+
+            @if (Workflow is null)
             {
-                <hr class="my-4" />
-                <h6 class="mb-3">Ordered for this patient</h6>
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead><tr><th>Service</th><th>Frequency</th><th>Duration</th><th></th></tr></thead>
-                        <tbody>
-                            @foreach (var item in OrderedServices)
-                            {
-                                <tr>
-                                    <td>@item.ServiceName</td>
-                                    <td>@item.Frequency</td>
-                                    <td>@item.Duration</td>
-                                    <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => RemoveService(item)">Remove</button></td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
+                <div class="text-center text-muted py-5">
+
+                    <i class="bi bi-heart-pulse fs-2 d-block mb-2"></i>
+
+                    <div>
+                        Clinical information is unavailable.
+                    </div>
+
                 </div>
             }
-        }
+            else
+            {
+                <div class="row g-4">
+
+                    <!-- Patient -->
+                    <div class="col-md-6">
+
+                        <div class="small text-muted mb-1">
+                            Patient
+                        </div>
+
+                        <div class="fw-semibold">
+                            @Workflow.Header.FirstName
+                            @Workflow.Header.MiddleName
+                            @Workflow.Header.LastName
+                        </div>
+
+                    </div>
+
+
+                    <!-- MRN -->
+                    <div class="col-md-6">
+
+                        <div class="small text-muted mb-1">
+                            MRN
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(
+                            Workflow.Header.MRN))
+                        {
+                            <div class="fw-semibold">
+                                @Workflow.Header.MRN
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-muted">
+                                Not provided
+                            </div>
+                        }
+
+                    </div>
+
+
+                    <!-- Diagnosis -->
+                    <div class="col-md-6">
+
+                        <div class="small text-muted mb-1">
+                            Primary Diagnosis
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(
+                            Workflow.Summary.PrimaryDiagnosis))
+                        {
+                            <div class="fw-semibold">
+                                @Workflow.Summary.PrimaryDiagnosis
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-muted">
+                                Not provided
+                            </div>
+                        }
+
+                    </div>
+
+
+                    <!-- Discipline -->
+                    <div class="col-md-6">
+
+                        <div class="small text-muted mb-1">
+                            Discipline
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(
+                            Workflow.KeyInformation.Discipline))
+                        {
+                            <div class="fw-semibold">
+                                @Workflow.KeyInformation.Discipline
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-muted">
+                                Not assigned
+                            </div>
+                        }
+
+                    </div>
+
+
+                    <!-- SOC -->
+                    <div class="col-md-6">
+
+                        <div class="small text-muted mb-1">
+                            Start of Care
+                        </div>
+
+                        @if (Workflow.Header.SocDate.HasValue)
+                        {
+                            <div class="fw-semibold">
+                                @Workflow.Header.SocDate.Value
+                                .ToString("MM/dd/yyyy")
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-muted">
+                                Not scheduled
+                            </div>
+                        }
+
+                    </div>
+
+
+                    <!-- Workflow -->
+                    <div class="col-md-6">
+
+                        <div class="small text-muted mb-1">
+                            Clinical Workflow
+                        </div>
+
+                        @if (ClinicalStage is not null)
+                        {
+                            <span class="badge @GetStatusClass(
+                                                                ClinicalStage.Status)">
+                                @GetStatusText(
+                                    ClinicalStage.Status)
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">
+                                Not available
+                            </span>
+                        }
+
+                    </div>
+
+                </div>
+            }
+
+        </div>
+
     </div>
+
+
+    <!-- ========================================================= -->
+    <!-- Available Clinical Services                              -->
+    <!-- ========================================================= -->
+
+    <div class="card shadow-sm border-0">
+
+        <div class="card-header bg-white
+            d-flex justify-content-between
+            align-items-center">
+
+            <div>
+
+                <h5 class="mb-0">
+                    Available Clinical Services
+                </h5>
+
+                <small class="text-muted">
+                    Active service types configured in the system
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <div class="card-body p-0">
+
+            @if (IsLoading)
+            {
+                <div class="text-center py-5">
+
+                    <div class="spinner-border"
+                         role="status">
+                    </div>
+
+                    <div class="text-muted mt-3">
+                        Loading clinical services...
+                    </div>
+
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(ErrorMessage))
+            {
+                <div class="alert alert-danger m-3 mb-0">
+
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+
+                    @ErrorMessage
+
+                </div>
+            }
+            else if (ServiceTypes.Count == 0)
+            {
+                <div class="text-center text-muted py-5">
+
+                    <i class="bi bi-heart-pulse fs-2
+                    d-block mb-2"></i>
+
+                    <div>
+                        No active clinical services are available.
+                    </div>
+
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+
+                    <table class="table table-hover
+                        align-middle mb-0">
+
+                        <thead class="table-light">
+
+                            <tr>
+
+                                <th>
+                                    Service
+                                </th>
+
+                                <th>
+                                    Description
+                                </th>
+
+                                <th>
+                                    Status
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+                            @foreach (var service in ServiceTypes)
+                            {
+                                <tr>
+
+                                    <td>
+
+                                        <div class="fw-semibold">
+                                            @service.Name
+                                        </div>
+
+                                    </td>
+
+
+                                    <td>
+
+                                        <td>
+                                            <td>
+                                                <span class="text-muted">
+                                                    No description available
+                                                </span>
+                                            </td>
+                                        </td>
+
+                                    </td>
+
+
+                                    <td>
+
+                                        <span class="badge bg-success">
+                                            Active
+                                        </span>
+
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+            }
+
+        </div>
+
+    </div>
+
+
+    <!-- ========================================================= -->
+    <!-- Clinical Workflow                                        -->
+    <!-- ========================================================= -->
+    @if (ClinicalStage is not null)
+    {
+        <div class="card shadow-sm border-0 mt-4">
+
+            <div class="card-header bg-white">
+                <h5 class="mb-0">
+                    Clinical Workflow
+                </h5>
+            </div>
+
+
+            <div class="card-body">
+
+                <div class="row g-4">
+
+                    <div class="col-md-6">
+
+                        <div class="small text-muted mb-1">
+                            Stage
+                        </div>
+
+                        <div class="fw-semibold">
+                            @ClinicalStage.StageName
+                        </div>
+
+                    </div>
+
+
+                    <div class="col-md-6">
+
+                        <div class="small text-muted mb-1">
+                            Status
+                        </div>
+
+                        <span class="badge @GetStatusClass(
+                                                        ClinicalStage.Status)">
+                            @GetStatusText(
+                                ClinicalStage.Status)
+                        </span>
+
+                    </div>
+
+
+                    @if (!string.IsNullOrWhiteSpace(
+                        ClinicalStage.Description))
+                    {
+                        <div class="col-12">
+
+                            <div class="small text-muted mb-1">
+                                Description
+                            </div>
+
+                            <div>
+                                @ClinicalStage.Description
+                            </div>
+
+                        </div>
+                    }
+
+
+                    @if (ClinicalStage.CompletedDate.HasValue)
+                    {
+                        <div class="col-md-6">
+
+                            <div class="small text-muted mb-1">
+                                Completed
+                            </div>
+
+                            <div>
+                                @ClinicalStage.CompletedDate.Value
+                                .ToString(
+                                "MM/dd/yyyy hh:mm tt")
+                            </div>
+
+                        </div>
+                    }
+
+                </div>
+
+            </div>
+
+        </div>
+    }
+
 </div>
 
-@if (ShowAddModal)
-{
-    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Add Clinical Service</h5>
-                    <button type="button" class="btn-close" @onclick="CloseAddService"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Service</label>
-                        <select class="form-select" @bind="SelectedServiceId">
-                            <option value="">Select service</option>
-                            @foreach (var service in Services)
-                            {
-                                <option value="@service.ServiceTypeId">@service.Name</option>
-                            }
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Frequency</label>
-                        <input class="form-control" @bind="Frequency" placeholder="Example: 3 Visits / Week" />
-                    </div>
-                    <div>
-                        <label class="form-label">Duration</label>
-                        <input class="form-control" @bind="Duration" placeholder="Example: 8 Weeks" />
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-light" @onclick="CloseAddService">Cancel</button>
-                    <button type="button" class="btn btn-success" disabled="@string.IsNullOrWhiteSpace(SelectedServiceId)" @onclick="AddService">Add Service</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
 
 @code {
-    private sealed class OrderedService
+
+    [Parameter]
+    public PatientWorkflowDto? Workflow { get; set; }
+
+
+    private List<ServiceTypeDto> ServiceTypes { get; set; } = [];
+
+
+    private bool IsLoading { get; set; }
+
+    private string? ErrorMessage { get; set; }
+
+
+    // =============================================================
+    // CLINICAL WORKFLOW STAGE
+    // =============================================================
+
+    private WorkflowStageDto? ClinicalStage =>
+        Workflow?.WorkflowStages?
+            .FirstOrDefault(x =>
+                string.Equals(
+                    x.StageCode,
+                    "SOC",
+                    StringComparison.OrdinalIgnoreCase)
+                ||
+                string.Equals(
+                    x.StageCode,
+                    "ADMISSION",
+                    StringComparison.OrdinalIgnoreCase));
+
+
+    // =============================================================
+    // LOAD
+    // =============================================================
+
+    protected override async Task OnParametersSetAsync()
     {
-        public Guid ServiceTypeId { get; init; }
-        public string ServiceName { get; init; } = string.Empty;
-        public string Frequency { get; init; } = string.Empty;
-        public string Duration { get; init; } = string.Empty;
+        await LoadServiceTypesAsync();
     }
 
-    private List<ServiceTypeDto> Services = [];
-    private List<OrderedService> OrderedServices = [];
-    private string? SelectedServiceId;
-    private string? Frequency;
-    private string? Duration;
-    private bool IsLoading;
-    private bool ShowAddModal;
-    private string? ErrorMessage;
 
-    protected override async Task OnInitializedAsync()
+    private async Task LoadServiceTypesAsync()
     {
         IsLoading = true;
-        try { Services = await ClinicalService.GetServiceTypesAsync(); }
-        catch (Exception ex) { ErrorMessage = $"Unable to load service types: {ex.Message}"; }
-        finally { IsLoading = false; }
-    }
+        ErrorMessage = null;
 
-    private void OpenAddService() => ShowAddModal = true;
-
-    private void CloseAddService()
-    {
-        ShowAddModal = false;
-        SelectedServiceId = null;
-        Frequency = null;
-        Duration = null;
-    }
-
-    private void AddService()
-    {
-        if (!Guid.TryParse(SelectedServiceId, out var id)) return;
-        var service = Services.FirstOrDefault(x => x.ServiceTypeId == id);
-        if (service is null) return;
-
-        OrderedServices.Add(new OrderedService
+        try
         {
-            ServiceTypeId = id,
-            ServiceName = service.Name,
-            Frequency = Frequency ?? string.Empty,
-            Duration = Duration ?? string.Empty
-        });
-        CloseAddService();
+            var result =
+                await ClinicalService
+                    .GetServiceTypesAsync();
+
+            ServiceTypes =
+                result?
+                    .ToList()
+                    ?? [];
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage =
+                string.IsNullOrWhiteSpace(ex.Message)
+                    ? "Unable to load clinical services."
+                    : ex.Message;
+
+            ServiceTypes = [];
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
-    private void RemoveService(OrderedService item) => OrderedServices.Remove(item);
+
+    // =============================================================
+    // STATUS
+    // =============================================================
+
+    private static string GetStatusClass(
+        WorkflowStatus status) =>
+        status switch
+        {
+            WorkflowStatus.Completed =>
+                "bg-success",
+
+            WorkflowStatus.Current =>
+                "bg-primary",
+
+            _ =>
+                "bg-secondary"
+        };
+
+
+    private static string GetStatusText(
+        WorkflowStatus status) =>
+        status switch
+        {
+            WorkflowStatus.Completed =>
+                "Completed",
+
+            WorkflowStatus.Current =>
+                "Current",
+
+            _ =>
+                "Pending"
+        };
 }

@@ -39,6 +39,10 @@ public sealed class Referral
 
     public string? InsuranceMemberId { get; private set; }
 
+    public DateOnly? AuthorizationDate { get; private set; }
+
+    public int? ApprovedVisits { get; private set; }
+
     public bool AuthorizationRequired { get; private set; }
 
     public string? ReferringPhysician { get; private set; }
@@ -73,6 +77,8 @@ public sealed class Referral
         string? caseStatus,
         string? primaryInsurance,
         string? insuranceMemberId,
+        DateOnly? authorizationDate,
+        int? approvedVisits,
         bool authorizationRequired,
         string? referringPhysician,
         string? physicianPhone,
@@ -121,6 +127,12 @@ public sealed class Referral
 
         InsuranceMemberId =
             Normalize(insuranceMemberId);
+
+        AuthorizationDate =
+            authorizationDate;
+
+        ApprovedVisits =
+            approvedVisits;
 
         AuthorizationRequired =
             authorizationRequired;

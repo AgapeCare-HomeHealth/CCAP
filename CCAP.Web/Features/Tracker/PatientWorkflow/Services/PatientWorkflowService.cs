@@ -41,4 +41,60 @@ public sealed class PatientWorkflowService
         response.EnsureSuccessStatusCode();
     }
 
+    public async Task CompleteInsuranceVerificationAsync(
+        Guid patientId,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _api.PostAsJsonAsync(
+            $"api/patients/{patientId}/insurance/verify",
+            new { },
+            cancellationToken);
+
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task UpdateInsuranceAsync(
+        Guid patientId,
+        InsuranceEditModel model,
+        CancellationToken cancellationToken = default)
+    {
+        if (_options.Enabled)
+        {
+            throw new InvalidOperationException(
+                "Insurance updates require the real API.");
+        }
+
+        var response = await _api.PutAsJsonAsync(
+            $"api/patients/{patientId}/insurance",
+            model,
+            cancellationToken);
+
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task CompleteSocComplianceAsync(
+    Guid patientId,
+    CancellationToken cancellationToken = default)
+    {
+        var response = await _api.PostAsJsonAsync(
+            $"api/patients/{patientId}/compliance/soc-compliant",
+            new { },
+            cancellationToken);
+
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task CompleteComplianceAsync(
+    Guid patientId,
+    string requirementCode,
+    CancellationToken cancellationToken = default)
+    {
+        var response = await _api.PostAsJsonAsync(
+            $"api/patients/{patientId}/compliance/{Uri.EscapeDataString(requirementCode)}",
+            new { },
+            cancellationToken);
+
+        response.EnsureSuccessStatusCode();
+    }
+
 }

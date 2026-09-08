@@ -163,6 +163,11 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.ZipCode)
                 .HasMaxLength(20);
 
+            e.Property(x => x.AuthorizationDate)
+                .HasColumnType("date");
+
+            e.Property(x => x.ApprovedVisits);
+
             e.Property(x => x.Status)
                 .HasConversion<string>()
                 .HasMaxLength(30);
@@ -212,6 +217,11 @@ public sealed class AppDbContext : DbContext
 
             e.Property(x => x.InsuranceMemberId)
                 .HasMaxLength(100);
+
+            e.Property(x => x.AuthorizationDate)
+                .HasColumnType("date");
+
+            e.Property(x => x.ApprovedVisits);
 
             e.Property(x => x.ReferringPhysician)
                 .HasMaxLength(200);

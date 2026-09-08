@@ -8,6 +8,14 @@ public interface IPatientRepository
         Guid id,
         CancellationToken cancellationToken);
 
+    Task<Patient?> GetByIdForUpdateAsync(
+        Guid patientId,
+        CancellationToken cancellationToken);
+
+    Task<Patient?> GetByIdForWorkflowUpdateAsync(
+        Guid patientId,
+        CancellationToken cancellationToken);
+
     Task<Patient?> GetByMrnAsync(
         string mrn,
         CancellationToken cancellationToken);

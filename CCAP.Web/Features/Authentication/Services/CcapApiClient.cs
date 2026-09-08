@@ -9,13 +9,28 @@ public sealed class CcapApiClient
 {
     private readonly HttpClient _client;
     private readonly TokenStore _tokenStore;
+    private readonly SessionExpirationService _sessionExpirationService;
+
+    //public CcapApiClient(
+    //    IHttpClientFactory httpClientFactory,
+    //    TokenStore tokenStore)
+    //{
+    //    _client = httpClientFactory.CreateClient("CCAP.Api");
+    //    _tokenStore = tokenStore;
+    //}
 
     public CcapApiClient(
-        IHttpClientFactory httpClientFactory,
-        TokenStore tokenStore)
+    IHttpClientFactory httpClientFactory,
+    TokenStore tokenStore,
+    SessionExpirationService sessionExpirationService)
     {
-        _client = httpClientFactory.CreateClient("CCAP.Api");
+        _client =
+            httpClientFactory.CreateClient("CCAP.Api");
+
         _tokenStore = tokenStore;
+
+        _sessionExpirationService =
+            sessionExpirationService;
     }
 
     private async Task AddAuthorizationAsync(
@@ -43,7 +58,7 @@ public sealed class CcapApiClient
 
         await AddAuthorizationAsync(request);
 
-        return await _client.SendAsync(
+        return await SendAsync(
             request,
             cancellationToken);
     }
@@ -60,7 +75,7 @@ public sealed class CcapApiClient
         await AddAuthorizationAsync(request);
 
         using var response =
-            await _client.SendAsync(
+            await SendAsync(
                 request,
                 cancellationToken);
 
@@ -108,7 +123,7 @@ public sealed class CcapApiClient
 
         await AddAuthorizationAsync(request);
 
-        return await _client.SendAsync(
+        return await SendAsync(
             request,
             cancellationToken);
     }
@@ -128,7 +143,7 @@ public sealed class CcapApiClient
 
         await AddAuthorizationAsync(request);
 
-        return await _client.SendAsync(
+        return await SendAsync(
             request,
             cancellationToken);
     }
@@ -144,7 +159,7 @@ public sealed class CcapApiClient
 
         await AddAuthorizationAsync(request);
 
-        return await _client.SendAsync(
+        return await SendAsync(
             request,
             cancellationToken);
     }
@@ -160,7 +175,7 @@ public sealed class CcapApiClient
 
         await AddAuthorizationAsync(request);
 
-        return await _client.SendAsync(
+        return await SendAsync(
             request,
             cancellationToken);
     }
@@ -187,8 +202,30 @@ public sealed class CcapApiClient
         Debug.WriteLine(
             $"CCAP API REQUEST: POST {fullUrl}");
 
-        return await _client.SendAsync(
+        return await SendAsync(
             request,
             cancellationToken);
+    }
+
+    private async Task<HttpResponseMessage>
+    SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        var response =
+            await _client.SendAsync(
+                request,
+                cancellationToken);
+
+        if (response.StatusCode ==
+            System.Net.HttpStatusCode.Unauthorized)
+        {
+            await _tokenStore.DeleteAsync();
+
+            await _sessionExpirationService
+                .NotifyExpiredAsync();
+        }
+
+        return response;
     }
 }

@@ -76,6 +76,7 @@ else
                 case "Overview":
 
                     <OverviewTab PatientId="@PatientId"
+                                 Workflow="@Workflow"
                                  Care="@Care"
                                  Notifications="@Notifications"
                                  OnChangeTab="OnTabChanged" />
@@ -84,19 +85,23 @@ else
 
                 case "Insurance":
 
-                    <InsuranceTab />
+                    <InsuranceTab PatientId="@PatientId"
+                                  Workflow="@Workflow"
+                                  OnCompleted="HandleInsuranceCompleted" />
 
                     break;
 
                 case "Clinical":
 
-                    <ClinicalTab />
+                    <ClinicalTab Workflow="@Workflow" />
 
                     break;
 
                 case "Compliance":
 
-                    <ComplianceTab />
+                    <ComplianceTab PatientId="@PatientId"
+                                   Workflow="@Workflow"
+                                   OnCompleted="HandleComplianceCompleted" />
 
                     break;
 
@@ -108,19 +113,19 @@ else
 
                 case "Communication":
 
-                    <CommunicationTab />
+                    <CommunicationTab Workflow="@Workflow" Care="@Care" />
 
                     break;
 
                 case "Timeline":
 
-                    <TimelineTab />
+                    <TimelineTab Workflow="@Workflow" />
 
                     break;
 
                 case "Audit Log":
 
-                    <AuditLogTab />
+                    <AuditLogTab Workflow="@Workflow" />
 
                     break;
 
@@ -235,6 +240,20 @@ else
         }
     }
 
+    private async Task HandleInsuranceCompleted()
+    {
+        Workflow =
+            await WorkflowService.GetAsync(
+                PatientId);
+    }
+
+    private async Task HandleComplianceCompleted()
+    {
+        Workflow =
+            await WorkflowService.GetAsync(
+                PatientId);
+    }
+
 
     private void OnTabChanged(string tabTitle)
     {
@@ -257,4 +276,7 @@ else
 
         StateHasChanged();
     }
+
+
+
 }

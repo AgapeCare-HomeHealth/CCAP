@@ -1,0 +1,62 @@
+﻿@implements IDisposable
+
+@using CCAP.Web.Features.Authentication.Services
+@using CCAP.Web.Features.Authentication.State
+
+@inject SessionExpirationService SessionExpirationService
+@inject TokenStore TokenStore
+@inject CcapAuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+@code {
+    protected override void OnInitialized()
+    {
+        SessionExpirationService.SessionExpired +=
+            HandleSessionExpiredAsync;
+    }
+
+    private async Task HandleSessionExpiredAsync()
+    {
+        await InvokeAsync(async () =>
+        {
+            await TokenStore.DeleteAsync();
+
+            await AuthenticationStateProvider
+                .NotifyLogoutAsync();
+
+            var relativeUrl =
+                Navigation.ToBaseRelativePath(
+                    Navigation.Uri);
+
+            var returnUrl =
+                string.IsNullOrWhiteSpace(relativeUrl)
+                    ? "/dashboard"
+                    : "/" + relativeUrl;
+
+            await JS.InvokeVoidAsync(
+                "Swal.fire",
+                new
+                {
+                    icon = "warning",
+                    title = "Session Expired",
+                    text =
+                        "Your session has expired. " +
+                        "Please sign in again to continue.",
+                    confirmButtonText = "Sign In Again",
+                    allowOutsideClick = false,
+                    allowEscapeKey = false
+                });
+
+            Navigation.NavigateTo(
+                $"/login?returnUrl={Uri.EscapeDataString(returnUrl)}",
+                replace: true);
+        });
+    }
+
+    public void Dispose()
+    {
+        SessionExpirationService.SessionExpired -=
+            HandleSessionExpiredAsync;
+    }
+}

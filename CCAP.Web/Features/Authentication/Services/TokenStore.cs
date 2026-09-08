@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 using System.Security.Cryptography;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace CCAP.Web.Features.Authentication.Services;
 
@@ -82,6 +83,28 @@ public sealed class TokenStore
             {
                 // Ignore storage cleanup failures.
             }
+        }
+    }
+
+    public async Task<DateTime?> GetExpirationUtcAsync()
+    {
+        var token = await GetAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+            return null;
+
+        try
+        {
+            var handler = new JwtSecurityTokenHandler();
+            var jwt = handler.ReadJwtToken(token);
+
+            return jwt.ValidTo == DateTime.MinValue
+                ? null
+                : jwt.ValidTo;
+        }
+        catch
+        {
+            return null;
         }
     }
 

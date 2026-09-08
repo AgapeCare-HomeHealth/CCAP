@@ -24,6 +24,8 @@ public sealed record CreateReferralIntakeCommand(
     string? Priority,
     string? PrimaryInsurance,
     string? InsuranceMemberId,
+    DateOnly? AuthorizationDate,
+    int? ApprovedVisits,
     bool AuthorizationRequired,
     string? ReferringPhysician,
     string? PhysicianPhone,

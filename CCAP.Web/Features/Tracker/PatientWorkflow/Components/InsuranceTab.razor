@@ -1,471 +1,538 @@
-﻿<div class="insurance-page">
+﻿@using CCAP.Web.Features.Tracker.PatientWorkflow.Model
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Models
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Services
 
-    <!-- ================= Status ================= -->
+@inject PatientWorkflowService WorkflowService
 
-    <div class="row g-4 mb-4">
+<div class="insurance-page">
 
-        <div class="col-lg-4">
+    @if (Workflow is null)
+    {
+        <div class="text-center text-muted py-5">
+            <i class="bi bi-shield-exclamation fs-2 d-block mb-2"></i>
 
-            <div class="status-card success">
+            <div>
+                Insurance information is unavailable.
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm border-0">
+
+            <!-- ===================================================== -->
+            <!-- Header                                                -->
+            <!-- ===================================================== -->
+
+            <div class="card-header bg-white
+                d-flex justify-content-between
+                align-items-center">
 
                 <div>
+                    <h5 class="mb-1">
+                        Insurance Information
+                    </h5>
 
-                    <h6>Coverage Status</h6>
-
-                    <h3>Active</h3>
-
-                    <small>Verified Aug 5, 2026</small>
-
+                    <small class="text-muted">
+                        Review and verify the patient's insurance coverage.
+                    </small>
                 </div>
-
-                <i class="bi bi-shield-check"></i>
-
-            </div>
-
-        </div>
-
-        <div class="col-lg-4">
-
-            <div class="status-card warning">
 
                 <div>
-
-                    <h6>Authorization</h6>
-
-                    <h3>Pending</h3>
-
-                    <small>Waiting for approval</small>
-
-                </div>
-
-                <i class="bi bi-hourglass-split"></i>
-
-            </div>
-
-        </div>
-
-        <div class="col-lg-4">
-
-            <div class="status-card danger">
-
-                <div>
-
-                    <h6>Expires</h6>
-
-                    <h3>5 Days</h3>
-
-                    <small>08/12/2026</small>
-
-                </div>
-
-                <i class="bi bi-calendar-x"></i>
-
-            </div>
-
-        </div>
-
-    </div>
-
-    <!-- ================= Insurance ================= -->
-
-    <div class="card shadow-sm border-0 mb-4">
-
-        <div class="card-header bg-white">
-
-            <h5>Insurance Information</h5>
-
-        </div>
-
-        <div class="card-body">
-
-            <div class="row g-4">
-
-                <div class="col-md-4">
-
-                    <label class="form-label">
-
-                        Primary Payor
-
-                    </label>
-
-                    <select class="form-select">
-
-                        <option>Medicare</option>
-                        <option>Medicaid</option>
-                        <option>Aetna</option>
-
-                    </select>
-
-                </div>
-
-                <div class="col-md-4">
-
-                    <label class="form-label">
-
-                        Member ID
-
-                    </label>
-
-                    <input class="form-control" />
-
-                </div>
-
-                <div class="col-md-4">
-
-                    <label class="form-label">
-
-                        Group Number
-
-                    </label>
-
-                    <input class="form-control" />
-
-                </div>
-
-                <div class="col-md-6">
-
-                    <label class="form-label">
-
-                        Policy Holder
-
-                    </label>
-
-                    <input class="form-control" />
-
-                </div>
-
-                <div class="col-md-6">
-
-                    <label class="form-label">
-
-                        Secondary Insurance
-
-                    </label>
-
-                    <select class="form-select">
-
-                        <option>None</option>
-
-                    </select>
-
+                    @if (IsVerified)
+                    {
+                        <span class="badge bg-success">
+                            <i class="bi bi-check-circle me-1"></i>
+                            Verified
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-warning text-dark">
+                            <i class="bi bi-exclamation-circle me-1"></i>
+                            Needs Verification
+                        </span>
+                    }
                 </div>
 
             </div>
 
-        </div>
 
-    </div>
+            <!-- ===================================================== -->
+            <!-- Insurance Information                                 -->
+            <!-- ===================================================== -->
 
-    <!-- ================= Authorization ================= -->
+            <div class="card-body">
 
-    <div class="card shadow-sm border-0 mb-4">
+                @if (!IsEditing)
+                {
+                    <!-- ================================================= -->
+                    <!-- READ MODE                                         -->
+                    <!-- ================================================= -->
 
-        <div class="card-header bg-white d-flex justify-content-between">
+                    <div class="row g-4">
 
-            <h5>
+                        <div class="col-md-6">
 
-                Authorization
+                            <div class="small text-muted mb-1">
+                                Primary Insurance
+                            </div>
 
-            </h5>
+                            <div class="fw-semibold">
+                                @Display(Workflow.Summary.Insurance)
+                            </div>
 
-            <button type="button" class="btn btn-success" @onclick="OpenAuthorization">
-                <i class="bi bi-plus-circle"></i>
-                Add Authorization
-            </button>
+                        </div>
 
-        </div>
 
-        <div class="card-body">
+                        <div class="col-md-6">
 
-            <table class="table table-hover">
+                            <div class="small text-muted mb-1">
+                                Insurance Member ID
+                            </div>
 
-                <thead>
+                            <div class="fw-semibold">
+                                @Display(Workflow.Summary.InsuranceMemberId)
+                            </div>
 
-                    <tr>
+                        </div>
 
-                        <th>Authorization #</th>
 
-                        <th>Service</th>
+                        <div class="col-md-4">
 
-                        <th>Approved Visits</th>
+                            <div class="small text-muted mb-1">
+                                Authorization Date
+                            </div>
 
-                        <th>Start</th>
+                            <div class="fw-semibold">
+                                @(Workflow.Summary.AuthorizationDate.HasValue
+                                    ? Workflow.Summary.AuthorizationDate.Value
+                                        .ToString("MM/dd/yyyy")
+                                    : "Not provided")
+                            </div>
 
-                        <th>End</th>
+                        </div>
 
-                        <th>Status</th>
 
-                    </tr>
+                        <div class="col-md-4">
 
-                </thead>
+                            <div class="small text-muted mb-1">
+                                Approved Visits
+                            </div>
 
-                <tbody>
+                            <div class="fw-semibold">
+                                @(Workflow.Summary.AuthorizedVisits?.ToString()
+                                    ?? "Not provided")
+                            </div>
 
-                    <tr>
+                        </div>
 
-                        <td>AUTH-12345</td>
 
-                        <td>Skilled Nursing</td>
+                        <div class="col-md-4">
 
-                        <td>12</td>
+                            <div class="small text-muted mb-1">
+                                Authorization Required
+                            </div>
 
-                        <td>08/01/2026</td>
+                            <div class="fw-semibold">
+                                @(Workflow.Summary.AuthorizationRequired
+                                    ? "Yes"
+                                    : "No")
+                            </div>
 
-                        <td>08/30/2026</td>
-
-                        <td>
-
-                            <span class="badge bg-warning text-dark">
-
-                                Pending
-
-                            </span>
-
-                        </td>
-
-                    </tr>
-
-                </tbody>
-
-            </table>
-
-        </div>
-
-    </div>
-
-    <!-- ================= Activity ================= -->
-
-    <div class="card shadow-sm border-0 mb-4">
-
-        <div class="card-header bg-white d-flex justify-content-between">
-
-            <h5>
-
-                Insurance Activity
-
-            </h5>
-
-            <button type="button" class="btn btn-primary" @onclick="OpenActivity">
-                <i class="bi bi-plus-circle"></i>
-                New Activity
-            </button>
-
-        </div>
-
-        <div class="card-body">
-
-            <div class="timeline">
-
-                <div class="timeline-item">
-
-                    <div class="timeline-dot bg-success"></div>
-
-                    <div>
-
-                        <strong>
-
-                            Coverage Verified
-
-                        </strong>
-
-                        <p class="mb-1">
-
-                            Jennifer LVN called Medicare and confirmed eligibility.
-
-                        </p>
-
-                        <small>
-
-                            Ref # A12345678 • Aug 5, 2026 9:15 AM
-
-                        </small>
+                        </div>
 
                     </div>
 
-                </div>
 
-                <div class="timeline-item">
+                    <!-- ================================================= -->
+                    <!-- Actions                                            -->
+                    <!-- ================================================= -->
 
-                    <div class="timeline-dot bg-warning"></div>
+                    <div class="d-flex justify-content-end gap-2 mt-4">
 
-                    <div>
+                        <button type="button"
+                                class="btn btn-outline-primary"
+                                @onclick="BeginEdit"
+                                disabled="@IsProcessing">
 
-                        <strong>
+                            <i class="bi bi-pencil me-1"></i>
 
-                            Authorization Requested
+                            Edit Information
 
-                        </strong>
+                        </button>
 
-                        <p class="mb-1">
 
-                            Fax sent to insurance.
+                        @if (!IsVerified)
+                        {
+                            <button type="button"
+                                    class="btn btn-success"
+                                    @onclick="VerifyInsurance"
+                                    disabled="@IsProcessing">
 
-                        </p>
+                                @if (IsProcessing)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"
+                                          role="status"></span>
 
-                        <small>
+                                    <span>
+                                        Verifying...
+                                    </span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-shield-check me-1"></i>
 
-                            Aug 5, 2026 10:30 AM
+                                    <span>
+                                        Verify Insurance
+                                    </span>
+                                }
 
-                        </small>
+                            </button>
+                        }
 
                     </div>
 
-                </div>
+
+                    <!-- ================================================= -->
+                    <!-- Verification Information                          -->
+                    <!-- ================================================= -->
+                    @if (IsVerified)
+                    {
+                        <div class="border-top mt-4 pt-4">
+
+                            <div class="row g-4">
+
+                                <div class="col-md-6">
+
+                                    <div class="small text-muted mb-1">
+                                        Verified On
+                                    </div>
+
+                                    <div class="fw-semibold">
+                                        @DisplayVerifiedDate(
+                                            Workflow.Summary.InsuranceVerifiedAt)
+                                    </div>
+
+                                </div>
+
+
+                                <div class="col-md-6">
+
+                                    <div class="small text-muted mb-1">
+                                        Verified By
+                                    </div>
+
+                                    <div class="fw-semibold">
+                                        @Display(
+                                            Workflow.Summary.InsuranceVerifiedBy)
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="alert alert-success mt-4 mb-0">
+
+                                <div class="d-flex align-items-start">
+
+                                    <i class="bi bi-shield-check me-2 mt-1"></i>
+
+                                    <div>
+
+                                        <div class="fw-semibold">
+                                            Insurance has been verified.
+                                        </div>
+
+                                        <div class="small">
+                                            The insurance information was reviewed
+                                            and confirmed.
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+                    }
+
+                }
+                else
+                {
+                    <!-- ================================================= -->
+                    <!-- EDIT MODE                                         -->
+                    <!-- ================================================= -->
+
+                    <EditForm Model="@EditModel"
+                              OnValidSubmit="SaveInsurance">
+
+                        <DataAnnotationsValidator />
+
+                        <div class="row g-4">
+
+                            <div class="col-md-6">
+
+                                <label class="form-label">
+                                    Primary Insurance
+                                </label>
+
+                                <InputText class="form-control"
+                                           @bind-Value="EditModel.PrimaryInsurance" />
+
+                            </div>
+
+
+                            <div class="col-md-6">
+
+                                <label class="form-label">
+                                    Insurance Member ID
+                                </label>
+
+                                <InputText class="form-control"
+                                           @bind-Value="EditModel.InsuranceMemberId" />
+
+                            </div>
+
+
+                            <div class="col-md-4">
+
+                                <label class="form-label">
+                                    Authorization Date
+                                </label>
+
+                                <InputDate class="form-control"
+                                           @bind-Value="EditModel.AuthorizationDate" />
+
+                            </div>
+
+
+                            <div class="col-md-4">
+
+                                <label class="form-label">
+                                    Approved Visits
+                                </label>
+
+                                <InputNumber class="form-control"
+                                             @bind-Value="EditModel.ApprovedVisits" />
+
+                            </div>
+
+
+                            <div class="col-md-4">
+
+                                <div class="form-check mt-4">
+
+                                    <InputCheckbox class="form-check-input"
+                                                   @bind-Value="EditModel.AuthorizationRequired" />
+
+                                    <label class="form-check-label">
+                                        Authorization Required
+                                    </label>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- ================================================= -->
+                        <!-- Edit Actions                                      -->
+                        <!-- ================================================= -->
+
+                        <div class="d-flex justify-content-end gap-2 mt-4">
+
+                            <button type="button"
+                                    class="btn btn-outline-secondary"
+                                    @onclick="CancelEdit"
+                                    disabled="@IsProcessing">
+
+                                Cancel
+
+                            </button>
+
+
+                            <button type="submit"
+                                    class="btn btn-primary"
+                                    disabled="@IsProcessing">
+
+                                @if (IsProcessing)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"
+                                          role="status"></span>
+
+                                    <span>
+                                        Saving...
+                                    </span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-save me-1"></i>
+
+                                    <span>
+                                        Save Changes
+                                    </span>
+                                }
+
+                            </button>
+
+                        </div>
+
+                    </EditForm>
+                }
 
             </div>
 
         </div>
-
-    </div>
-
-    <!-- ================= Documents ================= -->
-
-    <div class="card shadow-sm border-0">
-
-        <div class="card-header bg-white d-flex justify-content-between">
-
-            <h5>
-
-                Insurance Documents
-
-            </h5>
-
-            <button type="button" class="btn btn-outline-success" @onclick="OpenUpload">
-                <i class="bi bi-upload"></i>
-                Upload
-            </button>
-
-        </div>
-
-        <div class="card-body p-0">
-
-            <table class="table table-hover mb-0">
-
-                <thead>
-
-                    <tr>
-
-                        <th>Document</th>
-
-                        <th>Category</th>
-
-                        <th>Uploaded By</th>
-
-                        <th>Date</th>
-
-                    </tr>
-
-                </thead>
-
-                <tbody>
-
-                    <tr>
-
-                        <td>Insurance Card.pdf</td>
-
-                        <td>Insurance Card</td>
-
-                        <td>Jennifer LVN</td>
-
-                        <td>08/05/2026</td>
-
-                    </tr>
-
-                    <tr>
-
-                        <td>Authorization Letter.pdf</td>
-
-                        <td>Authorization</td>
-
-                        <td>Jennifer LVN</td>
-
-                        <td>08/06/2026</td>
-
-                    </tr>
-
-                </tbody>
-
-            </table>
-
-        </div>
-
-    </div>
+    }
 
 </div>
 
 
-@if (ShowModal)
-{
-    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header"><h5 class="modal-title">@ModalTitle</h5><button type="button" class="btn-close" @onclick="CloseModal"></button></div>
-                <div class="modal-body">
-                    @if (ModalType == "Authorization")
-                    {
-                        <div class="mb-3"><label class="form-label">Authorization #</label><input class="form-control" @bind="Field1" /></div>
-                        <div class="mb-3"><label class="form-label">Service</label><input class="form-control" @bind="Field2" /></div>
-                        <div class="row g-3"><div class="col-6"><label class="form-label">Approved Visits</label><input type="number" class="form-control" @bind="NumberField" /></div><div class="col-6"><label class="form-label">End Date</label><input type="date" class="form-control" @bind="DateField" /></div></div>
-                    }
-                    else if (ModalType == "Activity")
-                    {
-                        <div class="mb-3"><label class="form-label">Activity</label><input class="form-control" @bind="Field1" /></div>
-                        <div><label class="form-label">Notes</label><textarea class="form-control" rows="4" @bind="Field2"></textarea></div>
-                    }
-                    else
-                    {
-                        <div class="mb-3"><label class="form-label">Document</label><InputFile OnChange="OnFileSelected" class="form-control" /></div>
-                        @if (!string.IsNullOrWhiteSpace(SelectedFileName)) { <div class="small text-muted">Selected: @SelectedFileName</div> }
-                    }
-                </div>
-                <div class="modal-footer"><button type="button" class="btn btn-light" @onclick="CloseModal">Cancel</button><button type="button" class="btn btn-success" @onclick="SaveModal">Save</button></div>
-            </div>
-        </div>
-    </div>
-}
-
-@if (!string.IsNullOrWhiteSpace(ActionMessage))
-{
-    <div class="alert alert-info mt-3">@ActionMessage</div>
-}
-
 @code {
-    private bool ShowModal;
-    private string ModalType = string.Empty;
-    private string ModalTitle = string.Empty;
-    private string Field1 = string.Empty;
-    private string Field2 = string.Empty;
-    private int NumberField = 1;
-    private DateTime DateField = DateTime.Today.AddDays(30);
-    private string? SelectedFileName;
-    private string? ActionMessage;
 
-    private void OpenAuthorization() => OpenModal("Authorization", "Add Authorization");
-    private void OpenActivity() => OpenModal("Activity", "New Insurance Activity");
-    private void OpenUpload() => OpenModal("Upload", "Upload Insurance Document");
+    [Parameter]
+    public Guid PatientId { get; set; }
 
-    private void OpenModal(string type, string title)
+
+    [Parameter]
+    public PatientWorkflowDto? Workflow { get; set; }
+
+
+    [Parameter]
+    public EventCallback OnCompleted { get; set; }
+
+
+    private bool IsEditing { get; set; }
+
+    private bool IsProcessing { get; set; }
+
+
+    private InsuranceEditModel EditModel { get; set; } = new();
+
+
+    private bool IsVerified =>
+        Workflow?.Summary.InsuranceVerified == true;
+
+
+    private void BeginEdit()
     {
-        ModalType = type;
-        ModalTitle = title;
-        Field1 = string.Empty;
-        Field2 = string.Empty;
-        SelectedFileName = null;
-        ShowModal = true;
-    }
+        if (Workflow is null)
+            return;
 
-    private void CloseModal() => ShowModal = false;
-
-    private void OnFileSelected(InputFileChangeEventArgs args) => SelectedFileName = args.File.Name;
-
-    private void SaveModal()
-    {
-        ActionMessage = ModalType switch
+        EditModel = new InsuranceEditModel
         {
-            "Authorization" => $"Mock authorization {Field1} saved.",
-            "Activity" => "Mock insurance activity saved.",
-            _ => $"Mock insurance document {SelectedFileName ?? "file"} saved."
+            PrimaryInsurance =
+                Workflow.Summary.Insurance,
+
+            InsuranceMemberId =
+                Workflow.Summary.InsuranceMemberId,
+
+            AuthorizationDate =
+                Workflow.Summary.AuthorizationDate,
+
+            ApprovedVisits =
+                Workflow.Summary.AuthorizedVisits,
+
+            AuthorizationRequired =
+                Workflow.Summary.AuthorizationRequired
         };
-        CloseModal();
+
+        IsEditing = true;
     }
+
+
+    private void CancelEdit()
+    {
+        IsEditing = false;
+
+        EditModel = new InsuranceEditModel();
+    }
+
+
+    private async Task SaveInsurance()
+    {
+        if (Workflow is null || IsProcessing)
+            return;
+
+        IsProcessing = true;
+
+        try
+        {
+            await WorkflowService.UpdateInsuranceAsync(
+                PatientId,
+                EditModel);
+
+            IsEditing = false;
+
+            EditModel = new InsuranceEditModel();
+
+            await ReloadWorkflow();
+        }
+        finally
+        {
+            IsProcessing = false;
+        }
+    }
+
+
+    private async Task VerifyInsurance()
+    {
+        if (Workflow is null || IsProcessing)
+            return;
+
+        IsProcessing = true;
+
+        try
+        {
+            await WorkflowService.CompleteInsuranceVerificationAsync(
+                PatientId);
+
+            await ReloadWorkflow();
+
+            if (OnCompleted.HasDelegate)
+            {
+                await OnCompleted.InvokeAsync();
+            }
+        }
+        finally
+        {
+            IsProcessing = false;
+        }
+    }
+
+
+    private async Task ReloadWorkflow()
+    {
+        var updatedWorkflow =
+            await WorkflowService.GetAsync(PatientId);
+
+        if (updatedWorkflow is not null)
+        {
+            Workflow = updatedWorkflow;
+        }
+    }
+
+
+    private static string Display(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? "Not provided"
+            : value;
+    }
+
+
+    private static string DisplayVerifiedDate(
+        DateTime? value)
+    {
+        return value.HasValue
+            ? value.Value
+                .ToLocalTime()
+                .ToString("MM/dd/yyyy h:mm tt")
+            : "Not available";
+    }
+
 }

@@ -110,6 +110,27 @@
         </div>
 
         <div class="summary-item">
+            <label>Authorization Date</label>
+            <span>
+                @Model.AuthorizationDate?.ToString("MM/dd/yyyy")
+            </span>
+        </div>
+
+        <div class="summary-item">
+            <label>Approved Visits</label>
+            <span>
+                @Model.ApprovedVisits
+            </span>
+        </div>
+
+        <div class="summary-item">
+            <label>Authorization Required</label>
+            <span>
+                @(Model.AuthorizationRequired ? "Yes" : "No")
+            </span>
+        </div>
+
+        <div class="summary-item">
             <label>Physician</label>
             <span>@Model.ReferringPhysician</span>
         </div>

@@ -13,6 +13,7 @@
 @inject AuthenticationService AuthenticationService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
+@inject SessionExpirationService SessionExpirationService
 
 <PageTitle>Login</PageTitle>
 
@@ -225,6 +226,10 @@
                 await provider.NotifyLoginAsync();
             }
 
+            // Reset the session-expiration notification
+            // because the user has successfully logged in.
+            SessionExpirationService.Reset();
+
 
             // ============================================
             // Redirect
@@ -237,6 +242,7 @@
                     : ReturnUrl;
 
             Navigation.NavigateTo(target);
+
         }
         catch (Exception ex)
         {

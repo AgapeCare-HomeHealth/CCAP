@@ -319,11 +319,17 @@ namespace CCAP.Infrastructure.Migrations
                     b.Property<string>("AlternatePhone")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("ApprovedVisits")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("ArchivedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<Guid?>("ArchivedByUserId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly?>("AuthorizationDate")
+                        .HasColumnType("date");
 
                     b.Property<bool>("AuthorizationRequired")
                         .HasColumnType("bit");
@@ -550,11 +556,17 @@ namespace CCAP.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<int?>("ApprovedVisits")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("AssignedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<Guid?>("AssignedUserId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly?>("AuthorizationDate")
+                        .HasColumnType("date");
 
                     b.Property<bool>("AuthorizationRequired")
                         .HasColumnType("bit");

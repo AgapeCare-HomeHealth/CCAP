@@ -1,356 +1,340 @@
-﻿<div class="timeline-page">
+﻿@using CCAP.Web.Features.Tracker.PatientWorkflow.Model
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Models
 
-    <!-- ================= Summary ================= -->
-
-    <div class="row g-4 mb-4">
-
-        <div class="col-lg-3">
-
-            <div class="status-card primary">
-
-                <h6>Total Events</h6>
-
-                <h2>42</h2>
-
-            </div>
-
+@if (Workflow is null)
+{
+    <div class="timeline-empty">
+        <div class="timeline-empty-icon">
+            <i class="bi bi-clock-history"></i>
         </div>
 
-        <div class="col-lg-3">
-
-            <div class="status-card success">
-
-                <h6>Completed</h6>
-
-                <h2>35</h2>
-
-            </div>
-
-        </div>
-
-        <div class="col-lg-3">
-
-            <div class="status-card warning">
-
-                <h6>Upcoming</h6>
-
-                <h2>4</h2>
-
-            </div>
-
-        </div>
-
-        <div class="col-lg-3">
-
-            <div class="status-card danger">
-
-                <h6>Overdue</h6>
-
-                <h2>3</h2>
-
-            </div>
-
-        </div>
-
+        <h5>Timeline unavailable</h5>
+        <p>Patient workflow information could not be loaded.</p>
     </div>
 
-    <!-- ================= Filters ================= -->
+    return;
+}
 
-    <div class="card shadow-sm border-0 mb-4">
+<div class="timeline-container">
 
-        <div class="card-body">
+    <!-- Patient Header -->
+    <div class="timeline-header">
+        <div>
+            <h4 class="mb-1">Patient Timeline</h4>
 
-            <div class="row g-3">
+            <div class="timeline-patient-info">
+                <span>
+                    <i class="bi bi-person"></i>
+                    @Workflow.Header.FirstName
+                    @Workflow.Header.MiddleName
+                    @Workflow.Header.LastName
+                </span>
 
-                <div class="col-lg-4">
+                <span>
+                    <i class="bi bi-person-vcard"></i>
+                    MRN: @Workflow.Header.MRN
+                </span>
 
-                    <input class="form-control"
-                           placeholder="Search timeline..."
-                           @bind="Search" />
+                @if (!string.IsNullOrWhiteSpace(Workflow.Header.ReferralNumber))
+                {
+                    <span>
+                        <i class="bi bi-file-earmark-text"></i>
+                        Referral: @Workflow.Header.ReferralNumber
+                    </span>
+                }
+            </div>
+        </div>
 
+        <div class="timeline-status">
+            @if (!string.IsNullOrWhiteSpace(Workflow.Header.Status))
+            {
+                <span class="status-badge">
+                    @Workflow.Header.Status
+                </span>
+            }
+        </div>
+    </div>
+
+    <!-- Workflow Timeline -->
+    @if (Workflow.WorkflowStages.Any())
+    {
+        <section class="timeline-section">
+
+            <div class="section-heading">
+                <div>
+                    <h5>Workflow Progress</h5>
+                    <p>
+                        Patient workflow stages and their current status.
+                    </p>
                 </div>
+            </div>
 
-                <div class="col-lg-3">
+            <div class="workflow-timeline">
 
-                    <select class="form-select" @bind="EventType">
+                @foreach (var stage in Workflow.WorkflowStages.OrderBy(x => x.Sequence))
+                {
+                    <div class="timeline-item @GetStageClass(stage.Status)">
 
-                        <option>All Events</option>
-                        <option>Referral</option>
-                        <option>Insurance</option>
-                        <option>Clinical</option>
-                        <option>Compliance</option>
-                        <option>Communication</option>
-                        <option>Documents</option>
-                        <option>Visits</option>
+                        <div class="timeline-marker">
+                            @if (stage.Status == WorkflowStatus.Completed)
+                            {
+                                <i class="bi bi-check-lg"></i>
+                            }
+                            else if (stage.Status == WorkflowStatus.Current)
+                            {
+                                <i class="bi bi-arrow-right"></i>
+                            }
+                            else
+                            {
+                                <i class="bi bi-circle"></i>
+                            }
+                        </div>
 
-                    </select>
+                        <div class="timeline-content">
 
+                            <div class="timeline-item-header">
+
+                                <div>
+                                    <div class="timeline-stage-sequence">
+                                        Stage @stage.Sequence
+                                    </div>
+
+                                    <h6>@stage.StageName</h6>
+                                </div>
+
+                                <span class="stage-status @GetStatusClass(stage.Status)">
+                                    @GetStatusText(stage.Status)
+                                </span>
+
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(stage.Description))
+                            {
+                                <p class="timeline-description">
+                                    @stage.Description
+                                </p>
+                            }
+
+                            <div class="timeline-meta">
+
+                                @if (!string.IsNullOrWhiteSpace(stage.AssignedUserName))
+                                {
+                                    <span>
+                                        <i class="bi bi-person"></i>
+                                        @stage.AssignedUserName
+                                    </span>
+                                }
+
+                                @if (stage.CompletedDate.HasValue)
+                                {
+                                    <span>
+                                        <i class="bi bi-calendar-check"></i>
+                                        Completed
+                                        @stage.CompletedDate.Value.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")
+                                    </span>
+                                }
+
+                            </div>
+
+                        </div>
+                    </div>
+                }
+
+            </div>
+        </section>
+    }
+
+    <!-- Activity Timeline -->
+    @if (Workflow.RecentActivities.Any())
+    {
+        <section class="timeline-section">
+
+            <div class="section-heading">
+                <div>
+                    <h5>Recent Activity</h5>
+                    <p>
+                        Recent activity recorded for this patient.
+                    </p>
                 </div>
+            </div>
 
-                <div class="col-lg-3">
+            <div class="activity-timeline">
 
-                    <input type="date"
-                           class="form-control"
-                           @bind="EventDate" />
+                @foreach (var activity in Workflow.RecentActivities
+                    .OrderByDescending(x => x.ActivityDate))
+                {
+                    <div class="activity-item">
 
-                </div>
+                        <div class="activity-marker">
+                            <i class="@GetActivityIcon(activity.ActivityType)"></i>
+                        </div>
 
-                <div class="col-lg-2 d-grid">
+                        <div class="activity-content">
 
-                    <button type="button" class="btn btn-success" @onclick="ApplyFilter">
-                        Filter
-                    </button>
-                    @if (!string.IsNullOrWhiteSpace(FilterMessage))
-                    {
-                        <div class="small text-muted mt-2">@FilterMessage</div>
-                    }
+                            <div class="activity-header">
 
-                </div>
+                                <div>
+                                    <h6>@activity.Title</h6>
+
+                                    @if (!string.IsNullOrWhiteSpace(activity.ActivityType))
+                                    {
+                                        <span class="activity-type">
+                                            @activity.ActivityType
+                                        </span>
+                                    }
+                                </div>
+
+                                <time>
+                                    @activity.ActivityDate.ToLocalTime()
+                                    .ToString("MMM dd, yyyy h:mm tt")
+                                </time>
+
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(activity.Description))
+                            {
+                                <p>
+                                    @activity.Description
+                                </p>
+                            }
+
+                            <div class="activity-performed-by">
+                                <i class="bi bi-person"></i>
+
+                                @if (string.IsNullOrWhiteSpace(activity.PerformedBy))
+                                {
+                                    <span>System</span>
+                                }
+                                else
+                                {
+                                    <span>@activity.PerformedBy</span>
+                                }
+                            </div>
+
+                        </div>
+                    </div>
+                }
 
             </div>
 
-        </div>
-
-    </div>
-
-    <!-- ================= Timeline ================= -->
-
-    <div class="card shadow-sm border-0">
-
-        <div class="card-header bg-white">
-
-            <h5 class="mb-0">
-
-                Patient Timeline
-
-            </h5>
-
-        </div>
-
-        <div class="card-body">
-
-            <div class="timeline">
-
-                <!-- Referral -->
-
-                <div class="timeline-item">
-
-                    <div class="timeline-icon bg-primary">
-
-                        <i class="bi bi-file-earmark-medical"></i>
-
-                    </div>
-
-                    <div class="timeline-content">
-
-                        <div class="timeline-header">
-
-                            <strong>
-
-                                Referral Received
-
-                            </strong>
-
-                            <span>
-
-                                Aug 04, 2026 · 8:30 AM
-
-                            </span>
-
-                        </div>
-
-                        <p>
-
-                            Referral received from St. Luke's Medical Center.
-
-                        </p>
-
-                        <small>
-
-                            Jennifer LVN
-
-                        </small>
-
-                    </div>
-
-                </div>
-
-                <!-- Insurance -->
-
-                <div class="timeline-item">
-
-                    <div class="timeline-icon bg-success">
-
-                        <i class="bi bi-shield-check"></i>
-
-                    </div>
-
-                    <div class="timeline-content">
-
-                        <div class="timeline-header">
-
-                            <strong>
-
-                                Insurance Verified
-
-                            </strong>
-
-                            <span>
-
-                                Aug 05, 2026 · 9:15 AM
-
-                            </span>
-
-                        </div>
-
-                        <p>
-
-                            Medicare eligibility confirmed.
-
-                        </p>
-
-                        <small>
-
-                            Jennifer LVN
-
-                        </small>
-
-                    </div>
-
-                </div>
-
-                <!-- Assignment -->
-
-                <div class="timeline-item">
-
-                    <div class="timeline-icon bg-info">
-
-                        <i class="bi bi-person-check"></i>
-
-                    </div>
-
-                    <div class="timeline-content">
-
-                        <div class="timeline-header">
-
-                            <strong>
-
-                                Coordinator Assigned
-
-                            </strong>
-
-                            <span>
-
-                                Aug 05, 2026 · 10:30 AM
-
-                            </span>
-
-                        </div>
-
-                        <p>
-
-                            Jennifer LVN assigned as Care Coordinator.
-
-                        </p>
-
-                    </div>
-
-                </div>
-
-                <!-- Document -->
-
-                <div class="timeline-item">
-
-                    <div class="timeline-icon bg-warning">
-
-                        <i class="bi bi-folder2-open"></i>
-
-                    </div>
-
-                    <div class="timeline-content">
-
-                        <div class="timeline-header">
-
-                            <strong>
-
-                                Plan of Care Uploaded
-
-                            </strong>
-
-                            <span>
-
-                                Aug 06, 2026
-
-                            </span>
-
-                        </div>
-
-                        <p>
-
-                            Initial physician orders uploaded.
-
-                        </p>
-
-                    </div>
-
-                </div>
-
-                <!-- SOC -->
-
-                <div class="timeline-item">
-
-                    <div class="timeline-icon bg-danger">
-
-                        <i class="bi bi-calendar-check"></i>
-
-                    </div>
-
-                    <div class="timeline-content">
-
-                        <div class="timeline-header">
-
-                            <strong>
-
-                                SOC Scheduled
-
-                            </strong>
-
-                            <span>
-
-                                Aug 08, 2026
-
-                            </span>
-
-                        </div>
-
-                        <p>
-
-                            Start of Care scheduled for Aug 8.
-
-                        </p>
-
-                    </div>
-
-                </div>
-
+            <div class="timeline-info">
+                <i class="bi bi-info-circle"></i>
+
+                <span>
+                    Showing the recent activity currently provided by the
+                    patient workflow API.
+                </span>
             </div>
 
-        </div>
+        </section>
+    }
+    else
+    {
+        <section class="timeline-section">
 
-    </div>
+            <div class="section-heading">
+                <div>
+                    <h5>Recent Activity</h5>
+                    <p>
+                        Activity recorded for this patient.
+                    </p>
+                </div>
+            </div>
+
+            <div class="activity-empty">
+                <i class="bi bi-clock-history"></i>
+
+                <h6>No activity recorded</h6>
+
+                <p>
+                    There is currently no recent activity available for this patient.
+                </p>
+            </div>
+
+        </section>
+    }
 
 </div>
 
 @code {
-    private string? Search;
-    private string EventType = "All Events";
-    private DateTime? EventDate;
-    private string? FilterMessage;
 
-    private void ApplyFilter()
+    [Parameter]
+    public PatientWorkflowDto? Workflow { get; set; }
+
+    private static string GetStageClass(WorkflowStatus status)
     {
-        var dateText = EventDate.HasValue ? EventDate.Value.ToString("MM/dd/yyyy") : "any date";
-        var searchText = string.IsNullOrWhiteSpace(Search) ? "all entries" : $"'{Search}'";
-        FilterMessage = $"Timeline filter applied to {searchText}, {EventType}, {dateText}.";
+        return status switch
+        {
+            WorkflowStatus.Completed => "stage-completed",
+            WorkflowStatus.Current => "stage-current",
+            _ => "stage-pending"
+        };
+    }
+
+    private static string GetStatusClass(WorkflowStatus status)
+    {
+        return status switch
+        {
+            WorkflowStatus.Completed => "status-completed",
+            WorkflowStatus.Current => "status-current",
+            _ => "status-pending"
+        };
+    }
+
+    private static string GetStatusText(WorkflowStatus status)
+    {
+        return status switch
+        {
+            WorkflowStatus.Completed => "Completed",
+            WorkflowStatus.Current => "Current",
+            _ => "Pending"
+        };
+    }
+
+    private static string GetActivityIcon(string? activityType)
+    {
+        if (string.IsNullOrWhiteSpace(activityType))
+        {
+            return "bi bi-clock-history";
+        }
+
+        var type = activityType.Trim().ToLowerInvariant();
+
+        if (type.Contains("call"))
+        {
+            return "bi bi-telephone";
+        }
+
+        if (type.Contains("message") || type.Contains("communication"))
+        {
+            return "bi bi-chat-dots";
+        }
+
+        if (type.Contains("fax"))
+        {
+            return "bi bi-file-earmark-arrow-up";
+        }
+
+        if (type.Contains("insurance") || type.Contains("authorization"))
+        {
+            return "bi bi-shield-check";
+        }
+
+        if (type.Contains("task"))
+        {
+            return "bi bi-list-check";
+        }
+
+        if (type.Contains("referral"))
+        {
+            return "bi bi-file-earmark-medical";
+        }
+
+        if (type.Contains("visit"))
+        {
+            return "bi bi-calendar-event";
+        }
+
+        return "bi bi-clock-history";
     }
 }

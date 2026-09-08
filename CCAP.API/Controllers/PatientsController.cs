@@ -1,14 +1,22 @@
 using CCAP.API.Authorization;
+using CCAP.API.Contracts.Patients;
 using CCAP.Application.Features.Patients.Commands.AddCallNote;
 using CCAP.Application.Features.Patients.Commands.ArchivePatient;
 using CCAP.Application.Features.Patients.Commands.CompleteCare;
-using CCAP.Application.Features.Patients.Queries.GetPatients;
-using CCAP.Application.Features.Patients.Queries.GetServiceTypes;
-using CCAP.Application.Features.Patients.Queries.GetPatientWorkflow;
+using CCAP.Application.Features.Patients.Commands.CompleteInsuranceVerification;
+using CCAP.Application.Features.Patients.Commands.CompleteSoc;
+using CCAP.Application.Features.Patients.Commands.CompleteSocCompliance;
+using CCAP.Application.Features.Patients.Commands.ScheduleSoc;
+using CCAP.Application.Features.Patients.Commands.UpdateInsurance;
 using CCAP.Application.Features.Patients.Queries.GetPatientCareManagement;
+using CCAP.Application.Features.Patients.Queries.GetPatients;
+using CCAP.Application.Features.Patients.Queries.GetPatientWorkflow;
+using CCAP.Application.Features.Patients.Queries.GetServiceTypes;
+using CCAP.Application.Features.Patients.Commands.CompleteCompliance;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace CCAP.API.Controllers;
 
@@ -84,6 +92,47 @@ public sealed class PatientsController : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("{patientId:guid}/insurance/verify")]
+    [Authorize(Policy = PermissionPolicies.PatientsManage)]
+    public async Task<IActionResult> VerifyInsurance(
+    Guid patientId,
+    CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(
+            ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out var currentUserId))
+            return Unauthorized();
+
+        await _sender.Send(
+            new CompleteInsuranceVerificationCommand(
+                patientId,
+                currentUserId),
+            cancellationToken);
+
+        return NoContent();
+    }
+
+    [HttpPut("{patientId:guid}/insurance")]
+    [Authorize(Policy = PermissionPolicies.PatientsManage)]
+    public async Task<IActionResult> UpdateInsurance(
+    Guid patientId,
+    [FromBody] UpdateInsuranceRequest request,
+    CancellationToken cancellationToken)
+    {
+        await _sender.Send(
+            new UpdateInsuranceCommand(
+                patientId,
+                request.PrimaryInsurance,
+                request.InsuranceMemberId,
+                request.AuthorizationDate,
+                request.ApprovedVisits,
+                request.AuthorizationRequired),
+            cancellationToken);
+
+        return NoContent();
+    }
+
     [HttpPost("{patientId:guid}/archive")]
     [Authorize(Policy = PermissionPolicies.PatientsManage)]
     public async Task<IActionResult> Archive(
@@ -114,4 +163,119 @@ public sealed class PatientsController : ControllerBase
 
         return Ok(result);
     }
+
+    [HttpPost("{patientId:guid}/soc/schedule")]
+    [Authorize(Policy = PermissionPolicies.PatientsManage)]
+    public async Task<IActionResult> ScheduleSoc(
+    Guid patientId,
+    [FromBody] ScheduleSocRequest request,
+    CancellationToken cancellationToken)
+    {
+        var userIdValue =
+            User.FindFirstValue(
+                ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(
+                userIdValue,
+                out var currentUserId))
+        {
+            return Unauthorized();
+        }
+
+
+        await _sender.Send(
+            new ScheduleSocCommand(
+                patientId,
+                request.SocDate,
+                currentUserId),
+            cancellationToken);
+
+
+        return NoContent();
+    }
+
+
+    [HttpPost("{patientId:guid}/soc/complete")]
+    [Authorize(Policy = PermissionPolicies.PatientsManage)]
+    public async Task<IActionResult> CompleteSoc(
+        Guid patientId,
+        [FromBody] CompleteSocRequest request,
+        CancellationToken cancellationToken)
+    {
+        var userIdValue =
+            User.FindFirstValue(
+                ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(
+                userIdValue,
+                out var currentUserId))
+        {
+            return Unauthorized();
+        }
+
+
+        await _sender.Send(
+            new CompleteSocCommand(
+                patientId,
+                currentUserId,
+                request.Notes),
+            cancellationToken);
+
+
+        return NoContent();
+    }
+
+    [HttpPost("{patientId:guid}/compliance/soc-compliant")]
+    [Authorize(Policy = PermissionPolicies.PatientsManage)]
+    public async Task<IActionResult> CompleteSocCompliance(
+    Guid patientId,
+    CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(
+            ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(
+            userIdValue,
+            out var currentUserId))
+        {
+            return Unauthorized();
+        }
+
+        await _sender.Send(
+            new CompleteSocComplianceCommand(
+                patientId,
+                currentUserId),
+            cancellationToken);
+
+        return NoContent();
+    }
+
+    [HttpPost("{patientId:guid}/compliance/{requirementCode}")]
+    [Authorize(Policy = PermissionPolicies.PatientsManage)]
+    public async Task<IActionResult> CompleteCompliance(
+    Guid patientId,
+    string requirementCode,
+    CancellationToken cancellationToken)
+    {
+        var userIdValue =
+            User.FindFirstValue(
+                ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(
+            userIdValue,
+            out var currentUserId))
+        {
+            return Unauthorized();
+        }
+
+        await _sender.Send(
+            new CompleteComplianceCommand(
+                patientId,
+                requirementCode,
+                currentUserId),
+            cancellationToken);
+
+        return NoContent();
+    }
+
 }

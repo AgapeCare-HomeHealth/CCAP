@@ -23,8 +23,23 @@ public sealed class CcapAuthenticationStateProvider
 
     public bool IsInitialized => _initialized;
 
+    //public override async Task<AuthenticationState>
+    //    GetAuthenticationStateAsync()
+    //{
+    //    var token = await _tokenStore.GetAsync();
+
+    //    if (string.IsNullOrWhiteSpace(token))
+    //    {
+    //        return new AuthenticationState(Anonymous);
+    //    }
+
+    //    var principal = CreatePrincipalFromToken(token);
+
+    //    return new AuthenticationState(principal);
+    //}
+
     public override async Task<AuthenticationState>
-        GetAuthenticationStateAsync()
+    GetAuthenticationStateAsync()
     {
         var token = await _tokenStore.GetAsync();
 
@@ -33,9 +48,29 @@ public sealed class CcapAuthenticationStateProvider
             return new AuthenticationState(Anonymous);
         }
 
-        var principal = CreatePrincipalFromToken(token);
+        try
+        {
+            var handler = new JwtSecurityTokenHandler();
+            var jwt = handler.ReadJwtToken(token);
 
-        return new AuthenticationState(principal);
+            if (jwt.ValidTo <= DateTime.UtcNow)
+            {
+                await _tokenStore.DeleteAsync();
+
+                return new AuthenticationState(Anonymous);
+            }
+
+            var principal =
+                CreatePrincipalFromToken(token);
+
+            return new AuthenticationState(principal);
+        }
+        catch
+        {
+            await _tokenStore.DeleteAsync();
+
+            return new AuthenticationState(Anonymous);
+        }
     }
 
     public async Task LoadPersistedAsync()

@@ -48,6 +48,10 @@ public sealed class Patient
 
     public string? InsuranceMemberId { get; private set; }
 
+    public DateOnly? AuthorizationDate { get; private set; }
+
+    public int? ApprovedVisits { get; private set; }
+
     public bool AuthorizationRequired { get; private set; }
 
     public string? ReferringPhysician { get; private set; }
@@ -147,6 +151,8 @@ public sealed class Patient
         string? emergencyContactPhone,
         string? primaryInsurance,
         string? insuranceMemberId,
+        DateOnly? authorizationDate,
+        int? approvedVisits,
         bool authorizationRequired,
         string? referringPhysician,
         string? physicianPhone,
@@ -192,6 +198,12 @@ public sealed class Patient
         InsuranceMemberId =
             Normalize(insuranceMemberId);
 
+        AuthorizationDate =
+            authorizationDate;
+
+        ApprovedVisits =
+            approvedVisits;
+
         AuthorizationRequired =
             authorizationRequired;
 
@@ -209,6 +221,28 @@ public sealed class Patient
         ClinicianId = clinicianId;
 
         SocDate = socDate;
+    }
+
+    public void UpdateInsurance(
+        string? primaryInsurance,
+        string? insuranceMemberId,
+        DateOnly? authorizationDate,
+        int? approvedVisits,
+        bool authorizationRequired)
+    {
+        PrimaryInsurance = string.IsNullOrWhiteSpace(primaryInsurance)
+            ? null
+            : primaryInsurance.Trim();
+
+        InsuranceMemberId = string.IsNullOrWhiteSpace(insuranceMemberId)
+            ? null
+            : insuranceMemberId.Trim();
+
+        AuthorizationDate = authorizationDate;
+
+        ApprovedVisits = approvedVisits;
+
+        AuthorizationRequired = authorizationRequired;
     }
 
     public void UpdateContact(

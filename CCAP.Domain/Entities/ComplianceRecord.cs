@@ -28,4 +28,13 @@ public sealed class ComplianceRecord
         CompletedAt = DateTime.UtcNow;
         CompletedByUserId = userId;
     }
+
+    public void RequireReverification()
+    {
+        IsCompleted = false;
+        CompletedAt = null;
+        CompletedByUserId = null;
+    }
+
+
 }

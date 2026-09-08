@@ -539,10 +539,10 @@
             await ShowSuccessAlert(
                 "The referral has been created successfully.");
 
-            // Reload after user presses OK
+            // redirect to patients list
             Navigation.NavigateTo(
-                Navigation.Uri,
-                forceLoad: true);
+                "/patients",
+                replace: true);
         }
         catch (InvalidOperationException ex)
         {

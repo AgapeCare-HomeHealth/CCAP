@@ -182,6 +182,17 @@ public sealed class ReferralIntakeService
 
         Add(
             form,
+            "AuthorizationDate",
+            model.AuthorizationDate?
+                .ToString("yyyy-MM-dd"));
+
+        Add(
+            form,
+            "ApprovedVisits",
+            model.ApprovedVisits?.ToString());
+
+        Add(
+            form,
             "AuthorizationRequired",
             model.AuthorizationRequired.ToString());
 

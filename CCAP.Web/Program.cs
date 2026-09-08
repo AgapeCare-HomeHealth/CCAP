@@ -21,6 +21,8 @@ builder.Services.AddScoped<ProtectedLocalStorage>();
 
 builder.Services.AddScoped<TokenStore>();
 
+builder.Services.AddScoped<SessionExpirationService>();
+
 builder.Services.AddScoped<CcapAuthenticationStateProvider>();
 
 builder.Services.AddScoped<AuthenticationStateProvider>(

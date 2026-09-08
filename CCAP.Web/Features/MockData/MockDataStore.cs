@@ -143,38 +143,75 @@ public sealed class MockDataStore
     {
         Users.Add(new UserDto
         {
-            UserId = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000001"), EmployeeNo = "EMP-0001",
-            FirstName = "Jennifer", LastName = "Reyes", Email = "admin@ccap.local", MobileNo = "555-0101",
-            RoleId = AdministratorRoleId, Role = "Administrator", Discipline = "Registered Nurse",
-            DisciplineId = Disciplines[0].DisciplineId, IsActive = true, LastLoginAt = DateTime.Now.AddMinutes(-15)
+            UserId = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000001"),
+            EmployeeNo = "EMP-0001",
+            FirstName = "Jennifer",
+            LastName = "Reyes",
+            Email = "admin@ccap.local",
+            MobileNo = "555-0101",
+            RoleId = AdministratorRoleId,
+            Role = "Administrator",
+            Discipline = "Registered Nurse",
+            DisciplineId = Disciplines[0].DisciplineId,
+            IsActive = true,
+            LastLoginAt = DateTime.Now.AddMinutes(-15)
         });
         Users.Add(new UserDto
         {
-            UserId = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000002"), EmployeeNo = "EMP-0002",
-            FirstName = "Maria", LastName = "Santos", Email = "maria.santos@ccap.local", MobileNo = "555-0102",
-            RoleId = CareCoordinatorRoleId, Role = "Care Coordinator", Discipline = "Licensed Vocational Nurse",
-            DisciplineId = Disciplines[1].DisciplineId, IsActive = true, LastLoginAt = DateTime.Now.AddHours(-2)
+            UserId = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000002"),
+            EmployeeNo = "EMP-0002",
+            FirstName = "Maria",
+            LastName = "Santos",
+            Email = "maria.santos@ccap.local",
+            MobileNo = "555-0102",
+            RoleId = CareCoordinatorRoleId,
+            Role = "Care Coordinator",
+            Discipline = "Licensed Vocational Nurse",
+            DisciplineId = Disciplines[1].DisciplineId,
+            IsActive = true,
+            LastLoginAt = DateTime.Now.AddHours(-2)
         });
         Users.Add(new UserDto
         {
-            UserId = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000003"), EmployeeNo = "EMP-0003",
-            FirstName = "Robert", LastName = "Wilson", Email = "robert.wilson@ccap.local",
-            RoleId = SchedulerRoleId, Role = "Scheduler", Discipline = "",
-            IsActive = true, LastLoginAt = DateTime.Now.AddDays(-1)
+            UserId = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000003"),
+            EmployeeNo = "EMP-0003",
+            FirstName = "Robert",
+            LastName = "Wilson",
+            Email = "robert.wilson@ccap.local",
+            RoleId = SchedulerRoleId,
+            Role = "Scheduler",
+            Discipline = "",
+            IsActive = true,
+            LastLoginAt = DateTime.Now.AddDays(-1)
         });
         Users.Add(new UserDto
         {
-            UserId = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000005"), EmployeeNo = "EMP-0005",
-            FirstName = "Michael", LastName = "Torres", Email = "michael.torres@ccap.local", MobileNo = "555-0105",
-            RoleId = ClinicianRoleId, Role = "Clinician", Discipline = "Registered Nurse",
-            DisciplineId = Disciplines[0].DisciplineId, IsActive = true, LastLoginAt = DateTime.Now.AddHours(-4)
+            UserId = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000005"),
+            EmployeeNo = "EMP-0005",
+            FirstName = "Michael",
+            LastName = "Torres",
+            Email = "michael.torres@ccap.local",
+            MobileNo = "555-0105",
+            RoleId = ClinicianRoleId,
+            Role = "Clinician",
+            Discipline = "Registered Nurse",
+            DisciplineId = Disciplines[0].DisciplineId,
+            IsActive = true,
+            LastLoginAt = DateTime.Now.AddHours(-4)
         });
         Users.Add(new UserDto
         {
-            UserId = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000004"), EmployeeNo = "EMP-0004",
-            FirstName = "Ana", LastName = "Reyes", Email = "ana.reyes@ccap.local",
-            RoleId = CareCoordinatorRoleId, Role = "Care Coordinator", Discipline = "Registered Nurse",
-            DisciplineId = Disciplines[0].DisciplineId, IsActive = false, LastLoginAt = DateTime.Now.AddDays(-7)
+            UserId = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000004"),
+            EmployeeNo = "EMP-0004",
+            FirstName = "Ana",
+            LastName = "Reyes",
+            Email = "ana.reyes@ccap.local",
+            RoleId = CareCoordinatorRoleId,
+            Role = "Care Coordinator",
+            Discipline = "Registered Nurse",
+            DisciplineId = Disciplines[0].DisciplineId,
+            IsActive = false,
+            LastLoginAt = DateTime.Now.AddDays(-7)
         });
     }
 
@@ -196,7 +233,8 @@ public sealed class MockDataStore
                 PatientId = patientId,
                 Fax = new FaxInformationDto
                 {
-                    FaxId = Guid.NewGuid(), PatientId = patientId,
+                    FaxId = Guid.NewGuid(),
+                    PatientId = patientId,
                     FaxNumber = patientId == MariaId ? "555-0140" : "555-0110",
                     ReferringProvider = patientId == RobertId ? "Dr. Robert Miller" : "Dr. Sarah Thompson",
                     Organization = "Springfield Family Medicine",
@@ -209,53 +247,76 @@ public sealed class MockDataStore
 
             profile.Notes.Add(new PatientNoteDto
             {
-                NoteId = Guid.NewGuid(), PatientId = patientId,
-                Subject = "Patient preference", Content = "Patient requested morning visits when possible.",
-                Priority = "Normal", CreatedBy = "Jennifer LVN", CreatedAt = DateTime.Now.AddDays(-2)
+                NoteId = Guid.NewGuid(),
+                PatientId = patientId,
+                Subject = "Patient preference",
+                Content = "Patient requested morning visits when possible.",
+                Priority = "Normal",
+                CreatedBy = "Jennifer LVN",
+                CreatedAt = DateTime.Now.AddDays(-2)
             });
 
-            profile.LabOrders.Add(new LabOrderDto
-            {
-                LabOrderId = Guid.NewGuid(), PatientId = patientId,
-                TestName = patientId == RobertId ? "CBC / CMP" : "Hemoglobin A1C",
-                OrderingProvider = "Dr. Robert Miller", OrderedDate = DateTime.Today.AddDays(-2),
-                DueDate = DateTime.Today.AddDays(3), Status = "Ordered", Notes = "Track result and upload report when received."
-            });
+            //profile.LabOrders.Add(new LabOrderDto
+            //{
+            //    LabOrderId = Guid.NewGuid(),
+            //    PatientId = patientId,
+            //    TestName = patientId == RobertId ? "CBC / CMP" : "Hemoglobin A1C",
+            //    OrderingProvider = "Dr. Robert Miller",
+            //    OrderedDate = DateTime.Today.AddDays(-2),
+            //    DueDate = DateTime.Today.AddDays(3),
+            //    Status = "Ordered",
+            //    Notes = "Track result and upload report when received."
+            //});
 
-            profile.WoundSupplies.Add(new WoundSupplyDto
-            {
-                SupplyId = Guid.NewGuid(), PatientId = patientId,
-                SupplyName = "4x4 Gauze Pads", Quantity = 20, Frequency = "Daily",
-                Status = patientId == PatriciaId ? "Needs Order" : "Required", NeededBy = DateTime.Today.AddDays(5),
-                Notes = "Include in next supply request."
-            });
+            //profile.WoundSupplies.Add(new WoundSupplyDto
+            //{
+            //    SupplyId = Guid.NewGuid(),
+            //    PatientId = patientId,
+            //    SupplyName = "4x4 Gauze Pads",
+            //    Quantity = 20,
+            //    Frequency = "Daily",
+            //    Status = patientId == PatriciaId ? "Needs Order" : "Required",
+            //    NeededBy = DateTime.Today.AddDays(5),
+            //    Notes = "Include in next supply request."
+            //});
 
-            profile.FoleyChanges.Add(new FoleyChangeDto
-            {
-                FoleyChangeId = Guid.NewGuid(), PatientId = patientId,
-                ChangeDate = DateTime.Today.AddDays(-21), NextDueDate = DateTime.Today.AddDays(7),
-                CatheterSize = "16 Fr", BalloonSize = "10 mL", ChangedBy = "Jennifer RN",
-                Notes = "Routine catheter change."
-            });
+            //profile.FoleyChanges.Add(new FoleyChangeDto
+            //{
+            //    FoleyChangeId = Guid.NewGuid(),
+            //    PatientId = patientId,
+            //    ChangeDate = DateTime.Today.AddDays(-21),
+            //    NextDueDate = DateTime.Today.AddDays(7),
+            //    CatheterSize = "16 Fr",
+            //    BalloonSize = "10 mL",
+            //    ChangedBy = "Jennifer RN",
+            //    Notes = "Routine catheter change."
+            //});
 
-            profile.OrderAlerts.Add(new OrderAlertDto
-            {
-                OrderAlertId = Guid.NewGuid(), PatientId = patientId,
-                OrderType = "POC", OrderDate = DateTime.Today.AddDays(patientId == JohnId ? -35 : -15),
-                SignatureDue30Date = DateTime.Today.AddDays(patientId == JohnId ? -5 : 15),
-                SignatureDue60Date = DateTime.Today.AddDays(patientId == JohnId ? 25 : 45),
-                Signed = false, Status = "Pending PCP Signature",
-                Notes = "Follow up with PCP for signature."
-            });
+            //profile.OrderAlerts.Add(new OrderAlertDto
+            //{
+            //    OrderAlertId = Guid.NewGuid(),
+            //    PatientId = patientId,
+            //    OrderType = "POC",
+            //    OrderDate = DateTime.Today.AddDays(patientId == JohnId ? -35 : -15),
+            //    SignatureDue30Date = DateTime.Today.AddDays(patientId == JohnId ? -5 : 15),
+            //    SignatureDue60Date = DateTime.Today.AddDays(patientId == JohnId ? 25 : 45),
+            //    Signed = false,
+            //    Status = "Pending PCP Signature",
+            //    Notes = "Follow up with PCP for signature."
+            //});
 
-            profile.OrderAlerts.Add(new OrderAlertDto
-            {
-                OrderAlertId = Guid.NewGuid(), PatientId = patientId,
-                OrderType = "OASIS", OrderDate = DateTime.Today.AddDays(-65),
-                SignatureDue30Date = DateTime.Today.AddDays(-35), SignatureDue60Date = DateTime.Today.AddDays(-5),
-                Signed = patientId == PatriciaId, Status = patientId == PatriciaId ? "Signed" : "60-Day Follow-up Required",
-                Notes = "Escalate when PCP signature remains outstanding after 60 days."
-            });
+            //profile.OrderAlerts.Add(new OrderAlertDto
+            //{
+            //    OrderAlertId = Guid.NewGuid(),
+            //    PatientId = patientId,
+            //    OrderType = "OASIS",
+            //    OrderDate = DateTime.Today.AddDays(-65),
+            //    SignatureDue30Date = DateTime.Today.AddDays(-35),
+            //    SignatureDue60Date = DateTime.Today.AddDays(-5),
+            //    Signed = patientId == PatriciaId,
+            //    Status = patientId == PatriciaId ? "Signed" : "60-Day Follow-up Required",
+            //    Notes = "Escalate when PCP signature remains outstanding after 60 days."
+            //});
 
             PatientCare[patientId] = profile;
         }
@@ -271,151 +332,151 @@ public sealed class MockDataStore
             var profile = GetPatientCareProfile(patient.PatientId);
 
             // POC/OASIS signature alerts are calculated from OrderDate.
-            foreach (var order in profile.OrderAlerts)
-            {
-                if (order.Signed)
-                    continue;
+            //foreach (var order in profile.OrderAlerts)
+            //{
+            //    if (order.Signed)
+            //        continue;
 
-                var age = order.AgeInDays;
-                if (age < 30)
-                    continue;
+            //    var age = order.AgeInDays;
+            //    if (age < 30)
+            //        continue;
 
-                var severity = age >= 60 ? "Critical" : "Warning";
-                var title = age >= 60
-                    ? $"{order.OrderType} PCP signature overdue"
-                    : $"{order.OrderType} PCP signature follow-up";
-                var message = age >= 60
-                    ? $"The {order.OrderType} order has been unsigned for {age} days and requires escalation."
-                    : $"The {order.OrderType} order has reached the 30-day signature follow-up threshold.";
+            //    var severity = age >= 60 ? "Critical" : "Warning";
+            //    var title = age >= 60
+            //        ? $"{order.OrderType} PCP signature overdue"
+            //        : $"{order.OrderType} PCP signature follow-up";
+            //    var message = age >= 60
+            //        ? $"The {order.OrderType} order has been unsigned for {age} days and requires escalation."
+            //        : $"The {order.OrderType} order has reached the 30-day signature follow-up threshold.";
 
-                var id = StableNotificationId(order.OrderAlertId, $"{order.OrderType}:signature");
-                notifications.Add(new CCAP.Web.Features.Notifications.Models.UserNotificationDto
-                {
-                    NotificationId = id,
-                    PatientId = patient.PatientId,
-                    PatientName = patient.Name,
-                    Type = "Order",
-                    Title = title,
-                    Message = message,
-                    Severity = severity,
-                    DueDate = order.SignatureDue60Date ?? order.SignatureDue30Date,
-                    CreatedAt = order.OrderDate,
-                    IsRead = ReadNotificationIds.Contains(id)
-                });
-            }
+            //    var id = StableNotificationId(order.OrderAlertId, $"{order.OrderType}:signature");
+            //    notifications.Add(new CCAP.Web.Features.Notifications.Models.UserNotificationDto
+            //    {
+            //        NotificationId = id,
+            //        PatientId = patient.PatientId,
+            //        PatientName = patient.Name,
+            //        Type = "Order",
+            //        Title = title,
+            //        Message = message,
+            //        Severity = severity,
+            //        DueDate = order.SignatureDue60Date ?? order.SignatureDue30Date,
+            //        CreatedAt = order.OrderDate,
+            //        IsRead = ReadNotificationIds.Contains(id)
+            //    });
+            //}
 
             // Lab order alerts are calculated from the lab due date.
-            foreach (var lab in profile.LabOrders.Where(x =>
-                         !string.Equals(x.Status, "Completed", StringComparison.OrdinalIgnoreCase)))
-            {
-                var days = (lab.DueDate.Date - now.Date).Days;
-                if (days > 3)
-                    continue;
+            //foreach (var lab in profile.LabOrders.Where(x =>
+            //             !string.Equals(x.Status, "Completed", StringComparison.OrdinalIgnoreCase)))
+            //{
+            //    var days = (lab.DueDate.Date - now.Date).Days;
+            //    if (days > 3)
+            //        continue;
 
-                var severity = days < 0 ? "Critical" : days == 0 ? "Warning" : "Info";
-                var message = days < 0
-                    ? $"{lab.TestName} is overdue."
-                    : days == 0
-                        ? $"{lab.TestName} is due today."
-                        : $"{lab.TestName} is due in {days} day{(days == 1 ? "" : "s")}.";
+            //    var severity = days < 0 ? "Critical" : days == 0 ? "Warning" : "Info";
+            //    var message = days < 0
+            //        ? $"{lab.TestName} is overdue."
+            //        : days == 0
+            //            ? $"{lab.TestName} is due today."
+            //            : $"{lab.TestName} is due in {days} day{(days == 1 ? "" : "s")}.";
 
-                var id = StableNotificationId(lab.LabOrderId, "lab");
-                notifications.Add(new CCAP.Web.Features.Notifications.Models.UserNotificationDto
-                {
-                    NotificationId = id,
-                    PatientId = patient.PatientId,
-                    PatientName = patient.Name,
-                    Type = "Lab",
-                    Title = "Lab order follow-up",
-                    Message = message,
-                    Severity = severity,
-                    DueDate = lab.DueDate,
-                    CreatedAt = lab.OrderedDate,
-                    IsRead = ReadNotificationIds.Contains(id)
-                });
-            }
+            //    var id = StableNotificationId(lab.LabOrderId, "lab");
+            //    notifications.Add(new CCAP.Web.Features.Notifications.Models.UserNotificationDto
+            //    {
+            //        NotificationId = id,
+            //        PatientId = patient.PatientId,
+            //        PatientName = patient.Name,
+            //        Type = "Lab",
+            //        Title = "Lab order follow-up",
+            //        Message = message,
+            //        Severity = severity,
+            //        DueDate = lab.DueDate,
+            //        CreatedAt = lab.OrderedDate,
+            //        IsRead = ReadNotificationIds.Contains(id)
+            //    });
+            //}
 
-            // Wound supplies are alerted from the NeededBy date.
-            foreach (var supply in profile.WoundSupplies.Where(x =>
-                         x.NeededBy.HasValue &&
-                         !string.Equals(x.Status, "Fulfilled", StringComparison.OrdinalIgnoreCase)))
-            {
-                var due = supply.NeededBy!.Value.Date;
-                var days = (due - now.Date).Days;
-                if (days > 3)
-                    continue;
+            //// Wound supplies are alerted from the NeededBy date.
+            //foreach (var supply in profile.WoundSupplies.Where(x =>
+            //             x.NeededBy.HasValue &&
+            //             !string.Equals(x.Status, "Fulfilled", StringComparison.OrdinalIgnoreCase)))
+            //{
+            //    var due = supply.NeededBy!.Value.Date;
+            //    var days = (due - now.Date).Days;
+            //    if (days > 3)
+            //        continue;
 
-                var severity = days < 0 ? "Critical" : "Warning";
-                var message = days < 0
-                    ? $"{supply.SupplyName} is past the needed-by date."
-                    : days == 0
-                        ? $"{supply.SupplyName} is needed today."
-                        : $"{supply.SupplyName} is needed in {days} day{(days == 1 ? "" : "s")}.";
+            //    var severity = days < 0 ? "Critical" : "Warning";
+            //    var message = days < 0
+            //        ? $"{supply.SupplyName} is past the needed-by date."
+            //        : days == 0
+            //            ? $"{supply.SupplyName} is needed today."
+            //            : $"{supply.SupplyName} is needed in {days} day{(days == 1 ? "" : "s")}.";
 
-                var id = StableNotificationId(supply.SupplyId, "supply");
-                notifications.Add(new CCAP.Web.Features.Notifications.Models.UserNotificationDto
-                {
-                    NotificationId = id,
-                    PatientId = patient.PatientId,
-                    PatientName = patient.Name,
-                    Type = "Supply",
-                    Title = "Wound supply follow-up",
-                    Message = message,
-                    Severity = severity,
-                    DueDate = supply.NeededBy,
-                    CreatedAt = now,
-                    IsRead = ReadNotificationIds.Contains(id)
-                });
-            }
+            //    var id = StableNotificationId(supply.SupplyId, "supply");
+            //    notifications.Add(new CCAP.Web.Features.Notifications.Models.UserNotificationDto
+            //    {
+            //        NotificationId = id,
+            //        PatientId = patient.PatientId,
+            //        PatientName = patient.Name,
+            //        Type = "Supply",
+            //        Title = "Wound supply follow-up",
+            //        Message = message,
+            //        Severity = severity,
+            //        DueDate = supply.NeededBy,
+            //        CreatedAt = now,
+            //        IsRead = ReadNotificationIds.Contains(id)
+            //    });
+            //}
 
             // Foley changes are alerted from the next due date.
-            foreach (var foley in profile.FoleyChanges.Where(x => x.NextDueDate.HasValue))
-            {
-                var due = foley.NextDueDate!.Value.Date;
-                var days = (due - now.Date).Days;
-                if (days > 3)
-                    continue;
+            //foreach (var foley in profile.FoleyChanges.Where(x => x.NextDueDate.HasValue))
+            //{
+            //    var due = foley.NextDueDate!.Value.Date;
+            //    var days = (due - now.Date).Days;
+            //    if (days > 3)
+            //        continue;
 
-                var severity = days < 0 ? "Critical" : "Warning";
-                var message = days < 0
-                    ? "Foley catheter change is overdue."
-                    : days == 0
-                        ? "Foley catheter change is due today."
-                        : $"Foley catheter change is due in {days} day{(days == 1 ? "" : "s")}.";
+            //    var severity = days < 0 ? "Critical" : "Warning";
+            //    var message = days < 0
+            //        ? "Foley catheter change is overdue."
+            //        : days == 0
+            //            ? "Foley catheter change is due today."
+            //            : $"Foley catheter change is due in {days} day{(days == 1 ? "" : "s")}.";
 
-                var id = StableNotificationId(foley.FoleyChangeId, "foley");
-                notifications.Add(new CCAP.Web.Features.Notifications.Models.UserNotificationDto
-                {
-                    NotificationId = id,
-                    PatientId = patient.PatientId,
-                    PatientName = patient.Name,
-                    Type = "Foley",
-                    Title = "Foley change follow-up",
-                    Message = message,
-                    Severity = severity,
-                    DueDate = foley.NextDueDate,
-                    CreatedAt = foley.ChangeDate,
-                    IsRead = ReadNotificationIds.Contains(id)
-                });
-            }
+            //    var id = StableNotificationId(foley.FoleyChangeId, "foley");
+            //    notifications.Add(new CCAP.Web.Features.Notifications.Models.UserNotificationDto
+            //    {
+            //        NotificationId = id,
+            //        PatientId = patient.PatientId,
+            //        PatientName = patient.Name,
+            //        Type = "Foley",
+            //        Title = "Foley change follow-up",
+            //        Message = message,
+            //        Severity = severity,
+            //        DueDate = foley.NextDueDate,
+            //        CreatedAt = foley.ChangeDate,
+            //        IsRead = ReadNotificationIds.Contains(id)
+            //    });
+            //}
 
             // Unverified referral fax information is an actionable exception.
-            if (profile.Fax.FaxId != Guid.Empty && !profile.Fax.Verified)
-            {
-                var id = StableNotificationId(profile.Fax.FaxId, "fax");
-                notifications.Add(new CCAP.Web.Features.Notifications.Models.UserNotificationDto
-                {
-                    NotificationId = id,
-                    PatientId = patient.PatientId,
-                    PatientName = patient.Name,
-                    Type = "Fax",
-                    Title = "Referral fax needs verification",
-                    Message = $"Verify the referring fax information for {patient.Name}.",
-                    Severity = "Warning",
-                    CreatedAt = profile.Fax.ReceivedAt,
-                    IsRead = ReadNotificationIds.Contains(id)
-                });
-            }
+            //if (profile.Fax.FaxId != Guid.Empty && !profile.Fax.Verified)
+            //{
+            //    var id = StableNotificationId(profile.Fax.FaxId, "fax");
+            //    notifications.Add(new CCAP.Web.Features.Notifications.Models.UserNotificationDto
+            //    {
+            //        NotificationId = id,
+            //        PatientId = patient.PatientId,
+            //        PatientName = patient.Name,
+            //        Type = "Fax",
+            //        Title = "Referral fax needs verification",
+            //        Message = $"Verify the referring fax information for {patient.Name}.",
+            //        Severity = "Warning",
+            //        CreatedAt = profile.Fax.ReceivedAt,
+            //        IsRead = ReadNotificationIds.Contains(id)
+            //    });
+            //}
         }
 
         return notifications
@@ -506,55 +567,55 @@ public sealed class MockDataStore
         GetPatientCareProfile(patientId).Notes.RemoveAll(x => x.NoteId == noteId);
     }
 
-    public void AddLabOrder(LabOrderDto order)
-    {
-        var profile = GetPatientCareProfile(order.PatientId);
-        order.LabOrderId = order.LabOrderId == Guid.Empty ? Guid.NewGuid() : order.LabOrderId;
-        profile.LabOrders.Insert(0, order);
-    }
+    //public void AddLabOrder(LabOrderDto order)
+    //{
+    //    var profile = GetPatientCareProfile(order.PatientId);
+    //    order.LabOrderId = order.LabOrderId == Guid.Empty ? Guid.NewGuid() : order.LabOrderId;
+    //    profile.LabOrders.Insert(0, order);
+    //}
 
-    public void UpdateLabOrderStatus(Guid patientId, Guid labOrderId, string status)
-    {
-        var item = GetPatientCareProfile(patientId).LabOrders.FirstOrDefault(x => x.LabOrderId == labOrderId);
-        if (item is not null) item.Status = status;
-    }
+    //public void UpdateLabOrderStatus(Guid patientId, Guid labOrderId, string status)
+    //{
+    //    var item = GetPatientCareProfile(patientId).LabOrders.FirstOrDefault(x => x.LabOrderId == labOrderId);
+    //    if (item is not null) item.Status = status;
+    //}
 
-    public void AddWoundSupply(WoundSupplyDto supply)
-    {
-        var profile = GetPatientCareProfile(supply.PatientId);
-        supply.SupplyId = supply.SupplyId == Guid.Empty ? Guid.NewGuid() : supply.SupplyId;
-        profile.WoundSupplies.Insert(0, supply);
-    }
+    //public void AddWoundSupply(WoundSupplyDto supply)
+    //{
+    //    var profile = GetPatientCareProfile(supply.PatientId);
+    //    supply.SupplyId = supply.SupplyId == Guid.Empty ? Guid.NewGuid() : supply.SupplyId;
+    //    profile.WoundSupplies.Insert(0, supply);
+    //}
 
-    public void UpdateWoundSupplyStatus(Guid patientId, Guid supplyId, string status)
-    {
-        var item = GetPatientCareProfile(patientId).WoundSupplies.FirstOrDefault(x => x.SupplyId == supplyId);
-        if (item is not null) item.Status = status;
-    }
+    //public void UpdateWoundSupplyStatus(Guid patientId, Guid supplyId, string status)
+    //{
+    //    var item = GetPatientCareProfile(patientId).WoundSupplies.FirstOrDefault(x => x.SupplyId == supplyId);
+    //    if (item is not null) item.Status = status;
+    //}
 
-    public void AddFoleyChange(FoleyChangeDto change)
-    {
-        var profile = GetPatientCareProfile(change.PatientId);
-        change.FoleyChangeId = change.FoleyChangeId == Guid.Empty ? Guid.NewGuid() : change.FoleyChangeId;
-        profile.FoleyChanges.Insert(0, change);
-    }
+    //public void AddFoleyChange(FoleyChangeDto change)
+    //{
+    //    var profile = GetPatientCareProfile(change.PatientId);
+    //    change.FoleyChangeId = change.FoleyChangeId == Guid.Empty ? Guid.NewGuid() : change.FoleyChangeId;
+    //    profile.FoleyChanges.Insert(0, change);
+    //}
 
-    public void AddOrderAlert(OrderAlertDto alert)
-    {
-        var profile = GetPatientCareProfile(alert.PatientId);
-        alert.OrderAlertId = alert.OrderAlertId == Guid.Empty ? Guid.NewGuid() : alert.OrderAlertId;
-        profile.OrderAlerts.Insert(0, alert);
-    }
+    //public void AddOrderAlert(OrderAlertDto alert)
+    //{
+    //    var profile = GetPatientCareProfile(alert.PatientId);
+    //    alert.OrderAlertId = alert.OrderAlertId == Guid.Empty ? Guid.NewGuid() : alert.OrderAlertId;
+    //    profile.OrderAlerts.Insert(0, alert);
+    //}
 
-    public void MarkOrderSigned(Guid patientId, Guid orderAlertId)
-    {
-        var item = GetPatientCareProfile(patientId).OrderAlerts.FirstOrDefault(x => x.OrderAlertId == orderAlertId);
-        if (item is not null)
-        {
-            item.Signed = true;
-            item.Status = "Signed";
-        }
-    }
+    //public void MarkOrderSigned(Guid patientId, Guid orderAlertId)
+    //{
+    //    var item = GetPatientCareProfile(patientId).OrderAlerts.FirstOrDefault(x => x.OrderAlertId == orderAlertId);
+    //    if (item is not null)
+    //    {
+    //        item.Signed = true;
+    //        item.Status = "Signed";
+    //    }
+    //}
 
     public PatientWorkflowDto GetPatientWorkflow(Guid patientId)
     {
@@ -569,27 +630,40 @@ public sealed class MockDataStore
         {
             Header = new PatientHeaderDto
             {
-                PatientId = patient.PatientId, ReferralId = referralId,
-                FirstName = firstName, MiddleName = middle, LastName = lastName,
+                PatientId = patient.PatientId,
+                ReferralId = referralId,
+                FirstName = firstName,
+                MiddleName = middle,
+                LastName = lastName,
                 Age = patient.PatientId == MariaId ? 58 : patient.PatientId == RobertId ? 72 : patient.PatientId == PatriciaId ? 66 : 65,
-                MRN = patient.MRN, ReferralNumber = $"REF-2026-{patient.PatientId.ToString()[..4].ToUpper()}",
-                Status = patient.Status, SocDate = DateOnly.FromDateTime(DateTime.Today.AddDays(-4)),
+                MRN = patient.MRN,
+                ReferralNumber = $"REF-2026-{patient.PatientId.ToString()[..4].ToUpper()}",
+                Status = patient.Status,
+                SocDate = DateOnly.FromDateTime(DateTime.Today.AddDays(-4)),
                 Coordinator = patient.PatientId == MariaId ? "Maria Santos" : "Jennifer LVN",
-                Branch = "Main Office", EpisodeNumber = 1
+                Branch = "Main Office",
+                EpisodeNumber = 1
             },
             WorkflowStages = BuildStages(patient),
             NextAction = new NextActionDto
             {
-                TaskId = Guid.NewGuid(), Title = patient.Status == "Pending" ? "Complete Referral Review" : "Verify Insurance",
+                TaskId = Guid.NewGuid(),
+                Title = patient.Status == "Pending" ? "Complete Referral Review" : "Verify Insurance",
                 Description = patient.Status == "Pending" ? "Review the referral information before assigning the next workflow step." : "Confirm coverage and authorization details.",
-                DueDate = DateTime.Today.AddDays(1).AddHours(10), PageRoute = "/tracker/patient", Icon = "bi bi-check2-circle",
+                DueDate = DateTime.Today.AddDays(1).AddHours(10),
+                PageRoute = "/tracker/patient",
+                Icon = "bi bi-check2-circle",
                 IsOverdue = false
             },
             KeyInformation = new KeyInformationDto
             {
                 Coordinator = patient.PatientId == MariaId ? "Maria Santos" : "Jennifer LVN",
-                Clinician = patient.AssignedClinician, Discipline = patient.AssignedClinician.Contains("PT") ? "Physical Therapy" : "Skilled Nursing",
-                Episode = 1, Branch = "Main Office", Payor = patient.PatientId == RobertId ? "Aetna" : "Medicare", Priority = patient.Status == "On Hold" ? "High" : "Routine"
+                Clinician = patient.AssignedClinician,
+                Discipline = patient.AssignedClinician.Contains("PT") ? "Physical Therapy" : "Skilled Nursing",
+                Episode = 1,
+                Branch = "Main Office",
+                Payor = patient.PatientId == RobertId ? "Aetna" : "Medicare",
+                Priority = patient.Status == "On Hold" ? "High" : "Routine"
             },
             RecentActivities =
             [
@@ -598,9 +672,12 @@ public sealed class MockDataStore
             ],
             Summary = new PatientSummaryDto
             {
-                PrimaryDiagnosis = patient.PrimaryDiagnosis, Insurance = patient.PatientId == RobertId ? "Aetna" : "Medicare",
-                SocDate = DateOnly.FromDateTime(DateTime.Today.AddDays(-4)), AuthorizedVisits = patient.PatientId == PatriciaId ? 0 : 12,
-                Address = "123 Main Street, Springfield", PhoneNumber = "555-0199"
+                PrimaryDiagnosis = patient.PrimaryDiagnosis,
+                Insurance = patient.PatientId == RobertId ? "Aetna" : "Medicare",
+                SocDate = DateOnly.FromDateTime(DateTime.Today.AddDays(-4)),
+                AuthorizedVisits = patient.PatientId == PatriciaId ? 0 : 12,
+                Address = "123 Main Street, Springfield",
+                PhoneNumber = "555-0199"
             }
         };
     }
@@ -611,11 +688,14 @@ public sealed class MockDataStore
         var names = new[] { ("REFERRAL", "Referral"), ("INSURANCE", "Insurance"), ("SOC", "SOC Scheduled"), ("ADMISSION", "Admission"), ("VISITS", "Visits"), ("RECERT", "Recertification"), ("DISCHARGE", "Discharge") };
         return names.Select((x, i) => new WorkflowStageDto
         {
-            Sequence = i + 1, StageCode = x.Item1, StageName = x.Item2,
+            Sequence = i + 1,
+            StageCode = x.Item1,
+            StageName = x.Item2,
             Status = i < current ? WorkflowStatus.Completed : i == current ? WorkflowStatus.Current : WorkflowStatus.Pending,
             Description = i < current ? "Completed" : i == current ? "Current Stage" : "Pending",
             CompletedDate = i < current ? DateTime.Today.AddDays(-(current - i)) : null,
-            IsClickable = i <= current, Route = $"/tracker/patient/{patient.PatientId}"
+            IsClickable = i <= current,
+            Route = $"/tracker/patient/{patient.PatientId}"
         }).ToList();
     }
 

@@ -62,3 +62,51 @@ h1:focus {
 .login-layout {
     min-height: 100vh;
 }
+
+/* =========================================================
+   SHARED EMPTY STATE
+   ========================================================= */
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 180px;
+    padding: 32px 24px;
+    text-align: center;
+    border: 1px dashed var(--border-color, #d9dee7);
+    border-radius: 12px;
+    background: var(--surface-color, #ffffff);
+}
+
+.empty-state__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    margin-bottom: 14px;
+    border-radius: 50%;
+    background: #f3f5f8;
+    color: #7a8494;
+    font-size: 20px;
+}
+
+.empty-state__title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #273142;
+}
+
+.empty-state__message {
+    max-width: 420px;
+    margin-top: 6px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #7a8494;
+}
+
+.empty-state__action {
+    margin-top: 16px;
+}

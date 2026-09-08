@@ -15,5 +15,7 @@ namespace CCAP.Web.Features.Tracker.PatientWorkflow.Model
         public List<ActivityDto> RecentActivities { get; set; } = new();
 
         public PatientSummaryDto Summary { get; set; } = new();
+
+        public List<ComplianceItemDto> ComplianceItems { get; set; } = new();
     }
 }

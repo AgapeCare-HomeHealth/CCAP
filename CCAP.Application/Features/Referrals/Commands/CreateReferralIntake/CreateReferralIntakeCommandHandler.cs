@@ -142,6 +142,8 @@ public sealed class CreateReferralIntakeCommandHandler
             request.EmergencyContactPhone,
             request.PrimaryInsurance,
             request.InsuranceMemberId,
+            request.AuthorizationDate,
+            request.ApprovedVisits,
             request.AuthorizationRequired,
             request.ReferringPhysician,
             request.PhysicianPhone,
@@ -171,6 +173,8 @@ public sealed class CreateReferralIntakeCommandHandler
                 request.CaseStatus,
                 request.PrimaryInsurance,
                 request.InsuranceMemberId,
+                request.AuthorizationDate,
+                request.ApprovedVisits,
                 request.AuthorizationRequired,
                 request.ReferringPhysician,
                 request.PhysicianPhone,
@@ -289,18 +293,9 @@ public sealed class CreateReferralIntakeCommandHandler
             cancellationToken);
 
 
-        // =========================================================
-        // INITIAL COMPLIANCE
-        // =========================================================
-
-        // PDF is currently NOT stored.
-        //
-        // We still create a compliance item so the user can see
-        // that the referral document needs to be handled.
-        //
-        // When file storage is restored, this can be changed to:
-        //
-        // "Referral document received and attached."
+        // =============================================================
+        // COMPLIANCE REQUIREMENTS
+        // =============================================================
 
         await _compliance.AddAsync(
             new ComplianceRecord(
@@ -309,14 +304,12 @@ public sealed class CreateReferralIntakeCommandHandler
                 "Referral document has not been uploaded or stored."),
             cancellationToken);
 
-
         await _compliance.AddAsync(
             new ComplianceRecord(
                 patient.PatientId,
                 "INSURANCE_VERIFICATION",
                 "Insurance verification is required."),
             cancellationToken);
-
 
         await _compliance.AddAsync(
             new ComplianceRecord(
@@ -325,12 +318,88 @@ public sealed class CreateReferralIntakeCommandHandler
                 "Physician orders must be reviewed."),
             cancellationToken);
 
-
         await _compliance.AddAsync(
             new ComplianceRecord(
                 patient.PatientId,
                 "SOC_SCHEDULING",
                 "Start of Care visit must be scheduled."),
+            cancellationToken);
+
+        await _compliance.AddAsync(
+            new ComplianceRecord(
+                patient.PatientId,
+                "SOC_COMPLIANT",
+                "Start of Care must be completed within the required timeframe."),
+            cancellationToken);
+
+        await _compliance.AddAsync(
+            new ComplianceRecord(
+                patient.PatientId,
+                "DME_MED_SUPPLY",
+                "DME and required medical supplies must be arranged or confirmed."),
+            cancellationToken);
+
+        await _compliance.AddAsync(
+            new ComplianceRecord(
+                patient.PatientId,
+                "NOA_FILED",
+                "Notice of Admission must be filed."),
+            cancellationToken);
+
+        await _compliance.AddAsync(
+            new ComplianceRecord(
+                patient.PatientId,
+                "OASIS_SOC_COMPLETE",
+                "OASIS and Start of Care documentation must be completed."),
+            cancellationToken);
+
+        await _compliance.AddAsync(
+            new ComplianceRecord(
+                patient.PatientId,
+                "QA_APPROVAL",
+                "QA approval is required before the PO/POC is ready for faxing."),
+            cancellationToken);
+
+        await _compliance.AddAsync(
+            new ComplianceRecord(
+                patient.PatientId,
+                "ORDERS_SIGNED",
+                "Orders must be signed by the physician."),
+            cancellationToken);
+
+        await _compliance.AddAsync(
+            new ComplianceRecord(
+                patient.PatientId,
+                "DOCS_UPLOADED",
+                "Required documentation must be uploaded to the appropriate system."),
+            cancellationToken);
+
+        await _compliance.AddAsync(
+            new ComplianceRecord(
+                patient.PatientId,
+                "SOC_FEEDBACK_QA",
+                "SOC feedback from QA must be completed."),
+            cancellationToken);
+
+        await _compliance.AddAsync(
+            new ComplianceRecord(
+                patient.PatientId,
+                "CASE_MIX_IDENTIFIED",
+                "Case mix must be identified."),
+            cancellationToken);
+
+        await _compliance.AddAsync(
+            new ComplianceRecord(
+                patient.PatientId,
+                "CASE_MIX_ORDERS_SIGNED",
+                "Case mix orders must be signed."),
+            cancellationToken);
+
+        await _compliance.AddAsync(
+            new ComplianceRecord(
+                patient.PatientId,
+                "CASE_MIX_PLOTTED",
+                "Case mix must be plotted."),
             cancellationToken);
 
 

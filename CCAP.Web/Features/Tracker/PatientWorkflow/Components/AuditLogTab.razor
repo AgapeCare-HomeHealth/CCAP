@@ -1,266 +1,326 @@
-﻿<div class="audit-page">
+﻿@using CCAP.Web.Features.Tracker.PatientWorkflow.Model
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Models
 
-    <!-- ================= Summary ================= -->
-
-    <div class="row g-4 mb-4">
-
-        <div class="col-lg-3">
-
-            <div class="status-card primary">
-
-                <h6>Total Changes</h6>
-
-                <h2>124</h2>
-
-            </div>
-
+@if (Workflow is null)
+{
+    <div class="audit-empty">
+        <div class="audit-empty-icon">
+            <i class="bi bi-shield-exclamation"></i>
         </div>
 
-        <div class="col-lg-3">
+        <h5>Audit log unavailable</h5>
 
-            <div class="status-card success">
+        <p>
+            Patient workflow information could not be loaded.
+        </p>
+    </div>
 
-                <h6>Today's Changes</h6>
+    return;
+}
 
-                <h2>12</h2>
+<div class="audit-container">
+
+    <!-- Header -->
+    <div class="audit-header">
+
+        <div>
+            <h4 class="mb-1">Audit Log</h4>
+
+            <div class="audit-patient-info">
+
+                <span>
+                    <i class="bi bi-person"></i>
+                    @Workflow.Header.FirstName
+                    @Workflow.Header.MiddleName
+                    @Workflow.Header.LastName
+                </span>
+
+                <span>
+                    <i class="bi bi-person-vcard"></i>
+                    MRN: @Workflow.Header.MRN
+                </span>
+
+                @if (!string.IsNullOrWhiteSpace(Workflow.Header.ReferralNumber))
+                {
+                    <span>
+                        <i class="bi bi-file-earmark-text"></i>
+                        Referral: @Workflow.Header.ReferralNumber
+                    </span>
+                }
 
             </div>
-
         </div>
 
-        <div class="col-lg-3">
-
-            <div class="status-card warning">
-
-                <h6>Users</h6>
-
-                <h2>5</h2>
-
+        @if (!string.IsNullOrWhiteSpace(Workflow.Header.Status))
+        {
+            <div class="audit-status">
+                <span class="status-badge">
+                    @Workflow.Header.Status
+                </span>
             </div>
-
-        </div>
-
-        <div class="col-lg-3">
-
-            <div class="status-card danger">
-
-                <h6>Critical Changes</h6>
-
-                <h2>2</h2>
-
-            </div>
-
-        </div>
+        }
 
     </div>
 
-    <!-- ================= Filters ================= -->
+    <!-- Activity Records -->
+    <section class="audit-section">
 
-    <div class="card shadow-sm border-0 mb-4">
+        <div class="section-heading">
 
-        <div class="card-body">
+            <div>
+                <h5>Recent Patient Activity</h5>
 
-            <div class="row g-3">
+                <p>
+                    Activity records currently available from the patient workflow.
+                </p>
+            </div>
 
-                <div class="col-lg-3">
-
-                    <input class="form-control"
-                           placeholder="Search..." />
-
-                </div>
-
-                <div class="col-lg-3">
-
-                    <select class="form-select">
-
-                        <option>All Users</option>
-                        <option>Jennifer LVN</option>
-                        <option>Renald LVN</option>
-                        <option>Administrator</option>
-
-                    </select>
-
-                </div>
-
-                <div class="col-lg-3">
-
-                    <select class="form-select">
-
-                        <option>All Actions</option>
-                        <option>Create</option>
-                        <option>Update</option>
-                        <option>Delete</option>
-                        <option>Login</option>
-
-                    </select>
-
-                </div>
-
-                <div class="col-lg-3">
-
-                    <input type="date"
-                           class="form-control" />
-
-                </div>
-
+            <div class="record-count">
+                @Workflow.RecentActivities.Count record(s)
             </div>
 
         </div>
 
-    </div>
+        @if (Workflow.RecentActivities.Any())
+        {
+            <div class="audit-table-wrapper">
 
-    <!-- ================= Audit Table ================= -->
+                <table class="audit-table">
 
-    <div class="card shadow-sm border-0">
+                    <thead>
+                        <tr>
+                            <th>Date & Time</th>
+                            <th>Activity</th>
+                            <th>Type</th>
+                            <th>Performed By</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
 
-        <div class="card-header bg-white">
+                    <tbody>
 
-            <h5 class="mb-0">
+                        @foreach (var activity in Workflow.RecentActivities
+                            .OrderByDescending(x => x.ActivityDate))
+                        {
+                            <tr>
 
-                Audit Trail
+                                <td class="audit-date">
+                                    <div>
+                                        @activity.ActivityDate
+                                        .ToLocalTime()
+                                        .ToString("MMM dd, yyyy")
+                                    </div>
 
-            </h5>
+                                    <small>
+                                        @activity.ActivityDate
+                                        .ToLocalTime()
+                                        .ToString("h:mm tt")
+                                    </small>
+                                </td>
 
-        </div>
+                                <td>
+                                    <div class="activity-title">
+                                        @activity.Title
+                                    </div>
+                                </td>
 
-        <div class="table-responsive">
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(activity.ActivityType))
+                                    {
+                                        <span class="activity-type">
+                                            @activity.ActivityType
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="not-available">
+                                            Not specified
+                                        </span>
+                                    }
+                                </td>
 
-            <table class="table table-hover align-middle mb-0">
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(activity.PerformedBy))
+                                    {
+                                        <div class="performed-by">
+                                            <i class="bi bi-person"></i>
+                                            @activity.PerformedBy
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="performed-by">
+                                            <i class="bi bi-gear"></i>
+                                            System
+                                        </div>
+                                    }
+                                </td>
 
-                <thead>
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(activity.Description))
+                                    {
+                                        <span class="description">
+                                            @activity.Description
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="not-available">
+                                            No description available
+                                        </span>
+                                    }
+                                </td>
 
-                    <tr>
+                            </tr>
+                        }
 
-                        <th>Date / Time</th>
+                    </tbody>
 
-                        <th>User</th>
+                </table>
 
-                        <th>Module</th>
+            </div>
 
-                        <th>Action</th>
+            <div class="audit-info">
+                <i class="bi bi-info-circle"></i>
 
-                        <th>Field</th>
+                <span>
+                    This view shows the recent activity records returned by
+                    the patient workflow API. It does not display historical
+                    audit changes that are not currently exposed by the API.
+                </span>
+            </div>
+        }
+        else
+        {
+            <div class="audit-no-records">
 
-                        <th>Old Value</th>
+                <div class="audit-no-records-icon">
+                    <i class="bi bi-journal-x"></i>
+                </div>
 
-                        <th>New Value</th>
+                <h6>No activity records</h6>
 
-                    </tr>
+                <p>
+                    There are currently no activity records available for
+                    this patient.
+                </p>
 
-                </thead>
+            </div>
+        }
 
-                <tbody>
+    </section>
 
-                    <tr>
+    <!-- Workflow History -->
+    @if (Workflow.WorkflowStages.Any())
+    {
+        <section class="audit-section">
 
-                        <td>08/06/2026 09:15 AM</td>
+            <div class="section-heading">
 
-                        <td>Jennifer LVN</td>
+                <div>
+                    <h5>Workflow History</h5>
 
-                        <td>Insurance</td>
+                    <p>
+                        Workflow stages and their recorded completion status.
+                    </p>
+                </div>
 
-                        <td>
+            </div>
 
-                            <span class="badge bg-warning text-dark">
+            <div class="workflow-history">
 
-                                Updated
+                @foreach (var stage in Workflow.WorkflowStages
+                    .OrderBy(x => x.Sequence))
+                {
+                    <div class="workflow-history-row">
 
+                        <div class="workflow-sequence">
+                            @stage.Sequence
+                        </div>
+
+                        <div class="workflow-details">
+
+                            <div class="workflow-title">
+                                @stage.StageName
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(stage.Description))
+                            {
+                                <div class="workflow-description">
+                                    @stage.Description
+                                </div>
+                            }
+
+                        </div>
+
+                        <div class="workflow-assignment">
+
+                            @if (!string.IsNullOrWhiteSpace(stage.AssignedUserName))
+                            {
+                                <span>
+                                    <i class="bi bi-person"></i>
+                                    @stage.AssignedUserName
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="not-available">
+                                    Unassigned
+                                </span>
+                            }
+
+                        </div>
+
+                        <div class="workflow-status">
+
+                            <span class="stage-status @GetStatusClass(stage.Status)">
+                                @GetStatusText(stage.Status)
                             </span>
 
-                        </td>
+                            @if (stage.CompletedDate.HasValue)
+                            {
+                                <small>
+                                    @stage.CompletedDate
+                                    .Value
+                                    .ToLocalTime()
+                                    .ToString("MMM dd, yyyy h:mm tt")
+                                </small>
+                            }
 
-                        <td>Primary Payor</td>
+                        </div>
 
-                        <td>Medicare</td>
+                    </div>
+                }
 
-                        <td>United Healthcare</td>
+            </div>
 
-                    </tr>
-
-                    <tr>
-
-                        <td>08/06/2026 09:32 AM</td>
-
-                        <td>Administrator</td>
-
-                        <td>Patient</td>
-
-                        <td>
-
-                            <span class="badge bg-success">
-
-                                Created
-
-                            </span>
-
-                        </td>
-
-                        <td>-</td>
-
-                        <td>-</td>
-
-                        <td>John Smith</td>
-
-                    </tr>
-
-                    <tr>
-
-                        <td>08/06/2026 10:10 AM</td>
-
-                        <td>Renald LVN</td>
-
-                        <td>Clinical</td>
-
-                        <td>
-
-                            <span class="badge bg-warning text-dark">
-
-                                Updated
-
-                            </span>
-
-                        </td>
-
-                        <td>Diagnosis</td>
-
-                        <td>I50.9</td>
-
-                        <td>I50.22</td>
-
-                    </tr>
-
-                    <tr>
-
-                        <td>08/06/2026 11:40 AM</td>
-
-                        <td>Administrator</td>
-
-                        <td>Documents</td>
-
-                        <td>
-
-                            <span class="badge bg-danger">
-
-                                Deleted
-
-                            </span>
-
-                        </td>
-
-                        <td>Insurance Card.pdf</td>
-
-                        <td>Exists</td>
-
-                        <td>Deleted</td>
-
-                    </tr>
-
-                </tbody>
-
-            </table>
-
-        </div>
-
-    </div>
+        </section>
+    }
 
 </div>
+
+@code {
+
+    [Parameter]
+    public PatientWorkflowDto? Workflow { get; set; }
+
+    private static string GetStatusClass(WorkflowStatus status)
+    {
+        return status switch
+        {
+            WorkflowStatus.Completed => "status-completed",
+            WorkflowStatus.Current => "status-current",
+            _ => "status-pending"
+        };
+    }
+
+    private static string GetStatusText(WorkflowStatus status)
+    {
+        return status switch
+        {
+            WorkflowStatus.Completed => "Completed",
+            WorkflowStatus.Current => "Current",
+            _ => "Pending"
+        };
+    }
+}

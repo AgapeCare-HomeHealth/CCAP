@@ -1,41 +1,347 @@
-.audit-page .card {
-    border-radius: 18px;
+.audit-container {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
 }
 
-.audit-page .card-header {
-    padding: 18px 24px;
-    border-bottom: 1px solid #edf0f3;
+.audit-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 20px;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    background: #fff;
 }
 
-.audit-page .card-body {
-    padding: 24px;
+    .audit-header h4 {
+        margin: 0;
+        font-weight: 600;
+    }
+
+.audit-patient-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 10px;
+    color: #6c757d;
+    font-size: 0.9rem;
 }
 
-.audit-page .status-card {
-    border-radius: 18px;
-    padding: 22px;
-    color: white;
-    text-align: center;
+    .audit-patient-info span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 10px;
+    border-radius: 20px;
+    background: #e9ecef;
+    color: #495057;
+    font-size: 0.8rem;
+    font-weight: 600;
 }
 
-.audit-page .primary {
-    background: #0d6efd;
+.audit-section {
+    padding: 20px;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    background: #fff;
 }
 
-.audit-page .success {
-    background: #198754;
+.section-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 20px;
 }
 
-.audit-page .warning {
-    background: #ffc107;
+    .section-heading h5 {
+        margin: 0 0 4px;
+        font-weight: 600;
+    }
+
+    .section-heading p {
+        margin: 0;
+        color: #6c757d;
+        font-size: 0.875rem;
+    }
+
+.record-count {
+    flex-shrink: 0;
+    padding: 4px 8px;
+    border-radius: 5px;
+    background: #f1f3f5;
+    color: #495057;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+/* Audit table */
+
+.audit-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.audit-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 850px;
+}
+
+    .audit-table th {
+        padding: 11px 12px;
+        border-bottom: 2px solid #dee2e6;
+        color: #495057;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-align: left;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        white-space: nowrap;
+    }
+
+    .audit-table td {
+        padding: 14px 12px;
+        border-bottom: 1px solid #e9ecef;
+        vertical-align: top;
+        font-size: 0.85rem;
+    }
+
+    .audit-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+.audit-date {
+    min-width: 125px;
+    color: #495057;
+    white-space: nowrap;
+}
+
+    .audit-date small {
+        color: #6c757d;
+        font-size: 0.75rem;
+    }
+
+.activity-title {
+    font-weight: 600;
     color: #212529;
 }
 
-.audit-page .danger {
-    background: #dc3545;
+.activity-type {
+    display: inline-flex;
+    padding: 4px 8px;
+    border-radius: 5px;
+    background: #f1f3f5;
+    color: #495057;
+    font-size: 0.72rem;
+    font-weight: 600;
 }
 
-.audit-page table th {
+.performed-by {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #495057;
     white-space: nowrap;
+}
+
+.description {
+    color: #6c757d;
+    line-height: 1.45;
+}
+
+.not-available {
+    color: #adb5bd;
+    font-style: italic;
+}
+
+/* Information */
+
+.audit-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 18px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background: #f8f9fa;
+    color: #6c757d;
+    font-size: 0.8rem;
+}
+
+    .audit-info i {
+        margin-top: 1px;
+    }
+
+/* Workflow history */
+
+.workflow-history {
+    display: flex;
+    flex-direction: column;
+}
+
+.workflow-history-row {
+    display: grid;
+    grid-template-columns: 38px minmax(180px, 1fr) minmax(140px, 0.7fr) minmax(120px, 0.5fr);
+    gap: 16px;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+    .workflow-history-row:first-child {
+        padding-top: 0;
+    }
+
+    .workflow-history-row:last-child {
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+
+.workflow-sequence {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #f1f3f5;
+    color: #495057;
+    font-size: 0.75rem;
     font-weight: 600;
+}
+
+.workflow-title {
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.workflow-description {
+    margin-top: 3px;
+    color: #6c757d;
+    font-size: 0.78rem;
+}
+
+.workflow-assignment {
+    color: #6c757d;
+    font-size: 0.8rem;
+}
+
+    .workflow-assignment span {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+.workflow-status {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+.stage-status {
+    display: inline-flex;
+    padding: 4px 8px;
+    border-radius: 5px;
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.status-completed {
+    background: #d1e7dd;
+    color: #0f5132;
+}
+
+.status-current {
+    background: #cfe2ff;
+    color: #084298;
+}
+
+.status-pending {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.workflow-status small {
+    color: #6c757d;
+    font-size: 0.7rem;
+}
+
+/* Empty states */
+
+.audit-empty,
+.audit-no-records {
+    padding: 40px 20px;
+    text-align: center;
+    border: 1px dashed #ced4da;
+    border-radius: 8px;
+    color: #6c757d;
+}
+
+.audit-empty-icon,
+.audit-no-records-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    margin: 0 auto 12px;
+    border-radius: 50%;
+    background: #f1f3f5;
+    color: #6c757d;
+    font-size: 1.2rem;
+}
+
+.audit-empty h5,
+.audit-no-records h6 {
+    margin-bottom: 6px;
+    color: #495057;
+}
+
+.audit-empty p,
+.audit-no-records p {
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+/* Responsive */
+
+@media (max-width: 900px) {
+
+    .workflow-history-row {
+        grid-template-columns: 38px 1fr;
+    }
+
+    .workflow-assignment,
+    .workflow-status {
+        grid-column: 2;
+    }
+}
+
+@media (max-width: 768px) {
+
+    .audit-header {
+        flex-direction: column;
+    }
+
+    .audit-patient-info {
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .audit-section {
+        padding: 16px;
+    }
+
+    .section-heading {
+        flex-direction: column;
+    }
 }
