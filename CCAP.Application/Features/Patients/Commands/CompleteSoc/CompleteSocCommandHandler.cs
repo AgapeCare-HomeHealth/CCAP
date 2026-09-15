@@ -1,5 +1,4 @@
 ﻿using CCAP.Application.Abstractions.Persistence;
-using CCAP.Domain.Entities;
 using MediatR;
 
 namespace CCAP.Application.Features.Patients.Commands.CompleteSoc;
@@ -7,11 +6,7 @@ namespace CCAP.Application.Features.Patients.Commands.CompleteSoc;
 public sealed class CompleteSocCommandHandler
     : IRequestHandler<CompleteSocCommand>
 {
-    private const string SocCompletionRequirement =
-        "SOC_COMPLETION";
-
     private readonly IPatientRepository _patients;
-
     private readonly IUnitOfWork _unitOfWork;
 
     public CompleteSocCommandHandler(
@@ -19,10 +14,8 @@ public sealed class CompleteSocCommandHandler
         IUnitOfWork unitOfWork)
     {
         _patients = patients;
-
         _unitOfWork = unitOfWork;
     }
-
 
     public async Task Handle(
         CompleteSocCommand request,
@@ -39,19 +32,16 @@ public sealed class CompleteSocCommandHandler
                 "Patient not found.");
         }
 
-
         if (!patient.SocDate.HasValue)
         {
             throw new InvalidOperationException(
                 "SOC has not been scheduled.");
         }
 
-
         var socDate =
             patient.SocDate.Value
                 .ToDateTime(TimeOnly.MinValue)
                 .Date;
-
 
         var socVisit =
             patient.Visits
@@ -60,52 +50,29 @@ public sealed class CompleteSocCommandHandler
                 .OrderByDescending(x => x.ScheduledDate)
                 .FirstOrDefault();
 
-
         if (socVisit is null)
         {
             throw new InvalidOperationException(
                 "The SOC visit has not been scheduled.");
         }
 
-
-        if (!string.Equals(
-            socVisit.Status,
-            "Completed",
-            StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(
+                socVisit.Status,
+                "Completed",
+                StringComparison.OrdinalIgnoreCase))
         {
-            socVisit.Complete(
-                request.Notes);
+            return;
         }
 
+        socVisit.Complete(request.Notes);
 
-        var completionRequirement =
-            patient.ComplianceRecords
-                .FirstOrDefault(x =>
-                    string.Equals(
-                        x.RequirementCode,
-                        SocCompletionRequirement,
-                        StringComparison.OrdinalIgnoreCase));
-
-
-        if (completionRequirement is null)
+        foreach (var task in patient.Tasks.Where(x =>
+            x.Status != CCAP.Domain.Enums.PatientTaskStatus.Completed &&
+            x.Status != CCAP.Domain.Enums.PatientTaskStatus.Cancelled &&
+            x.Title.Contains("Complete SOC", StringComparison.OrdinalIgnoreCase)))
         {
-            completionRequirement =
-                new ComplianceRecord(
-                    patient.PatientId,
-                    SocCompletionRequirement,
-                    "Start of Care visit has been completed.");
-
-            patient.ComplianceRecords.Add(
-                completionRequirement);
+            task.Complete();
         }
-
-
-        if (!completionRequirement.IsCompleted)
-        {
-            completionRequirement.Complete(
-                request.CompletedByUserId);
-        }
-
 
         await _unitOfWork.SaveChangesAsync(
             cancellationToken);

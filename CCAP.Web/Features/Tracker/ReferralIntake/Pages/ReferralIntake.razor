@@ -113,28 +113,30 @@
         <!-- RIGHT SIDE ACTIONS -->
         <div class="wizard-footer-actions">
 
-            <!-- SAVE DRAFT -->
-            <button type="button"
-                    class="btn btn-outline-primary save-draft-btn"
-                    @onclick="SaveDraft"
-                    disabled="@(IsSubmitting || IsSavingDraft)">
+            @if (CurrentStep == 1)
+            {
+                <!-- SAVE DRAFT: Step 1 only -->
+                <button type="button"
+                        class="btn btn-outline-primary save-draft-btn"
+                        @onclick="SaveDraft"
+                        disabled="@(IsSubmitting || IsSavingDraft)">
 
-                @if (IsSavingDraft)
-                {
-                    <span class="spinner-border spinner-border-sm me-2"
-                          role="status">
-                    </span>
+                    @if (IsSavingDraft)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"
+                              role="status">
+                        </span>
 
-                    <span>Saving...</span>
-                }
-                else
-                {
-                    <i class="bi bi-save me-1"></i>
+                        <span>Saving...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-save me-1"></i>
+                        <span>Save Draft</span>
+                    }
 
-                    <span>Save Draft</span>
-                }
-
-            </button>
+                </button>
+            }
 
 
             <!-- NEXT -->

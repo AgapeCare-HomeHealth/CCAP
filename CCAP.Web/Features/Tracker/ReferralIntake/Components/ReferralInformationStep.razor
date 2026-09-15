@@ -1,3 +1,6 @@
+@using CCAP.Web.Features.Admin.LookupOptions.Models
+@using CCAP.Web.Features.Admin.LookupOptions.Services
+@inject LookupOptionService LookupService
 ﻿@using CCAP.Web.Features.Tracker.ReferralIntake.Models
 @using CCAP.Web.Common.Validation
 
@@ -75,21 +78,10 @@
                     Select Referral Source
                 </option>
 
-                <option value="Hospital">
-                    Hospital
-                </option>
-
-                <option value="Physician Office">
-                    Physician Office
-                </option>
-
-                <option value="Clinic">
-                    Clinic
-                </option>
-
-                <option value="Insurance">
-                    Insurance
-                </option>
+                @foreach (var option in ReferralSources)
+                {
+                    <option value="@option.DisplayName">@option.DisplayName</option>
+                }
 
             </select>
 
@@ -105,17 +97,10 @@
             <select class="form-select"
                     @bind="Model.Priority">
 
-                <option value="Routine">
-                    Routine
-                </option>
-
-                <option value="Urgent">
-                    Urgent
-                </option>
-
-                <option value="STAT">
-                    STAT
-                </option>
+                @foreach (var option in Priorities)
+                {
+                    <option value="@option.DisplayName">@option.DisplayName</option>
+                }
 
             </select>
 
@@ -148,21 +133,10 @@
                     Select Insurance
                 </option>
 
-                <option value="Medicare">
-                    Medicare
-                </option>
-
-                <option value="Medicaid">
-                    Medicaid
-                </option>
-
-                <option value="Blue Cross">
-                    Blue Cross
-                </option>
-
-                <option value="Aetna">
-                    Aetna
-                </option>
+                @foreach (var option in Insurances)
+                {
+                    <option value="@option.DisplayName">@option.DisplayName</option>
+                }
 
             </select>
 
@@ -359,6 +333,16 @@
 
 
 @code {
+    private List<LookupOptionDto> ReferralSources = [];
+    private List<LookupOptionDto> Priorities = [];
+    private List<LookupOptionDto> Insurances = [];
+    protected override async Task OnInitializedAsync()
+    {
+        ReferralSources = await LookupService.GetAsync("ReferralSource", true);
+        Priorities = await LookupService.GetAsync("Priority", true);
+        Insurances = await LookupService.GetAsync("Insurance", true);
+    }
+
 
     [Parameter]
     public ReferralIntakeModel Model { get; set; } = null!;

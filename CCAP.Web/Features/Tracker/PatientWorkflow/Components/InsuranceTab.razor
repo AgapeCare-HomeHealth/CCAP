@@ -1,8 +1,10 @@
-﻿@using CCAP.Web.Features.Tracker.PatientWorkflow.Model
 @using CCAP.Web.Features.Tracker.PatientWorkflow.Models
 @using CCAP.Web.Features.Tracker.PatientWorkflow.Services
 
 @inject PatientWorkflowService WorkflowService
+@inject LookupOptionService LookupService
+@using CCAP.Web.Features.Admin.LookupOptions.Models
+@using CCAP.Web.Features.Admin.LookupOptions.Services
 
 <div class="insurance-page">
 
@@ -63,6 +65,11 @@
             <!-- ===================================================== -->
 
             <div class="card-body">
+
+                @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+                {
+                    <div class="alert alert-danger">@ErrorMessage</div>
+                }
 
                 @if (!IsEditing)
                 {
@@ -279,8 +286,15 @@
                                     Primary Insurance
                                 </label>
 
-                                <InputText class="form-control"
-                                           @bind-Value="EditModel.PrimaryInsurance" />
+                                <select class="form-select" @bind="EditModel.PrimaryInsurance">
+                                    <option value="">Select insurance...</option>
+                                    @foreach (var option in InsuranceOptions)
+                                    {
+                                        <option value="@option.Code">@option.DisplayName</option>
+                                    }
+                                </select>
+                            @if (string.IsNullOrWhiteSpace(EditModel.PrimaryInsurance))
+                            { <div class="text-danger small">Primary insurance is required.</div> }
 
                             </div>
 
@@ -316,7 +330,9 @@
                                 </label>
 
                                 <InputNumber class="form-control"
-                                             @bind-Value="EditModel.ApprovedVisits" />
+                                             @bind-Value="EditModel.ApprovedVisits" min="0" />
+                            @if (EditModel.ApprovedVisits < 0)
+                            { <div class="text-danger small">Approved visits cannot be negative.</div> }
 
                             </div>
 
@@ -394,6 +410,12 @@
 
 @code {
 
+    protected override async Task OnInitializedAsync()
+    {
+        try { InsuranceOptions = await LookupService.GetAsync("Insurance", true); } catch { InsuranceOptions = []; }
+    }
+
+
     [Parameter]
     public Guid PatientId { get; set; }
 
@@ -405,6 +427,10 @@
     [Parameter]
     public EventCallback OnCompleted { get; set; }
 
+
+    private string? ErrorMessage { get; set; }
+
+    private List<LookupOptionDto> InsuranceOptions { get; set; } = [];
 
     private bool IsEditing { get; set; }
 
@@ -441,6 +467,7 @@
                 Workflow.Summary.AuthorizationRequired
         };
 
+        ErrorMessage = null;
         IsEditing = true;
     }
 
@@ -448,6 +475,7 @@
     private void CancelEdit()
     {
         IsEditing = false;
+        ErrorMessage = null;
 
         EditModel = new InsuranceEditModel();
     }
@@ -458,7 +486,24 @@
         if (Workflow is null || IsProcessing)
             return;
 
+        if (string.IsNullOrWhiteSpace(EditModel.PrimaryInsurance))
+        {
+            ErrorMessage = "Primary insurance is required.";
+            return;
+        }
+        if (EditModel.ApprovedVisits < 0)
+        {
+            ErrorMessage = "Approved visits cannot be negative.";
+            return;
+        }
+        if (EditModel.AuthorizationDate.HasValue && EditModel.AuthorizationDate.Value > DateOnly.FromDateTime(DateTime.Today))
+        {
+            ErrorMessage = "Authorization date cannot be in the future.";
+            return;
+        }
+
         IsProcessing = true;
+        ErrorMessage = null;
 
         try
         {
@@ -471,6 +516,10 @@
             EditModel = new InsuranceEditModel();
 
             await ReloadWorkflow();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
         }
         finally
         {
@@ -488,6 +537,12 @@
 
         try
         {
+            if (string.IsNullOrWhiteSpace(Workflow.Summary.Insurance))
+            {
+                ErrorMessage = "Primary insurance is required before verification.";
+                return;
+            }
+
             await WorkflowService.CompleteInsuranceVerificationAsync(
                 PatientId);
 
@@ -497,6 +552,10 @@
             {
                 await OnCompleted.InvokeAsync();
             }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
         }
         finally
         {

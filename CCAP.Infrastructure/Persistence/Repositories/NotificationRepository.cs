@@ -1,4 +1,4 @@
-﻿using CCAP.Application.Abstractions.Persistence;
+using CCAP.Application.Abstractions.Persistence;
 using CCAP.Application.Features.Notifications.DTOs;
 using CCAP.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -27,8 +27,7 @@ public sealed class NotificationRepository
             .Where(x =>
                 x.Status != PatientTaskStatus.Completed &&
                 x.Status != PatientTaskStatus.Cancelled &&
-                (x.AssignedUserId == null ||
-                 x.AssignedUserId == userId) &&
+                x.AssignedUserId == userId &&
                 x.DueDate <= horizon)
             .Select(x => new NotificationDto(
                 x.TaskId,
@@ -42,7 +41,8 @@ public sealed class NotificationRepository
                     ? "Critical"
                     : "Warning",
                 x.DueDate,
-                x.DueDate))
+                x.DueDate,
+                false))
             .ToListAsync(cancellationToken);
 
         var visits = await _db.Visits
@@ -64,20 +64,23 @@ public sealed class NotificationRepository
                     ? "Critical"
                     : "Info",
                 x.ScheduledDate,
-                x.ScheduledDate))
+                x.ScheduledDate,
+                false))
             .ToListAsync(cancellationToken);
 
-        return tasks
-            .Concat(visits)
-            .OrderBy(x =>
-                x.Severity == "Critical"
-                    ? 0
-                    : x.Severity == "Warning"
-                        ? 1
-                        : 2)
-            .ThenBy(x =>
-                x.DueDate ?? DateTime.MaxValue)
-            .Take(50)
-            .ToList();
+        var notifications = tasks.Concat(visits)
+            .OrderBy(x => x.Severity == "Critical" ? 0 : x.Severity == "Warning" ? 1 : 2)
+            .ThenBy(x => x.DueDate ?? DateTime.MaxValue)
+            .Take(50).ToList();
+
+        if (notifications.Count == 0) return notifications;
+
+        var ids = notifications.Select(x => x.NotificationId).ToList();
+        var readStates = await _db.NotificationReadStates.AsNoTracking()
+            .Where(x => x.UserId == userId && ids.Contains(x.NotificationId))
+            .Select(x => new { x.NotificationId, x.NotificationType })
+            .ToListAsync(cancellationToken);
+        var readSet = readStates.Select(x => $"{x.NotificationType}:{x.NotificationId}").ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return notifications.Select(x => x with { IsRead = readSet.Contains($"{x.Type}:{x.NotificationId}") }).ToList();
     }
 }

@@ -37,16 +37,22 @@ public sealed class NotificationCenterService
                ?? [];
     }
 
-    public Task MarkReadAsync(
+    public async Task MarkReadAsync(
         UserNotificationDto notification,
         CancellationToken cancellationToken = default)
     {
         if (_options.Enabled)
         {
             _mock.MarkGlobalNotificationRead(notification.NotificationId);
+            notification.IsRead = true;
+            return;
         }
 
+        var response = await _api.PostAsJsonAsync(
+            "api/notifications/read",
+            new { NotificationId = notification.NotificationId, NotificationType = notification.Type },
+            cancellationToken);
+        await _api.EnsureSuccessAsync(response, cancellationToken);
         notification.IsRead = true;
-        return Task.CompletedTask;
     }
 }

@@ -36,4 +36,8 @@ public sealed class ComplianceRepository
                     x.RequirementCode == requirementCode,
                 cancellationToken);
     }
+
+    public Task<List<ComplianceRecord>> GetByPatientAsync(Guid patientId, CancellationToken cancellationToken) =>
+        _context.ComplianceRecords.Where(x => x.PatientId == patientId).ToListAsync(cancellationToken);
+
 }

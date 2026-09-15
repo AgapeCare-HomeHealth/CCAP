@@ -47,7 +47,7 @@ public sealed class UserServices
         }
 
         var response = await _api.PostAsJsonAsync("api/users", new { model.EmployeeNo, model.FirstName, model.LastName, model.Email, Password = model.Password, model.MobileNo, model.RoleId, model.DisciplineId }, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await _api.EnsureSuccessAsync(response, cancellationToken);
         return await response.Content.ReadFromJsonAsync<UserDto>(cancellationToken: cancellationToken);
     }
 
@@ -63,25 +63,25 @@ public sealed class UserServices
             return;
         }
         var response = await _api.PutAsJsonAsync($"api/users/{model.UserId}", new { model.UserId, model.EmployeeNo, model.FirstName, model.LastName, model.Email, model.MobileNo, model.RoleId, model.DisciplineId }, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async Task ActivateUserAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         if (_options.Enabled) { SetActive(userId, true); return; }
-        var response = await _api.PatchAsync($"api/users/{userId}/activate", cancellationToken); response.EnsureSuccessStatusCode();
+        var response = await _api.PatchAsync($"api/users/{userId}/activate", cancellationToken); await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async Task DeactivateUserAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         if (_options.Enabled) { SetActive(userId, false); return; }
-        var response = await _api.PatchAsync($"api/users/{userId}/deactivate", cancellationToken); response.EnsureSuccessStatusCode();
+        var response = await _api.PatchAsync($"api/users/{userId}/deactivate", cancellationToken); await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async Task DeleteUserAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         if (_options.Enabled) { _mock.Users.RemoveAll(x => x.UserId == userId); return; }
-        var response = await _api.DeleteAsync($"api/users/{userId}", cancellationToken); response.EnsureSuccessStatusCode();
+        var response = await _api.DeleteAsync($"api/users/{userId}", cancellationToken); await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 
     private void SetActive(Guid userId, bool active)

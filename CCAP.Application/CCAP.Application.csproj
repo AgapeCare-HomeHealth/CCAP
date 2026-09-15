@@ -8,4 +8,7 @@
     <ProjectReference Include="..\CCAP.Domain\CCAP.Domain.csproj" />
     <PackageReference Include="MediatR" Version="14.2.0" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Features\Patients\Commands\CompleteSocCompliance\" />
+  </ItemGroup>
 </Project>

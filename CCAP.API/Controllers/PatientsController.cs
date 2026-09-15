@@ -1,18 +1,23 @@
 using CCAP.API.Authorization;
 using CCAP.API.Contracts.Patients;
 using CCAP.Application.Features.Patients.Commands.AddCallNote;
+using CCAP.Application.Features.Patients.Commands.AddServiceOrder;
+using CCAP.Application.Features.Patients.Commands.AddCareLog;
 using CCAP.Application.Features.Patients.Commands.ArchivePatient;
 using CCAP.Application.Features.Patients.Commands.CompleteCare;
 using CCAP.Application.Features.Patients.Commands.CompleteInsuranceVerification;
 using CCAP.Application.Features.Patients.Commands.CompleteSoc;
-using CCAP.Application.Features.Patients.Commands.CompleteSocCompliance;
 using CCAP.Application.Features.Patients.Commands.ScheduleSoc;
 using CCAP.Application.Features.Patients.Commands.UpdateInsurance;
+using CCAP.Application.Features.Patients.Commands.UpdatePatient;
+using CCAP.Application.Features.Patients.Commands.UpdateWorkflowDetails;
 using CCAP.Application.Features.Patients.Queries.GetPatientCareManagement;
+using CCAP.Application.Features.Patients.Queries.GetPatientAuditLog;
 using CCAP.Application.Features.Patients.Queries.GetPatients;
 using CCAP.Application.Features.Patients.Queries.GetPatientWorkflow;
 using CCAP.Application.Features.Patients.Queries.GetServiceTypes;
 using CCAP.Application.Features.Patients.Commands.CompleteCompliance;
+using CCAP.Application.Features.Patients.Commands.CompleteTask;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -62,6 +67,10 @@ public sealed class PatientsController : ControllerBase
     }
 
 
+    [HttpGet("{patientId:guid}/audit-log")]
+    [Authorize(Policy = PermissionPolicies.PatientsView)]
+    public async Task<IActionResult> GetAuditLog(Guid patientId, CancellationToken cancellationToken) => Ok(await _sender.Send(new GetPatientAuditLogQuery(patientId), cancellationToken));
+
     [HttpPost("{patientId:guid}/call-notes")]
     [Authorize(Policy = PermissionPolicies.PatientsManage)]
     public async Task<IActionResult> AddCallNote(
@@ -72,9 +81,36 @@ public sealed class PatientsController : ControllerBase
         if (patientId != command.PatientId)
             return BadRequest("Route ID and command PatientId do not match.");
 
-        var id = await _sender.Send(command, cancellationToken);
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
+
+        var id = await _sender.Send(new AddCallNoteCommand(
+            command.PatientId, currentUserId, command.ContactType, command.Method,
+            command.Subject, command.Notes, command.Outcome), cancellationToken);
 
         return Ok(new { CallNoteId = id });
+    }
+
+    [HttpPost("{patientId:guid}/care-logs")]
+    [Authorize(Policy = PermissionPolicies.PatientsManage)]
+    public async Task<IActionResult> AddCareLog(Guid patientId, AddCareLogCommand command, CancellationToken cancellationToken)
+    {
+        if (patientId != command.PatientId) return BadRequest("Route ID and command PatientId do not match.");
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
+        var id = await _sender.Send(new AddCareLogCommand(command.PatientId, command.LogType, command.Item, command.Quantity, command.Unit, command.Notes, currentUserId), cancellationToken);
+        return Ok(new { PatientCareLogId = id });
+    }
+
+    [HttpPost("{patientId:guid}/service-orders")]
+    [Authorize(Policy = PermissionPolicies.PatientsManage)]
+    public async Task<IActionResult> AddServiceOrder(Guid patientId, AddServiceOrderCommand command, CancellationToken cancellationToken)
+    {
+        if (patientId != command.PatientId) return BadRequest("Route ID and command PatientId do not match.");
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
+        var id = await _sender.Send(new AddServiceOrderCommand(command.PatientId, command.ServiceTypeId, command.Frequency, command.Duration, command.IsPrimaryDiscipline, currentUserId), cancellationToken);
+        return Ok(new { PatientServiceOrderId = id });
     }
 
     [HttpPost("{patientId:guid}/complete-care")]
@@ -87,7 +123,20 @@ public sealed class PatientsController : ControllerBase
         if (patientId != command.PatientId)
             return BadRequest("Route ID and command PatientId do not match.");
 
-        await _sender.Send(command, cancellationToken);
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var currentUserId))
+            return Unauthorized();
+
+        await _sender.Send(
+            new CompleteCareCommand(
+                command.PatientId,
+                command.FinalStatus,
+                currentUserId,
+                command.OutcomeDate,
+                command.TransferDestination,
+                command.TransferReason,
+                command.DischargeFeedback),
+            cancellationToken);
 
         return NoContent();
     }
@@ -110,6 +159,31 @@ public sealed class PatientsController : ControllerBase
                 currentUserId),
             cancellationToken);
 
+        return NoContent();
+    }
+
+
+    [HttpPut("{patientId:guid}")]
+    [Authorize(Policy = PermissionPolicies.PatientsManage)]
+    public async Task<IActionResult> UpdatePatient(
+        Guid patientId,
+        [FromBody] UpdatePatientRequest request,
+        CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
+        await _sender.Send(
+            new UpdatePatientCommand(patientId, request.MRN, request.FirstName, request.MiddleName, request.LastName, request.SocDate, currentUserId), cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPut("{patientId:guid}/workflow-details")]
+    [Authorize(Policy = PermissionPolicies.PatientsManage)]
+    public async Task<IActionResult> UpdateWorkflowDetails(Guid patientId, [FromBody] UpdateWorkflowDetailsRequest request, CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
+        await _sender.Send(new UpdateWorkflowDetailsCommand(patientId, request.PreAuthDueDate, request.NumberOfVisits, request.CaseMixType, request.DmeMedSupplyNotes, request.SocFeedbackFromPatient, request.TifDate, request.RocDate, request.RecertDate, request.PcpPtNotified, request.DischargeDate, request.DischargeFeedback, request.TransferDestination, request.TransferDate, request.TransferReason, currentUserId), cancellationToken);
         return NoContent();
     }
 
@@ -137,13 +211,15 @@ public sealed class PatientsController : ControllerBase
     [Authorize(Policy = PermissionPolicies.PatientsManage)]
     public async Task<IActionResult> Archive(
         Guid patientId,
-        ArchivePatientCommand command,
         CancellationToken cancellationToken)
     {
-        if (patientId != command.PatientId)
-            return BadRequest("Route ID and command PatientId do not match.");
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var currentUserId))
+            return Unauthorized();
 
-        await _sender.Send(command, cancellationToken);
+        await _sender.Send(
+            new ArchivePatientCommand(patientId, currentUserId),
+            cancellationToken);
 
         return NoContent();
     }
@@ -225,30 +301,7 @@ public sealed class PatientsController : ControllerBase
         return NoContent();
     }
 
-    [HttpPost("{patientId:guid}/compliance/soc-compliant")]
-    [Authorize(Policy = PermissionPolicies.PatientsManage)]
-    public async Task<IActionResult> CompleteSocCompliance(
-    Guid patientId,
-    CancellationToken cancellationToken)
-    {
-        var userIdValue = User.FindFirstValue(
-            ClaimTypes.NameIdentifier);
-
-        if (!Guid.TryParse(
-            userIdValue,
-            out var currentUserId))
-        {
-            return Unauthorized();
-        }
-
-        await _sender.Send(
-            new CompleteSocComplianceCommand(
-                patientId,
-                currentUserId),
-            cancellationToken);
-
-        return NoContent();
-    }
+    
 
     [HttpPost("{patientId:guid}/compliance/{requirementCode}")]
     [Authorize(Policy = PermissionPolicies.PatientsManage)]
@@ -275,6 +328,16 @@ public sealed class PatientsController : ControllerBase
                 currentUserId),
             cancellationToken);
 
+        return NoContent();
+    }
+
+    [HttpPost("tasks/{taskId:guid}/complete")]
+    [Authorize(Policy = PermissionPolicies.PatientsManage)]
+    public async Task<IActionResult> CompleteTask(Guid taskId, CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
+        await _sender.Send(new CompleteTaskCommand(taskId, currentUserId), cancellationToken);
         return NoContent();
     }
 

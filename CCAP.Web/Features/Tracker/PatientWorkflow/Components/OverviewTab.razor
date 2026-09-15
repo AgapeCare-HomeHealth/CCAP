@@ -1,151 +1,83 @@
-﻿@using CCAP.Web.Features.Tracker.PatientWorkflow.Model
 @using CCAP.Web.Features.Tracker.PatientWorkflow.Models
-@using CCAP.Web.Features.Notifications.Models
 
 <div class="overview-tab">
 
-    <!-- ===================================================== -->
-    <!-- Quick Actions                                         -->
-    <!-- ===================================================== -->
+    <!-- Top summary cards -->
+    <div class="row g-4">
 
-    <div class="card shadow-sm border-0 mb-4">
-
-        <div class="card-header bg-white">
-            <h5 class="mb-0">
-                Quick Actions
-            </h5>
-        </div>
-
-        <div class="card-body">
-
-            <div class="row g-3">
-
-                <div class="col-md-4">
-                    <button class="btn btn-success w-100"
-                            @onclick="OpenInsurance">
-
-                        <i class="bi bi-shield-check me-2"></i>
-                        Verify Insurance
-
-                    </button>
-                </div>
-
-                <div class="col-md-4">
-                    <button class="btn btn-primary w-100"
-                            @onclick="OpenClinical">
-
-                        <i class="bi bi-calendar-plus me-2"></i>
-                        Schedule SOC
-
-                    </button>
-                </div>
-
-                <div class="col-md-4">
-                    <button class="btn btn-outline-success w-100"
-                            @onclick="OpenCommunication">
-
-                        <i class="bi bi-chat-dots me-2"></i>
-                        Add Note
-
-                    </button>
-                </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <!-- ===================================================== -->
-    <!-- Current Status / Next Action                          -->
-    <!-- ===================================================== -->
-
-    <div class="row g-4 mb-4">
-
-        <!-- Current Status -->
-
-        <div class="col-md-6">
-
+        <!-- Needs Attention -->
+        <div class="col-xl-5">
             <div class="card shadow-sm border-0 h-100">
 
                 <div class="card-header bg-white">
-                    <h5 class="mb-0">
-                        Current Status
-                    </h5>
+                    <h5 class="mb-0">Needs Attention</h5>
                 </div>
 
                 <div class="card-body">
 
-                    @if (CurrentStage is not null)
+                    @if (NeedsAttention.Any())
                     {
-                        <span class="@GetWorkflowStatusClass(CurrentStage.Status)">
-                            @GetWorkflowStatusText(CurrentStage.Status)
-                        </span>
+                        <ul class="list-group list-group-flush">
 
-                        <h5 class="mt-3">
-                            @CurrentStage.StageName
-                        </h5>
+                            @foreach (var item in NeedsAttention)
+                            {
+                                <li class="list-group-item px-0 d-flex justify-content-between align-items-start">
 
-                        @if (!string.IsNullOrWhiteSpace(CurrentStage.Description))
-                        {
-                            <p class="text-muted mb-0">
-                                @CurrentStage.Description
-                            </p>
-                        }
-                    }
-                    else if (!string.IsNullOrWhiteSpace(Workflow?.Header?.Status))
-                    {
-                        <span class="badge @GetPatientStatusBadgeClass(Workflow.Header.Status)">
-                            @Workflow.Header.Status
-                        </span>
+                                    <div class="pe-3">
+                                        <strong>@item.Title</strong>
 
-                        <h5 class="mt-3">
-                            No active workflow stage
-                        </h5>
+                                        @if (!string.IsNullOrWhiteSpace(item.Description))
+                                        {
+                                            <div class="small text-muted mt-1">
+                                                @item.Description
+                                            </div>
+                                        }
+                                    </div>
 
-                        <p class="text-muted mb-0">
-                            There is currently no active workflow stage for this patient.
-                        </p>
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-primary flex-shrink-0"
+                                            @onclick="() => OpenTab(item.Tab)">
+                                        Open
+                                    </button>
+
+                                </li>
+                            }
+
+                        </ul>
                     }
                     else
                     {
-                        <div class="text-muted">
-                            Patient workflow information is unavailable.
+                        <div class="text-success py-3">
+                            <i class="bi bi-check-circle me-2"></i>
+                            No urgent items.
                         </div>
                     }
 
                 </div>
-
             </div>
-
         </div>
 
 
         <!-- Next Action -->
-
-        <div class="col-md-6">
+        <div class="col-xl-4">
 
             <div class="card shadow-sm border-0 h-100">
 
                 <div class="card-header bg-white">
-                    <h5 class="mb-0">
-                        Next Action
-                    </h5>
+                    <h5 class="mb-0">Next Action</h5>
                 </div>
 
                 <div class="card-body">
 
                     @if (HasNextAction)
                     {
-                        <h5>
-                            @Workflow!.NextAction.Title
+                        <h5 class="mb-2">
+                            @Workflow!.NextAction!.Title
                         </h5>
 
-                        @if (!string.IsNullOrWhiteSpace(
-                            Workflow.NextAction.Description))
+                        @if (!string.IsNullOrWhiteSpace(Workflow.NextAction.Description))
                         {
-                            <p class="text-muted">
+                            <p class="text-muted mb-3">
                                 @Workflow.NextAction.Description
                             </p>
                         }
@@ -153,32 +85,21 @@
                         <div class="small text-muted mb-3">
                             Due:
                             @Workflow.NextAction.DueDate
+                            .ToLocalTime()
                             .ToString("MM/dd/yyyy")
                         </div>
 
-                        @if (Workflow.NextAction.IsOverdue)
-                        {
-                            <span class="badge bg-danger me-2">
-                                Overdue
-                            </span>
-                        }
-
-                        @if (!string.IsNullOrWhiteSpace(
-                            Workflow.NextAction.PageRoute))
-                        {
-                            <button class="btn btn-primary btn-sm"
-                                    @onclick="OpenNextAction">
-
-                                Open Task
-
-                            </button>
-                        }
+                        <button type="button"
+                                class="btn btn-primary"
+                                @onclick="OpenNextAction">
+                            Open Task
+                        </button>
                     }
                     else
                     {
-                        <div class="text-center text-muted py-3">
+                        <div class="text-center text-success py-4">
 
-                            <i class="bi bi-check-circle text-success fs-4"></i>
+                            <i class="bi bi-check-circle fs-2"></i>
 
                             <div class="mt-2">
                                 No pending action.
@@ -188,290 +109,53 @@
                     }
 
                 </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <!-- ===================================================== -->
-    <!-- Patient Notes / Notifications / Fax                  -->
-    <!-- ===================================================== -->
-
-    <div class="row g-4 mb-4">
-
-        <!-- Patient Notes -->
-
-        <div class="col-xl-4">
-
-            <div class="card shadow-sm border-0 h-100">
-
-                <div class="card-header bg-white
-                    d-flex justify-content-between
-                    align-items-center">
-
-                    <h5 class="mb-0">
-                        Patient Notes
-                    </h5>
-
-                    <button class="btn btn-sm btn-outline-primary"
-                            @onclick="OpenCommunication">
-
-                        View All
-
-                    </button>
-
-                </div>
-
-                <div class="card-body">
-
-                    @if (Care?.Notes?.Any() == true)
-                    {
-                        @foreach (var note in Care.Notes
-                            .OrderByDescending(x => x.CreatedAt)
-                            .Take(3))
-                        {
-                            <div class="border-bottom pb-3 mb-3">
-
-                                <div class="d-flex
-                                    justify-content-between
-                                    align-items-start
-                                    gap-2">
-
-                                    <strong>
-                                        @note.Subject
-                                    </strong>
-
-                                    @if (!string.IsNullOrWhiteSpace(
-                                        note.Priority))
-                                    {
-                                        <span class="badge @GetPriorityClass(note.Priority)">
-                                            @note.Priority
-                                        </span>
-                                    }
-
-                                </div>
-
-                                <div class="small text-muted mt-1">
-
-                                    @note.CreatedBy
-                                    ·
-                                    @note.CreatedAt.ToString("MM/dd/yyyy")
-
-                                </div>
-
-                                @if (!string.IsNullOrWhiteSpace(note.Content))
-                                {
-                                    <div class="small mt-2">
-                                        @note.Content
-                                    </div>
-                                }
-
-                            </div>
-                        }
-                    }
-                    else
-                    {
-                        <div class="text-muted text-center py-3">
-                            No patient notes.
-                        </div>
-                    }
-
-                </div>
-
             </div>
 
         </div>
 
 
-        <!-- Active Alerts -->
-
-        <div class="col-xl-4">
+        <!-- Current Stage -->
+        <div class="col-xl-3">
 
             <div class="card shadow-sm border-0 h-100">
 
-                <div class="card-header bg-white
-                    d-flex justify-content-between
-                    align-items-center">
-
-                    <h5 class="mb-0">
-                        Active Alerts
-                    </h5>
-
-                    <button class="btn btn-sm btn-outline-primary"
-                            @onclick="OpenOrdersCare">
-
-                        View Details
-
-                    </button>
-
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Current Workflow</h5>
                 </div>
 
                 <div class="card-body">
 
-                    @if (ActiveNotifications.Any())
-                    {
-                        @foreach (var notification in
-                            ActiveNotifications.Take(3))
-                        {
-                            <div class="border-bottom pb-3 mb-3">
-
-                                <div class="d-flex
-                                    justify-content-between
-                                    gap-2">
-
-                                    <strong class="small">
-                                        @notification.Title
-                                    </strong>
-
-                                    @if (!string.IsNullOrWhiteSpace(
-                                        notification.Severity))
-                                    {
-                                        <span class="badge @GetNotificationBadgeClass(notification.Severity)">
-                                            @notification.Severity
-                                        </span>
-                                    }
-
-                                </div>
-
-                                @if (!string.IsNullOrWhiteSpace(
-                                    notification.PatientName))
-                                {
-                                    <div class="small text-muted mt-1">
-                                        @notification.PatientName
-                                    </div>
-                                }
-
-                                @if (!string.IsNullOrWhiteSpace(
-                                    notification.Message))
-                                {
-                                    <div class="small mt-1">
-                                        @notification.Message
-                                    </div>
-                                }
-
-                                @if (notification.DueDate.HasValue)
-                                {
-                                    <div class="small text-muted mt-1">
-                                        Due
-                                        @notification.DueDate.Value
-                                        .ToString("MM/dd/yyyy")
-                                    </div>
-                                }
-
-                            </div>
-                        }
-                    }
-                    else
-                    {
-                        <div class="text-center text-muted py-3">
-
-                            <i class="bi bi-check-circle text-success fs-4"></i>
-
-                            <div class="mt-2 small">
-                                No active alerts.
-                            </div>
-
-                        </div>
-                    }
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-        <!-- Fax Information -->
-
-        <div class="col-xl-4">
-
-            <div class="card shadow-sm border-0 h-100">
-
-                <div class="card-header bg-white
-                    d-flex justify-content-between
-                    align-items-center">
-
-                    <h5 class="mb-0">
-                        Fax Information
-                    </h5>
-
-                    <button class="btn btn-sm btn-outline-primary"
-                            @onclick="OpenOrdersCare">
-
-                        View
-
-                    </button>
-
-                </div>
-
-                <div class="card-body">
-
-                    @if (HasFaxInformation)
+                    @if (!string.IsNullOrWhiteSpace(CurrentStageText))
                     {
                         <div class="mb-3">
 
                             <div class="small text-muted">
-                                Referring Provider
+                                Current Stage
                             </div>
 
                             <div class="fw-semibold">
-                                @Care!.Fax.ReferringProvider
+                                @CurrentStageText
                             </div>
 
                         </div>
-
-
-                        <div class="mb-3">
-
-                            <div class="small text-muted">
-                                Fax Number
-                            </div>
-
-                            <div>
-                                @Care.Fax.FaxNumber
-                            </div>
-
-                        </div>
-
-
-                        <div class="mb-3">
-
-                            <div class="small text-muted">
-                                Organization
-                            </div>
-
-                            <div>
-                                @Care.Fax.Organization
-                            </div>
-
-                        </div>
-
-
-                        @if (Care.Fax.Verified)
-                        {
-                            <span class="badge bg-success">
-                                Verified
-                            </span>
-                        }
-                        else
-                        {
-                            <span class="badge bg-warning text-dark">
-                                Needs Verification
-                            </span>
-                        }
                     }
-                    else
+
+                    @if (!string.IsNullOrWhiteSpace(WorkflowStatusText))
                     {
-                        <div class="text-muted text-center py-3">
-                            No fax information available.
+                        <div>
+
+                            <div class="small text-muted">
+                                Status
+                            </div>
+
+                            <span class="badge @WorkflowStatusClass">
+                                @WorkflowStatusText
+                            </span>
+
                         </div>
                     }
 
                 </div>
-
             </div>
 
         </div>
@@ -479,72 +163,37 @@
     </div>
 
 
-    <!-- ===================================================== -->
-    <!-- Recent Activity                                       -->
-    <!-- ===================================================== -->
+    <!-- Workflow Status -->
+    <div class="card shadow-sm border-0 mt-4">
 
-    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
 
-        <div class="card-header bg-white">
             <h5 class="mb-0">
-                Recent Activity
+                Workflow Status
             </h5>
+
         </div>
 
-        <div class="card-body p-0">
+        <div class="card-body">
 
-            @if (Workflow?.RecentActivities?.Any() == true)
+            @if (Workflow?.WorkflowStages is not null &&
+                 Workflow.WorkflowStages.Any())
             {
-                <div class="list-group list-group-flush">
+                <div class="row g-3">
 
-                    @foreach (var activity in Workflow.RecentActivities)
+                    @foreach (var stage in Workflow.WorkflowStages.OrderBy(x => x.Sequence))
                     {
-                        <div class="list-group-item">
+                        var statusText = stage.Status.ToString();
 
-                            <div class="d-flex
-                                justify-content-between
-                                align-items-start
-                                gap-3">
+                        <div class="col-6 col-md-4 col-xl-2">
 
-                                <div>
-
-                                    <strong>
-                                        @activity.Title
-                                    </strong>
-
-                                    @if (!string.IsNullOrWhiteSpace(
-                                        activity.Description))
-                                    {
-                                        <div class="small text-muted mt-1">
-                                            @activity.Description
-                                        </div>
-                                    }
-
-                                    <div class="small text-muted mt-1">
-
-                                        @if (!string.IsNullOrWhiteSpace(
-                                            activity.PerformedBy))
-                                        {
-                                            @activity.PerformedBy
-                                            <span> · </span>
-                                        }
-
-                                        @activity.ActivityDate
-                                        .ToString("MM/dd/yyyy hh:mm tt")
-
-                                    </div>
-
-                                </div>
-
-                                @if (!string.IsNullOrWhiteSpace(
-                                    activity.ActivityType))
-                                {
-                                    <span class="badge bg-secondary">
-                                        @activity.ActivityType
-                                    </span>
-                                }
-
+                            <div class="small text-muted mb-1">
+                                @stage.StageName
                             </div>
+
+                            <span class="badge @StageClass(statusText)">
+                                @statusText
+                            </span>
 
                         </div>
                     }
@@ -553,139 +202,13 @@
             }
             else
             {
-                <div class="text-center text-muted py-4">
-                    No recent activity.
+                <div class="text-muted">
+                    No workflow stages are currently available.
                 </div>
             }
 
         </div>
-
     </div>
-
-
-    <!-- ===================================================== -->
-    <!-- Patient Summary                                       -->
-    <!-- ===================================================== -->
-    @if (Workflow?.Summary is not null)
-    {
-        <div class="card shadow-sm border-0">
-
-            <div class="card-header bg-white">
-                <h5 class="mb-0">
-                    Patient Summary
-                </h5>
-            </div>
-
-            <div class="card-body">
-
-                <div class="row g-4">
-
-                    @if (!string.IsNullOrWhiteSpace(
-                        Workflow.Summary.PrimaryDiagnosis))
-                    {
-                        <div class="col-md-6 col-lg-4">
-
-                            <div class="small text-muted">
-                                Primary Diagnosis
-                            </div>
-
-                            <div class="fw-semibold">
-                                @Workflow.Summary.PrimaryDiagnosis
-                            </div>
-
-                        </div>
-                    }
-
-
-                    @if (!string.IsNullOrWhiteSpace(
-                        Workflow.Summary.Insurance))
-                    {
-                        <div class="col-md-6 col-lg-4">
-
-                            <div class="small text-muted">
-                                Insurance
-                            </div>
-
-                            <div class="fw-semibold">
-                                @Workflow.Summary.Insurance
-                            </div>
-
-                        </div>
-                    }
-
-
-                    @if (Workflow.Summary.SocDate.HasValue)
-                    {
-                        <div class="col-md-6 col-lg-4">
-
-                            <div class="small text-muted">
-                                SOC Date
-                            </div>
-
-                            <div class="fw-semibold">
-                                @Workflow.Summary.SocDate.Value
-                                .ToString("MM/dd/yyyy")
-                            </div>
-
-                        </div>
-                    }
-
-
-                    @if (Workflow.Summary.AuthorizedVisits > 0)
-                    {
-                        <div class="col-md-6 col-lg-4">
-
-                            <div class="small text-muted">
-                                Authorized Visits
-                            </div>
-
-                            <div class="fw-semibold">
-                                @Workflow.Summary.AuthorizedVisits
-                            </div>
-
-                        </div>
-                    }
-
-
-                    @if (!string.IsNullOrWhiteSpace(
-                        Workflow.Summary.Address))
-                    {
-                        <div class="col-md-6 col-lg-4">
-
-                            <div class="small text-muted">
-                                Address
-                            </div>
-
-                            <div class="fw-semibold">
-                                @Workflow.Summary.Address
-                            </div>
-
-                        </div>
-                    }
-
-
-                    @if (!string.IsNullOrWhiteSpace(
-                        Workflow.Summary.PhoneNumber))
-                    {
-                        <div class="col-md-6 col-lg-4">
-
-                            <div class="small text-muted">
-                                Phone
-                            </div>
-
-                            <div class="fw-semibold">
-                                @Workflow.Summary.PhoneNumber
-                            </div>
-
-                        </div>
-                    }
-
-                </div>
-
-            </div>
-
-        </div>
-    }
 
 </div>
 
@@ -695,193 +218,241 @@
     [Parameter]
     public Guid PatientId { get; set; }
 
-
     [Parameter]
     public PatientWorkflowDto? Workflow { get; set; }
 
-
     [Parameter]
     public PatientCareProfileDto? Care { get; set; }
-
-
-    [Parameter]
-    public IReadOnlyList<UserNotificationDto> Notifications { get; set; } = [];
-
 
     [Parameter]
     public EventCallback<string> OnChangeTab { get; set; }
 
 
-    private IEnumerable<UserNotificationDto> ActiveNotifications =>
-        Notifications
-            .Where(x => !x.IsRead)
-            .OrderBy(x => x.DueDate ?? DateTime.MaxValue)
-            .ThenByDescending(x => x.CreatedAt);
-
-
-    private WorkflowStageDto? CurrentStage =>
-        Workflow?.WorkflowStages?
-            .Where(x => x.Status == WorkflowStatus.Current)
-            .OrderBy(x => x.Sequence)
-            .FirstOrDefault();
-
-
     private bool HasNextAction =>
         Workflow?.NextAction is not null &&
-        Workflow.NextAction.TaskId != Guid.Empty &&
-        !string.IsNullOrWhiteSpace(
-            Workflow.NextAction.Title);
+        Workflow.NextAction.TaskId != Guid.Empty;
 
 
-    private bool HasFaxInformation =>
-        Care?.Fax is not null &&
-        (
-            !string.IsNullOrWhiteSpace(
-                Care.Fax.ReferringProvider) ||
-
-            !string.IsNullOrWhiteSpace(
-                Care.Fax.FaxNumber) ||
-
-            !string.IsNullOrWhiteSpace(
-                Care.Fax.Organization)
-        );
-
-
-    private async Task OpenInsurance()
+    private IEnumerable<(string Title, string Description, string Tab)> NeedsAttention
     {
-        await OnChangeTab.InvokeAsync("Insurance");
+        get
+        {
+            if (!HasNextAction)
+            {
+                return Array.Empty<(string, string, string)>();
+            }
+
+            var nextAction = Workflow!.NextAction!;
+
+            return new[]
+            {
+                (
+                    nextAction.Title,
+                    nextAction.Description,
+                    TabFor(nextAction.Title)
+                )
+            };
+        }
     }
 
 
-    private async Task OpenClinical()
+    private string CurrentStageText
     {
-        await OnChangeTab.InvokeAsync("Clinical");
+        get
+        {
+            if (Workflow?.WorkflowStages is null)
+            {
+                return string.Empty;
+            }
+
+            var activeStage = Workflow.WorkflowStages
+                .OrderBy(x => x.Sequence)
+                .FirstOrDefault(x =>
+                    string.Equals(
+                        x.Status.ToString(),
+                        "InProgress",
+                        StringComparison.OrdinalIgnoreCase)
+                    ||
+                    string.Equals(
+                        x.Status.ToString(),
+                        "In Progress",
+                        StringComparison.OrdinalIgnoreCase));
+
+            if (activeStage is not null)
+            {
+                return activeStage.StageName;
+            }
+
+            var firstIncomplete = Workflow.WorkflowStages
+                .OrderBy(x => x.Sequence)
+                .FirstOrDefault(x =>
+                    !string.Equals(
+                        x.Status.ToString(),
+                        "Completed",
+                        StringComparison.OrdinalIgnoreCase));
+
+            return firstIncomplete?.StageName ?? "Workflow Complete";
+        }
     }
 
 
-    private async Task OpenCommunication()
+    private string WorkflowStatusText
     {
-        await OnChangeTab.InvokeAsync("Communication");
+        get
+        {
+            if (Workflow?.WorkflowStages is null ||
+                !Workflow.WorkflowStages.Any())
+            {
+                return string.Empty;
+            }
+
+            var activeStage = Workflow.WorkflowStages
+                .OrderBy(x => x.Sequence)
+                .FirstOrDefault(x =>
+                    string.Equals(
+                        x.Status.ToString(),
+                        "InProgress",
+                        StringComparison.OrdinalIgnoreCase)
+                    ||
+                    string.Equals(
+                        x.Status.ToString(),
+                        "In Progress",
+                        StringComparison.OrdinalIgnoreCase));
+
+            if (activeStage is not null)
+            {
+                return activeStage.Status.ToString();
+            }
+
+            return Workflow.WorkflowStages
+                .OrderBy(x => x.Sequence)
+                .First()
+                .Status
+                .ToString();
+        }
     }
 
 
-    private async Task OpenOrdersCare()
+    private string WorkflowStatusClass
     {
-        await OnChangeTab.InvokeAsync("Orders & Care");
+        get
+        {
+            return StageClass(WorkflowStatusText);
+        }
+    }
+
+
+    private async Task OpenTab(string tab)
+    {
+        if (string.IsNullOrWhiteSpace(tab))
+        {
+            return;
+        }
+
+        await OnChangeTab.InvokeAsync(tab);
     }
 
 
     private async Task OpenNextAction()
     {
-        if (Workflow?.NextAction is null)
+        if (!HasNextAction)
+        {
             return;
+        }
 
-        if (string.IsNullOrWhiteSpace(
-            Workflow.NextAction.PageRoute))
-            return;
+        var tab = TabFor(Workflow!.NextAction!.Title);
 
-        await OnChangeTab.InvokeAsync(
-            Workflow.NextAction.PageRoute);
+        await OpenTab(tab);
     }
 
 
-    private static string GetWorkflowStatusClass(
-        WorkflowStatus status)
+    private static string TabFor(string title)
     {
-        return status switch
+        if (string.IsNullOrWhiteSpace(title))
         {
-            WorkflowStatus.Completed =>
-                "badge bg-success mb-3",
+            return "Compliance";
+        }
 
-            WorkflowStatus.Current =>
-                "badge bg-primary mb-3",
+        if (title.Contains(
+                "Insurance",
+                StringComparison.OrdinalIgnoreCase)
+            ||
+            title.Contains(
+                "Authorization",
+                StringComparison.OrdinalIgnoreCase)
+            ||
+            title.Contains(
+                "Payor",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return "Insurance";
+        }
 
-            _ =>
-                "badge bg-secondary mb-3"
-        };
+        if (title.Contains(
+                "Order",
+                StringComparison.OrdinalIgnoreCase)
+            ||
+            title.Contains(
+                "POC",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return "Orders & Care";
+        }
+
+        if (title.Contains(
+                "Communication",
+                StringComparison.OrdinalIgnoreCase)
+            ||
+            title.Contains(
+                "Call",
+                StringComparison.OrdinalIgnoreCase)
+            ||
+            title.Contains(
+                "Email",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return "Communication";
+        }
+
+        /*
+         * SOC/F2F and other required workflow confirmations
+         * belong in Compliance.
+         */
+        return "Compliance";
     }
 
 
-    private static string GetWorkflowStatusText(
-        WorkflowStatus status)
+    private static string StageClass(string status)
     {
-        return status switch
+        if (string.Equals(
+                status,
+                "Completed",
+                StringComparison.OrdinalIgnoreCase))
         {
-            WorkflowStatus.Completed => "Completed",
+            return "bg-success";
+        }
 
-            WorkflowStatus.Current => "Current",
-
-            _ => "Pending"
-        };
-    }
-
-
-    private static string GetPatientStatusBadgeClass(
-        string status)
-    {
-        return status?.Trim().ToLowerInvariant() switch
+        if (string.Equals(
+                status,
+                "InProgress",
+                StringComparison.OrdinalIgnoreCase)
+            ||
+            string.Equals(
+                status,
+                "In Progress",
+                StringComparison.OrdinalIgnoreCase))
         {
-            "active" =>
-                "bg-success",
+            return "bg-primary";
+        }
 
-            "completed" =>
-                "bg-success",
-
-            "on hold" =>
-                "bg-warning text-dark",
-
-            "onhold" =>
-                "bg-warning text-dark",
-
-            "cancelled" =>
-                "bg-danger",
-
-            "archived" =>
-                "bg-secondary",
-
-            _ =>
-                "bg-secondary"
-        };
-    }
-
-
-    private static string GetPriorityClass(
-        string priority)
-    {
-        return priority?.Trim().ToLowerInvariant() switch
+        if (string.Equals(
+                status,
+                "Pending",
+                StringComparison.OrdinalIgnoreCase))
         {
-            "high" =>
-                "bg-danger",
+            return "bg-secondary";
+        }
 
-            "medium" =>
-                "bg-warning text-dark",
-
-            "low" =>
-                "bg-success",
-
-            _ =>
-                "bg-secondary"
-        };
+        return "bg-secondary";
     }
-
-
-    private static string GetNotificationBadgeClass(
-        string severity)
-    {
-        return severity?.Trim().ToLowerInvariant() switch
-        {
-            "critical" =>
-                "bg-danger",
-
-            "warning" =>
-                "bg-warning text-dark",
-
-            "info" =>
-                "bg-info text-dark",
-
-            _ =>
-                "bg-secondary"
-        };
-    }
-
 }

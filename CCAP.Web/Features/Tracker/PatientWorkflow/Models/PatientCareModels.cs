@@ -59,6 +59,10 @@ public sealed class PatientNoteDto
 
     public Guid PatientId { get; set; }
 
+    public string ContactType { get; set; } = string.Empty;
+
+    public string Method { get; set; } = string.Empty;
+
     public string Subject { get; set; } = string.Empty;
 
     public string Content { get; set; } = string.Empty;
@@ -168,4 +172,7 @@ public sealed class PatientCareProfileDto
     public List<VisitDto> UpcomingVisits { get; set; } = [];
 
     public List<PatientTaskDto> Tasks { get; set; } = [];
+
+    public List<PatientCareLogDto> CareLogs { get; set; } = [];
 }
+public sealed class PatientCareLogDto { public Guid PatientCareLogId{get;set;} public string LogType{get;set;}=""; public string Item{get;set;}=""; public decimal? Quantity{get;set;} public string? Unit{get;set;} public DateTime RecordedAt{get;set;} public string? Notes{get;set;} public string RecordedBy{get;set;}="System"; }

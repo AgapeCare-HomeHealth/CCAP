@@ -1,6 +1,7 @@
-﻿using CCAP.Application.Features.ReferralDrafts.ReadModels;
 using CCAP.Application.Abstractions.Persistence;
+using CCAP.Application.Features.ReferralDrafts.ReadModels;
 using CCAP.Domain.Entities;
+using CCAP.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace CCAP.Infrastructure.Persistence.Repositories;
@@ -42,7 +43,8 @@ public sealed class ReferralDraftRepository
     {
         return await _context.ReferralDrafts
             .Where(x =>
-                x.CreatedByUserId == userId)
+                x.CreatedByUserId == userId &&
+                x.Status == ReferralStatus.Draft)
             .OrderByDescending(
                 x => x.UpdatedAt)
             .ToListAsync(
@@ -54,6 +56,7 @@ public sealed class ReferralDraftRepository
             CancellationToken cancellationToken)
     {
         return await _context.ReferralDrafts
+            .Where(x => x.Status == ReferralStatus.Draft)
             .OrderByDescending(
                 x => x.UpdatedAt)
             .ToListAsync(
@@ -129,6 +132,8 @@ public sealed class ReferralDraftRepository
 
         var query =
             from draft in _context.ReferralDrafts.AsNoTracking()
+
+            where draft.Status == ReferralStatus.Draft
 
             join user in _context.ApplicationUsers.AsNoTracking()
                 on draft.CreatedByUserId equals user.UserId

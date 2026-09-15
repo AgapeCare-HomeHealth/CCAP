@@ -1,0 +1,3 @@
+using CCAP.Application.Abstractions.Persistence;using CCAP.Domain.Entities;using Microsoft.EntityFrameworkCore;
+namespace CCAP.Infrastructure.Persistence.Repositories;
+public sealed class PatientCareLogRepository:IPatientCareLogRepository{private readonly AppDbContext _c;public PatientCareLogRepository(AppDbContext c)=>_c=c;public Task AddAsync(PatientCareLog x,CancellationToken ct)=>_c.PatientCareLogs.AddAsync(x,ct).AsTask();public Task<List<PatientCareLog>> GetByPatientIdAsync(Guid id,CancellationToken ct)=>_c.PatientCareLogs.Include(x=>x.RecordedByUser).Where(x=>x.PatientId==id).OrderByDescending(x=>x.RecordedAt).Take(200).AsNoTracking().ToListAsync(ct);}

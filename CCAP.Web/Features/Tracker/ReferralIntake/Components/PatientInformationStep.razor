@@ -1,3 +1,6 @@
+@using CCAP.Web.Features.Admin.LookupOptions.Models
+@using CCAP.Web.Features.Admin.LookupOptions.Services
+@inject LookupOptionService LookupService
 ﻿@using CCAP.Web.Features.Tracker.ReferralIntake.Models
 
 @using CCAP.Web.Common.Validation
@@ -72,13 +75,10 @@
                     Select Gender
                 </option>
 
-                <option value="Male">
-                    Male
-                </option>
-
-                <option value="Female">
-                    Female
-                </option>
+                @foreach (var option in Genders)
+                {
+                    <option value="@option.DisplayName">@option.DisplayName</option>
+                }
             </select>
         </div>
 
@@ -196,6 +196,8 @@
 </div>
 
 @code {
+    private List<LookupOptionDto> Genders = [];
+    protected override async Task OnInitializedAsync() => Genders = await LookupService.GetAsync("Gender", true);
 
     [Parameter]
     public ReferralIntakeModel Model { get; set; } = null!;

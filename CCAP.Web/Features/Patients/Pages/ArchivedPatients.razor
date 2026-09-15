@@ -1,0 +1,21 @@
+@page "/patients/archive"
+@attribute [CcapAuthorize(Policy = "patients.view")]
+@using CCAP.Web.Features.Patients.Models
+@using CCAP.Web.Features.Patients.Components
+@inject CCAP.Web.Features.Patients.Services.PatientService PatientService
+<PageTitle>Archived Patients</PageTitle>
+<div class="patients-page">
+    <div class="page-header d-flex justify-content-between align-items-start">
+        <div><h2>Archived Patients</h2><p>Closed patient journeys retained for history and audit.</p></div>
+        <a class="btn btn-outline-primary" href="/patients">Back to Active Patients</a>
+    </div>
+    @if (IsLoading) { <div class="py-5 text-center">Loading archived patients...</div> }
+    else if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <div class="alert alert-danger">@ErrorMessage</div> }
+    else if (PatientList.Count == 0) { <div class="alert alert-info">No archived patient journeys.</div> }
+    else { <PatientTable Patients="PatientList" /> }
+</div>
+@code {
+    private List<PatientListItem> PatientList = [];
+    private bool IsLoading; private string? ErrorMessage;
+    protected override async Task OnInitializedAsync() { IsLoading = true; try { PatientList = (await PatientService.GetPatientsAsync()).Where(x => string.Equals(x.Status, "Archived", StringComparison.OrdinalIgnoreCase)).ToList(); } catch (Exception ex) { ErrorMessage = $"Unable to load archived patients: {ex.Message}"; } finally { IsLoading = false; } }
+}

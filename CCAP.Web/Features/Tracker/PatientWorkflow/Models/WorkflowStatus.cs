@@ -4,6 +4,7 @@
     {
         Pending,
         Current,
-        Completed
+        Completed,
+        NotApplicable
     }
 }

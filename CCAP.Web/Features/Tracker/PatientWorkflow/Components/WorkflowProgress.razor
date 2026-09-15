@@ -1,5 +1,4 @@
-﻿@using CCAP.Web.Features.Tracker.PatientWorkflow.Model
-@using CCAP.Web.Features.Tracker.PatientWorkflow.Models
+﻿@using CCAP.Web.Features.Tracker.PatientWorkflow.Models
 
 <div class="workflow-card">
 
@@ -31,6 +30,10 @@
 
                         case WorkflowStatus.Current:
                             <i class="bi bi-hourglass-split"></i>
+                            break;
+
+                        case WorkflowStatus.NotApplicable:
+                            <i class="bi bi-dash"></i>
                             break;
 
                         default:
@@ -85,6 +88,7 @@
         {
             WorkflowStatus.Completed => "completed",
             WorkflowStatus.Current => "current",
+            WorkflowStatus.NotApplicable => "not-applicable",
             _ => "pending"
         };
     }

@@ -198,3 +198,5 @@
         font-size: .75rem;
     }
 }
+
+.workflow-step .not-applicable { opacity: .65; }

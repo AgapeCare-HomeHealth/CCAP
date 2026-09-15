@@ -1,0 +1,216 @@
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Models
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Services
+@using CCAP.Web.Features.Admin.LookupOptions.Models
+@using CCAP.Web.Features.Admin.LookupOptions.Services
+@inject PatientWorkflowService WorkflowService
+@inject LookupOptionService LookupService
+@inject NavigationManager Navigation
+
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white">
+        <h5 class="mb-1">Final Outcome</h5>
+        <small class="text-muted">Close the patient episode by recording Discharge or Permanent Transfer. TIF/ROC does not close the episode.</small>
+    </div>
+
+    <div class="card-body">
+        @if (Workflow is null)
+        {
+            <div class="text-muted">Workflow unavailable.</div>
+        }
+        else if (JourneyCompleted)
+        {
+            <div class="card border-success shadow-sm">
+                <div class="card-body text-center py-5">
+                    <div class="display-5 text-success mb-3">✓</div>
+                    <h4 class="text-success">Patient Journey Closed</h4>
+                    <p class="text-muted mb-1">The final outcome has been completed.</p>
+                    <p class="text-muted">All required closing information is retained in the patient history and audit trail.</p>
+                    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+                    {
+                        <div class="alert alert-danger mt-3">@ErrorMessage</div>
+                    }
+                    <div class="d-flex justify-content-center gap-2 mt-4">
+                        @if (JourneyArchived)
+                        {
+                            <span class="badge text-bg-secondary align-self-center px-3 py-2">Archived</span>
+                        }
+                        else
+                        {
+                            <button type="button" class="btn btn-success" @onclick="ArchiveJourneyAsync" disabled="@IsSaving">
+                                @(IsSaving ? "Archiving..." : "Close & Archive Patient Journey")
+                            </button>
+                        }
+                        <button type="button" class="btn btn-outline-primary" @onclick="GoToPatients">Back to Active Patients</button>
+                    </div>
+                    @if (JourneyArchived)
+                    {
+                        <div class="alert alert-success mt-4 mb-0">Patient journey is closed and archived. The patient no longer belongs in the active patient list.</div>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+            {
+                <div class="alert alert-danger">@ErrorMessage</div>
+            }
+
+            @if (!CanCloseEpisode)
+            {
+                <div class="alert alert-warning">Complete all Admission compliance requirements before closing the episode.</div>
+            }
+
+            <div class="card border mb-3">
+                <div class="card-header bg-light"><strong>Episode Outcome</strong></div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Outcome</label>
+                            <select class="form-select" @bind="FinalStatus">
+                                @foreach (var option in FinalStatusOptions)
+                                {
+                                    <option value="@option.Code">@option.DisplayName</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">@(IsTransfer ? "Transfer Date" : "Discharge Date")</label>
+                            <InputDate class="form-control" @bind-Value="OutcomeDate" />
+                        </div>
+                        @if (IsTransfer)
+                        {
+                            <div class="col-md-4">
+                                <label class="form-label">Transfer Destination</label>
+                                <InputText class="form-control" @bind-Value="TransferDestination" />
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Transfer Reason</label>
+                                <InputText class="form-control" @bind-Value="TransferReason" />
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="col-12">
+                                <label class="form-label">Discharge Feedback</label>
+                                <InputText class="form-control" @bind-Value="DischargeFeedback" />
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            @if (!IsTransfer)
+            {
+                <div class="card border mb-3">
+                    <div class="card-header bg-light">
+                        <strong>Discharge Requirements</strong>
+                        <div class="small text-muted">Confirm the closing documents before completing discharge.</div>
+                    </div>
+                    <div class="card-body">
+                        @foreach (var item in DischargeRequirements)
+                        {
+                            <div class="d-flex align-items-center justify-content-between border rounded p-3 mb-2">
+                                <div>
+                                    <div class="fw-semibold">@item.RequirementName</div>
+                                    @if (!string.IsNullOrWhiteSpace(item.Description))
+                                    {
+                                        <div class="small text-muted">@item.Description</div>
+                                    }
+                                    @if (item.IsCompleted && item.CompletedAt.HasValue)
+                                    {
+                                        <div class="small text-success">Completed @item.CompletedAt.Value.ToLocalTime().ToString("g")</div>
+                                    }
+                                </div>
+                                @if (item.IsCompleted)
+                                {
+                                    <span class="badge text-bg-success">Complete</span>
+                                }
+                                else
+                                {
+                                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => CompleteComplianceAsync(item.RequirementCode)" disabled="@(IsSaving || SavingRequirementCode == item.RequirementCode)">
+                                        @(SavingRequirementCode == item.RequirementCode ? "Saving..." : "Mark Complete")
+                                    </button>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <div class="d-flex justify-content-end">
+                <button type="button" class="btn btn-danger" @onclick="CompleteCareAsync" disabled="@(IsSaving || !CanCloseEpisode || !CanSubmitOutcome)">
+                    @(IsSaving ? "Saving..." : (IsTransfer ? "Complete Transfer" : "Complete Discharge"))
+                </button>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public PatientWorkflowDto? Workflow { get; set; }
+    [Parameter] public EventCallback OnCompleted { get; set; }
+
+    private string FinalStatus = "Discharged";
+    private DateOnly? OutcomeDate = DateOnly.FromDateTime(DateTime.Today);
+    private string TransferDestination = "";
+    private string TransferReason = "";
+    private string DischargeFeedback = "";
+    private bool IsSaving;
+    private string? ErrorMessage;
+    private string? SavingRequirementCode;
+    private List<LookupOptionDto> FinalStatusOptions = [];
+
+    private bool IsTransfer => string.Equals(FinalStatus, "Transferred", StringComparison.OrdinalIgnoreCase);
+    private bool JourneyCompleted => Workflow?.WorkflowStages.FirstOrDefault(x => x.StageCode == "FINAL_OUTCOME")?.Status == WorkflowStatus.Completed;
+    private bool JourneyArchived => string.Equals(Workflow?.Header.Status, "Archived", StringComparison.OrdinalIgnoreCase);
+    private bool CanCloseEpisode => Workflow?.WorkflowStages.FirstOrDefault(x => x.StageCode == "ADMISSION")?.Status == WorkflowStatus.Completed;
+    private bool DischargeSummaryComplete => Workflow?.ComplianceItems.Any(x => string.Equals(x.RequirementCode, "DISCHARGE_SUMMARY_SIGNED", StringComparison.OrdinalIgnoreCase) && x.IsCompleted) == true;
+    private bool CanSubmitOutcome => OutcomeDate.HasValue && (IsTransfer ? !string.IsNullOrWhiteSpace(TransferDestination) : DischargeSummaryComplete);
+    private List<ComplianceItemDto> DischargeRequirements => Workflow?.ComplianceItems.Where(x => string.Equals(x.RequirementCode, "DISCHARGE_SUMMARY_SIGNED", StringComparison.OrdinalIgnoreCase) || string.Equals(x.RequirementCode, "NOMNC_SIGNED", StringComparison.OrdinalIgnoreCase)).OrderBy(x => x.RequirementCode).ToList() ?? [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { FinalStatusOptions = await LookupService.GetAsync("FinalDischargeStatus", true); }
+        catch { FinalStatusOptions = []; }
+        if (FinalStatusOptions.Count == 0)
+            FinalStatusOptions = [new LookupOptionDto { Code = "Discharged", DisplayName = "Discharged" }, new LookupOptionDto { Code = "Transferred", DisplayName = "Transferred" }];
+    }
+
+    private async Task CompleteComplianceAsync(string code)
+    {
+        if (Workflow is null || IsSaving) return;
+        IsSaving = true; SavingRequirementCode = code; ErrorMessage = null;
+        try { await WorkflowService.CompleteComplianceAsync(Workflow.Header.PatientId, code); await OnCompleted.InvokeAsync(); }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { IsSaving = false; SavingRequirementCode = null; }
+    }
+
+    private async Task CompleteCareAsync()
+    {
+        if (Workflow is null || IsSaving || !CanSubmitOutcome) return;
+        IsSaving = true; ErrorMessage = null;
+        try
+        {
+            await WorkflowService.CompleteCareAsync(Workflow.Header.PatientId, FinalStatus, IsTransfer ? TransferDestination : null, OutcomeDate, IsTransfer ? TransferReason : null, IsTransfer ? null : DischargeFeedback);
+            await OnCompleted.InvokeAsync();
+        }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { IsSaving = false; }
+    }
+
+    private async Task ArchiveJourneyAsync()
+    {
+        if (Workflow is null || IsSaving || !JourneyCompleted || JourneyArchived) return;
+        IsSaving = true; ErrorMessage = null;
+        try
+        {
+            await WorkflowService.ArchivePatientAsync(Workflow.Header.PatientId);
+            await OnCompleted.InvokeAsync();
+        }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { IsSaving = false; }
+    }
+
+    private void GoToPatients() => Navigation.NavigateTo("/patients");
+}

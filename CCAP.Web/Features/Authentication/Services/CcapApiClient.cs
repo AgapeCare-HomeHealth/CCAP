@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -79,7 +79,7 @@ public sealed class CcapApiClient
                 request,
                 cancellationToken);
 
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
 
         //return await response.Content
         //    .ReadFromJsonAsync<T>(
@@ -205,6 +205,40 @@ public sealed class CcapApiClient
         return await SendAsync(
             request,
             cancellationToken);
+    }
+
+    public async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken = default)
+    {
+        if (response.IsSuccessStatusCode) return;
+
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        var message = ExtractErrorMessage(body);
+        throw new HttpRequestException(
+            string.IsNullOrWhiteSpace(message)
+                ? $"API request failed with {(int)response.StatusCode} {response.ReasonPhrase}."
+                : message);
+    }
+
+    private static string? ExtractErrorMessage(string body)
+    {
+        if (string.IsNullOrWhiteSpace(body)) return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("message", out var message)) return message.GetString();
+            if (root.TryGetProperty("title", out var title)) return title.GetString();
+            if (root.TryGetProperty("errors", out var errors))
+            {
+                var values = new List<string>();
+                foreach (var property in errors.EnumerateObject())
+                    foreach (var item in property.Value.EnumerateArray())
+                        if (item.ValueKind == JsonValueKind.String) values.Add(item.GetString()!);
+                return values.Count == 0 ? null : string.Join(" ", values);
+            }
+        }
+        catch (JsonException) { }
+        return body.Length > 1000 ? body[..1000] : body;
     }
 
     private async Task<HttpResponseMessage>

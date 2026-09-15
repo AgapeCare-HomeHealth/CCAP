@@ -2,15 +2,11 @@
 @attribute [CcapAuthorize(Policy = "patients.view")]
 
 @using CCAP.Web.Features.Tracker.PatientWorkflow.Components
-@using CCAP.Web.Features.Tracker.PatientWorkflow.Model
 @using CCAP.Web.Features.Tracker.PatientWorkflow.Models
 @using CCAP.Web.Features.Tracker.PatientWorkflow.Services
-@using CCAP.Web.Features.Notifications.Models
-@using CCAP.Web.Features.Notifications.Services
 
 @inject PatientWorkflowService WorkflowService
 @inject PatientCareManagementService CareService
-@inject NotificationCenterService NotificationCenter
 
 <PageTitle>Patient Workflow</PageTitle>
 
@@ -45,28 +41,7 @@ else
             <WorkflowProgress Stages="@Workflow.WorkflowStages" />
         </section>
 
-        <!-- Existing Patient Summary -->
-        <section class="mt-4">
-            <div class="row g-4">
-
-                <div class="col-xl-4 col-lg-6">
-                    <NextActionCard Data="@Workflow.NextAction" />
-                </div>
-
-                <div class="col-xl-4 col-lg-6">
-                    <KeyInformationCard Data="@Workflow.KeyInformation" />
-                </div>
-
-                <div class="col-xl-4 col-lg-12">
-                    <RecentActivityCard Activities="@Workflow.RecentActivities" />
-                </div>
-
-            </div>
-        </section>
-
-        <section class="mt-4">
-            <PatientSummaryBar Data="@Workflow.Summary" />
-        </section>
+        <!-- Patient tabs intentionally own their detailed information; avoid repeating it above. -->
 
         <!-- Patient Tab -->
         <section class="mt-4">
@@ -78,7 +53,6 @@ else
                     <OverviewTab PatientId="@PatientId"
                                  Workflow="@Workflow"
                                  Care="@Care"
-                                 Notifications="@Notifications"
                                  OnChangeTab="OnTabChanged" />
 
                     break;
@@ -91,18 +65,16 @@ else
 
                     break;
 
-                case "Clinical":
-
-                    <ClinicalTab Workflow="@Workflow" />
-
-                    break;
-
                 case "Compliance":
 
                     <ComplianceTab PatientId="@PatientId"
                                    Workflow="@Workflow"
                                    OnCompleted="HandleComplianceCompleted" />
 
+                    break;
+
+                case "Final Outcome":
+                    <DischargeTab Workflow="@Workflow" OnCompleted="HandleDischargeCompleted" />
                     break;
 
                 @* case "Documents":
@@ -113,7 +85,7 @@ else
 
                 case "Communication":
 
-                    <CommunicationTab Workflow="@Workflow" Care="@Care" />
+                    <CommunicationTab PatientId="@PatientId" Care="@Care" OnSaved="ReloadPatientData" />
 
                     break;
 
@@ -125,13 +97,13 @@ else
 
                 case "Audit Log":
 
-                    <AuditLogTab Workflow="@Workflow" />
+                    <AuditLogTab PatientId="@PatientId" Workflow="@Workflow" />
 
                     break;
 
                 case "Orders & Care":
 
-                    <PatientCareManagementTab PatientId="@PatientId" />
+                    <PatientCareManagementTab PatientId="@PatientId" OnChanged="ReloadPatientData" />
 
                     break;
             }
@@ -149,8 +121,6 @@ else
     private PatientWorkflowDto? Workflow;
 
     private PatientCareProfileDto? Care;
-
-    private List<UserNotificationDto> Notifications = [];
 
     private bool IsLoading = true;
 
@@ -170,12 +140,6 @@ else
         {
             Title = "Insurance",
             Icon = "bi bi-shield-check"
-        },
-
-        new()
-        {
-            Title = "Clinical",
-            Icon = "bi bi-heart-pulse"
         },
 
         new()
@@ -212,6 +176,12 @@ else
         {
             Title = "Orders & Care",
             Icon = "bi bi-clipboard2-pulse"
+        },
+
+        new()
+        {
+            Title = "Final Outcome",
+            Icon = "bi bi-box-arrow-right"
         }
     ];
 
@@ -226,18 +196,19 @@ else
 
             if (Workflow is not null)
             {
-                // Care Management API is not implemented yet.
-                // Keep Care null so the Patient Workflow page can load.
-                Care = null;
-
-                // Notification API can also be enabled later.
-                Notifications = [];
+                Care = await CareService.GetAsync(PatientId);
             }
         }
         finally
         {
             IsLoading = false;
         }
+    }
+
+    private async Task ReloadPatientData()
+    {
+        Workflow = await WorkflowService.GetAsync(PatientId);
+        Care = await CareService.GetAsync(PatientId);
     }
 
     private async Task HandleInsuranceCompleted()
@@ -254,6 +225,18 @@ else
                 PatientId);
     }
 
+    private async Task HandleSocCompleted()
+    {
+        Workflow =
+            await WorkflowService.GetAsync(
+                PatientId);
+    }
+
+    private async Task HandleDischargeCompleted()
+    {
+        Workflow = await WorkflowService.GetAsync(PatientId);
+        Care = await CareService.GetAsync(PatientId);
+    }
 
     private void OnTabChanged(string tabTitle)
     {

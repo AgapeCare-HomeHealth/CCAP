@@ -19,6 +19,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<Discipline> Disciplines => Set<Discipline>();
     public DbSet<Patient> Patients => Set<Patient>();
+    public DbSet<LookupOption> LookupOptions => Set<LookupOption>();
     public DbSet<Referral> Referrals => Set<Referral>();
     public DbSet<CallNote> CallNotes => Set<CallNote>();
     public DbSet<Assessment> Assessments => Set<Assessment>();
@@ -30,6 +31,9 @@ public sealed class AppDbContext : DbContext
     public DbSet<PatientServiceOrder> PatientServiceOrders => Set<PatientServiceOrder>();
     public DbSet<ReferralDocument> ReferralDocuments => Set<ReferralDocument>();
     public DbSet<Location> Locations => Set<Location>();
+    public DbSet<NotificationReadState> NotificationReadStates => Set<NotificationReadState>();
+    public DbSet<PatientAuditLog> PatientAuditLogs => Set<PatientAuditLog>();
+    public DbSet<PatientCareLog> PatientCareLogs => Set<PatientCareLog>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -107,6 +111,16 @@ public sealed class AppDbContext : DbContext
                 x => x.UpdatedAt);
         });
 
+        modelBuilder.Entity<NotificationReadState>(e =>
+        {
+            e.ToTable("NotificationReadStates");
+            e.HasKey(x => x.NotificationReadStateId);
+            e.Property(x => x.NotificationType).HasMaxLength(50).IsRequired();
+            e.Property(x => x.ReadAt).IsRequired();
+            e.HasIndex(x => new { x.UserId, x.NotificationId, x.NotificationType }).IsUnique();
+            e.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<Discipline>(e =>
         {
             e.ToTable("Disciplines");
@@ -131,6 +145,19 @@ public sealed class AppDbContext : DbContext
                 .HasForeignKey(x => x.RoleId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Discipline).WithMany(x => x.Users)
                 .HasForeignKey(x => x.DisciplineId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<LookupOption>(e =>
+        {
+            e.ToTable("LookupOptions");
+            e.HasKey(x => x.LookupOptionId);
+            e.Property(x => x.LookupType).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Code).HasMaxLength(200).IsRequired();
+            e.Property(x => x.DisplayName).HasMaxLength(300).IsRequired();
+            e.Property(x => x.SortOrder).IsRequired();
+            e.Property(x => x.IsActive).IsRequired();
+            e.HasIndex(x => new { x.LookupType, x.Code }).IsUnique();
+            e.HasIndex(x => new { x.LookupType, x.IsActive, x.SortOrder });
         });
 
         modelBuilder.Entity<Patient>(e =>
@@ -165,6 +192,21 @@ public sealed class AppDbContext : DbContext
 
             e.Property(x => x.AuthorizationDate)
                 .HasColumnType("date");
+
+            e.Property(x => x.PreAuthDueDate).HasColumnType("date");
+            e.Property(x => x.NumberOfVisits);
+            e.Property(x => x.CaseMixType).HasMaxLength(200);
+            e.Property(x => x.DmeMedSupplyNotes).HasMaxLength(2000);
+            e.Property(x => x.SocFeedbackFromPatient).HasMaxLength(2000);
+            e.Property(x => x.TifDate).HasColumnType("date");
+            e.Property(x => x.RocDate).HasColumnType("date");
+            e.Property(x => x.RecertDate).HasColumnType("date");
+            e.Property(x => x.PcpPtNotified);
+            e.Property(x => x.DischargeDate).HasColumnType("date");
+            e.Property(x => x.DischargeFeedback).HasMaxLength(2000);
+            e.Property(x => x.TransferDestination).HasMaxLength(300);
+            e.Property(x => x.TransferDate).HasColumnType("date");
+            e.Property(x => x.TransferReason).HasMaxLength(2000);
 
             e.Property(x => x.ApprovedVisits);
 
@@ -221,6 +263,7 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.AuthorizationDate)
                 .HasColumnType("date");
 
+
             e.Property(x => x.ApprovedVisits);
 
             e.Property(x => x.ReferringPhysician)
@@ -257,10 +300,37 @@ public sealed class AppDbContext : DbContext
         {
             e.ToTable("CallNotes");
             e.HasKey(x => x.CallNoteId);
+            e.Property(x => x.ContactType).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Method).HasMaxLength(50).IsRequired();
             e.Property(x => x.Subject).HasMaxLength(200).IsRequired();
-            e.Property(x => x.Notes).HasMaxLength(5000).IsRequired();
+            e.Property(x => x.Notes).HasColumnType("nvarchar(max)").IsRequired();
             e.HasOne(x => x.Patient).WithMany(x => x.CallNotes).HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.RecordedBy).WithMany().HasForeignKey(x => x.RecordedByUserId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+
+        modelBuilder.Entity<PatientCareLog>(e =>
+        {
+            e.ToTable("PatientCareLogs"); e.HasKey(x=>x.PatientCareLogId);
+            e.Property(x=>x.LogType).HasMaxLength(50).IsRequired(); e.Property(x=>x.Item).HasMaxLength(200).IsRequired();
+            e.Property(x=>x.Quantity).HasColumnType("decimal(18,2)"); e.Property(x=>x.Unit).HasMaxLength(50); e.Property(x=>x.Notes).HasMaxLength(2000);
+            e.HasOne(x=>x.Patient).WithMany().HasForeignKey(x=>x.PatientId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x=>x.RecordedByUser).WithMany().HasForeignKey(x=>x.RecordedByUserId).OnDelete(DeleteBehavior.Restrict); e.HasIndex(x=>new{x.PatientId,x.LogType,x.RecordedAt});
+        });
+
+        modelBuilder.Entity<PatientAuditLog>(e =>
+        {
+            e.ToTable("PatientAuditLogs");
+            e.HasKey(x => x.PatientAuditLogId);
+            e.Property(x => x.EntityType).HasMaxLength(100).IsRequired();
+            e.Property(x => x.EntityId).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Action).HasMaxLength(20).IsRequired();
+            e.Property(x => x.OldValues).HasColumnType("nvarchar(max)");
+            e.Property(x => x.NewValues).HasColumnType("nvarchar(max)");
+            e.Property(x => x.Description).HasMaxLength(1000);
+            e.HasOne(x => x.Patient).WithMany().HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.PerformedByUser).WithMany().HasForeignKey(x => x.PerformedByUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => new { x.PatientId, x.OccurredAt });
         });
 
         modelBuilder.Entity<Assessment>(e =>
@@ -335,8 +405,7 @@ public sealed class AppDbContext : DbContext
             e.HasKey(x => x.ReferralDocumentId);
 
             e.Property(x => x.StorageKey)
-                .HasMaxLength(500)
-                .IsRequired();
+                .HasMaxLength(500);
 
             e.Property(x => x.OriginalFileName)
                 .HasMaxLength(255)

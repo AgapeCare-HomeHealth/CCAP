@@ -1,0 +1,20 @@
+<div class="@(Wide ? "col-12" : "col-md-4")">
+    <label class="form-label">@Label</label>
+    <InputText class="form-control"
+               Value="Value"
+               ValueChanged="OnValueChanged"
+               ValueExpression="@(() => Value)" />
+</div>
+
+@code {
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public bool Wide { get; set; }
+
+    private async Task OnValueChanged(string value)
+    {
+        Value = value;
+        await ValueChanged.InvokeAsync(value);
+    }
+}

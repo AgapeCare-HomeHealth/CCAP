@@ -1,4 +1,4 @@
-﻿<div class="documents-page">
+<div class="documents-page">
 
     <!-- ================= Summary ================= -->
 
@@ -324,8 +324,8 @@
 </div>
 @if (ShowUploadModal)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);">
-        <div class="modal-dialog modal-dialog-centered">
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);" @onclick="CloseUpload">
+        <div class="modal-dialog modal-dialog-centered" @onclick:stopPropagation="true">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">@(ReplaceDocumentName is null ? "Upload Document" : "Replace Document")</h5>

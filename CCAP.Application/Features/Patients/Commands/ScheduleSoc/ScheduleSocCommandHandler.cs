@@ -1,4 +1,4 @@
-﻿using CCAP.Application.Abstractions.Persistence;
+using CCAP.Application.Abstractions.Persistence;
 using CCAP.Domain.Entities;
 using MediatR;
 
@@ -7,23 +7,22 @@ namespace CCAP.Application.Features.Patients.Commands.ScheduleSoc;
 public sealed class ScheduleSocCommandHandler
     : IRequestHandler<ScheduleSocCommand>
 {
-    private const string InsuranceVerificationRequirement =
-        "INSURANCE_VERIFICATION";
-
     private const string SocSchedulingRequirement =
         "SOC_SCHEDULING";
 
     private readonly IPatientRepository _patients;
 
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPatientAuditLogRepository _auditLogs;
 
     public ScheduleSocCommandHandler(
         IPatientRepository patients,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork, IPatientAuditLogRepository auditLogs)
     {
         _patients = patients;
 
         _unitOfWork = unitOfWork;
+        _auditLogs = auditLogs;
     }
 
 
@@ -43,13 +42,10 @@ public sealed class ScheduleSocCommandHandler
         }
 
 
-        var insuranceVerified =
-            patient.ComplianceRecords.Any(x =>
-                string.Equals(
-                    x.RequirementCode,
-                    InsuranceVerificationRequirement,
-                    StringComparison.OrdinalIgnoreCase)
-                && x.IsCompleted);
+        // Insurance verification is a Patient state, not an Excel
+        // compliance checklist item. The persisted source of truth is
+        // InsuranceVerifiedAt.
+        var insuranceVerified = patient.InsuranceVerifiedAt.HasValue;
 
         if (!insuranceVerified)
         {
@@ -138,25 +134,34 @@ public sealed class ScheduleSocCommandHandler
 
         foreach (var task in patient.Tasks)
         {
-            if (task.Status ==
-                    Domain.Enums.PatientTaskStatus.Completed
-                ||
-                task.Status ==
-                    Domain.Enums.PatientTaskStatus.Cancelled)
-            {
+            if (task.Status == Domain.Enums.PatientTaskStatus.Completed ||
+                task.Status == Domain.Enums.PatientTaskStatus.Cancelled)
                 continue;
-            }
 
-            if (task.Title.Contains(
-                    "Schedule SOC",
-                    StringComparison.OrdinalIgnoreCase))
-            {
+            if (task.Title.Contains("Schedule SOC", StringComparison.OrdinalIgnoreCase))
                 task.Complete();
-            }
         }
 
+        var hasPendingSocTask = patient.Tasks.Any(x =>
+            x.Status != Domain.Enums.PatientTaskStatus.Completed &&
+            x.Status != Domain.Enums.PatientTaskStatus.Cancelled &&
+            x.Title.Contains("Complete SOC", StringComparison.OrdinalIgnoreCase));
 
-        await _unitOfWork.SaveChangesAsync(
-            cancellationToken);
+        if (!hasPendingSocTask)
+        {
+            var completeSocTask = new PatientTask(
+                patient.PatientId,
+                "Complete SOC",
+                "Complete the scheduled Start of Care visit.",
+                scheduledDate,
+                $"/tracker/patient/{patient.PatientId}");
+
+            completeSocTask.Assign(patient.ClinicianId.Value);
+            patient.Tasks.Add(completeSocTask);
+        }
+
+        patient.Activities.Add(new CCAP.Domain.Entities.Activity(patient.PatientId, request.ScheduledByUserId, "Workflow", "SOC scheduled", $"SOC scheduled for {request.SocDate:MM/dd/yyyy}."));
+        await _auditLogs.AddAsync(new PatientAuditLog(patient.PatientId, request.ScheduledByUserId, "Patient", patient.PatientId.ToString(), "UPDATE", null, System.Text.Json.JsonSerializer.Serialize(new { SocDate = request.SocDate, Action = "SOC scheduled" }), "SOC date/visit scheduled."), cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 }

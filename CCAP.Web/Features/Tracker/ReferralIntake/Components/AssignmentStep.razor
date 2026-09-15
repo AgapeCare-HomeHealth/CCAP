@@ -1,3 +1,6 @@
+@using CCAP.Web.Features.Admin.LookupOptions.Models
+@using CCAP.Web.Features.Admin.LookupOptions.Services
+@inject LookupOptionService LookupService
 @using CCAP.Web.Features.Tracker.ReferralIntake.Models 
 @using CCAP.Web.Features.Admin.Users.Models
 
@@ -68,9 +71,8 @@
                 <label class="form-label">Visit Priority</label>
                 <select class="form-select" @bind="Model.VisitPriority">
                     <option value="">Select Priority</option>
-                    <option value="Routine">Routine</option>
-                    <option value="Urgent">Urgent</option>
-                    <option value="STAT">STAT</option>
+                    @foreach (var option in Priorities)
+                    { <option value="@option.DisplayName">@option.DisplayName</option> }
                 </select>
             </div>
 
@@ -78,8 +80,8 @@
                 <label class="form-label">Case Status</label>
                 <select class="form-select" @bind="Model.CaseStatus">
                     <option value="">Select Status</option>
-                    <option value="Active">Active</option>
-                    <option value="Pending">Pending</option>
+                    @foreach (var option in CaseStatuses)
+                    { <option value="@option.DisplayName">@option.DisplayName</option> }
                 </select>
             </div>
         </div>
@@ -101,6 +103,13 @@
 </div>
 
 @code {
+    private List<LookupOptionDto> Priorities = [];
+    private List<LookupOptionDto> CaseStatuses = [];
+    protected override async Task OnInitializedAsync()
+    {
+        Priorities = await LookupService.GetAsync("Priority", true);
+        CaseStatuses = await LookupService.GetAsync("CaseStatus", true);
+    }
     [Parameter]
     public ReferralIntakeModel Model { get; set; } = null!;
 

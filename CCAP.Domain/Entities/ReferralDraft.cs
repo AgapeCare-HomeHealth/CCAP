@@ -67,4 +67,20 @@ public sealed class ReferralDraft
         UpdatedAt =
             DateTime.UtcNow;
     }
+
+    public void ConvertToPatient()
+    {
+        if (Status != ReferralStatus.Draft &&
+            Status != ReferralStatus.UnderReview)
+        {
+            throw new InvalidOperationException(
+                "Only an active referral draft can be converted to a patient.");
+        }
+
+        Status =
+            ReferralStatus.ConvertedToPatient;
+
+        UpdatedAt =
+            DateTime.UtcNow;
+    }
 }

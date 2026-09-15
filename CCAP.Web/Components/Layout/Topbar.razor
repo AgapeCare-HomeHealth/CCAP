@@ -62,6 +62,11 @@
             </Authorized>
         </AuthorizeView>
     </div>
+
+    @if (showNotifications || showProfileMenu)
+    {
+        <div class="topbar-menu-backdrop" @onclick="CloseMenus"></div>
+    }
 </header>
 
 @code {
@@ -140,6 +145,12 @@
             showProfileMenu = false;
             await LoadNotificationsAsync();
         }
+    }
+
+    private void CloseMenus()
+    {
+        showNotifications = false;
+        showProfileMenu = false;
     }
 
     private void ToggleProfileMenu()

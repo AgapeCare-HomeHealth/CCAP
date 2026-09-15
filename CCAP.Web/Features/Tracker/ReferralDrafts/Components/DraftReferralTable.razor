@@ -8,8 +8,8 @@
         <thead>
             <tr>
                 <th>Draft ID</th>
-                <th>Patient</th>
-                <th>Referral #</th>
+                <th>PDF File</th>
+                <th>Size</th>
                 <th>Saved By</th>
                 <th>Created</th>
                 <th>Last Updated</th>
@@ -36,12 +36,12 @@
 
                         <!-- Patient -->
                         <td>
-                            @draft.PatientName
+                            @(string.IsNullOrWhiteSpace(draft.PdfFileName) ? "PDF metadata unavailable" : draft.PdfFileName)
                         </td>
 
                         <!-- Referral Number -->
                         <td>
-                            @draft.ReferralNumber
+                            @(draft.PdfFileSize.HasValue ? FormatFileSize(draft.PdfFileSize.Value) : "-")
                         </td>
 
                         <!-- Saved By -->
@@ -109,6 +109,13 @@
             $"/referrals/drafts/{draft.ReferralDraftId}");
     }
 
+
+    private static string FormatFileSize(long size)
+    {
+        if (size < 1024) return $"{size} B";
+        if (size < 1024 * 1024) return $"{size / 1024d:0.0} KB";
+        return $"{size / (1024d * 1024d):0.0} MB";
+    }
 
     private static string GetShortDraftId(Guid id)
     {

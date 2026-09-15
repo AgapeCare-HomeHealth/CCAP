@@ -1,0 +1,110 @@
+@page "/admin/service-types"
+@attribute [CcapAuthorize(Policy = "lookups.manage")]
+@using CCAP.Web.Features.Admin.ServiceTypes.Models
+@using CCAP.Web.Features.Admin.ServiceTypes.Services
+@inject ServiceTypeAdminService Service
+
+<PageTitle>Service Types</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Service / Order Types</h2>
+            <p class="text-muted mb-0">Manage the service types available in Orders &amp; Care.</p>
+        </div>
+        <button class="btn btn-primary" @onclick="OpenCreate"><i class="bi bi-plus-lg me-1"></i>Add Service Type</button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <div class="alert alert-danger">@ErrorMessage</div> }
+    @if (!string.IsNullOrWhiteSpace(SuccessMessage)) { <div class="alert alert-success">@SuccessMessage</div> }
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
+            @if (Loading) { <div class="text-center py-4">Loading...</div> }
+            else {
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead><tr><th>Code</th><th>Name</th><th>Icon</th><th>CSS Class</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+                        <tbody>
+                        @foreach (var item in Items)
+                        {
+                            <tr>
+                                <td><code>@item.Code</code></td>
+                                <td>@item.Name</td>
+                                <td>@item.Icon</td>
+                                <td><code>@item.CssClass</code></td>
+                                <td><span class="badge @(item.IsActive ? "bg-success" : "bg-secondary")">@(item.IsActive ? "Active" : "Inactive")</span></td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-outline-primary me-2" @onclick="() => OpenEdit(item)">Edit</button>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(item)">Delete</button>
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@if (EditorVisible)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45)">
+        <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">@(Editing ? "Edit Service Type" : "Add Service Type")</h5><button class="btn-close" @onclick="CloseEditor"></button></div>
+            <EditForm Model="Editor" OnValidSubmit="SaveAsync">
+                <DataAnnotationsValidator />
+                <div class="modal-body">
+                    <div class="mb-3"><label class="form-label">Code</label><InputText class="form-control" @bind-Value="Editor.Code" /><ValidationMessage For="() => Editor.Code" /></div>
+                    <div class="mb-3"><label class="form-label">Name</label><InputText class="form-control" @bind-Value="Editor.Name" /><ValidationMessage For="() => Editor.Name" /></div>
+                    <div class="mb-3"><label class="form-label">Icon</label><InputText class="form-control" @bind-Value="Editor.Icon" placeholder="bi bi-heart-pulse" /></div>
+                    <div class="mb-3"><label class="form-label">CSS Class</label><InputText class="form-control" @bind-Value="Editor.CssClass" /></div>
+                    <div class="form-check"><InputCheckbox class="form-check-input" @bind-Value="Editor.IsActive" /><label class="form-check-label">Active</label></div>
+                    <div class="form-text mt-2">Inactive service types no longer appear as new choices in Orders &amp; Care. Existing orders are preserved.</div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" @onclick="CloseEditor">Cancel</button><button type="submit" class="btn btn-primary" disabled="@Saving">@(Saving ? "Saving..." : "Save")</button></div>
+            </EditForm>
+        </div></div>
+    </div>
+}
+
+@code {
+    private List<ServiceTypeDto> Items = [];
+    private bool Loading;
+    private bool Saving;
+    private bool EditorVisible;
+    private bool Editing;
+    private string? ErrorMessage;
+    private string? SuccessMessage;
+    private ServiceTypeEditModel Editor = new();
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        Loading = true; ErrorMessage = null;
+        try { Items = await Service.GetAsync(false); }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { Loading = false; }
+    }
+
+    private void OpenCreate() { Editing = false; Editor = new ServiceTypeEditModel { IsActive = true }; EditorVisible = true; }
+    private void OpenEdit(ServiceTypeDto item) { Editing = true; Editor = new ServiceTypeEditModel { ServiceTypeId = item.ServiceTypeId, Code = item.Code, Name = item.Name, Icon = item.Icon, CssClass = item.CssClass, IsActive = item.IsActive }; EditorVisible = true; }
+    private void CloseEditor() => EditorVisible = false;
+
+    private async Task SaveAsync()
+    {
+        Saving = true; ErrorMessage = null; SuccessMessage = null;
+        try { if (Editing) await Service.UpdateAsync(Editor); else await Service.CreateAsync(Editor); EditorVisible = false; SuccessMessage = "Service type saved."; await LoadAsync(); }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { Saving = false; }
+    }
+
+    private async Task DeleteAsync(ServiceTypeDto item)
+    {
+        ErrorMessage = null; SuccessMessage = null;
+        try { await Service.DeleteAsync(item.ServiceTypeId); SuccessMessage = "Service type deleted."; await LoadAsync(); }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+    }
+}

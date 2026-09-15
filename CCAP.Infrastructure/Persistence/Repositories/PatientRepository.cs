@@ -76,6 +76,8 @@ public sealed class PatientRepository : IPatientRepository
 
             .Include(x => x.Visits)
 
+            .Include(x => x.Activities)
+
             .FirstOrDefaultAsync(
                 x => x.PatientId == patientId,
                 cancellationToken);

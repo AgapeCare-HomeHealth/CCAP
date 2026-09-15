@@ -52,12 +52,12 @@ builder.Services.AddScoped<
 
 builder.Services.AddScoped<
     CCAP.Web.Features.Admin.Roles.Services.RoleService>();
+builder.Services.AddScoped<
+    CCAP.Web.Features.Admin.LookupOptions.Services.LookupOptionService>();
+builder.Services.AddScoped<CCAP.Web.Features.Admin.ServiceTypes.Services.ServiceTypeAdminService>();
 
 builder.Services.AddScoped<
     CCAP.Web.Features.Patients.Services.PatientService>();
-
-builder.Services.AddScoped<
-    CCAP.Web.Features.Tracker.PatientWorkflow.Services.PatientClinicalService>();
 
 
 var apiBaseUrl =

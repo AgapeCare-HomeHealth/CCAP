@@ -15,4 +15,6 @@
     public Guid? CompletedByUserId { get; set; }
 
     public string CompletedByUserName { get; set; } = string.Empty;
+
+    public int Phase { get; set; }
 }

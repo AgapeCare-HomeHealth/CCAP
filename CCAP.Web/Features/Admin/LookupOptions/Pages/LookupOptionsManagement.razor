@@ -1,0 +1,195 @@
+@page "/admin/lookup-options"
+@attribute [CcapAuthorize(Policy = "lookups.manage")]
+@using CCAP.Web.Features.Admin.LookupOptions.Models
+@using CCAP.Web.Features.Admin.LookupOptions.Services
+@inject LookupOptionService Service
+
+<PageTitle>Lookup Options</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Lookup &amp; Choice Management</h2>
+            <p class="text-muted mb-0">Manage the selectable values used by the Care Coordinator workflow.</p>
+        </div>
+        <button class="btn btn-primary" @onclick="OpenCreate"><i class="bi bi-plus-lg me-1"></i>Add Option</button>
+    </div>
+
+    <div class="alert alert-info mb-4">
+        <div class="fw-semibold mb-1"><i class="bi bi-info-circle me-1"></i>Instructions</div>
+        <ul class="mb-0 ps-3">
+            <li><strong>Lookup Group:</strong> Select an existing group whenever possible. Group names are case-insensitive, so <code>Insurance</code> and <code>insurance</code> are treated as the same group.</li>
+            <li><strong>Code:</strong> Use a stable, unique code for the option. Codes are also case-insensitive within a group.</li>
+            <li><strong>Display Name:</strong> Enter the wording users should see in the dropdown.</li>
+            <li><strong>Order:</strong> Lower numbers appear first. We recommend <code>10, 20, 30...</code> so you can insert an option later without renumbering everything.</li>
+            <li><strong>Active:</strong> Inactivate an option when it should no longer be selectable. Keep it active only when users should see it in dropdowns.</li>
+            <li><strong>Important:</strong> Do not create a new group just because the capitalization is different. The system will reuse the existing group's spelling.</li>
+        </ul>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <div class="alert alert-danger">@ErrorMessage</div> }
+    @if (!string.IsNullOrWhiteSpace(SuccessMessage)) { <div class="alert alert-success">@SuccessMessage</div> }
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
+            <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">Lookup Group</label>
+                    <select class="form-select" @bind="SelectedType">
+                        <option value="">All groups</option>
+                        @foreach (var type in Groups) { <option value="@type">@type</option> }
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Search</label>
+                    <input class="form-control" @bind="SearchText" @bind:event="oninput" placeholder="Search group, code, or display name..." />
+                </div>
+                <div class="col-md-4 d-flex align-items-end gap-2">
+                    <button class="btn btn-outline-secondary" @onclick="ClearFilters">Clear</button>
+                    <span class="text-muted small align-self-center">@FilteredOptions.Count() option(s)</span>
+                </div>
+            </div>
+
+            @if (Loading) { <div class="text-center py-4">Loading...</div> }
+            else if (!FilteredOptions.Any()) { <div class="alert alert-light border mb-0">No lookup options match the current filter.</div> }
+            else {
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead><tr><th>Group</th><th>Code</th><th>Display Name</th><th>Order</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+                        <tbody>
+                        @foreach (var item in FilteredOptions) {
+                            <tr>
+                                <td>@item.LookupType</td>
+                                <td><code>@item.Code</code></td>
+                                <td>@item.DisplayName</td>
+                                <td>@item.SortOrder</td>
+                                <td><span class="badge @(item.IsActive ? "bg-success" : "bg-secondary")">@(item.IsActive ? "Active" : "Inactive")</span></td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-outline-primary me-2" @onclick="() => OpenEdit(item)">Edit</button>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(item)">Delete</button>
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@if (EditorVisible)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45)">
+        <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">@(Editing ? "Edit Lookup Option" : "Add Lookup Option")</h5><button class="btn-close" @onclick="CloseEditor"></button></div>
+            <EditForm Model="Editor" OnValidSubmit="SaveAsync"><DataAnnotationsValidator /><div class="modal-body">
+                @if (!Editing)
+                {
+                    <div class="mb-3">
+                        <label class="form-label">Lookup Group</label>
+                        <select class="form-select" @bind="SelectedEditorGroup">
+                            <option value="">Select an existing group...</option>
+                            @foreach (var type in Groups) { <option value="@type">@type</option> }
+                            <option value="__new__">+ Create a new group</option>
+                        </select>
+                        @if (SelectedEditorGroup == "__new__")
+                        {
+                            <input class="form-control mt-2" @bind="NewGroupName" placeholder="New group name, e.g. CaseMixType" />
+                            <div class="form-text">Use a clear, stable name. Capitalization differences are automatically normalized to an existing group when applicable.</div>
+                        }
+                        <ValidationMessage For="() => Editor.LookupType" />
+                    </div>
+                }
+                else
+                {
+                    <div class="mb-3"><label class="form-label">Lookup Group</label><input class="form-control" value="@Editor.LookupType" disabled /><div class="form-text">The group cannot be changed after creation because existing dropdowns depend on it.</div></div>
+                }
+                <div class="mb-3"><label class="form-label">Code</label><InputText class="form-control" @bind-Value="Editor.Code" placeholder="e.g. ACTIVE" /><div class="form-text">Stable internal value. Avoid changing it if existing records may already use this option.</div><ValidationMessage For="() => Editor.Code" /></div>
+                <div class="mb-3"><label class="form-label">Display Name</label><InputText class="form-control" @bind-Value="Editor.DisplayName" placeholder="Text users will see" /><ValidationMessage For="() => Editor.DisplayName" /></div>
+                <div class="mb-3"><label class="form-label">Sort Order</label><InputNumber class="form-control" @bind-Value="Editor.SortOrder" /><div class="form-text">Lower numbers appear first. Recommended: 10, 20, 30, 40...</div></div>
+                <div class="form-check"><InputCheckbox class="form-check-input" @bind-Value="Editor.IsActive" /><label class="form-check-label">Active</label><div class="form-text">Inactive options are retained for historical data but should not appear in active dropdowns.</div></div>
+            </div><div class="modal-footer"><button type="button" class="btn btn-secondary" @onclick="CloseEditor">Cancel</button><button type="submit" class="btn btn-primary" disabled="@Saving">@(Saving ? "Saving..." : "Save")</button></div></EditForm>
+        </div></div>
+    </div>
+}
+
+@code {
+    private List<LookupOptionDto> Options = [];
+    private string SelectedType = string.Empty;
+    private string SearchText = string.Empty;
+    private string SelectedEditorGroup = string.Empty;
+    private string NewGroupName = string.Empty;
+    private bool Loading;
+    private bool Saving;
+    private bool EditorVisible;
+    private bool Editing;
+    private string? ErrorMessage;
+    private string? SuccessMessage;
+    private LookupOptionEditModel Editor = new();
+    private IEnumerable<string> Groups => Options.Select(x => x.LookupType).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x);
+    private IEnumerable<LookupOptionDto> FilteredOptions => Options
+        .Where(x => string.IsNullOrWhiteSpace(SelectedType) || string.Equals(x.LookupType, SelectedType, StringComparison.OrdinalIgnoreCase))
+        .Where(x => string.IsNullOrWhiteSpace(SearchText) ||
+                    x.LookupType.Contains(SearchText.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                    x.Code.Contains(SearchText.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                    x.DisplayName.Contains(SearchText.Trim(), StringComparison.OrdinalIgnoreCase))
+        .OrderBy(x => x.LookupType)
+        .ThenBy(x => x.SortOrder)
+        .ThenBy(x => x.DisplayName);
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        Loading = true; ErrorMessage = null;
+        try { Options = await Service.GetAsync(); }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { Loading = false; }
+    }
+
+    private void ClearFilters() { SelectedType = string.Empty; SearchText = string.Empty; }
+
+    private void OpenCreate()
+    {
+        Editing = false;
+        SelectedEditorGroup = string.IsNullOrWhiteSpace(SelectedType) ? string.Empty : SelectedType;
+        NewGroupName = string.Empty;
+        var group = SelectedEditorGroup == "__new__" ? string.Empty : SelectedEditorGroup;
+        var nextOrder = string.IsNullOrWhiteSpace(group) ? 10 : (Options.Where(x => string.Equals(x.LookupType, group, StringComparison.OrdinalIgnoreCase)).Select(x => x.SortOrder).DefaultIfEmpty(0).Max() + 10);
+        Editor = new LookupOptionEditModel { LookupType = group, SortOrder = nextOrder, IsActive = true };
+        EditorVisible = true;
+    }
+
+    private void OpenEdit(LookupOptionDto item)
+    {
+        Editing = true;
+        Editor = new LookupOptionEditModel { LookupOptionId = item.LookupOptionId, LookupType = item.LookupType, Code = item.Code, DisplayName = item.DisplayName, SortOrder = item.SortOrder, IsActive = item.IsActive };
+        EditorVisible = true;
+    }
+
+    private void CloseEditor() => EditorVisible = false;
+
+    private async Task SaveAsync()
+    {
+        Saving = true; ErrorMessage = null; SuccessMessage = null;
+        try
+        {
+            if (!Editing)
+                Editor.LookupType = SelectedEditorGroup == "__new__" ? NewGroupName.Trim() : SelectedEditorGroup.Trim();
+            if (string.IsNullOrWhiteSpace(Editor.LookupType)) throw new InvalidOperationException("Select an existing lookup group or create a new group.");
+            if (Editor.SortOrder <= 0) throw new InvalidOperationException("Sort Order must be greater than 0. Use 10, 20, 30... for easy future insertion.");
+            if (Editing) await Service.UpdateAsync(Editor); else await Service.CreateAsync(Editor);
+            EditorVisible = false; SuccessMessage = "Lookup option saved."; await LoadAsync();
+        }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { Saving = false; }
+    }
+
+    private async Task DeleteAsync(LookupOptionDto item)
+    {
+        ErrorMessage = null; SuccessMessage = null;
+        try { await Service.DeleteAsync(item.LookupOptionId); SuccessMessage = "Lookup option deleted."; await LoadAsync(); }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+    }
+}

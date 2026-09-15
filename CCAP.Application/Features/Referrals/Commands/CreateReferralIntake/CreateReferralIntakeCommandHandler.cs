@@ -1,6 +1,7 @@
-﻿using CCAP.Application.Abstractions.Persistence;
+using CCAP.Application.Abstractions.Persistence;
 using CCAP.Application.Abstractions.Storage;
 using CCAP.Domain.Entities;
+using CCAP.Domain.Enums;
 using MediatR;
 
 namespace CCAP.Application.Features.Referrals.Commands.CreateReferralIntake;
@@ -16,6 +17,7 @@ public sealed class CreateReferralIntakeCommandHandler
     private readonly IServiceTypeRepository _serviceTypes;
     private readonly IPatientTaskRepository _tasks;
     private readonly IComplianceRepository _compliance;
+    private readonly IReferralDraftRepository _drafts;
 
     // =========================================================
     // FILE STORAGE
@@ -28,25 +30,17 @@ public sealed class CreateReferralIntakeCommandHandler
 
     private readonly IUnitOfWork _unitOfWork;
 
-
     public CreateReferralIntakeCommandHandler(
-        IPatientRepository patients,
-        IReferralRepository referrals,
-        ILocationRepository locations,
-        IServiceTypeRepository serviceTypes,
-        IPatientTaskRepository tasks,
-        IComplianceRepository compliance,
-
-        // =====================================================
-        // FILE STORAGE
-        // =====================================================
-        // Keep these dependencies for easy re-enabling later.
-        // =====================================================
-
-        IReferralDocumentRepository documentRepository,
-        IFileStorage fileStorage,
-
-        IUnitOfWork unitOfWork)
+    IPatientRepository patients,
+    IReferralRepository referrals,
+    ILocationRepository locations,
+    IServiceTypeRepository serviceTypes,
+    IPatientTaskRepository tasks,
+    IComplianceRepository compliance,
+    IReferralDraftRepository drafts,
+    IReferralDocumentRepository documentRepository,
+    IFileStorage fileStorage,
+    IUnitOfWork unitOfWork)
     {
         _patients = patients;
         _referrals = referrals;
@@ -54,6 +48,7 @@ public sealed class CreateReferralIntakeCommandHandler
         _serviceTypes = serviceTypes;
         _tasks = tasks;
         _compliance = compliance;
+        _drafts = drafts;
 
         _documentRepository = documentRepository;
         _fileStorage = fileStorage;
@@ -61,11 +56,32 @@ public sealed class CreateReferralIntakeCommandHandler
         _unitOfWork = unitOfWork;
     }
 
-
     public async Task<CreateReferralIntakeResult> Handle(
         CreateReferralIntakeCommand request,
         CancellationToken cancellationToken)
     {
+        ReferralDraft? draft = null;
+
+        if (request.ReferralDraftId.HasValue)
+        {
+            draft =
+                await _drafts.GetByIdAsync(
+                    request.ReferralDraftId.Value,
+                    cancellationToken);
+
+            if (draft is null)
+            {
+                throw new KeyNotFoundException(
+                    "Referral draft was not found.");
+            }
+
+            if (draft.Status != ReferralStatus.Draft)
+            {
+                throw new InvalidOperationException(
+                    "This referral draft has already been completed.");
+            }
+        }
+
         // =========================================================
         // DUPLICATE CHECKS
         // =========================================================
@@ -81,7 +97,6 @@ public sealed class CreateReferralIntakeCommandHandler
                 $"A patient with MRN '{request.MRN}' already exists.");
         }
 
-
         var referralExists =
             await _referrals.ExistsByReferralNumberAsync(
                 request.ReferralNumber,
@@ -92,7 +107,6 @@ public sealed class CreateReferralIntakeCommandHandler
             throw new InvalidOperationException(
                 $"Referral number '{request.ReferralNumber}' already exists.");
         }
-
 
         // =========================================================
         // DEFAULT LOCATION
@@ -113,7 +127,6 @@ public sealed class CreateReferralIntakeCommandHandler
                 location,
                 cancellationToken);
         }
-
 
         // =========================================================
         // PATIENT
@@ -156,7 +169,6 @@ public sealed class CreateReferralIntakeCommandHandler
             patient,
             cancellationToken);
 
-
         // =========================================================
         // REFERRAL
         // =========================================================
@@ -185,18 +197,15 @@ public sealed class CreateReferralIntakeCommandHandler
         referral.ConvertToPatient(
             patient.PatientId);
 
-
         if (request.CoordinatorId.HasValue)
         {
             referral.Assign(
                 request.CoordinatorId.Value);
         }
 
-
         await _referrals.AddAsync(
             referral,
             cancellationToken);
-
 
         // =========================================================
         // SERVICE ORDERS
@@ -224,7 +233,6 @@ public sealed class CreateReferralIntakeCommandHandler
             if (service is null)
                 continue;
 
-
             var order =
                 new PatientServiceOrder(
                     patient.PatientId,
@@ -233,12 +241,10 @@ public sealed class CreateReferralIntakeCommandHandler
                     null,
                     false);
 
-
             await _serviceTypes.AddOrderAsync(
                 order,
                 cancellationToken);
         }
-
 
         // =========================================================
         // INITIAL WORKFLOW TASKS
@@ -250,16 +256,14 @@ public sealed class CreateReferralIntakeCommandHandler
         var baseDate =
             DateTime.UtcNow;
 
-
-        await AddTask(
-            patient.PatientId,
-            "Review Referral",
-            "Review the submitted referral information and verify that the intake information is complete.",
-            baseDate.AddHours(4),
-            "/referrals",
-            coordinator,
-            cancellationToken);
-
+        //await AddTask(
+        //    patient.PatientId,
+        //    "Review Referral",
+        //    "Review the submitted referral information and verify that the intake information is complete.",
+        //    baseDate.AddHours(4),
+        //    "/referrals",
+        //    coordinator,
+        //    cancellationToken);
 
         await AddTask(
             patient.PatientId,
@@ -270,7 +274,6 @@ public sealed class CreateReferralIntakeCommandHandler
             coordinator,
             cancellationToken);
 
-
         await AddTask(
             patient.PatientId,
             "Verify Physician Orders",
@@ -280,206 +283,208 @@ public sealed class CreateReferralIntakeCommandHandler
             coordinator,
             cancellationToken);
 
+        // =========================================================
+        // NOTE:
+        // Physician Orders and SOC Scheduling are intentionally NOT
+        // created as ComplianceRecord items here because they are
+        // not columns in the Excel compliance checklist.
+        //
+        // SOC scheduling remains handled by the existing SOC command
+        // and visit workflow when that functionality is used.
+        // =========================================================
 
-        await AddTask(
-            patient.PatientId,
-            "Schedule SOC Visit",
-            "Schedule the patient's Start of Care visit.",
-            request.SocDate
-                .Value
-                .ToDateTime(TimeOnly.MinValue),
-            $"/tracker/patient/{patient.PatientId}",
-            coordinator,
-            cancellationToken);
-
+        // Insurance verification is represented once as a workflow confirmation;
+        // the Insurance tab and Compliance tab operate on this same record.
+        await AddCompliance(patient.PatientId, "INSURANCE_VERIFICATION", "Insurance eligibility and authorization were reviewed and confirmed.", cancellationToken);
 
         // =============================================================
         // COMPLIANCE REQUIREMENTS
         // =============================================================
+        //
+        // These requirements correspond to the Excel workflow.
+        //
+        // PHASE 1 - INTAKE & ADMISSION PREPARATION
+        // =============================================================
 
-        await _compliance.AddAsync(
-            new ComplianceRecord(
-                patient.PatientId,
-                "REFERRAL_DOCUMENT",
-                "Referral document has not been uploaded or stored."),
+        await AddCompliance(
+            patient.PatientId,
+            "PRE_AUTH_RECEIVED",
+            "Pre-authorization has been received.",
             cancellationToken);
 
-        await _compliance.AddAsync(
-            new ComplianceRecord(
-                patient.PatientId,
-                "INSURANCE_VERIFICATION",
-                "Insurance verification is required."),
+        await AddCompliance(
+            patient.PatientId,
+            "PRO_RECEIVED",
+            "PRO has been received.",
             cancellationToken);
 
-        await _compliance.AddAsync(
-            new ComplianceRecord(
-                patient.PatientId,
-                "PHYSICIAN_ORDERS",
-                "Physician orders must be reviewed."),
+        await AddCompliance(
+            patient.PatientId,
+            "H_AND_P_RECEIVED",
+            "H&P has been received.",
             cancellationToken);
 
-        await _compliance.AddAsync(
-            new ComplianceRecord(
-                patient.PatientId,
-                "SOC_SCHEDULING",
-                "Start of Care visit must be scheduled."),
+        await AddCompliance(
+            patient.PatientId,
+            "F2F_RECEIVED",
+            "Face-to-Face documentation has been received.",
             cancellationToken);
 
-        await _compliance.AddAsync(
-            new ComplianceRecord(
-                patient.PatientId,
-                "SOC_COMPLIANT",
-                "Start of Care must be completed within the required timeframe."),
+        await AddCompliance(
+            patient.PatientId,
+            "PCP_CONFIRMED",
+            "Primary Care Physician has been confirmed.",
             cancellationToken);
 
-        await _compliance.AddAsync(
-            new ComplianceRecord(
-                patient.PatientId,
-                "DME_MED_SUPPLY",
-                "DME and required medical supplies must be arranged or confirmed."),
+        await AddCompliance(
+            patient.PatientId,
+            "AVS_RECEIVED",
+            "AVS has been received.",
             cancellationToken);
 
-        await _compliance.AddAsync(
-            new ComplianceRecord(
-                patient.PatientId,
-                "NOA_FILED",
-                "Notice of Admission must be filed."),
+        await AddCompliance(
+            patient.PatientId,
+            "SIGNED_CONSENTS",
+            "Required consents have been signed.",
             cancellationToken);
 
-        await _compliance.AddAsync(
-            new ComplianceRecord(
-                patient.PatientId,
-                "OASIS_SOC_COMPLETE",
-                "OASIS and Start of Care documentation must be completed."),
+        // =============================================================
+        // PHASE 2 - CARE INITIATION & COMPLIANCE
+        // =============================================================
+
+        await AddCompliance(
+            patient.PatientId,
+            "SOC_COMPLIANT",
+            "Start of Care was completed within the required timeframe.",
             cancellationToken);
 
-        await _compliance.AddAsync(
-            new ComplianceRecord(
-                patient.PatientId,
-                "QA_APPROVAL",
-                "QA approval is required before the PO/POC is ready for faxing."),
+        await AddCompliance(
+            patient.PatientId,
+            "DME_MED_SUPPLY",
+            "DME and medical supplies have been arranged or confirmed.",
             cancellationToken);
 
-        await _compliance.AddAsync(
-            new ComplianceRecord(
-                patient.PatientId,
-                "ORDERS_SIGNED",
-                "Orders must be signed by the physician."),
+        await AddCompliance(
+            patient.PatientId,
+            "NOA_FILED",
+            "Notice of Admission has been filed.",
             cancellationToken);
 
-        await _compliance.AddAsync(
-            new ComplianceRecord(
-                patient.PatientId,
-                "DOCS_UPLOADED",
-                "Required documentation must be uploaded to the appropriate system."),
+        await AddCompliance(
+            patient.PatientId,
+            "OASIS_SOC_COMPLETE",
+            "OASIS and Start of Care documentation have been completed.",
             cancellationToken);
 
-        await _compliance.AddAsync(
-            new ComplianceRecord(
-                patient.PatientId,
-                "SOC_FEEDBACK_QA",
-                "SOC feedback from QA must be completed."),
+        await AddCompliance(
+            patient.PatientId,
+            "QA_APPROVAL",
+            "QA approval has been completed and the PO/POC is ready for faxing.",
             cancellationToken);
 
-        await _compliance.AddAsync(
-            new ComplianceRecord(
-                patient.PatientId,
-                "CASE_MIX_IDENTIFIED",
-                "Case mix must be identified."),
+        await AddCompliance(
+            patient.PatientId,
+            "ORDERS_SIGNED",
+            "Orders have been signed by the physician.",
             cancellationToken);
 
-        await _compliance.AddAsync(
-            new ComplianceRecord(
-                patient.PatientId,
-                "CASE_MIX_ORDERS_SIGNED",
-                "Case mix orders must be signed."),
+        await AddCompliance(
+            patient.PatientId,
+            "DOCS_UPLOADED",
+            "Required documentation has been uploaded to the appropriate system.",
             cancellationToken);
 
-        await _compliance.AddAsync(
-            new ComplianceRecord(
-                patient.PatientId,
-                "CASE_MIX_PLOTTED",
-                "Case mix must be plotted."),
+        await AddCompliance(
+            patient.PatientId,
+            "CASE_MIX_IDENTIFIED",
+            "Case mix has been identified.",
             cancellationToken);
+
+        await AddCompliance(
+            patient.PatientId,
+            "CASE_MIX_ORDERS_SIGNED",
+            "Case mix orders have been signed.",
+            cancellationToken);
+
+        await AddCompliance(
+            patient.PatientId,
+            "CASE_MIX_PLOTTED",
+            "Case mix has been plotted.",
+            cancellationToken);
+        await AddCompliance(patient.PatientId, "PCP_PT_NOTIFIED", "PCP and PT notification has been confirmed when required.", cancellationToken);
+
+        // =============================================================
+        // PHASE 3 - ONGOING / TRANSITION / DISCHARGE
+        // =============================================================
+
+        await AddCompliance(patient.PatientId, "ROC", "Resumption of Care has been confirmed when applicable.", cancellationToken);
+        await AddCompliance(patient.PatientId, "RECERTIFICATION", "Recertification has been completed when applicable.", cancellationToken);
+        await AddCompliance(patient.PatientId, "DISCHARGE_SUMMARY_SIGNED", "Discharge summary has been signed when applicable.", cancellationToken);
+        await AddCompliance(patient.PatientId, "NOMNC_SIGNED", "NOMNC has been signed when applicable.", cancellationToken);
 
 
         // =========================================================
-        // PDF STORAGE
+        // PDF STORAGE / METADATA
         // =========================================================
-        //
-        // TEMPORARILY DISABLED
-        //
-        // The PDF may still be received by the API, but it is
-        // intentionally NOT written to disk, Plesk, cloud storage,
-        // or the database.
-        //
-        // To restore storage later, uncomment the block below.
-        //
+        // Current MetadataOnly mode persists metadata only. A configured
+        // IFileStorage provider (for example Azure Blob) stores the bytes.
         // =========================================================
 
         Guid? referralDocumentId = null;
-
         string? storageKey = null;
 
-
-        /*
-        // =========================================================
-        // RESTORE PDF STORAGE HERE
-        // =========================================================
-
-        if (request.PdfStream is not null)
+        if (!string.IsNullOrWhiteSpace(request.PdfFileName))
         {
-            var now =
-                DateTime.UtcNow;
+            var contentType = string.IsNullOrWhiteSpace(request.PdfContentType)
+                ? "application/pdf"
+                : request.PdfContentType;
 
-            var storageFolder =
-                $"Referrals/{now:yyyy}/{now:MM}/{referral.ReferralId}";
+            var fileSize = request.PdfSize
+                ?? (request.PdfStream?.CanSeek == true
+                    ? request.PdfStream.Length
+                    : 0);
 
-
-            var storedFile =
-                await _fileStorage.SaveAsync(
+            // MetadataOnly is the current deployment mode. When a real
+            // provider such as Azure Blob is enabled, the same abstraction
+            // stores the bytes and returns a storage key.
+            if (_fileStorage.CanStore && request.PdfStream is not null)
+            {
+                var now = DateTime.UtcNow;
+                var storedFile = await _fileStorage.SaveAsync(
                     request.PdfStream,
-                    request.PdfFileName!,
-                    request.PdfContentType!,
-                    storageFolder,
+                    request.PdfFileName,
+                    contentType,
+                    $"Referrals/{now:yyyy}/{now:MM}/{referral.ReferralId}",
                     cancellationToken);
 
+                storageKey = storedFile.StorageKey;
+                fileSize = storedFile.Size;
+            }
 
-            storageKey =
-                storedFile.StorageKey;
+            var document = new ReferralDocument(
+                referral.ReferralId,
+                storageKey,
+                request.PdfFileName,
+                contentType,
+                fileSize);
 
-
-            // =====================================================
-            // CREATE DOCUMENT RECORD
-            // =====================================================
-
-            var document =
-                new ReferralDocument(
-                    referral.ReferralId,
-                    storedFile.StorageKey,
-                    storedFile.OriginalFileName,
-                    storedFile.ContentType,
-                    storedFile.Size);
-
-
-            await AddDocumentAsync(
-                document,
-                cancellationToken);
-
-
-            referralDocumentId =
-                document.ReferralDocumentId;
+            await AddDocumentAsync(document, cancellationToken);
+            referralDocumentId = document.ReferralDocumentId;
         }
-        */
-
 
         // =========================================================
         // DATABASE SAVE
         // =========================================================
 
+        // Mark the source draft as converted BEFORE saving so the
+        // status transition is persisted atomically with the referral.
+        if (draft is not null)
+        {
+            draft.ConvertToPatient();
+        }
+
         await _unitOfWork.SaveChangesAsync(
             cancellationToken);
-
 
         // =========================================================
         // RESULT
@@ -496,7 +501,6 @@ public sealed class CreateReferralIntakeCommandHandler
             // NULL because no file is being stored.
             storageKey);
     }
-
 
     // =============================================================
     // ADD TASK
@@ -519,27 +523,40 @@ public sealed class CreateReferralIntakeCommandHandler
                 dueDate,
                 pageRoute);
 
-
         if (assignedUserId.HasValue)
         {
             task.Assign(
                 assignedUserId.Value);
         }
 
-
         await _tasks.AddAsync(
             task,
             cancellationToken);
     }
 
+    // =============================================================
+    // ADD COMPLIANCE
+    // =============================================================
+
+    private async Task AddCompliance(
+        Guid patientId,
+        string requirementCode,
+        string notes,
+        CancellationToken cancellationToken)
+    {
+        var compliance =
+            new ComplianceRecord(
+                patientId,
+                requirementCode,
+                notes);
+
+        await _compliance.AddAsync(
+            compliance,
+            cancellationToken);
+    }
 
     // =============================================================
     // ADD DOCUMENT
-    // =============================================================
-    //
-    // Currently unused because PDF storage is disabled.
-    //
-    // Keep it here so restoring document storage later is easy.
     // =============================================================
 
     private async Task AddDocumentAsync(

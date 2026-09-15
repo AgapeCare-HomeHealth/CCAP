@@ -12,4 +12,8 @@ public interface IComplianceRepository
         Guid patientId,
         string requirementCode,
         CancellationToken cancellationToken);
+
+    Task<List<ComplianceRecord>> GetByPatientAsync(
+        Guid patientId,
+        CancellationToken cancellationToken);
 }

@@ -103,3 +103,14 @@
         .action-dropdown .danger:hover {
             background: #FEF2F2;
         }
+
+
+.action-menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+}
+
+.action-menu .action-dropdown {
+    z-index: 1001;
+}

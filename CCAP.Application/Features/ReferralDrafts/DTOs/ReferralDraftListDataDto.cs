@@ -1,4 +1,4 @@
-﻿namespace CCAP.Application.Features.ReferralDrafts.DTOs;
+namespace CCAP.Application.Features.ReferralDrafts.DTOs;
 
 public sealed class ReferralDraftListDataDto
 {
@@ -9,4 +9,10 @@ public sealed class ReferralDraftListDataDto
     public string LastName { get; set; } = string.Empty;
 
     public string ReferralNumber { get; set; } = string.Empty;
+
+    public string? ReferralPdfFileName { get; set; }
+
+    public string? ReferralPdfContentType { get; set; }
+
+    public long? ReferralPdfSize { get; set; }
 }

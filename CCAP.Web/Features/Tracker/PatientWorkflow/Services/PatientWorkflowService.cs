@@ -1,6 +1,5 @@
 using CCAP.Web.Features.Authentication.Services;
 using CCAP.Web.Features.MockData;
-using CCAP.Web.Features.Tracker.PatientWorkflow.Model;
 using CCAP.Web.Features.Tracker.PatientWorkflow.Models;
 
 namespace CCAP.Web.Features.Tracker.PatientWorkflow.Services;
@@ -26,6 +25,36 @@ public sealed class PatientWorkflowService
         return await _api.GetFromJsonAsync<PatientWorkflowDto>(
             $"api/patients/{patientId}/workflow", cancellationToken);
     }
+    public async Task<List<PatientAuditLogDto>> GetAuditLogAsync(Guid patientId, CancellationToken cancellationToken = default)
+    {
+        if (_options.Enabled) return [];
+        return await _api.GetFromJsonAsync<List<PatientAuditLogDto>>($"api/patients/{patientId}/audit-log", cancellationToken) ?? [];
+    }
+
+    public async Task CompleteCareAsync(
+        Guid patientId,
+        string finalStatus, string? transferDestination = null, DateOnly? outcomeDate = null, string? transferReason = null, string? dischargeFeedback = null,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _api.PostAsJsonAsync(
+            $"api/patients/{patientId}/complete-care",
+            new { PatientId = patientId, FinalStatus = finalStatus, TransferDestination = transferDestination, OutcomeDate = outcomeDate, TransferReason = transferReason, DischargeFeedback = dischargeFeedback },
+            cancellationToken);
+        await _api.EnsureSuccessAsync(response, cancellationToken);
+    }
+
+    public async Task ArchivePatientAsync(
+        Guid patientId,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _api.PostAsJsonAsync(
+            $"api/patients/{patientId}/archive",
+            new { },
+            cancellationToken);
+
+        await _api.EnsureSuccessAsync(response, cancellationToken);
+    }
+
     public async Task UpdateHeaderAsync(PatientEditModel model, CancellationToken cancellationToken = default)
     {
         if (_options.Enabled)
@@ -36,9 +65,16 @@ public sealed class PatientWorkflowService
 
         var response = await _api.PutAsJsonAsync(
             $"api/patients/{model.PatientId}",
-            model,
+            new
+            {
+                model.MRN,
+                model.FirstName,
+                model.MiddleName,
+                model.LastName,
+                model.SocDate
+            },
             cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async Task CompleteInsuranceVerificationAsync(
@@ -50,7 +86,7 @@ public sealed class PatientWorkflowService
             new { },
             cancellationToken);
 
-        response.EnsureSuccessStatusCode();
+        await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async Task UpdateInsuranceAsync(
@@ -69,19 +105,7 @@ public sealed class PatientWorkflowService
             model,
             cancellationToken);
 
-        response.EnsureSuccessStatusCode();
-    }
-
-    public async Task CompleteSocComplianceAsync(
-    Guid patientId,
-    CancellationToken cancellationToken = default)
-    {
-        var response = await _api.PostAsJsonAsync(
-            $"api/patients/{patientId}/compliance/soc-compliant",
-            new { },
-            cancellationToken);
-
-        response.EnsureSuccessStatusCode();
+        await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async Task CompleteComplianceAsync(
@@ -94,7 +118,29 @@ public sealed class PatientWorkflowService
             new { },
             cancellationToken);
 
-        response.EnsureSuccessStatusCode();
+        await _api.EnsureSuccessAsync(response, cancellationToken);
+    }
+
+    public async Task ScheduleSocAsync(
+    Guid patientId,
+    DateOnly socDate,
+    CancellationToken cancellationToken = default)
+    {
+        var response = await _api.PostAsJsonAsync(
+            $"api/patients/{patientId}/soc/schedule",
+            new
+            {
+                SocDate = socDate
+            },
+            cancellationToken);
+
+        await _api.EnsureSuccessAsync(response, cancellationToken);
+    }
+
+    public async Task UpdateWorkflowDetailsAsync(Guid patientId, WorkflowDetailsDto model, CancellationToken cancellationToken = default)
+    {
+        var response = await _api.PutAsJsonAsync($"api/patients/{patientId}/workflow-details", model, cancellationToken);
+        await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 
 }

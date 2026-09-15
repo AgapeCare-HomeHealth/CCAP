@@ -1,7 +1,8 @@
-﻿namespace CCAP.Application.Abstractions.Storage;
+namespace CCAP.Application.Abstractions.Storage;
 
 public interface IFileStorage
 {
+    bool CanStore { get; }
     Task<StoredFile> SaveAsync(
         Stream content,
         string fileName,

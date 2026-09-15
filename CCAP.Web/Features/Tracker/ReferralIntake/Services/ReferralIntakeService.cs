@@ -1,4 +1,4 @@
-﻿using CCAP.Web.Common.Models;
+using CCAP.Web.Common.Models;
 using CCAP.Web.Features.Authentication.Services;
 using CCAP.Web.Features.MockData;
 using CCAP.Web.Features.Patients.Models;
@@ -61,6 +61,11 @@ public sealed class ReferralIntakeService
         // =====================================================
         // PATIENT
         // =====================================================
+
+        Add(
+            form,
+            "ReferralDraftId",
+            model.ReferralDraftId?.ToString());
 
         Add(
             form,
@@ -292,7 +297,14 @@ public sealed class ReferralIntakeService
         }
 
         // =====================================================
-        // PDF
+        // PDF METADATA
+        // =====================================================
+        Add(form, "PdfFileName", model.ReferralPdfFileName);
+        Add(form, "PdfContentType", model.ReferralPdfContentType);
+        Add(form, "PdfSize", model.ReferralPdfSize?.ToString());
+
+        // =====================================================
+        // PDF BYTES
         // =====================================================
         //
         // TEMPORARILY DISABLED.
@@ -730,156 +742,48 @@ public sealed class ReferralIntakeService
     // =========================================================
 
     public async Task<SaveReferralDraftResultDto> SaveDraftAsync(
-    ReferralIntakeModel model,
-    CancellationToken cancellationToken = default)
+        ReferralIntakeModel model,
+        CancellationToken cancellationToken = default)
     {
-        var draftData =
-            new ReferralIntakeDraftData
-            {
-                // =====================================================
-                // UPLOAD METADATA
-                // =====================================================
+        if (model.ReferralPdf is null &&
+            string.IsNullOrWhiteSpace(model.ReferralPdfFileName))
+        {
+            throw new InvalidOperationException(
+                "Please upload the referral PDF before saving the draft.");
+        }
 
-                ReferralPdfFileName =
-                    model.ReferralPdfFileName,
+        if (model.ReferralPdf is not null &&
+            !model.ReferralPdf.Name.EndsWith(
+                ".pdf",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "Only PDF files are accepted.");
+        }
 
-                ReferralPdfContentType =
-                    model.ReferralPdfContentType,
-
-                ReferralPdfSize =
-                    model.ReferralPdfSize,
-
-                // =====================================================
-                // PATIENT
-                // =====================================================
-
-                MRN = model.MRN,
-
-                FirstName =
-                    model.FirstName,
-
-                MiddleName =
-                    model.MiddleName,
-
-                LastName =
-                    model.LastName,
-
-                DateOfBirth =
-                    model.DateOfBirth,
-
-                Gender =
-                    model.Gender,
-
-                PrimaryPhone =
-                    model.PrimaryPhone,
-
-                AlternatePhone =
-                    model.AlternatePhone,
-
-                StreetAddress =
-                    model.StreetAddress,
-
-                City =
-                    model.City,
-
-                State =
-                    model.State,
-
-                ZipCode =
-                    model.ZipCode,
-
-                EmergencyContactName =
-                    model.EmergencyContactName,
-
-                EmergencyContactRelationship =
-                    model.EmergencyContactRelationship,
-
-                EmergencyContactPhone =
-                    model.EmergencyContactPhone,
-
-                ReferralNumber =
-                    model.ReferralNumber,
-
-                ReferralDate =
-                    model.ReferralDate,
-
-                ReferralSource =
-                    model.ReferralSource,
-
-                Priority =
-                    model.Priority,
-
-                PrimaryInsurance =
-                    model.PrimaryInsurance,
-
-                InsuranceMemberId =
-                    model.InsuranceMemberId,
-
-                AuthorizationRequired =
-                    model.AuthorizationRequired,
-
-                ReferringPhysician =
-                    model.ReferringPhysician,
-
-                PhysicianPhone =
-                    model.PhysicianPhone,
-
-                PrimaryDiagnosis =
-                    model.PrimaryDiagnosis,
-
-                SecondaryDiagnosis =
-                    model.SecondaryDiagnosis,
-
-                OrderedServices =
-                    model.OrderedServices,
-
-                ReferralNotes =
-                    model.ReferralNotes,
-
-                CoordinatorId =
-                    model.CoordinatorId,
-
-                ClinicianId =
-                    model.ClinicianId,
-
-                DisciplineId =
-                    model.DisciplineId,
-
-                SocDate =
-                    model.SocDate,
-
-                VisitPriority =
-                    model.VisitPriority,
-
-                CaseStatus =
-                    model.CaseStatus,
-
-                InternalNotes =
-                    model.InternalNotes
-            };
-
-        var json =
-            JsonSerializer.Serialize(
-                draftData);
+        // IMPORTANT: Save Draft persists Step 1 only.
+        var draftData = new ReferralIntakeDraftData
+        {
+            ReferralPdfFileName =
+                model.ReferralPdf?.Name ?? model.ReferralPdfFileName,
+            ReferralPdfContentType =
+                model.ReferralPdf?.ContentType ?? model.ReferralPdfContentType,
+            ReferralPdfSize =
+                model.ReferralPdf?.Size ?? model.ReferralPdfSize
+        };
 
         var request = new
         {
-            ReferralDraftId =
-        model.ReferralDraftId,
-
-            Data =
-        json
+            ReferralDraftId = model.ReferralDraftId,
+            Data = JsonSerializer.Serialize(draftData)
         };
 
-        using var response =
-            await _api.PostAsJsonAsync(
-                "api/referrals/draft",
-                request,
-                cancellationToken);
+        using var response = await _api.PostAsJsonAsync(
+            "api/referrals/draft",
+            request,
+            cancellationToken);
 
-        var body =
-            await response.Content.ReadAsStringAsync(
-                cancellationToken);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -889,23 +793,20 @@ public sealed class ReferralIntakeService
                     : body);
         }
 
-        var result =
-            JsonSerializer.Deserialize<
-                SaveReferralDraftResultDto>(
-                    body,
-                    new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true
-                    });
+        var result = JsonSerializer.Deserialize<SaveReferralDraftResultDto>(
+            body,
+            new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
 
         if (result is null)
-        {
-            throw new InvalidOperationException(
-                "API returned an empty draft response.");
-        }
+            throw new InvalidOperationException("API returned an empty draft response.");
 
-        model.ReferralDraftId =
-            result.ReferralDraftId;
+        model.ReferralDraftId = result.ReferralDraftId;
+        model.ReferralPdfFileName = draftData.ReferralPdfFileName;
+        model.ReferralPdfContentType = draftData.ReferralPdfContentType;
+        model.ReferralPdfSize = draftData.ReferralPdfSize;
 
         return result;
     }
@@ -968,158 +869,13 @@ public sealed class ReferralIntakeService
                 "The referral draft data could not be loaded.");
         }
 
-        var model =
-            new ReferralIntakeModel
-            {
-                ReferralDraftId =
-                    draftId,
-
-                // =================================================
-                // PDF METADATA
-                // =================================================
-
-                ReferralPdfFileName =
-                    draftData.ReferralPdfFileName,
-
-                ReferralPdfContentType =
-                    draftData.ReferralPdfContentType,
-
-                ReferralPdfSize =
-                    draftData.ReferralPdfSize,
-
-                // =================================================
-                // PATIENT
-                // =================================================
-
-                MRN =
-                    draftData.MRN,
-
-                FirstName =
-                    draftData.FirstName,
-
-                MiddleName =
-                    draftData.MiddleName,
-
-                LastName =
-                    draftData.LastName,
-
-                DateOfBirth =
-                    draftData.DateOfBirth,
-
-                Gender =
-                    draftData.Gender,
-
-                PrimaryPhone =
-                    draftData.PrimaryPhone,
-
-                AlternatePhone =
-                    draftData.AlternatePhone,
-
-                StreetAddress =
-                    draftData.StreetAddress,
-
-                City =
-                    draftData.City,
-
-                State =
-                    draftData.State,
-
-                ZipCode =
-                    draftData.ZipCode,
-
-                // =================================================
-                // EMERGENCY CONTACT
-                // =================================================
-
-                EmergencyContactName =
-                    draftData.EmergencyContactName,
-
-                EmergencyContactRelationship =
-                    draftData.EmergencyContactRelationship,
-
-                EmergencyContactPhone =
-                    draftData.EmergencyContactPhone,
-
-                // =================================================
-                // REFERRAL
-                // =================================================
-
-                ReferralNumber =
-                    draftData.ReferralNumber,
-
-                ReferralDate =
-                    draftData.ReferralDate,
-
-                ReferralSource =
-                    draftData.ReferralSource,
-
-                Priority =
-                    draftData.Priority,
-
-                // =================================================
-                // INSURANCE
-                // =================================================
-
-                PrimaryInsurance =
-                    draftData.PrimaryInsurance,
-
-                InsuranceMemberId =
-                    draftData.InsuranceMemberId,
-
-                AuthorizationRequired =
-                    draftData.AuthorizationRequired,
-
-                // =================================================
-                // PHYSICIAN
-                // =================================================
-
-                ReferringPhysician =
-                    draftData.ReferringPhysician,
-
-                PhysicianPhone =
-                    draftData.PhysicianPhone,
-
-                // =================================================
-                // CLINICAL
-                // =================================================
-
-                PrimaryDiagnosis =
-                    draftData.PrimaryDiagnosis,
-
-                SecondaryDiagnosis =
-                    draftData.SecondaryDiagnosis,
-
-                OrderedServices =
-                    draftData.OrderedServices ?? [],
-
-                ReferralNotes =
-                    draftData.ReferralNotes,
-
-                // =================================================
-                // ASSIGNMENT
-                // =================================================
-
-                CoordinatorId =
-                    draftData.CoordinatorId,
-
-                ClinicianId =
-                    draftData.ClinicianId,
-
-                DisciplineId =
-                    draftData.DisciplineId,
-
-                SocDate =
-                    draftData.SocDate,
-
-                VisitPriority =
-                    draftData.VisitPriority,
-
-                CaseStatus =
-                    draftData.CaseStatus,
-
-                InternalNotes =
-                    draftData.InternalNotes
-            };
+        var model = new ReferralIntakeModel
+        {
+            ReferralDraftId = draftId,
+            ReferralPdfFileName = draftData.ReferralPdfFileName,
+            ReferralPdfContentType = draftData.ReferralPdfContentType,
+            ReferralPdfSize = draftData.ReferralPdfSize
+        };
 
         return model;
     }

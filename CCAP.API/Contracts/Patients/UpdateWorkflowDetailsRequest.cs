@@ -1,0 +1,3 @@
+namespace CCAP.API.Contracts.Patients;
+public sealed class UpdateWorkflowDetailsRequest
+{ public DateOnly? PreAuthDueDate{get;set;} public int? NumberOfVisits{get;set;} public string? CaseMixType{get;set;} public string? DmeMedSupplyNotes{get;set;} public string? SocFeedbackFromPatient{get;set;} public DateOnly? TifDate{get;set;} public DateOnly? RocDate{get;set;} public DateOnly? RecertDate{get;set;} public bool? PcpPtNotified{get;set;} public DateOnly? DischargeDate{get;set;} public string? DischargeFeedback{get;set;} public string? TransferDestination{get;set;} public DateOnly? TransferDate{get;set;} public string? TransferReason{get;set;} }

@@ -110,11 +110,8 @@ public sealed class GetReferralDraftsQueryHandler
             // GUID → actual user's name
             SavedByName = createdByName,
 
-            PatientName = patientName,
-
-            ReferralNumber =
-                data?.ReferralNumber
-                ?? string.Empty,
+            PdfFileName = data?.ReferralPdfFileName ?? string.Empty,
+            PdfFileSize = data?.ReferralPdfSize,
 
             Status =
                 draft.Status.ToString(),
