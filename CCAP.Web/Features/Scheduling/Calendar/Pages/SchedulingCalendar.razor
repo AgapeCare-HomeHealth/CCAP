@@ -1,0 +1,846 @@
+﻿@page "/scheduling/calendar"
+@attribute [CcapAuthorize(Policy = "referrals.view")]
+
+<div class="scheduling-calendar-page">
+
+    <!-- Page Header -->
+    <div class="calendar-page-header">
+        <div>
+            <h1>Scheduling Calendar</h1>
+            <p>View and manage patient schedules.</p>
+        </div>
+
+        <div>
+            <label class="btn-upload-csv">
+                <span>↑</span>
+                Upload CSV
+                <InputFile OnChange="HandleFileSelected"
+                           accept=".csv"
+                           class="file-input-hidden" />
+            </label>
+        </div>
+    </div>
+
+
+    <!-- Calendar Card -->
+    <div class="calendar-card">
+
+        <!-- Calendar Toolbar -->
+        <div class="calendar-toolbar">
+
+            <div class="calendar-navigation">
+
+                <button class="toolbar-button"
+                        @onclick="GoToToday">
+                    Today
+                </button>
+
+                <button class="toolbar-button navigation-button"
+                        @onclick="PreviousPeriod">
+                    ‹
+                </button>
+
+                <button class="toolbar-button navigation-button"
+                        @onclick="NextPeriod">
+                    ›
+                </button>
+
+                <h2 class="month-title">
+                    @GetPeriodTitle()
+                </h2>
+
+            </div>
+
+
+            <!-- View Switcher -->
+            <div class="view-switcher">
+
+                <button class="view-button @(CurrentView == CalendarView.Month ? "active" : "")"
+                        @onclick="() => ChangeView(CalendarView.Month)">
+                    Month
+                </button>
+
+                <button class="view-button @(CurrentView == CalendarView.Week ? "active" : "")"
+                        @onclick="() => ChangeView(CalendarView.Week)">
+                    Week
+                </button>
+
+                <button class="view-button @(CurrentView == CalendarView.Day ? "active" : "")"
+                        @onclick="() => ChangeView(CalendarView.Day)">
+                    Day
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <!-- ========================= -->
+        <!-- MONTH VIEW -->
+        <!-- ========================= -->
+        @if (CurrentView == CalendarView.Month)
+        {
+            <div class="calendar-grid">
+
+                <!-- Weekday Headers -->
+                @foreach (var weekday in Weekdays)
+                {
+                    <div class="calendar-weekday">
+                        @weekday
+                    </div>
+                }
+
+
+                <!-- Calendar Days -->
+                @foreach (var day in CalendarDays)
+                {
+                    var daySchedules = GetSchedulesForDate(day);
+
+                    <div class="calendar-day
+                        @(day.Month != CurrentMonth.Month ? "other-month" : "")
+                        @(SelectedDate.Date == day.Date ? "selected-day" : "")"
+                         @onclick="() => SelectDate(day)">
+
+                        <div class="day-number">
+                            @day.Day
+                        </div>
+
+
+                        <div class="day-events">
+
+                            @foreach (var schedule in daySchedules.Take(3))
+                            {
+                                <div class="schedule-event @GetServiceCssClass(schedule.ServiceType)"
+                                     @onclick:stopPropagation="true"
+                                     @onclick="() => SelectSchedule(schedule)">
+
+                                    <div class="event-title">
+                                        @schedule.PatientName
+                                    </div>
+
+                                    <div class="event-time">
+                                        @schedule.StartTime.ToString("h:mm tt")
+                                    </div>
+
+                                </div>
+                            }
+
+
+                            @if (daySchedules.Count > 3)
+                            {
+                                <div class="more-events">
+                                    +@(daySchedules.Count - 3) more
+                                </div>
+                            }
+
+                        </div>
+
+                    </div>
+                }
+
+            </div>
+        }
+
+
+        <!-- ========================= -->
+        <!-- WEEK VIEW -->
+        <!-- ========================= -->
+        @if (CurrentView == CalendarView.Week)
+        {
+            <div class="week-view">
+
+                @foreach (var day in GetWeekDays())
+                {
+                    var daySchedules = GetSchedulesForDate(day);
+
+                    <div class="week-day-column">
+
+                        <div class="week-day-header"
+                             @onclick="() => SelectDate(day)">
+
+                            <span>
+                                @day.ToString("ddd")
+                            </span>
+
+                            <strong>
+                                @day.Day
+                            </strong>
+
+                        </div>
+
+
+                        <div class="week-day-schedules">
+
+                            @if (daySchedules.Any())
+                            {
+                                @foreach (var schedule in daySchedules)
+                                {
+                                    <div class="schedule-event @GetServiceCssClass(schedule.ServiceType)"
+                                         @onclick="() => SelectSchedule(schedule)">
+
+                                        <div class="event-title">
+                                            @schedule.PatientName
+                                        </div>
+
+                                        <div class="event-time">
+                                            @schedule.StartTime.ToString("h:mm tt")
+                                        </div>
+
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div class="no-schedules">
+                                    No schedules
+                                </div>
+                            }
+
+                        </div>
+
+                    </div>
+                }
+
+            </div>
+        }
+
+
+        <!-- ========================= -->
+        <!-- DAY VIEW -->
+        <!-- ========================= -->
+        @if (CurrentView == CalendarView.Day)
+        {
+            <div class="day-view">
+
+                <div class="day-view-header">
+
+                    <div>
+                        <span>
+                            @SelectedDate.ToString("dddd")
+                        </span>
+
+                        <strong>
+                            @SelectedDate.ToString("MMMM d, yyyy")
+                        </strong>
+                    </div>
+
+                </div>
+
+
+                <div class="day-schedule-list">
+
+                    @{
+                        var selectedDaySchedules = GetSchedulesForDate(SelectedDate);
+                    }
+
+                    @if (selectedDaySchedules.Any())
+                    {
+                        @foreach (var schedule in selectedDaySchedules)
+                        {
+                            <div class="day-schedule-item @GetServiceCssClass(schedule.ServiceType)"
+                                 @onclick="() => SelectSchedule(schedule)">
+
+                                <div class="schedule-time">
+                                    @schedule.StartTime.ToString("h:mm tt")
+                                    -
+                                    @schedule.EndTime.ToString("h:mm tt")
+                                </div>
+
+                                <div class="schedule-information">
+
+                                    <strong>
+                                        @schedule.PatientName
+                                    </strong>
+
+                                    <span>
+                                        @schedule.ServiceType
+                                    </span>
+
+                                </div>
+
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="day-empty-state">
+                            <strong>No schedules for this day</strong>
+                            <span>There are no scheduled visits.</span>
+                        </div>
+                    }
+
+                </div>
+
+            </div>
+        }
+
+    </div>
+
+
+    <!-- ========================= -->
+    <!-- SELECTED DAY DETAILS -->
+    <!-- ========================= -->
+    @if (SelectedDate != DateTime.MinValue && CurrentView != CalendarView.Day)
+    {
+        <div class="selected-day-panel">
+
+            <div class="selected-day-header">
+
+                <div>
+                    <span>Selected Day</span>
+                    <h3>
+                        @SelectedDate.ToString("dddd, MMMM d, yyyy")
+                    </h3>
+                </div>
+
+                <button class="close-panel-button"
+                        @onclick="ClearSelectedDate">
+                    ×
+                </button>
+
+            </div>
+
+
+            @{
+                var selectedSchedules = GetSchedulesForDate(SelectedDate);
+            }
+
+            @if (selectedSchedules.Any())
+            {
+                <div class="selected-schedule-list">
+
+                    @foreach (var schedule in selectedSchedules)
+                    {
+                        <div class="selected-schedule-item"
+                             @onclick="() => SelectSchedule(schedule)">
+
+                            <div class="selected-schedule-time">
+                                @schedule.StartTime.ToString("h:mm tt")
+                                -
+                                @schedule.EndTime.ToString("h:mm tt")
+                            </div>
+
+                            <div class="selected-schedule-info">
+
+                                <strong>
+                                    @schedule.PatientName
+                                </strong>
+
+                                <span>
+                                    @schedule.ServiceType
+                                </span>
+
+                            </div>
+
+                        </div>
+                    }
+
+                </div>
+            }
+            else
+            {
+                <div class="selected-day-empty">
+                    No schedules for this day.
+                </div>
+            }
+
+        </div>
+    }
+
+
+    <!-- ========================= -->
+    <!-- SCHEDULE DETAILS -->
+    <!-- ========================= -->
+    @if (SelectedSchedule is not null)
+    {
+        <div class="schedule-details-panel">
+
+            <div class="schedule-details-header">
+
+                <div>
+                    <span>Schedule Details</span>
+
+                    <h3>
+                        @SelectedSchedule.PatientName
+                    </h3>
+                </div>
+
+                <button class="close-panel-button"
+                        @onclick="ClearSelectedSchedule">
+                    ×
+                </button>
+
+            </div>
+
+
+            <div class="schedule-details-content">
+
+                <div class="detail-row">
+                    <span>Date</span>
+                    <strong>
+                        @SelectedSchedule.Date.ToString("MMMM d, yyyy")
+                    </strong>
+                </div>
+
+                <div class="detail-row">
+                    <span>Time</span>
+                    <strong>
+                        @SelectedSchedule.StartTime.ToString("h:mm tt")
+                        -
+                        @SelectedSchedule.EndTime.ToString("h:mm tt")
+                    </strong>
+                </div>
+
+                <div class="detail-row">
+                    <span>Service</span>
+                    <strong>
+                        @SelectedSchedule.ServiceType
+                    </strong>
+                </div>
+
+                <div class="detail-row">
+                    <span>Clinician</span>
+                    <strong>
+                        @SelectedSchedule.Clinician
+                    </strong>
+                </div>
+
+            </div>
+
+        </div>
+    }
+
+</div>
+
+
+@code {
+
+    // ==========================================
+    // CALENDAR VIEW
+    // ==========================================
+
+    private CalendarView CurrentView = CalendarView.Month;
+
+    private DateTime CurrentMonth = new(
+        DateTime.Today.Year,
+        DateTime.Today.Month,
+        1);
+
+    private DateTime SelectedDate = DateTime.Today;
+
+    private ScheduleItem? SelectedSchedule;
+
+
+    private enum CalendarView
+    {
+        Month,
+        Week,
+        Day
+    }
+
+
+    // ==========================================
+    // WEEKDAYS
+    // ==========================================
+
+    private readonly string[] Weekdays =
+    {
+        "Sun",
+        "Mon",
+        "Tue",
+        "Wed",
+        "Thu",
+        "Fri",
+        "Sat"
+    };
+
+
+    // ==========================================
+    // CALENDAR DAYS
+    // ==========================================
+
+    private List<DateTime> CalendarDays = new();
+
+
+    // ==========================================
+    // SAMPLE SCHEDULES
+    // ==========================================
+
+    private List<ScheduleItem> Schedules = new();
+
+
+    // ==========================================
+    // INITIALIZE
+    // ==========================================
+
+    protected override void OnInitialized()
+    {
+        LoadSampleSchedules();
+
+        GenerateCalendarDays();
+    }
+
+
+    // ==========================================
+    // GENERATE MONTH DAYS
+    // ==========================================
+
+    private void GenerateCalendarDays()
+    {
+        CalendarDays.Clear();
+
+        var firstDayOfMonth = CurrentMonth;
+
+        int daysToPreviousSunday =
+            (int)firstDayOfMonth.DayOfWeek;
+
+        var calendarStart =
+            firstDayOfMonth.AddDays(-daysToPreviousSunday);
+
+        var lastDayOfMonth =
+            CurrentMonth.AddMonths(1).AddDays(-1);
+
+        int daysToNextSaturday =
+            6 - (int)lastDayOfMonth.DayOfWeek;
+
+        var calendarEnd =
+            lastDayOfMonth.AddDays(daysToNextSaturday);
+
+        for (var date = calendarStart;
+             date <= calendarEnd;
+             date = date.AddDays(1))
+        {
+            CalendarDays.Add(date);
+        }
+    }
+
+
+    // ==========================================
+    // GET SCHEDULES FOR DATE
+    // ==========================================
+
+    private List<ScheduleItem> GetSchedulesForDate(DateTime date)
+    {
+        return Schedules
+            .Where(x => x.Date.Date == date.Date)
+            .OrderBy(x => x.StartTime)
+            .ToList();
+    }
+
+
+    // ==========================================
+    // CHANGE VIEW
+    // ==========================================
+
+    private void ChangeView(CalendarView view)
+    {
+        CurrentView = view;
+
+        SelectedSchedule = null;
+    }
+
+
+    // ==========================================
+    // SELECT DATE
+    // ==========================================
+
+    private void SelectDate(DateTime date)
+    {
+        SelectedDate = date;
+
+        SelectedSchedule = null;
+    }
+
+
+    // ==========================================
+    // SELECT SCHEDULE
+    // ==========================================
+
+    private void SelectSchedule(ScheduleItem schedule)
+    {
+        SelectedSchedule = schedule;
+
+        SelectedDate = schedule.Date;
+    }
+
+
+    // ==========================================
+    // CLEAR SELECTED DATE
+    // ==========================================
+
+    private void ClearSelectedDate()
+    {
+        SelectedDate = DateTime.MinValue;
+    }
+
+
+    // ==========================================
+    // CLEAR SELECTED SCHEDULE
+    // ==========================================
+
+    private void ClearSelectedSchedule()
+    {
+        SelectedSchedule = null;
+    }
+
+
+    // ==========================================
+    // TODAY
+    // ==========================================
+
+    private void GoToToday()
+    {
+        var today = DateTime.Today;
+
+        CurrentMonth = new DateTime(
+            today.Year,
+            today.Month,
+            1);
+
+        SelectedDate = today;
+
+        CurrentView = CalendarView.Month;
+
+        SelectedSchedule = null;
+
+        GenerateCalendarDays();
+    }
+
+
+    // ==========================================
+    // PREVIOUS
+    // ==========================================
+
+    private void PreviousPeriod()
+    {
+        if (CurrentView == CalendarView.Month)
+        {
+            CurrentMonth = CurrentMonth.AddMonths(-1);
+
+            GenerateCalendarDays();
+        }
+        else if (CurrentView == CalendarView.Week)
+        {
+            SelectedDate = SelectedDate.AddDays(-7);
+        }
+        else
+        {
+            SelectedDate = SelectedDate.AddDays(-1);
+        }
+
+        SelectedSchedule = null;
+    }
+
+
+    // ==========================================
+    // NEXT
+    // ==========================================
+
+    private void NextPeriod()
+    {
+        if (CurrentView == CalendarView.Month)
+        {
+            CurrentMonth = CurrentMonth.AddMonths(1);
+
+            GenerateCalendarDays();
+        }
+        else if (CurrentView == CalendarView.Week)
+        {
+            SelectedDate = SelectedDate.AddDays(7);
+        }
+        else
+        {
+            SelectedDate = SelectedDate.AddDays(1);
+        }
+
+        SelectedSchedule = null;
+    }
+
+
+    // ==========================================
+    // PERIOD TITLE
+    // ==========================================
+
+    private string GetPeriodTitle()
+    {
+        return CurrentView switch
+        {
+            CalendarView.Month =>
+                CurrentMonth.ToString("MMMM yyyy"),
+
+            CalendarView.Week =>
+                GetWeekTitle(),
+
+            CalendarView.Day =>
+                SelectedDate.ToString("MMMM d, yyyy"),
+
+            _ => ""
+        };
+    }
+
+
+    private string GetWeekTitle()
+    {
+        var startOfWeek = GetStartOfWeek(SelectedDate);
+
+        var endOfWeek = startOfWeek.AddDays(6);
+
+        if (startOfWeek.Month == endOfWeek.Month)
+        {
+            return $"{startOfWeek:MMMM d} - {endOfWeek:d}, {endOfWeek:yyyy}";
+        }
+
+        return $"{startOfWeek:MMM d} - {endOfWeek:MMM d}, {endOfWeek:yyyy}";
+    }
+
+
+    // ==========================================
+    // WEEK DAYS
+    // ==========================================
+
+    private List<DateTime> GetWeekDays()
+    {
+        var startOfWeek = GetStartOfWeek(SelectedDate);
+
+        return Enumerable
+            .Range(0, 7)
+            .Select(i => startOfWeek.AddDays(i))
+            .ToList();
+    }
+
+
+    private DateTime GetStartOfWeek(DateTime date)
+    {
+        int difference =
+            (7 + (date.DayOfWeek - DayOfWeek.Sunday)) % 7;
+
+        return date.Date.AddDays(-difference);
+    }
+
+
+    // ==========================================
+    // SERVICE CSS
+    // ==========================================
+
+    private string GetServiceCssClass(string serviceType)
+    {
+        return serviceType.ToUpperInvariant() switch
+        {
+            "PT" => "service-pt",
+            "OT" => "service-ot",
+            "ST" => "service-st",
+            "SN" => "service-sn",
+            "MSW" => "service-msw",
+            _ => "service-other"
+        };
+    }
+
+
+    // ==========================================
+    // UPLOAD CSV
+    // ==========================================
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+
+        if (file is null)
+            return;
+
+        // CSV processing will be implemented later.
+        // For now, we only confirm that a file was selected.
+
+        await Task.CompletedTask;
+    }
+
+
+    // ==========================================
+    // SAMPLE DATA
+    // ==========================================
+
+    private void LoadSampleSchedules()
+    {
+        Schedules = new List<ScheduleItem>
+        {
+            new()
+            {
+                PatientName = "John Smith",
+                Date = new DateTime(2026, 9, 1),
+                StartTime = new DateTime(2026, 9, 1, 9, 0, 0),
+                EndTime = new DateTime(2026, 9, 1, 10, 0, 0),
+                ServiceType = "PT",
+                Clinician = "Michael Johnson"
+            },
+
+            new()
+            {
+                PatientName = "Maria Garcia",
+                Date = new DateTime(2026, 9, 2),
+                StartTime = new DateTime(2026, 9, 2, 11, 0, 0),
+                EndTime = new DateTime(2026, 9, 2, 12, 0, 0),
+                ServiceType = "OT",
+                Clinician = "Sarah Williams"
+            },
+
+            new()
+            {
+                PatientName = "Robert Johnson",
+                Date = new DateTime(2026, 9, 3),
+                StartTime = new DateTime(2026, 9, 3, 10, 0, 0),
+                EndTime = new DateTime(2026, 9, 3, 11, 0, 0),
+                ServiceType = "ST",
+                Clinician = "David Brown"
+            },
+
+            new()
+            {
+                PatientName = "Linda Brown",
+                Date = new DateTime(2026, 9, 4),
+                StartTime = new DateTime(2026, 9, 4, 13, 0, 0),
+                EndTime = new DateTime(2026, 9, 4, 14, 0, 0),
+                ServiceType = "SN",
+                Clinician = "Jennifer Davis"
+            },
+
+            new()
+            {
+                PatientName = "Emily Taylor",
+                Date = new DateTime(2026, 9, 7),
+                StartTime = new DateTime(2026, 9, 7, 9, 30, 0),
+                EndTime = new DateTime(2026, 9, 7, 10, 30, 0),
+                ServiceType = "PT",
+                Clinician = "Michael Johnson"
+            },
+
+            new()
+            {
+                PatientName = "Daniel Anderson",
+                Date = new DateTime(2026, 9, 8),
+                StartTime = new DateTime(2026, 9, 8, 12, 0, 0),
+                EndTime = new DateTime(2026, 9, 8, 13, 0, 0),
+                ServiceType = "OT",
+                Clinician = "Sarah Williams"
+            }
+        };
+    }
+
+
+    // ==========================================
+    // MODEL
+    // ==========================================
+
+    private class ScheduleItem
+    {
+        public string PatientName { get; set; } = "";
+
+        public DateTime Date { get; set; }
+
+        public DateTime StartTime { get; set; }
+
+        public DateTime EndTime { get; set; }
+
+        public string ServiceType { get; set; } = "";
+
+        public string Clinician { get; set; } = "";
+    }
+}
