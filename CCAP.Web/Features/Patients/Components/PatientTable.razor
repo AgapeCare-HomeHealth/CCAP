@@ -15,7 +15,6 @@
                 <th>Primary Diagnosis</th>
                 <th>Assigned Clinician</th>
                 <th>Next Visit</th>
-                <th></th>
 
             </tr>
 
@@ -43,9 +42,6 @@
 
                         <td>@patient.NextVisit</td>
 
-                        <td @onclick:stopPropagation="true">
-                            <PatientActionMenu />
-                        </td>
 
                     </tr>
                 }
@@ -54,7 +50,7 @@
             {
                 <tr>
 
-                    <td colspan="7"
+                    <td colspan="6"
                         class="text-center py-5">
 
                         No data available.

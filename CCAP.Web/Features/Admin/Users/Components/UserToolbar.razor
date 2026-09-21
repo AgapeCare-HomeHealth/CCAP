@@ -23,6 +23,14 @@
         </div>
 
         <div class="col-xl-2 col-md-4">
+            <label class="toolbar-label">Sort By</label>
+            <select class="form-select" @bind="Filter.SortBy"><option value="FullName">Name</option><option value="EmployeeNo">Employee No.</option><option value="Email">Email</option><option value="Role">Role</option><option value="Discipline">Discipline</option><option value="Status">Status</option></select>
+        </div>
+        <div class="col-xl-2 col-md-4">
+            <label class="toolbar-label">Direction</label>
+            <select class="form-select" @bind="Filter.SortDescending"><option value="false">Ascending</option><option value="true">Descending</option></select>
+        </div>
+        <div class="col-xl-2 col-md-4">
             <label class="toolbar-label">Discipline</label>
             <select class="form-select" @bind="Filter.DisciplineId">
                 <option value="">All Disciplines</option>

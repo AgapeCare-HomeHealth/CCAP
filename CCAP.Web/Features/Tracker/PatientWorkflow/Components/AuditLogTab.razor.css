@@ -345,3 +345,4 @@
         flex-direction: column;
     }
 }
+.audit-json{max-width:320px;max-height:140px;overflow:auto;white-space:pre-wrap;word-break:break-word;margin:0;font-size:.75rem;background:#f8f9fa;padding:.5rem;border-radius:.25rem;}

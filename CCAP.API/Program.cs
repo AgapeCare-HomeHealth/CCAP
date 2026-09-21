@@ -2,8 +2,10 @@ using CCAP.API.Authorization;
 using CCAP.Application;
 using CCAP.Infrastructure;
 using CCAP.Infrastructure.Identity;
+using CCAP.Infrastructure.Persistence;
 using CCAP.Infrastructure.Seed;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -70,22 +72,47 @@ builder.Services.AddCcapPolicies();
 
 var app = builder.Build();
 
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+        var statusCode = exception switch
+        {
+            ArgumentException => StatusCodes.Status400BadRequest,
+            KeyNotFoundException => StatusCodes.Status404NotFound,
+            UnauthorizedAccessException => StatusCodes.Status403Forbidden,
+            InvalidOperationException => StatusCodes.Status409Conflict,
+            _ => StatusCodes.Status500InternalServerError
+        };
+
+        context.Response.StatusCode = statusCode;
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsJsonAsync(new
+        {
+            message = exception?.Message ?? "An unexpected error occurred."
+        });
+    });
+});
+
 using (var scope = app.Services.CreateScope())
 {
-    var context = scope.ServiceProvider.GetRequiredService<CCAP.Infrastructure.Persistence.AppDbContext>();
+    var context = scope.ServiceProvider
+        .GetRequiredService<AppDbContext>();
 
-    // In development you may set Database:ApplyMigrations=true to apply
-    // committed EF Core migrations automatically. Production deployments can
-    // instead apply the generated migration SQL as a deployment step.
-    if (builder.Configuration.GetValue<bool>("Database:ApplyMigrations"))
+    if (app.Environment.IsDevelopment() &&
+        builder.Configuration.GetValue<bool>("Database:ApplyMigrations"))
     {
         await context.Database.MigrateAsync();
+
+        var passwordHasher = scope.ServiceProvider
+            .GetRequiredService<
+                CCAP.Application.Abstractions.Identity.IPasswordHasher>();
+
+        await DatabaseSeeder.SeedAsync(
+            context,
+            passwordHasher);
     }
-
-    var passwordHasher = scope.ServiceProvider
-        .GetRequiredService<CCAP.Application.Abstractions.Identity.IPasswordHasher>();
-
-    await DatabaseSeeder.SeedAsync(context, passwordHasher);
 }
 
 if (app.Environment.IsDevelopment())

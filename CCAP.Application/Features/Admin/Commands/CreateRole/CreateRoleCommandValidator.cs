@@ -1,4 +1,4 @@
-﻿using CCAP.Application.Common.Validation;
+using CCAP.Application.Common.Validation;
 
 namespace CCAP.Application.Features.Admin.Commands.CreateRole;
 

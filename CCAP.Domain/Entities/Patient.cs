@@ -50,9 +50,29 @@ public sealed class Patient
 
     public DateOnly? AuthorizationDate { get; private set; }
 
+    // Workflow tracker fields reflected from the Excel workflow.
+    public DateOnly? PreAuthDueDate { get; private set; }
+    public int? NumberOfVisits { get; private set; }
+    public string? CaseMixType { get; private set; }
+    public string? DmeMedSupplyNotes { get; private set; }
+    public string? SocFeedbackFromPatient { get; private set; }
+    public DateOnly? TifDate { get; private set; }
+    public DateOnly? RocDate { get; private set; }
+    public DateOnly? RecertDate { get; private set; }
+    public bool? PcpPtNotified { get; private set; }
+    public DateOnly? DischargeDate { get; private set; }
+    public string? DischargeFeedback { get; private set; }
+    public string? TransferDestination { get; private set; }
+    public DateOnly? TransferDate { get; private set; }
+    public string? TransferReason { get; private set; }
+
     public int? ApprovedVisits { get; private set; }
 
     public bool AuthorizationRequired { get; private set; }
+
+    public DateTime? InsuranceVerifiedAt { get; private set; }
+
+    public Guid? InsuranceVerifiedByUserId { get; private set; }
 
     public string? ReferringPhysician { get; private set; }
 
@@ -223,26 +243,74 @@ public sealed class Patient
         SocDate = socDate;
     }
 
-    public void UpdateInsurance(
-        string? primaryInsurance,
-        string? insuranceMemberId,
-        DateOnly? authorizationDate,
-        int? approvedVisits,
-        bool authorizationRequired)
+    public void UpdateBasicInformation(
+        string mrn,
+        string firstName,
+        string? middleName,
+        string lastName,
+        DateOnly? socDate)
     {
-        PrimaryInsurance = string.IsNullOrWhiteSpace(primaryInsurance)
-            ? null
-            : primaryInsurance.Trim();
+        if (string.IsNullOrWhiteSpace(mrn))
+            throw new ArgumentException("MRN is required.", nameof(mrn));
+        if (string.IsNullOrWhiteSpace(firstName))
+            throw new ArgumentException("First name is required.", nameof(firstName));
+        if (string.IsNullOrWhiteSpace(lastName))
+            throw new ArgumentException("Last name is required.", nameof(lastName));
 
-        InsuranceMemberId = string.IsNullOrWhiteSpace(insuranceMemberId)
-            ? null
-            : insuranceMemberId.Trim();
+        MRN = mrn.Trim();
+        FirstName = firstName.Trim();
+        MiddleName = middleName?.Trim() ?? string.Empty;
+        LastName = lastName.Trim();
+        SocDate = socDate;
+    }
 
-        AuthorizationDate = authorizationDate;
+    public void UpdateInsurance(
+    string? primaryInsurance,
+    string? insuranceMemberId,
+    DateOnly? authorizationDate,
+    int? approvedVisits,
+    bool authorizationRequired)
+    {
+        PrimaryInsurance =
+            string.IsNullOrWhiteSpace(primaryInsurance)
+                ? null
+                : primaryInsurance.Trim();
 
-        ApprovedVisits = approvedVisits;
+        InsuranceMemberId =
+            string.IsNullOrWhiteSpace(insuranceMemberId)
+                ? null
+                : insuranceMemberId.Trim();
 
-        AuthorizationRequired = authorizationRequired;
+        AuthorizationDate =
+            authorizationDate;
+
+        ApprovedVisits =
+            approvedVisits;
+
+        AuthorizationRequired =
+            authorizationRequired;
+    }
+
+    public void VerifyInsurance(Guid verifiedByUserId)
+    {
+        if (string.IsNullOrWhiteSpace(PrimaryInsurance))
+        {
+            throw new InvalidOperationException(
+                "Primary insurance is required before insurance can be verified.");
+        }
+
+        InsuranceVerifiedAt =
+            DateTime.UtcNow;
+
+        InsuranceVerifiedByUserId =
+            verifiedByUserId;
+    }
+
+    public void RequireInsuranceReverification()
+    {
+        InsuranceVerifiedAt = null;
+
+        InsuranceVerifiedByUserId = null;
     }
 
     public void UpdateContact(
@@ -263,6 +331,41 @@ public sealed class Patient
     public void SetSocDate(DateOnly? date)
         => SocDate = date;
 
+    public void UpdateWorkflowDetails(
+        DateOnly? preAuthDueDate,
+        int? numberOfVisits,
+        string? caseMixType,
+        string? dmeMedSupplyNotes,
+        string? socFeedbackFromPatient,
+        DateOnly? tifDate,
+        DateOnly? rocDate,
+        DateOnly? recertDate,
+        bool? pcpPtNotified,
+        DateOnly? dischargeDate,
+        string? dischargeFeedback,
+        string? transferDestination,
+        DateOnly? transferDate,
+        string? transferReason)
+    {
+        if (numberOfVisits.HasValue && numberOfVisits.Value < 0)
+            throw new ArgumentException("Number of visits cannot be negative.", nameof(numberOfVisits));
+
+        PreAuthDueDate = preAuthDueDate;
+        NumberOfVisits = numberOfVisits;
+        CaseMixType = Normalize(caseMixType);
+        DmeMedSupplyNotes = Normalize(dmeMedSupplyNotes);
+        SocFeedbackFromPatient = Normalize(socFeedbackFromPatient);
+        TifDate = tifDate;
+        RocDate = rocDate;
+        RecertDate = recertDate;
+        PcpPtNotified = pcpPtNotified;
+        DischargeDate = dischargeDate;
+        DischargeFeedback = Normalize(dischargeFeedback);
+        TransferDestination = Normalize(transferDestination);
+        TransferDate = transferDate;
+        TransferReason = Normalize(transferReason);
+    }
+
     public void CompleteCare(
         string finalStatus,
         Guid finalizedByUserId)
@@ -281,6 +384,11 @@ public sealed class Patient
         FinalizedByUserId = finalizedByUserId;
 
         CareCompletedAt = DateTime.UtcNow;
+
+        // A permanent transfer is a terminal episode outcome, but it is not
+        // a discharge. Keep DischargeDate empty for transferred episodes.
+        if (!string.Equals(FinalStatus, "Transferred", StringComparison.OrdinalIgnoreCase))
+            DischargeDate ??= DateOnly.FromDateTime(DateTime.UtcNow);
 
         Status = PatientStatus.Completed;
     }

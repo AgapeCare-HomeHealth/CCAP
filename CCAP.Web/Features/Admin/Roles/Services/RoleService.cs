@@ -73,7 +73,7 @@ public sealed class RoleService
         }
 
         var response = await _api.PostAsJsonAsync("api/admin/roles", model, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await _api.EnsureSuccessAsync(response, cancellationToken);
         return await response.Content.ReadFromJsonAsync<RoleApiDto>(cancellationToken: cancellationToken)
             ?? throw new InvalidOperationException("API returned no role.");
     }
@@ -96,7 +96,7 @@ public sealed class RoleService
         }
 
         var response = await _api.PutAsJsonAsync($"api/admin/roles/{model.RoleId}", model, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async Task DeleteRoleAsync(Guid roleId, CancellationToken cancellationToken = default)
@@ -114,7 +114,7 @@ public sealed class RoleService
         }
 
         var response = await _api.DeleteAsync($"api/admin/roles/{roleId}", cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async Task SetPermissionsAsync(Guid roleId, IEnumerable<Guid> permissionIds, CancellationToken cancellationToken = default)
@@ -132,7 +132,7 @@ public sealed class RoleService
         }
 
         var response = await _api.PutAsJsonAsync($"api/admin/roles/{roleId}/permissions", new { PermissionIds = permissionIds.ToArray() }, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 
     private static void Validate(RoleEditModel model)

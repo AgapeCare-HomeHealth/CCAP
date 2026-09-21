@@ -23,6 +23,16 @@ public interface IPatientRepository
     Task<List<Patient>> GetAllAsync(
         CancellationToken cancellationToken);
 
+    Task<(IReadOnlyList<Patient> Items, int TotalCount)> GetPagedAsync(
+        int pageNumber,
+        int pageSize,
+        string? search,
+        string? status,
+        Guid? clinicianId,
+        string sortBy,
+        bool sortDescending,
+        CancellationToken cancellationToken);
+
     Task AddAsync(
         Patient patient,
         CancellationToken cancellationToken);

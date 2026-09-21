@@ -1,4 +1,4 @@
-﻿using CCAP.Application.Abstractions.Persistence;
+using CCAP.Application.Abstractions.Persistence;
 using CCAP.Application.Features.Patients.DTOs;
 using CCAP.Domain.Entities;
 using CCAP.Domain.Enums;
@@ -35,29 +35,13 @@ public sealed class GetPatientWorkflowQueryHandler
             .OrderByDescending(x => x.ReferralDate)
             .FirstOrDefault();
 
-        var socVisit = GetSocVisit(patient);
-
-        const string insuranceVerificationRequirement =
-            "INSURANCE_VERIFICATION";
-
-        var insuranceVerification =
-            patient.ComplianceRecords
-                .Where(x =>
-                    string.Equals(
-                        x.RequirementCode,
-                        insuranceVerificationRequirement,
-                        StringComparison.OrdinalIgnoreCase))
-                .OrderByDescending(x => x.CompletedAt)
-                .FirstOrDefault();
-
         ApplicationUser? insuranceVerifiedByUser = null;
 
-        if (insuranceVerification?.IsCompleted == true &&
-            insuranceVerification.CompletedByUserId.HasValue)
+        if (patient.InsuranceVerifiedByUserId.HasValue)
         {
             insuranceVerifiedByUser =
                 await _users.GetByIdAsync(
-                    insuranceVerification.CompletedByUserId.Value,
+                    patient.InsuranceVerifiedByUserId.Value,
                     cancellationToken);
         }
 
@@ -71,16 +55,50 @@ public sealed class GetPatientWorkflowQueryHandler
 
         var age = CalculateAge(patient.DateOfBirth);
 
+        var activeComplianceRequirementCodes =
+            new HashSet<string>(
+                StringComparer.OrdinalIgnoreCase)
+            {
+                "PRE_AUTH_RECEIVED",
+                "PRO_RECEIVED",
+                "H_AND_P_RECEIVED",
+                "F2F_RECEIVED",
+                "PCP_CONFIRMED",
+                "AVS_RECEIVED",
+                "SIGNED_CONSENTS",
+                "INSURANCE_VERIFICATION",
+
+                "SOC_COMPLIANT",
+                "DME_MED_SUPPLY",
+                "NOA_FILED",
+                "OASIS_SOC_COMPLETE",
+                "QA_APPROVAL",
+                "ORDERS_SIGNED",
+                "DOCS_UPLOADED",
+                                "CASE_MIX_IDENTIFIED",
+                "CASE_MIX_ORDERS_SIGNED",
+                "CASE_MIX_PLOTTED",
+                "PCP_PT_NOTIFIED",
+
+                "ROC",
+                "RECERTIFICATION",
+                "DISCHARGE_SUMMARY_SIGNED",
+                "NOMNC_SIGNED"
+            };
+
         var pendingTask = patient.Tasks
-            .Where(x =>
-                x.Status != PatientTaskStatus.Completed &&
-                x.Status != PatientTaskStatus.Cancelled)
+            .Where(x => x.Status != PatientTaskStatus.Completed && x.Status != PatientTaskStatus.Cancelled)
             .OrderBy(x => x.DueDate)
+            .FirstOrDefault();
+
+        var nextCompliance = patient.ComplianceRecords
+            .Where(x => !x.IsCompleted && activeComplianceRequirementCodes.Contains(x.RequirementCode) && GetCompliancePhase(x.RequirementCode) <= 2)
+            .OrderBy(x => GetComplianceOrder(x.RequirementCode))
             .FirstOrDefault();
 
         var activities = patient.Activities
             .OrderByDescending(x => x.ActivityDate)
-            .Take(3)
+            .Take(100)
             .Select(x => new ActivityResponseDto
             {
                 ActivityId = x.ActivityId,
@@ -111,6 +129,8 @@ public sealed class GetPatientWorkflowQueryHandler
             completedByUsers.ToDictionary(
                 x => x.UserId,
                 x => $"{x.FirstName} {x.LastName}".Trim());
+
+
 
         var complianceItems =
             patient.ComplianceRecords
@@ -145,7 +165,11 @@ public sealed class GetPatientWorkflowQueryHandler
                             x.CompletedByUserId.Value,
                             out var userName)
                             ? userName
-                            : string.Empty
+                            : string.Empty,
+
+                    Phase =
+                        GetCompliancePhase(
+                            x.RequirementCode)
                 })
                 .ToList();
 
@@ -184,27 +208,21 @@ public sealed class GetPatientWorkflowQueryHandler
 
             WorkflowStages = BuildWorkflowStages(patient, referral),
 
-            NextAction = pendingTask is null
+            NextAction = pendingTask is not null
                 ? new NextActionResponseDto
                 {
-                    TaskId = Guid.Empty,
-                    Title = "No pending actions",
-                    Description = "There are currently no pending patient tasks.",
-                    DueDate = DateTime.Now,
-                    PageRoute = string.Empty,
-                    Icon = "bi bi-check2-circle",
-                    IsOverdue = false
+                    TaskId = pendingTask.TaskId, Title = pendingTask.Title, Description = pendingTask.Description,
+                    DueDate = pendingTask.DueDate, PageRoute = pendingTask.PageRoute ?? string.Empty, Icon = "bi bi-check2-circle", IsOverdue = pendingTask.DueDate < DateTime.Now
                 }
-                : new NextActionResponseDto
-                {
-                    TaskId = pendingTask.TaskId,
-                    Title = pendingTask.Title,
-                    Description = pendingTask.Description,
-                    DueDate = pendingTask.DueDate,
-                    PageRoute = pendingTask.PageRoute ?? string.Empty,
-                    Icon = "bi bi-check2-circle",
-                    IsOverdue = pendingTask.DueDate < DateTime.Now
-                },
+                : nextCompliance is not null
+                    ? new NextActionResponseDto
+                    {
+                        TaskId = Guid.Empty, Title = $"Confirm {GetComplianceRequirementName(nextCompliance.RequirementCode)}",
+                        Description = "Check the corresponding information in the EMR, then mark the CCAP requirement complete.",
+                        DueDate = DateTime.Now, PageRoute = $"/tracker/patient/{patient.PatientId}", Icon = "bi bi-clipboard-check", IsOverdue = false
+                    }
+                    : new NextActionResponseDto
+                    { TaskId = Guid.Empty, Title = "No pending actions", Description = "There are currently no pending workflow actions.", DueDate = DateTime.Now, PageRoute = string.Empty, Icon = "bi bi-check2-circle", IsOverdue = false },
 
             KeyInformation = new KeyInformationResponseDto
             {
@@ -260,29 +278,15 @@ public sealed class GetPatientWorkflowQueryHandler
                 SocDate =
                     patient.SocDate,
 
-                SocVisitStatus =
-                    socVisit is null
-                        ? "Not Scheduled"
-                        : string.Equals(
-                            socVisit.Status,
-                            "Completed",
-                            StringComparison.OrdinalIgnoreCase)
-                            ? "Completed"
-                            : "Scheduled",
+                SocVisitStatus = "Managed in EMR",
 
-                SocScheduledAt =
-                    socVisit?.ScheduledDate,
+                SocScheduledAt = null,
 
-                SocCompletedAt =
-                    socVisit?.CompletedDate,
+                SocCompletedAt = null,
 
-                SocClinicianId =
-                    socVisit?.ClinicianId,
+                SocClinicianId = null,
 
-                SocClinician =
-                    socVisit?.Clinician is null
-                        ? string.Empty
-                        : $"{socVisit.Clinician.FirstName} {socVisit.Clinician.LastName}",
+                SocClinician = string.Empty,
 
                 Address =
                     BuildAddress(patient),
@@ -295,17 +299,13 @@ public sealed class GetPatientWorkflowQueryHandler
                 // =========================================================
 
                 InsuranceVerified =
-                    insuranceVerification?.IsCompleted == true,
+                    patient.InsuranceVerifiedAt.HasValue,
 
                 InsuranceVerifiedAt =
-                    insuranceVerification?.IsCompleted == true
-                        ? insuranceVerification.CompletedAt
-                        : null,
+                    patient.InsuranceVerifiedAt,
 
                 InsuranceVerifiedByUserId =
-                    insuranceVerification?.IsCompleted == true
-                        ? insuranceVerification.CompletedByUserId
-                        : null,
+                    patient.InsuranceVerifiedByUserId,
 
                 InsuranceVerifiedBy =
                     insuranceVerifiedByUser is null
@@ -313,7 +313,25 @@ public sealed class GetPatientWorkflowQueryHandler
                         : $"{insuranceVerifiedByUser.FirstName} {insuranceVerifiedByUser.LastName}"
             },
 
-            ComplianceItems = complianceItems
+            ComplianceItems = complianceItems,
+
+            WorkflowDetails = new WorkflowDetailsResponseDto
+            {
+                PreAuthDueDate = patient.PreAuthDueDate,
+                NumberOfVisits = patient.NumberOfVisits,
+                CaseMixType = patient.CaseMixType ?? string.Empty,
+                DmeMedSupplyNotes = patient.DmeMedSupplyNotes ?? string.Empty,
+                SocFeedbackFromPatient = patient.SocFeedbackFromPatient ?? string.Empty,
+                TifDate = patient.TifDate,
+                RocDate = patient.RocDate,
+                RecertDate = patient.RecertDate,
+                PcpPtNotified = patient.PcpPtNotified,
+                DischargeDate = patient.DischargeDate ?? (patient.CareCompletedAt.HasValue ? DateOnly.FromDateTime(patient.CareCompletedAt.Value) : null),
+                DischargeFeedback = patient.DischargeFeedback ?? string.Empty,
+                TransferDestination = patient.TransferDestination ?? string.Empty,
+                TransferDate = patient.TransferDate,
+                TransferReason = patient.TransferReason ?? string.Empty
+            }
         };
     }
 
@@ -323,183 +341,94 @@ public sealed class GetPatientWorkflowQueryHandler
             return 0;
 
         var today = DateOnly.FromDateTime(DateTime.Today);
-
         var age = today.Year - dateOfBirth.Value.Year;
 
         if (dateOfBirth.Value > today.AddYears(-age))
             age--;
 
-        return age;
+        return Math.Max(age, 0);
     }
 
-    private static string BuildAddress(
-        CCAP.Domain.Entities.Patient patient)
+    private static string BuildAddress(Patient patient)
     {
-        return string.Join(
-            ", ",
-            new[]
-            {
-                patient.Address,
-                patient.City,
-                patient.State,
-                patient.ZipCode
-            }
-            .Where(x => !string.IsNullOrWhiteSpace(x)));
+        var parts = new[]
+        {
+            patient.Address,
+            patient.City,
+            patient.State,
+            patient.ZipCode
+        }
+        .Where(x => !string.IsNullOrWhiteSpace(x))
+        .Select(x => x!.Trim())
+        .ToArray();
+
+        return string.Join(", ", parts);
     }
 
-    private static List<WorkflowStageResponseDto> BuildWorkflowStages(
-    Patient patient,
-    Referral? referral)
+    private static int GetCompliancePhase(string requirementCode)
     {
-        var referralCompleted =
-            referral is not null;
+        return requirementCode.Trim().ToUpperInvariant() switch
+        {
+            "PRE_AUTH_RECEIVED" or "PRO_RECEIVED" or "H_AND_P_RECEIVED" or "F2F_RECEIVED" or "PCP_CONFIRMED" or "AVS_RECEIVED" or "SIGNED_CONSENTS" or "INSURANCE_VERIFICATION" => 1,
+            "SOC_COMPLIANT" or "DME_MED_SUPPLY" or "NOA_FILED" or "OASIS_SOC_COMPLETE" or "QA_APPROVAL" or "ORDERS_SIGNED" or "DOCS_UPLOADED" or "CASE_MIX_IDENTIFIED" or "CASE_MIX_ORDERS_SIGNED" or "CASE_MIX_PLOTTED" => 2,
+            "ROC" or "RECERTIFICATION" or "PCP_PT_NOTIFIED" or "DISCHARGE_SUMMARY_SIGNED" or "NOMNC_SIGNED" => 3,
+            _ => 0
+        };
+    }
 
-        var insuranceCompleted =
-            patient.ComplianceRecords.Any(x =>
-                string.Equals(
-                    x.RequirementCode,
-                    "INSURANCE_VERIFICATION",
-                    StringComparison.OrdinalIgnoreCase)
-                && x.IsCompleted);
-
-        var physicianOrdersCompleted =
-            patient.ComplianceRecords.Any(x =>
-                string.Equals(
-                    x.RequirementCode,
-                    "PHYSICIAN_ORDERS",
-                    StringComparison.OrdinalIgnoreCase)
-                && x.IsCompleted);
-
-        var socVisit = GetSocVisit(patient);
-
-        var socScheduled =
-            patient.SocDate.HasValue;
-
-
-        var socVisitCompleted =
-            socVisit is not null &&
-            string.Equals(
-                socVisit.Status,
-                "Completed",
-                StringComparison.OrdinalIgnoreCase);
-
-
-        var admissionCompleted =
-            socVisitCompleted;
-
-        var hasVisits =
-            patient.Visits.Any();
-
-        var careCompleted =
-            patient.CareCompletedAt.HasValue;
-
+    private static List<WorkflowStageResponseDto> BuildWorkflowStages(Patient patient, Referral? referral)
+    {
+        var referralCompleted = referral is not null;
+        var insuranceCompleted = patient.InsuranceVerifiedAt.HasValue;
+        var socCompleted = patient.ComplianceRecords.Any(x => string.Equals(x.RequirementCode, "SOC_COMPLIANT", StringComparison.OrdinalIgnoreCase) && x.IsCompleted);
+        var admissionRequirementCodes = new[] { "SOC_COMPLIANT", "DME_MED_SUPPLY", "NOA_FILED", "OASIS_SOC_COMPLETE", "QA_APPROVAL", "ORDERS_SIGNED", "DOCS_UPLOADED", "CASE_MIX_IDENTIFIED", "CASE_MIX_ORDERS_SIGNED", "CASE_MIX_PLOTTED" };
+        var admissionCompleted = admissionRequirementCodes.All(code => patient.ComplianceRecords.Any(x => string.Equals(x.RequirementCode, code, StringComparison.OrdinalIgnoreCase) && x.IsCompleted));
+        var terminalTransfer = string.Equals(patient.FinalStatus, "Transferred", StringComparison.OrdinalIgnoreCase);
+        var terminal = patient.CareCompletedAt.HasValue;
+        var recertRequired = patient.RecertDate.HasValue || patient.ComplianceRecords.Any(x => string.Equals(x.RequirementCode, "RECERTIFICATION", StringComparison.OrdinalIgnoreCase));
+        var recertCompleted = patient.ComplianceRecords.Any(x => string.Equals(x.RequirementCode, "RECERTIFICATION", StringComparison.OrdinalIgnoreCase) && x.IsCompleted);
         var stages = new List<WorkflowStageResponseDto>
-    {
-        CreateWorkflowStage(
-            patient,
-            1,
-            "REFERRAL",
-            "Referral",
-            referralCompleted,
-            completedDate: referral?.ReferralDate),
-
-        CreateWorkflowStage(
-            patient,
-            2,
-            "INSURANCE",
-            "Insurance",
-            insuranceCompleted,
-            completedDate:
-                GetComplianceCompletedDate(
-                    patient,
-                    "INSURANCE_VERIFICATION")),
-
-        CreateWorkflowStage(
-            patient,
-            3,
-            "SOC",
-            "SOC Scheduled",
-            socScheduled,
-            completedDate:
-                socScheduled
-                    ? patient.SocDate?.ToDateTime(
-                        TimeOnly.MinValue)
-                    : null),
-
-        CreateWorkflowStage(
-            patient,
-            4,
-            "ADMISSION",
-            "Admission",
-            admissionCompleted,
-            completedDate:
-                GetSocCompletionDate(patient)),
-
-        CreateWorkflowStage(
-            patient,
-            5,
-            "VISITS",
-            "Visits",
-            hasVisits),
-
-        CreateWorkflowStage(
-            patient,
-            6,
-            "RECERT",
-            "Recertification",
-            false),
-
-        CreateWorkflowStage(
-            patient,
-            7,
-            "DISCHARGE",
-            "Discharge",
-            careCompleted,
-            completedDate:
-                patient.CareCompletedAt)
-    };
-
+        {
+            CreateWorkflowStage(patient, 1, "REFERRAL", "Referral", referralCompleted, referralCompleted ? referral!.ReferralDate : null),
+            CreateWorkflowStage(patient, 2, "INSURANCE", "Insurance", insuranceCompleted, patient.InsuranceVerifiedAt),
+            CreateWorkflowStage(patient, 3, "SOC", "SOC", socCompleted, GetSocCompletionDate(patient)),
+            CreateWorkflowStage(patient, 4, "ADMISSION", "Admission", admissionCompleted, admissionCompleted ? GetAdmissionCompletionDate(patient, admissionRequirementCodes) : null),
+            CreateWorkflowStage(patient, 5, "ONGOING_CARE", "Ongoing Care", terminal),
+            CreateWorkflowStage(patient, 6, "RECERT", "Recertification", recertCompleted, GetComplianceCompletedDate(patient, "RECERTIFICATION"), recertRequired && !terminal),
+            CreateWorkflowStage(patient, 7, "FINAL_OUTCOME", terminalTransfer ? "Transfer" : "Final Outcome", terminal, terminal ? patient.CareCompletedAt : null)
+        };
         SetWorkflowState(stages);
-
         return stages;
     }
 
-    private static WorkflowStageResponseDto CreateWorkflowStage(
+    private static DateTime? GetAdmissionCompletionDate(
     Patient patient,
-    int sequence,
-    string stageCode,
-    string stageName,
-    bool completed,
-    DateTime? completedDate = null)
+    IEnumerable<string> requirementCodes)
     {
-        return new WorkflowStageResponseDto
-        {
-            Sequence = sequence,
+        var completedDates =
+            patient.ComplianceRecords
+                .Where(x =>
+                    x.IsCompleted &&
+                    requirementCodes.Any(
+                        requirementCode =>
+                            string.Equals(
+                                x.RequirementCode,
+                                requirementCode,
+                                StringComparison.OrdinalIgnoreCase)))
+                .Select(x => x.CompletedAt)
+                .Where(x => x.HasValue)
+                .Select(x => x!.Value)
+                .ToList();
 
-            StageCode = stageCode,
+        if (completedDates.Count == 0)
+            return null;
 
-            StageName = stageName,
+        return completedDates.Max();
+    }
 
-            Status = completed ? 2 : 0,
-
-            Description = completed
-                ? "Completed"
-                : "Pending",
-
-            CompletedDate = completedDate,
-
-            AssignedUserId = patient.ClinicianId,
-
-            AssignedUserName =
-                patient.Clinician is null
-                    ? string.Empty
-                    : $"{patient.Clinician.FirstName} {patient.Clinician.LastName}",
-
-            IsClickable = completed,
-
-            Route =
-                $"/tracker/patient/{patient.PatientId}"
-        };
+    private static WorkflowStageResponseDto CreateWorkflowStage(Patient patient, int sequence, string stageCode, string stageName, bool completed, DateTime? completedDate = null, bool required = true)
+    {
+        return new WorkflowStageResponseDto { Sequence=sequence, StageCode=stageCode, StageName=stageName, Status=required ? (completed ? 2 : 0) : 3, Description=required ? (completed ? "Completed" : "Pending") : "Not applicable", CompletedDate=completedDate, AssignedUserId=patient.ClinicianId, AssignedUserName=patient.Clinician is null ? string.Empty : $"{patient.Clinician.FirstName} {patient.Clinician.LastName}", IsClickable=required && completed, Route=$"/tracker/patient/{patient.PatientId}" };
     }
 
     private static DateTime? GetComplianceCompletedDate(
@@ -521,73 +450,30 @@ public sealed class GetPatientWorkflowQueryHandler
     private static DateTime? GetSocCompletionDate(
     Patient patient)
     {
-        var socVisit = GetSocVisit(patient);
-
-        if (socVisit is null)
-            return null;
-
-        if (!string.Equals(
-            socVisit.Status,
-            "Completed",
-            StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        return socVisit.CompletedDate;
-    }
-
-    private static void SetWorkflowState(
-    List<WorkflowStageResponseDto> stages)
-    {
-        var currentIndex =
-            stages.FindIndex(
-                x => x.Status != 2);
-
-        if (currentIndex < 0)
-            return;
-
-        for (var i = 0; i < stages.Count; i++)
-        {
-            var stage = stages[i];
-
-            if (i < currentIndex)
-            {
-                stage.Status = 2;
-                stage.Description = "Completed";
-                stage.IsClickable = true;
-            }
-            else if (i == currentIndex)
-            {
-                stage.Status = 1;
-                stage.Description = "Current Stage";
-                stage.IsClickable = true;
-            }
-            else
-            {
-                stage.Status = 0;
-                stage.Description = "Pending";
-                stage.IsClickable = false;
-            }
-        }
-    }
-
-    private static Visit? GetSocVisit(
-    Patient patient)
-    {
-        if (!patient.SocDate.HasValue)
-            return null;
-
-        var socDate =
-            patient.SocDate.Value
-                .ToDateTime(TimeOnly.MinValue)
-                .Date;
-
-        return patient.Visits
+        return patient.ComplianceRecords
             .Where(x =>
-                x.ScheduledDate.Date == socDate)
-            .OrderByDescending(x => x.ScheduledDate)
+                string.Equals(
+                    x.RequirementCode,
+                    "SOC_COMPLIANT",
+                    StringComparison.OrdinalIgnoreCase)
+                && x.IsCompleted)
+            .OrderByDescending(x => x.CompletedAt)
+            .Select(x => x.CompletedAt)
             .FirstOrDefault();
+    }
+
+    private static void SetWorkflowState(List<WorkflowStageResponseDto> stages)
+    {
+        var currentIndex = stages.FindIndex(x => x.Status != 2 && x.Status != 3);
+        if (currentIndex < 0) return;
+        for (var i=0;i<stages.Count;i++)
+        {
+            var stage=stages[i];
+            if(stage.Status==3) continue;
+            if(i<currentIndex){stage.Status=2;stage.Description="Completed";stage.IsClickable=true;}
+            else if(i==currentIndex){stage.Status=1;stage.Description="Current Stage";stage.IsClickable=true;}
+            else{stage.Status=0;stage.Description="Pending";stage.IsClickable=false;}
+        }
     }
 
     private static string GetComplianceRequirementName(
@@ -597,17 +483,34 @@ public sealed class GetPatientWorkflowQueryHandler
             .Trim()
             .ToUpperInvariant() switch
         {
-            "REFERRAL_DOCUMENT" =>
-                "Referral Document",
+            // =====================================================
+            // PHASE 1 - INTAKE & ADMISSION PREPARATION
+            // =====================================================
 
-            "INSURANCE_VERIFICATION" =>
-                "Insurance Verification",
+            "PRE_AUTH_RECEIVED" =>
+                "Pre-Auth Received",
 
-            "PHYSICIAN_ORDERS" =>
-                "Physician Orders",
+            "PRO_RECEIVED" =>
+                "PRO Received",
 
-            "SOC_SCHEDULING" =>
-                "SOC Scheduling",
+            "H_AND_P_RECEIVED" =>
+                "H&P",
+
+            "F2F_RECEIVED" =>
+                "F2F Received",
+
+            "PCP_CONFIRMED" =>
+                "PCP Confirmed",
+
+            "AVS_RECEIVED" =>
+                "AVS Received",
+
+            "SIGNED_CONSENTS" =>
+                "Signed Consents",
+
+            // =====================================================
+            // PHASE 2 - CARE INITIATION & COMPLIANCE
+            // =====================================================
 
             "SOC_COMPLIANT" =>
                 "SOC Compliant",
@@ -630,8 +533,8 @@ public sealed class GetPatientWorkflowQueryHandler
             "DOCS_UPLOADED" =>
                 "Docs Uploaded",
 
-            "SOC_FEEDBACK_QA" =>
-                "SOC Feedback from QA",
+            "SOC_FEEDBACK_PATIENT" =>
+                "SOC Feedback from Patient",
 
             "CASE_MIX_IDENTIFIED" =>
                 "Case Mix Identified",
@@ -641,6 +544,53 @@ public sealed class GetPatientWorkflowQueryHandler
 
             "CASE_MIX_PLOTTED" =>
                 "Case Mix Plotted",
+
+            "FREQUENCY_PLOTTED" =>
+                "Frequency Plotted",
+
+            "PCP_PT_NOTIFIED" =>
+                "PCP & PT Notified",
+
+            // =====================================================
+            // PHASE 3 - ONGOING / TRANSITION / DISCHARGE
+            // =====================================================
+
+            "TRANSFERS" =>
+                "Transfers",
+
+            "ROC" =>
+                "ROC",
+
+            "RECERTIFICATION" =>
+                "Recertification",
+
+            "DISCHARGE_SUMMARY_SIGNED" =>
+                "Discharge Summary Signed",
+
+            "NOMNC_SIGNED" =>
+                "NOMNC Signed",
+
+
+            // =====================================================
+            // LEGACY REQUIREMENTS
+            // =====================================================
+            // These are retained only so existing records don't
+            // display raw requirement codes if old records still
+            // exist in the database.
+            // They are NOT created for new referrals.
+            // =====================================================
+
+            "REFERRAL_DOCUMENT" =>
+                "Referral Document",
+
+            "INSURANCE_VERIFICATION" =>
+                "Insurance Verification",
+
+            "PHYSICIAN_ORDERS" =>
+                "Physician Orders",
+
+            "SOC_SCHEDULING" =>
+                "SOC Scheduling",
 
             _ =>
                 requirementCode
@@ -654,35 +604,53 @@ public sealed class GetPatientWorkflowQueryHandler
             .Trim()
             .ToUpperInvariant() switch
         {
-            "REFERRAL_DOCUMENT" => 1,
+            // =====================================================
+            // PHASE 1
+            // =====================================================
 
-            "INSURANCE_VERIFICATION" => 2,
+            "PRE_AUTH_RECEIVED" => 1,
+            "PRO_RECEIVED" => 2,
+            "H_AND_P_RECEIVED" => 3,
+            "F2F_RECEIVED" => 4,
+            "PCP_CONFIRMED" => 5,
+            "AVS_RECEIVED" => 6,
+            "SIGNED_CONSENTS" => 7,
+            "INSURANCE_VERIFICATION" => 8,
 
-            "PHYSICIAN_ORDERS" => 3,
+            // =====================================================
+            // PHASE 2
+            // =====================================================
 
-            "SOC_SCHEDULING" => 4,
+            "SOC_COMPLIANT" => 9,
+            "DME_MED_SUPPLY" => 10,
+            "NOA_FILED" => 11,
+            "OASIS_SOC_COMPLETE" => 12,
+            "QA_APPROVAL" => 13,
+            "ORDERS_SIGNED" => 14,
+            "DOCS_UPLOADED" => 15,
+            "SOC_FEEDBACK_PATIENT" => 16,
+            "CASE_MIX_IDENTIFIED" => 17,
+            "CASE_MIX_ORDERS_SIGNED" => 18,
+            "CASE_MIX_PLOTTED" => 19,
 
-            "SOC_COMPLIANT" => 5,
+            // =====================================================
+            // PHASE 3
+            // =====================================================
 
-            "DME_MED_SUPPLY" => 6,
+            "TRANSFERS" => 19,
+            "ROC" => 20,
+            "RECERTIFICATION" => 21,
+            "DISCHARGE_SUMMARY_SIGNED" => 22,
+            "NOMNC_SIGNED" => 23,
+            "PCP_PT_NOTIFIED" => 24,
 
-            "NOA_FILED" => 7,
+            // =====================================================
+            // LEGACY REQUIREMENTS
+            // =====================================================
 
-            "OASIS_SOC_COMPLETE" => 8,
-
-            "QA_APPROVAL" => 9,
-
-            "ORDERS_SIGNED" => 10,
-
-            "DOCS_UPLOADED" => 11,
-
-            "SOC_FEEDBACK_QA" => 12,
-
-            "CASE_MIX_IDENTIFIED" => 13,
-
-            "CASE_MIX_ORDERS_SIGNED" => 14,
-
-            "CASE_MIX_PLOTTED" => 15,
+            "REFERRAL_DOCUMENT" => 90,
+            "PHYSICIAN_ORDERS" => 92,
+            "SOC_SCHEDULING" => 93,
 
             _ => 100
         };

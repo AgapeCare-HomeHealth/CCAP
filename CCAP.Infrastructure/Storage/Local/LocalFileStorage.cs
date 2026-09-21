@@ -1,4 +1,4 @@
-﻿using CCAP.Application.Abstractions.Storage;
+using CCAP.Application.Abstractions.Storage;
 using CCAP.Infrastructure.Storage;
 using Microsoft.Extensions.Options;
 
@@ -6,6 +6,8 @@ namespace CCAP.Infrastructure.Storage.Local;
 
 public sealed class LocalFileStorage : IFileStorage
 {
+    public bool CanStore => true;
+
     private readonly string _rootPath;
 
     public LocalFileStorage(

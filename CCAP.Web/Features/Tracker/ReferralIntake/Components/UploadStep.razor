@@ -1,4 +1,4 @@
-﻿@using CCAP.Web.Features.Tracker.ReferralIntake.Models
+@using CCAP.Web.Features.Tracker.ReferralIntake.Models
 @using Microsoft.AspNetCore.Components.Forms
 
 <div class="step-card">
@@ -145,6 +145,14 @@ The actual PDF is not stored yet.
 
     </div>
 
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert alert-danger mt-4">
+            <i class="bi bi-exclamation-circle me-1"></i>
+            @ErrorMessage
+        </div>
+    }
+
     <div class="alert alert-light mt-4">
 
         <i class="bi bi-info-circle-fill text-success"></i>
@@ -164,6 +172,8 @@ The actual PDF is not stored yet.
     private const long MaxFileSize =
         10 * 1024 * 1024;
 
+    private string? ErrorMessage;
+
     private bool HasFileMetadata =>
         !string.IsNullOrWhiteSpace(
             Model.ReferralPdfFileName);
@@ -173,6 +183,8 @@ The actual PDF is not stored yet.
     {
         var file = e.File;
 
+        ErrorMessage = null;
+
         if (file is null)
             return;
 
@@ -180,12 +192,21 @@ The actual PDF is not stored yet.
                 ".pdf",
                 StringComparison.OrdinalIgnoreCase))
         {
+            ErrorMessage = "Only PDF files are accepted.";
+            ClearFile();
+            return;
+        }
+
+        if (file.Size <= 0)
+        {
+            ErrorMessage = "The selected PDF is empty.";
             ClearFile();
             return;
         }
 
         if (file.Size > MaxFileSize)
         {
+            ErrorMessage = "The referral PDF cannot exceed 10 MB.";
             ClearFile();
             return;
         }
@@ -218,8 +239,11 @@ The actual PDF is not stored yet.
             Model.ReferralPdf =
                 file;
         }
-        catch
+        catch (Exception ex)
         {
+            ErrorMessage = string.IsNullOrWhiteSpace(ex.Message)
+                ? "The selected PDF could not be read."
+                : ex.Message;
             ClearFile();
         }
     }

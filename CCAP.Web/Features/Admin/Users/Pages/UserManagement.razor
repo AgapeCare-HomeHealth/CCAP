@@ -37,17 +37,18 @@
     }
     else
     {
-        <UserTable Users="FilteredUsers"
+        <UserTable Users="PagedUsers"
                    OnEdit="OpenEdit"
                    OnActivate="Activate"
                    OnDeactivate="Deactivate" />
+        <TablePager CurrentPage="@CurrentPage" PageSize="@PageSize" TotalItems="@FilteredUsers.Count" OnPageChanged="GoToPage" OnPageSizeChanged="ChangePageSize" />
     }
 </div>
 
 @if (ShowEditor)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);" @onclick="CloseEditor">
+        <div class="modal-dialog modal-lg modal-dialog-centered" @onclick:stopPropagation="true">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
@@ -221,6 +222,7 @@
     private Task FilterUsers(UserFilterModel filter)
     {
         Filter = filter;
+        CurrentPage = 1;
         ApplyFilter();
         return Task.CompletedTask;
     }
@@ -253,8 +255,24 @@
             query = query.Where(x => x.IsActive == Filter.IsActive.Value);
         }
 
-        FilteredUsers = query.ToList();
+        FilteredUsers = Filter.SortBy.ToLowerInvariant() switch
+        {
+            "employeeno" => (Filter.SortDescending ? query.OrderByDescending(x => x.EmployeeNo) : query.OrderBy(x => x.EmployeeNo)).ToList(),
+            "email" => (Filter.SortDescending ? query.OrderByDescending(x => x.Email) : query.OrderBy(x => x.Email)).ToList(),
+            "role" => (Filter.SortDescending ? query.OrderByDescending(x => x.Role) : query.OrderBy(x => x.Role)).ToList(),
+            "discipline" => (Filter.SortDescending ? query.OrderByDescending(x => x.Discipline) : query.OrderBy(x => x.Discipline)).ToList(),
+            "status" => (Filter.SortDescending ? query.OrderByDescending(x => x.IsActive) : query.OrderBy(x => x.IsActive)).ToList(),
+            _ => (Filter.SortDescending ? query.OrderByDescending(x => x.FullName) : query.OrderBy(x => x.FullName)).ToList()
+        };
+        CurrentPage = Math.Max(1, Math.Min(CurrentPage, TotalPages == 0 ? 1 : TotalPages));
     }
+
+    private int CurrentPage = 1;
+    private int PageSize = 20;
+    private int TotalPages => FilteredUsers.Count == 0 ? 0 : (int)Math.Ceiling(FilteredUsers.Count / (double)PageSize);
+    private IEnumerable<UserDto> PagedUsers => FilteredUsers.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
+    private void GoToPage(int page) => CurrentPage = Math.Clamp(page, 1, Math.Max(1, TotalPages));
+    private void ChangePageSize(int size) { PageSize = Math.Clamp(size, 1, 100); CurrentPage = 1; }
 
     private void UpdateStatistics()
     {

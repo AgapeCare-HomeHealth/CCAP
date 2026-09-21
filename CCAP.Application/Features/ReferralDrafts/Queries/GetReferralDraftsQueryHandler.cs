@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using CCAP.Application.Abstractions.Persistence;
 using CCAP.Application.Common.Models;
 using CCAP.Application.Features.ReferralDrafts.DTOs;
@@ -46,6 +46,8 @@ public sealed class GetReferralDraftsQueryHandler
                 pageNumber,
                 pageSize,
                 search,
+                request.SortBy,
+                request.SortDescending,
                 cancellationToken);
 
         //var items =
@@ -110,11 +112,8 @@ public sealed class GetReferralDraftsQueryHandler
             // GUID → actual user's name
             SavedByName = createdByName,
 
-            PatientName = patientName,
-
-            ReferralNumber =
-                data?.ReferralNumber
-                ?? string.Empty,
+            PdfFileName = data?.ReferralPdfFileName ?? string.Empty,
+            PdfFileSize = data?.ReferralPdfSize,
 
             Status =
                 draft.Status.ToString(),

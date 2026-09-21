@@ -1,4 +1,5 @@
-﻿using CCAP.API.Authorization;
+using CCAP.API.Contracts.Referrals;
+using CCAP.API.Authorization;
 using CCAP.Application.Features.ReferralDrafts.Queries;
 using CCAP.Application.Features.Referrals.Commands.CreateReferralIntake;
 using CCAP.Application.Features.Referrals.Commands.SaveReferralDraft;
@@ -85,6 +86,13 @@ public sealed class ReferralController : ControllerBase
                 message = ex.Message
             });
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new
+            {
+                message = ex.Message
+            });
+        }
         catch (DbUpdateException ex)
         {
             return StatusCode(
@@ -109,6 +117,8 @@ public sealed class ReferralController : ControllerBase
     [FromQuery] int pageNumber = 1,
     [FromQuery] int pageSize = 20,
     [FromQuery] string? search = null,
+    [FromQuery] string sortBy = "UpdatedAt",
+    [FromQuery] bool sortDescending = true,
     CancellationToken cancellationToken = default)
     {
         var result =
@@ -116,7 +126,9 @@ public sealed class ReferralController : ControllerBase
                 new GetReferralDraftsQuery(
                     pageNumber,
                     pageSize,
-                    search),
+                    search,
+                    sortBy,
+                    sortDescending),
                 cancellationToken);
 
         return Ok(result);
@@ -209,6 +221,13 @@ public sealed class ReferralController : ControllerBase
         }
 
 
+        if (request.PdfSize.HasValue &&
+            (request.PdfSize.Value <= 0 || request.PdfSize.Value > MaxFileSize))
+        {
+            return BadRequest(new { message = "Referral PDF must be greater than 0 and cannot exceed 10 MB." });
+        }
+
+
         // =========================================================
         // OPTIONAL PDF STREAM
         // =========================================================
@@ -230,6 +249,7 @@ public sealed class ReferralController : ControllerBase
 
             var result = await _sender.Send(
                 new CreateReferralIntakeCommand(
+                    request.ReferralDraftId,
                     request.MRN,
                     request.FirstName,
                     request.MiddleName,
@@ -287,9 +307,11 @@ public sealed class ReferralController : ControllerBase
 
                     stream,
 
-                    request.Pdf?.FileName,
+                    request.Pdf?.FileName ?? request.PdfFileName,
 
-                    request.Pdf?.ContentType
+                    request.Pdf?.ContentType ?? request.PdfContentType,
+
+                    request.Pdf?.Length ?? request.PdfSize
                 ),
                 cancellationToken);
 
@@ -329,141 +351,4 @@ public sealed class ReferralController : ControllerBase
             }
         }
     }
-}
-
-
-// =============================================================
-// SAVE REFERRAL DRAFT INTAKE REQUEST
-// =============================================================
-public sealed class SaveReferralDraftRequest
-{
-    public Guid? ReferralDraftId { get; set; }
-
-    public string Data { get; set; }
-        = string.Empty;
-}
-
-
-// =============================================================
-// CREATE REFERRAL INTAKE REQUEST
-// =============================================================
-
-public sealed class CreateReferralIntakeRequest
-{
-    // =========================================================
-    // PATIENT
-    // =========================================================
-
-    public string MRN { get; set; } = string.Empty;
-
-    public string FirstName { get; set; } = string.Empty;
-
-    public string MiddleName { get; set; } = string.Empty;
-
-    public string LastName { get; set; } = string.Empty;
-
-    public DateOnly? DateOfBirth { get; set; }
-
-    public string? Gender { get; set; }
-
-    public string? PrimaryPhone { get; set; }
-
-    public string? AlternatePhone { get; set; }
-
-    public string? StreetAddress { get; set; }
-
-    public string? City { get; set; }
-
-    public string? State { get; set; }
-
-    public string? ZipCode { get; set; }
-
-    // =========================================================
-    // EMERGENCY CONTACT
-    // =========================================================
-
-    public string? EmergencyContactName { get; set; }
-
-    public string? EmergencyContactRelationship { get; set; }
-
-    public string? EmergencyContactPhone { get; set; }
-
-    // =========================================================
-    // REFERRAL
-    // =========================================================
-
-    public string ReferralNumber { get; set; }
-        = string.Empty;
-
-    public DateTime ReferralDate { get; set; }
-
-    public string? ReferralSource { get; set; }
-
-    public string? Priority { get; set; }
-
-    // =========================================================
-    // INSURANCE
-    // =========================================================
-
-    public string? PrimaryInsurance { get; set; }
-
-    public string? InsuranceMemberId { get; set; }
-
-    public DateOnly? AuthorizationDate { get; set; }
-
-    public int? ApprovedVisits { get; set; }
-
-    public bool AuthorizationRequired { get; set; }
-
-    // =========================================================
-    // PHYSICIAN
-    // =========================================================
-
-    public string? ReferringPhysician { get; set; }
-
-    public string? PhysicianPhone { get; set; }
-
-    // =========================================================
-    // CLINICAL
-    // =========================================================
-
-    public string? PrimaryDiagnosis { get; set; }
-
-    public string? SecondaryDiagnosis { get; set; }
-
-    public List<string>? OrderedServices { get; set; }
-
-    public string? ReferralNotes { get; set; }
-
-    // =========================================================
-    // ASSIGNMENT
-    // =========================================================
-
-    public Guid? CoordinatorId { get; set; }
-
-    public Guid? ClinicianId { get; set; }
-
-    public Guid? DisciplineId { get; set; }
-
-    // =========================================================
-    // SCHEDULING
-    // =========================================================
-
-    public DateOnly? SocDate { get; set; }
-
-    public string? VisitPriority { get; set; }
-
-    public string? CaseStatus { get; set; }
-
-    // =========================================================
-    // INTERNAL
-    // =========================================================
-
-    public string? InternalNotes { get; set; }
-
-    // =========================================================
-    // PDF
-    // =========================================================
-
-    public IFormFile? Pdf { get; set; }
 }

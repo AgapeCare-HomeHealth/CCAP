@@ -1,4 +1,5 @@
-﻿using System.Security.Claims;
+using CCAP.API.Contracts.Announcements;
+using System.Security.Claims;
 using CCAP.Application.Features.Announcements.Commands.CreateAnnouncement;
 using CCAP.Application.Features.Announcements.Queries.GetAnnouncements;
 using MediatR;
@@ -63,13 +64,3 @@ public sealed class AnnouncementsController
     }
 }
 
-public sealed class CreateAnnouncementRequest
-{
-    public string Title { get; set; } = string.Empty;
-
-    public string Message { get; set; } = string.Empty;
-
-    public DateTime? PublishedAt { get; set; }
-
-    public DateTime? ExpiresAt { get; set; }
-}

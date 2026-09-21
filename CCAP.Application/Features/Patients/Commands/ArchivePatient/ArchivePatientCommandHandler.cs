@@ -1,9 +1,10 @@
-using MediatR;
 using CCAP.Application.Abstractions.Persistence;
+using MediatR;
 
 namespace CCAP.Application.Features.Patients.Commands.ArchivePatient;
 
-public sealed class ArchivePatientCommandHandler : IRequestHandler<ArchivePatientCommand>
+public sealed class ArchivePatientCommandHandler
+    : IRequestHandler<ArchivePatientCommand>
 {
     private readonly IPatientRepository _patients;
     private readonly IUnitOfWork _unitOfWork;
@@ -20,14 +21,13 @@ public sealed class ArchivePatientCommandHandler : IRequestHandler<ArchivePatien
         ArchivePatientCommand request,
         CancellationToken cancellationToken)
     {
-        var patient = await _patients.GetByIdAsync(
+        var patient = await _patients.GetByIdForUpdateAsync(
             request.PatientId,
             cancellationToken)
             ?? throw new KeyNotFoundException("Patient not found.");
 
         patient.Archive(request.ArchivedByUserId);
 
-        _patients.Update(patient);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 }

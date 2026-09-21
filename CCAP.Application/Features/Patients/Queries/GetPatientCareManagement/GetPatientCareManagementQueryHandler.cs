@@ -12,15 +12,17 @@ public sealed class GetPatientCareManagementQueryHandler
     private readonly IPatientRepository _patients;
     private readonly ICallNoteRepository _callNotes;
     private readonly IServiceTypeRepository _serviceTypes;
+    private readonly IPatientCareLogRepository _careLogs;
 
     public GetPatientCareManagementQueryHandler(
         IPatientRepository patients,
         ICallNoteRepository callNotes,
-        IServiceTypeRepository serviceTypes)
+        IServiceTypeRepository serviceTypes, IPatientCareLogRepository careLogs)
     {
         _patients = patients;
         _callNotes = callNotes;
         _serviceTypes = serviceTypes;
+        _careLogs = careLogs;
     }
 
     public async Task<PatientCareProfileResponseDto?> Handle(
@@ -52,6 +54,13 @@ public sealed class GetPatientCareManagementQueryHandler
         // SERVICE ORDERS
         // ========================================================
 
+        var careLogs = await _careLogs.GetByPatientIdAsync(patient.PatientId, cancellationToken);
+
+        var mappedCareLogs = careLogs.Select(x => new PatientCareLogResponseDto {
+            PatientCareLogId = x.PatientCareLogId, LogType = x.LogType, Item = x.Item, Quantity = x.Quantity, Unit = x.Unit,
+            RecordedAt = x.RecordedAt, Notes = x.Notes, RecordedBy = x.RecordedByUser is null ? "System" : $"{x.RecordedByUser.FirstName} {x.RecordedByUser.LastName}".Trim()
+        }).ToList();
+
         var serviceOrders =
             await _serviceTypes.GetOrdersByPatientIdAsync(
                 patient.PatientId,
@@ -70,6 +79,10 @@ public sealed class GetPatientCareManagementQueryHandler
                 NoteId = x.CallNoteId,
 
                 PatientId = x.PatientId,
+
+                ContactType = x.ContactType,
+
+                Method = x.Method,
 
                 Subject = x.Subject,
 
@@ -148,7 +161,7 @@ public sealed class GetPatientCareManagementQueryHandler
                     x.VisitId,
 
                 PatientId =
-                    x.PatientId,
+                    patient.PatientId,
 
                 ScheduledDate =
                     x.ScheduledDate,
@@ -273,7 +286,8 @@ public sealed class GetPatientCareManagementQueryHandler
 
             UpcomingVisits = upcomingVisits,
 
-            Tasks = tasks
+            Tasks = tasks,
+            CareLogs = mappedCareLogs
         };
     }
 }

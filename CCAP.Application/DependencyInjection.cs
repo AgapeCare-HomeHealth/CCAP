@@ -8,9 +8,21 @@ using CCAP.Application.Features.Announcements.Commands.CreateAnnouncement;
 using CCAP.Application.Features.Authentication.Commands.Login;
 using CCAP.Application.Features.Dashboard.Queries.GetDashboard;
 using CCAP.Application.Features.Notifications.Queries.GetNotifications;
+using CCAP.Application.Features.Notifications.Commands.MarkNotificationRead;
 using CCAP.Application.Features.Patients.Commands.AddCallNote;
+using CCAP.Application.Features.Patients.Commands.AddServiceOrder;
+using CCAP.Application.Features.Patients.Commands.AddCareLog;
+using CCAP.Application.Features.Patients.Queries.GetPatientAuditLog;
 using CCAP.Application.Features.Patients.Commands.ArchivePatient;
 using CCAP.Application.Features.Patients.Commands.CompleteCare;
+using CCAP.Application.Features.Patients.Commands.CompleteCompliance;
+using CCAP.Application.Features.Patients.Commands.CompleteInsuranceVerification;
+using CCAP.Application.Features.Patients.Commands.CompleteSoc;
+using CCAP.Application.Features.Patients.Commands.ScheduleSoc;
+using CCAP.Application.Features.Patients.Commands.UpdateInsurance;
+using CCAP.Application.Features.Patients.Commands.UpdatePatient;
+using CCAP.Application.Features.Patients.Commands.UpdateWorkflowDetails;
+using CCAP.Application.Features.Patients.Commands.CompleteTask;
 using CCAP.Application.Features.Referrals.Commands.CreateReferralIntake;
 using CCAP.Application.Features.Users.Commands.ActivateUser;
 using CCAP.Application.Features.Users.Commands.CreateUser;
@@ -51,6 +63,8 @@ public static class DependencyInjection
         services.AddTransient<
             IRequestValidator<GetNotificationsQuery>,
             GetNotificationsQueryValidator>();
+
+        services.AddTransient<IRequestValidator<MarkNotificationReadCommand>, MarkNotificationReadCommandValidator>();
 
         // =========================================================
         // ADMIN
@@ -112,6 +126,9 @@ public static class DependencyInjection
             IRequestValidator<AddCallNoteCommand>,
             AddCallNoteCommandValidator>();
 
+        services.AddScoped<IRequestValidator<AddServiceOrderCommand>, AddServiceOrderCommandValidator>();
+        services.AddTransient<IRequestValidator<AddCareLogCommand>, AddCareLogCommandValidator>();
+
         services.AddTransient<
             IRequestValidator<ArchivePatientCommand>,
             ArchivePatientCommandValidator>();
@@ -119,6 +136,15 @@ public static class DependencyInjection
         services.AddTransient<
             IRequestValidator<CompleteCareCommand>,
             CompleteCareCommandValidator>();
+
+        services.AddTransient<IRequestValidator<CompleteComplianceCommand>, CompleteComplianceCommandValidator>();
+        services.AddTransient<IRequestValidator<CompleteInsuranceVerificationCommand>, CompleteInsuranceVerificationCommandValidator>();
+        services.AddTransient<IRequestValidator<CompleteSocCommand>, CompleteSocCommandValidator>();
+        services.AddTransient<IRequestValidator<ScheduleSocCommand>, ScheduleSocCommandValidator>();
+        services.AddTransient<IRequestValidator<UpdateInsuranceCommand>, UpdateInsuranceCommandValidator>();
+        services.AddTransient<IRequestValidator<UpdatePatientCommand>, UpdatePatientCommandValidator>();
+        services.AddTransient<IRequestValidator<UpdateWorkflowDetailsCommand>, UpdateWorkflowDetailsCommandValidator>();
+        services.AddTransient<IRequestValidator<CompleteTaskCommand>, CompleteTaskCommandValidator>();
 
         // =========================================================
         // AUTHENTICATION

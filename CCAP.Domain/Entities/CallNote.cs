@@ -8,6 +8,8 @@ public sealed class CallNote
     public Guid PatientId { get; private set; }
     public Guid RecordedByUserId { get; private set; }
     public DateTime CallDate { get; private set; }
+    public string ContactType { get; private set; } = string.Empty;
+    public string Method { get; private set; } = string.Empty;
     public string Subject { get; private set; } = string.Empty;
     public string Notes { get; private set; } = string.Empty;
     public string? Outcome { get; private set; }
@@ -15,12 +17,15 @@ public sealed class CallNote
     public Patient Patient { get; private set; } = null!;
     public ApplicationUser RecordedBy { get; private set; } = null!;
 
-    public CallNote(Guid patientId, Guid recordedByUserId, string subject, string notes, string? outcome)
+    public CallNote(Guid patientId, Guid recordedByUserId, string contactType, string method,
+        string subject, string notes, string? outcome)
     {
         CallNoteId = Guid.NewGuid();
         PatientId = patientId;
         RecordedByUserId = recordedByUserId;
         CallDate = DateTime.UtcNow;
+        ContactType = contactType.Trim();
+        Method = method.Trim();
         Subject = subject.Trim();
         Notes = notes.Trim();
         Outcome = outcome?.Trim();

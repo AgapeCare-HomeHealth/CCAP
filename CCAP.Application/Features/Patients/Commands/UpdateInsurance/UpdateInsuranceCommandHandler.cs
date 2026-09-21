@@ -6,20 +6,14 @@ namespace CCAP.Application.Features.Patients.Commands.UpdateInsurance;
 public sealed class UpdateInsuranceCommandHandler
     : IRequestHandler<UpdateInsuranceCommand>
 {
-    private const string InsuranceVerificationRequirement =
-        "INSURANCE_VERIFICATION";
-
     private readonly IPatientRepository _patients;
-    private readonly IComplianceRepository _compliance;
     private readonly IUnitOfWork _unitOfWork;
 
     public UpdateInsuranceCommandHandler(
         IPatientRepository patients,
-        IComplianceRepository compliance,
         IUnitOfWork unitOfWork)
     {
         _patients = patients;
-        _compliance = compliance;
         _unitOfWork = unitOfWork;
     }
 
@@ -27,21 +21,16 @@ public sealed class UpdateInsuranceCommandHandler
         UpdateInsuranceCommand request,
         CancellationToken cancellationToken)
     {
-        var patient = await _patients.GetByIdForUpdateAsync(
-            request.PatientId,
-            cancellationToken);
+        var patient =
+            await _patients.GetByIdForUpdateAsync(
+                request.PatientId,
+                cancellationToken);
 
         if (patient is null)
         {
             throw new KeyNotFoundException(
                 "Patient not found.");
         }
-
-        var complianceRecord =
-            await _compliance.GetByPatientAndRequirementAsync(
-                request.PatientId,
-                InsuranceVerificationRequirement,
-                cancellationToken);
 
         var normalizedInsurance =
             Normalize(request.PrimaryInsurance);
@@ -77,10 +66,9 @@ public sealed class UpdateInsuranceCommandHandler
             request.AuthorizationRequired);
 
         if (insuranceChanged &&
-            complianceRecord is not null &&
-            complianceRecord.IsCompleted)
+            patient.InsuranceVerifiedAt.HasValue)
         {
-            complianceRecord.RequireReverification();
+            patient.RequireInsuranceReverification();
         }
 
         await _unitOfWork.SaveChangesAsync(

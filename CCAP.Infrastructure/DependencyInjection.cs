@@ -1,11 +1,14 @@
 using CCAP.Application.Abstractions.Identity;
 using CCAP.Application.Abstractions.Persistence;
 using CCAP.Application.Abstractions.Storage;
+using CCAP.Application.Abstractions.Scheduling;
 using CCAP.Infrastructure.Identity;
 using CCAP.Infrastructure.Persistence;
 using CCAP.Infrastructure.Persistence.Repositories;
 using CCAP.Infrastructure.Storage;
 using CCAP.Infrastructure.Storage.Local;
+using CCAP.Infrastructure.Storage.AzureBlob;
+using CCAP.Infrastructure.Scheduling;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,6 +34,10 @@ public static class DependencyInjection
             NotificationRepository>();
 
         services.AddScoped<
+            INotificationReadStateRepository,
+            NotificationReadStateRepository>();
+
+        services.AddScoped<
             IAnnouncementRepository,
             AnnouncementRepository>();
 
@@ -49,6 +56,12 @@ public static class DependencyInjection
         services.AddScoped<
             IPatientRepository,
             PatientRepository>();
+
+        services.AddScoped<
+            IVisitRepository,
+            VisitRepository>();
+
+        services.AddScoped<IScheduleImportService, ScheduleImportService>();
 
         services.AddScoped<
             IReferralRepository,
@@ -82,6 +95,9 @@ public static class DependencyInjection
             ICallNoteRepository,
             CallNoteRepository>();
 
+        services.AddScoped<IPatientAuditLogRepository, PatientAuditLogRepository>();
+        services.AddScoped<IPatientCareLogRepository, PatientCareLogRepository>();
+
         services.AddScoped<
             IUnitOfWork,
             UnitOfWork>();
@@ -89,6 +105,10 @@ public static class DependencyInjection
         services.AddScoped<
             IAdminLookupRepository,
             AdminLookupRepository>();
+
+        services.AddScoped<
+            ILookupOptionRepository,
+            LookupOptionRepository>();
 
         services.AddScoped<
             IPasswordHasher,
@@ -103,10 +123,29 @@ public static class DependencyInjection
         // =========================================================
 
         services.Configure<FileStorageOptions>(
-            configuration.GetSection(
-                FileStorageOptions.SectionName));
+            configuration.GetSection(FileStorageOptions.SectionName));
+        services.Configure<AzureBlobOptions>(
+            configuration.GetSection(AzureBlobOptions.SectionName));
 
-        services.AddScoped<IFileStorage, LocalFileStorage>();
+        var storageProvider = configuration["FileStorage:Provider"]?.Trim();
+
+        switch (storageProvider?.ToUpperInvariant())
+        {
+            case "AZUREBLOB":
+            case "AZURE_BLOB":
+                services.AddScoped<IFileStorage, AzureBlobFileStorage>();
+                break;
+            case "LOCAL":
+                services.AddScoped<IFileStorage, LocalFileStorage>();
+                break;
+            case null:
+            case "":
+            case "NONE":
+            case "METADATAONLY":
+            default:
+                services.AddScoped<IFileStorage, NullFileStorage>();
+                break;
+        }
 
         // =========================================================
         // END FILE STORAGE

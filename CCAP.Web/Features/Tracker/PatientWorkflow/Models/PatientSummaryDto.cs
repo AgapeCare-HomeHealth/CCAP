@@ -1,4 +1,4 @@
-﻿namespace CCAP.Web.Features.Tracker.PatientWorkflow.Model
+namespace CCAP.Web.Features.Tracker.PatientWorkflow.Models
 {
     public class PatientSummaryDto
     {
@@ -15,6 +15,8 @@
         public bool AuthorizationRequired { get; set; }
 
         public DateOnly? SocDate { get; set; }
+
+        public DateTime? SocScheduledAt { get; set; }
 
         public string Address { get; set; } = string.Empty;
 

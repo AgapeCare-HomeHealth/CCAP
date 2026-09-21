@@ -1,4 +1,4 @@
-﻿namespace CCAP.Domain.Entities;
+namespace CCAP.Domain.Entities;
 
 public sealed class ReferralDocument
 {
@@ -10,7 +10,7 @@ public sealed class ReferralDocument
 
     public Guid ReferralId { get; private set; }
 
-    public string StorageKey { get; private set; } = string.Empty;
+    public string? StorageKey { get; private set; }
 
     public string OriginalFileName { get; private set; } = string.Empty;
 
@@ -34,11 +34,6 @@ public sealed class ReferralDocument
                 "Referral ID is required.",
                 nameof(referralId));
 
-        if (string.IsNullOrWhiteSpace(storageKey))
-            throw new ArgumentException(
-                "Storage key is required.",
-                nameof(storageKey));
-
         if (string.IsNullOrWhiteSpace(originalFileName))
             throw new ArgumentException(
                 "Original file name is required.",
@@ -52,7 +47,7 @@ public sealed class ReferralDocument
 
         ReferralId = referralId;
 
-        StorageKey = storageKey.Trim();
+        StorageKey = string.IsNullOrWhiteSpace(storageKey) ? null : storageKey.Trim();
 
         OriginalFileName = originalFileName.Trim();
 

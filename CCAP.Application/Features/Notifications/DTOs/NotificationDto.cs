@@ -1,4 +1,4 @@
-﻿namespace CCAP.Application.Features.Notifications.DTOs;
+namespace CCAP.Application.Features.Notifications.DTOs;
 
 public sealed record NotificationDto(
     Guid NotificationId,
@@ -9,4 +9,5 @@ public sealed record NotificationDto(
     string Message,
     string Severity,
     DateTime? DueDate,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    bool IsRead);

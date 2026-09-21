@@ -1,0 +1,1001 @@
+@page "/scheduling/calendar"
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
+@using CCAP.Web.Features.Scheduling.Calendar.Models
+@using CCAP.Web.Features.Scheduling.Calendar.Services
+@inject CalendarService CalendarService
+@inject IJSRuntime JS
+@attribute [CcapAuthorize(Policy = "referrals.view")]
+
+<div class="scheduling-calendar-page">
+
+    <!-- Page Header -->
+    <div class="calendar-page-header">
+        <div>
+            <h1>My Scheduling Calendar</h1>
+            <p>View schedules assigned to your CCAP account from the care scheduling system.</p>
+        </div>
+
+        <div>
+            <label class="btn-upload-csv" style="cursor:pointer;">
+                <span>↑</span>
+                Import Schedule
+                <InputFile OnChange="HandleScheduleFileSelected" accept=".xlsx,.csv" style="display:none;" />
+            </label>
+        </div>
+    </div>
+
+
+    <!-- Calendar Card -->
+    <div class="calendar-card">
+
+        <!-- Calendar Toolbar -->
+        <div class="calendar-toolbar">
+
+            <div class="calendar-navigation">
+
+                <button class="toolbar-button"
+                        @onclick="GoToToday">
+                    Today
+                </button>
+
+                <button class="toolbar-button navigation-button"
+                        @onclick="PreviousPeriod">
+                    ‹
+                </button>
+
+                <button class="toolbar-button navigation-button"
+                        @onclick="NextPeriod">
+                    ›
+                </button>
+
+                <h2 class="month-title">
+                    @GetPeriodTitle()
+                </h2>
+
+            </div>
+
+
+            <!-- View Switcher -->
+            <div class="view-switcher">
+
+                <button class="view-button @(CurrentView == CalendarView.Month ? "active" : "")"
+                        @onclick="() => ChangeView(CalendarView.Month)">
+                    Month
+                </button>
+
+                <button class="view-button @(CurrentView == CalendarView.Week ? "active" : "")"
+                        @onclick="() => ChangeView(CalendarView.Week)">
+                    Week
+                </button>
+
+                <button class="view-button @(CurrentView == CalendarView.Day ? "active" : "")"
+                        @onclick="() => ChangeView(CalendarView.Day)">
+                    Day
+                </button>
+
+            </div>
+
+        </div>
+
+        @if (IsLoading)
+        {
+            <div class="alert alert-info m-3 mb-0">Loading schedules...</div>
+        }
+        else if (!string.IsNullOrWhiteSpace(CalendarLoadErrorMessage))
+        {
+            <div class="alert alert-danger m-3 mb-0">@CalendarLoadErrorMessage</div>
+        }
+
+        <!-- ========================= -->
+        <!-- MONTH VIEW -->
+        <!-- ========================= -->
+        @if (CurrentView == CalendarView.Month)
+        {
+            <div class="calendar-grid">
+
+                <!-- Weekday Headers -->
+                @foreach (var weekday in Weekdays)
+                {
+                    <div class="calendar-weekday">
+                        @weekday
+                    </div>
+                }
+
+
+                <!-- Calendar Days -->
+                @foreach (var day in CalendarDays)
+                {
+                    var daySchedules = GetSchedulesForDate(day);
+
+                    <div class="calendar-day
+                        @(day.Month != CurrentMonth.Month ? "other-month" : "")
+                        @(SelectedDate.Date == day.Date ? "selected-day" : "")"
+                         @onclick="() => SelectDate(day)">
+
+                        <div class="day-number">
+                            @day.Day
+                        </div>
+
+
+                        <div class="day-events">
+
+                            @foreach (var schedule in daySchedules.Take(3))
+                            {
+                                <div class="schedule-event service-other"
+                                     @onclick:stopPropagation="true"
+                                     @onclick="() => SelectSchedule(schedule)">
+
+                                    <div class="event-title">
+                                        @schedule.PatientName
+                                    </div>
+
+                                    <div class="event-time">
+                                        @schedule.ScheduledDate.ToString("h:mm tt")
+                                    </div>
+
+                                </div>
+                            }
+
+
+                            @if (daySchedules.Count > 3)
+                            {
+                                <div class="more-events">
+                                    +@(daySchedules.Count - 3) more
+                                </div>
+                            }
+
+                        </div>
+
+                    </div>
+                }
+
+            </div>
+        }
+
+
+        <!-- ========================= -->
+        <!-- WEEK VIEW -->
+        <!-- ========================= -->
+        @if (CurrentView == CalendarView.Week)
+        {
+            <div class="week-view">
+
+                @foreach (var day in GetWeekDays())
+                {
+                    var daySchedules = GetSchedulesForDate(day);
+
+                    <div class="week-day-column">
+
+                        <div class="week-day-header"
+                             @onclick="() => SelectDate(day)">
+
+                            <span>
+                                @day.ToString("ddd")
+                            </span>
+
+                            <strong>
+                                @day.Day
+                            </strong>
+
+                        </div>
+
+
+                        <div class="week-day-schedules">
+
+                            @if (daySchedules.Any())
+                            {
+                                @foreach (var schedule in daySchedules)
+                                {
+                                    <div class="schedule-event service-other"
+                                         @onclick="() => SelectSchedule(schedule)">
+
+                                        <div class="event-title">
+                                            @schedule.PatientName
+                                        </div>
+
+                                        <div class="event-time">
+                                            @schedule.ScheduledDate.ToString("h:mm tt")
+                                        </div>
+
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div class="no-schedules">
+                                    No schedules
+                                </div>
+                            }
+
+                        </div>
+
+                    </div>
+                }
+
+            </div>
+        }
+
+
+        <!-- ========================= -->
+        <!-- DAY VIEW -->
+        <!-- ========================= -->
+        @if (CurrentView == CalendarView.Day)
+        {
+            <div class="day-view">
+
+                <div class="day-view-header">
+
+                    <div>
+                        <span>
+                            @SelectedDate.ToString("dddd")
+                        </span>
+
+                        <strong>
+                            @SelectedDate.ToString("MMMM d, yyyy")
+                        </strong>
+                    </div>
+
+                </div>
+
+
+                <div class="day-schedule-list">
+
+                    @{
+                        var selectedDaySchedules = GetSchedulesForDate(SelectedDate);
+                    }
+
+                    @if (selectedDaySchedules.Any())
+                    {
+                        @foreach (var schedule in selectedDaySchedules)
+                        {
+                            <div class="day-schedule-item service-other"
+                                 @onclick="() => SelectSchedule(schedule)">
+
+                                <div class="schedule-time">
+                                    @schedule.ScheduledDate.ToString("h:mm tt")
+                                </div>
+
+                                <div class="schedule-information">
+
+                                    <strong>
+                                        @schedule.PatientName
+                                    </strong>
+
+                                    <span>
+                                        Visit
+                                    </span>
+
+                                </div>
+
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="day-empty-state">
+                            <strong>No schedules for this day</strong>
+                            <span>There are no scheduled visits.</span>
+                        </div>
+                    }
+
+                </div>
+
+            </div>
+        }
+
+    </div>
+
+
+    <!-- ========================= -->
+    <!-- SELECTED DAY DETAILS -->
+    <!-- ========================= -->
+    @if (SelectedDate != DateTime.MinValue && CurrentView != CalendarView.Day)
+    {
+        <div class="selected-day-panel">
+
+            <div class="selected-day-header">
+
+                <div>
+                    <span>Selected Day</span>
+                    <h3>
+                        @SelectedDate.ToString("dddd, MMMM d, yyyy")
+                    </h3>
+                </div>
+
+            </div>
+
+
+            @{
+                var selectedSchedules = GetSchedulesForDate(SelectedDate);
+            }
+
+            @if (selectedSchedules.Any())
+            {
+                <div class="selected-schedule-list">
+
+                    @foreach (var schedule in selectedSchedules)
+                    {
+                        <div class="selected-schedule-item"
+                             @onclick="() => SelectSchedule(schedule)">
+
+                            <div class="selected-schedule-time">
+                                @schedule.ScheduledDate.ToString("h:mm tt")
+                            </div>
+
+                            <div class="selected-schedule-info">
+
+                                <strong>
+                                    @schedule.PatientName
+                                </strong>
+
+                                <span>
+                                    Visit
+                                </span>
+
+                            </div>
+
+                        </div>
+                    }
+
+                </div>
+            }
+            else
+            {
+                <div class="selected-day-empty">
+                    No schedules for this day.
+                </div>
+            }
+
+        </div>
+    }
+
+
+    <!-- ========================= -->
+    <!-- SCHEDULE DETAILS -->
+    <!-- ========================= -->
+    @if (SelectedSchedule is not null)
+    {
+        <div class="schedule-details-panel">
+
+            <div class="schedule-details-header">
+
+                <div>
+                    <span>Schedule Details</span>
+
+                    <h3>
+                        @SelectedSchedule.PatientName
+                    </h3>
+                </div>
+
+                <button class="close-panel-button"
+                        @onclick="ClearSelectedSchedule">
+                    ×
+                </button>
+
+            </div>
+
+
+            <div class="schedule-details-content">
+
+                <div class="detail-row">
+                    <span>Date</span>
+                    <strong>
+                        @SelectedSchedule.ScheduledDate.ToString("MMMM d, yyyy")
+                    </strong>
+                </div>
+
+                <div class="detail-row">
+                    <span>Time</span>
+                    <strong>
+                        @SelectedSchedule.ScheduledDate.ToString("h:mm tt")
+                    </strong>
+                </div>
+
+                <div class="detail-row">
+                    <span>Service</span>
+                    <strong>
+                        Visit
+                    </strong>
+                </div>
+
+                <div class="detail-row">
+                    <span>Clinician</span>
+                    <strong>
+                        @SelectedSchedule.Clinician
+                    </strong>
+                </div>
+
+                <div class="detail-row">
+                    <span>Status</span>
+                    <strong>
+                        @SelectedSchedule.Status
+                    </strong>
+                </div>
+
+                @if (SelectedSchedule.CompletedDate.HasValue)
+                {
+                    <div class="detail-row">
+                        <span>Completed</span>
+                        <strong>
+                            @SelectedSchedule.CompletedDate.Value.ToString("MMMM d, yyyy h:mm tt")
+                        </strong>
+                    </div>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(SelectedSchedule.Notes))
+                {
+                    <div class="detail-row">
+                        <span>Notes</span>
+                        <strong>
+                            @SelectedSchedule.Notes
+                        </strong>
+                    </div>
+                }
+
+            </div>
+
+        </div>
+    }
+
+</div>
+
+
+@if (ShowImportReview)
+{
+    <div class="import-review-overlay" @onclick:stopPropagation="true">
+        <div class="import-review-modal" role="dialog" aria-modal="true" aria-labelledby="schedule-import-title">
+            <div class="import-review-header">
+                <div>
+                    <h3 id="schedule-import-title">Review Schedule Import</h3>
+                    <p>
+                        Schedules are imported independently of the CCAP Patient record.
+                        A patient match is used when available, but it is <strong>not required to save the schedule</strong>.
+                    </p>
+                </div>
+
+                <button type="button"
+                        class="import-review-close"
+                        title="Close review"
+                        aria-label="Close review"
+                        @onclick="CloseImportReview"
+                        @onclick:stopPropagation="true"
+                        disabled="@IsImporting">
+                    ×
+                </button>
+            </div>
+
+            <div class="import-summary">
+                <strong>@ImportPreview.Count schedule(s) found.</strong>
+                <span>@ImportPreview.Count(x => x.IsDuplicate) duplicate(s).</span>
+                <span>@ImportPreview.Count(x => !x.IsDuplicate) new schedule(s).</span>
+
+                @if (ImportPreview.Any(x => x.HasWarning))
+                {
+                    <span class="text-warning-emphasis">
+                        <strong>@ImportPreview.Count(x => x.HasWarning) warning(s).</strong>
+                        These schedules can still be saved.
+                    </span>
+                }
+            </div>
+
+            <div class="import-review-body">
+                <div class="table-responsive import-table">
+                    <table class="table table-sm align-middle">
+                        <thead>
+                            <tr>
+                                <th>Action</th>
+                                <th>Scheduled Visit</th>
+                                <th>Existing Schedule</th>
+                                <th>New Import</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var item in ImportPreview)
+                        {
+                            <tr>
+                                <td>
+                                    @if (item.IsDuplicate)
+                                    {
+                                        <label class="overwrite-choice">
+                                            <input type="checkbox" @bind="item.OverwriteExisting" />
+                                            <span>
+                                                <strong>Overwrite this schedule</strong><br />
+                                                <small>Unchecked = Keep existing</small>
+                                            </span>
+                                        </label>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success">New — Add</span>
+                                    }
+
+                                    @if (item.HasWarning)
+                                    {
+                                        <div class="small text-warning-emphasis mt-2">
+                                            <strong>Warning:</strong> @item.ValidationMessage
+                                        </div>
+                                    }
+                                </td>
+                                <td>
+                                    <strong>@item.PatientName</strong><br />
+                                    <span>@item.ScheduledDate.ToString("MMM d, yyyy h:mm tt")</span>
+                                </td>
+                                <td>
+                                    @(item.IsDuplicate
+                                        ? $"{item.ExistingClinicianName} — {item.ExistingStatus}"
+                                        : "None")
+                                </td>
+                                <td>
+                                    <strong>@item.ClinicianName</strong>
+                                    @if (!string.IsNullOrWhiteSpace(item.Location))
+                                    {
+                                        <br /><small>@item.Location</small>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="import-review-footer">
+                <button type="button"
+                        class="btn btn-secondary"
+                        @onclick="CloseImportReview"
+                        @onclick:stopPropagation="true"
+                        disabled="@IsImporting">
+                    Cancel
+                </button>
+
+                <button type="button"
+                        class="btn @(ImportPreview.Any(x => x.HasWarning) ? "btn-warning" : "btn-primary")"
+                        @onclick="ProceedWithImport"
+                        @onclick:stopPropagation="true"
+                        disabled="@IsImporting">
+                    @(IsImporting
+                        ? "Importing..."
+                        : ImportPreview.Any(x => x.HasWarning)
+                            ? "Proceed with Caution"
+                            : "Proceed with Import")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+
+    private CalendarView CurrentView = CalendarView.Month;
+
+    private DateTime CurrentMonth = new(
+        DateTime.Today.Year,
+        DateTime.Today.Month,
+        1);
+
+    private DateTime SelectedDate = DateTime.Today;
+
+    private CalendarVisitDto? SelectedSchedule;
+
+    private List<DateTime> CalendarDays = [];
+    private List<CalendarVisitDto> Schedules = [];
+
+    private bool IsLoading;
+    private string? CalendarLoadErrorMessage;
+
+    private enum CalendarView
+    {
+        Month,
+        Week,
+        Day
+    }
+
+    private readonly string[] Weekdays =
+    {
+        "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        GenerateCalendarDays();
+        await LoadSchedulesAsync();
+    }
+
+    private async Task LoadSchedulesAsync()
+    {
+        IsLoading = true;
+        CalendarLoadErrorMessage = null;
+
+        try
+        {
+            var (start, end) = GetVisibleDateRange();
+            Schedules = await CalendarService.GetVisitsAsync(start, end);
+        }
+        catch (Exception ex)
+        {
+            Schedules = [];
+            CalendarLoadErrorMessage = $"Unable to load schedules: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private (DateTime Start, DateTime End) GetVisibleDateRange()
+    {
+        return CurrentView switch
+        {
+            CalendarView.Month =>
+                (CalendarDays.First().Date, CalendarDays.Last().Date.AddDays(1)),
+
+            CalendarView.Week =>
+                (GetStartOfWeek(SelectedDate), GetStartOfWeek(SelectedDate).AddDays(7)),
+
+            CalendarView.Day =>
+                (SelectedDate.Date, SelectedDate.Date.AddDays(1)),
+
+            _ => (SelectedDate.Date, SelectedDate.Date.AddDays(1))
+        };
+    }
+
+    private void GenerateCalendarDays()
+    {
+        CalendarDays.Clear();
+
+        var firstDayOfMonth = CurrentMonth;
+        var calendarStart = firstDayOfMonth.AddDays(-(int)firstDayOfMonth.DayOfWeek);
+        var lastDayOfMonth = CurrentMonth.AddMonths(1).AddDays(-1);
+        var calendarEnd = lastDayOfMonth.AddDays(6 - (int)lastDayOfMonth.DayOfWeek);
+
+        for (var date = calendarStart; date <= calendarEnd; date = date.AddDays(1))
+            CalendarDays.Add(date);
+    }
+
+    private List<CalendarVisitDto> GetSchedulesForDate(DateTime date)
+    {
+        return Schedules
+            .Where(x => x.ScheduledDate.Date == date.Date)
+            .OrderBy(x => x.ScheduledDate)
+            .ToList();
+    }
+
+    private async Task ChangeView(CalendarView view)
+    {
+        CurrentView = view;
+        SelectedSchedule = null;
+        GenerateCalendarDays();
+        await LoadSchedulesAsync();
+    }
+
+    private void SelectDate(DateTime date)
+    {
+        SelectedDate = date;
+        SelectedSchedule = null;
+    }
+
+    private void SelectSchedule(CalendarVisitDto schedule)
+    {
+        SelectedSchedule = schedule;
+        SelectedDate = schedule.ScheduledDate.Date;
+    }
+
+    private void ClearSelectedSchedule()
+    {
+        SelectedSchedule = null;
+    }
+
+    private async Task GoToToday()
+    {
+        var today = DateTime.Today;
+        CurrentMonth = new DateTime(today.Year, today.Month, 1);
+        SelectedDate = today;
+        CurrentView = CalendarView.Month;
+        SelectedSchedule = null;
+        GenerateCalendarDays();
+        await LoadSchedulesAsync();
+    }
+
+    private async Task PreviousPeriod()
+    {
+        if (CurrentView == CalendarView.Month)
+        {
+            CurrentMonth = CurrentMonth.AddMonths(-1);
+        }
+        else if (CurrentView == CalendarView.Week)
+        {
+            SelectedDate = SelectedDate.AddDays(-7);
+            CurrentMonth = new DateTime(SelectedDate.Year, SelectedDate.Month, 1);
+        }
+        else
+        {
+            SelectedDate = SelectedDate.AddDays(-1);
+            CurrentMonth = new DateTime(SelectedDate.Year, SelectedDate.Month, 1);
+        }
+
+        SelectedSchedule = null;
+        GenerateCalendarDays();
+        await LoadSchedulesAsync();
+    }
+
+    private async Task NextPeriod()
+    {
+        if (CurrentView == CalendarView.Month)
+        {
+            CurrentMonth = CurrentMonth.AddMonths(1);
+        }
+        else if (CurrentView == CalendarView.Week)
+        {
+            SelectedDate = SelectedDate.AddDays(7);
+            CurrentMonth = new DateTime(SelectedDate.Year, SelectedDate.Month, 1);
+        }
+        else
+        {
+            SelectedDate = SelectedDate.AddDays(1);
+            CurrentMonth = new DateTime(SelectedDate.Year, SelectedDate.Month, 1);
+        }
+
+        SelectedSchedule = null;
+        GenerateCalendarDays();
+        await LoadSchedulesAsync();
+    }
+
+    private string GetPeriodTitle()
+    {
+        return CurrentView switch
+        {
+            CalendarView.Month => CurrentMonth.ToString("MMMM yyyy"),
+            CalendarView.Week => GetWeekTitle(),
+            CalendarView.Day => SelectedDate.ToString("MMMM d, yyyy"),
+            _ => string.Empty
+        };
+    }
+
+    private string GetWeekTitle()
+    {
+        var startOfWeek = GetStartOfWeek(SelectedDate);
+        var endOfWeek = startOfWeek.AddDays(6);
+
+        return startOfWeek.Month == endOfWeek.Month
+            ? $"{startOfWeek:MMMM d} - {endOfWeek:d}, {endOfWeek:yyyy}"
+            : $"{startOfWeek:MMM d} - {endOfWeek:MMM d}, {endOfWeek:yyyy}";
+    }
+
+    private List<DateTime> GetWeekDays()
+    {
+        var startOfWeek = GetStartOfWeek(SelectedDate);
+        return Enumerable.Range(0, 7).Select(i => startOfWeek.AddDays(i)).ToList();
+    }
+
+    private DateTime GetStartOfWeek(DateTime date)
+    {
+        var difference = (7 + (date.DayOfWeek - DayOfWeek.Sunday)) % 7;
+        return date.Date.AddDays(-difference);
+    }
+
+    private bool ShowImportReview;
+    private bool IsImporting;
+    private List<ScheduleImportPreviewItem> ImportPreview = [];
+
+    private async Task HandleScheduleFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null)
+            return;
+
+        var extension = Path.GetExtension(file.Name);
+        if (!string.Equals(extension, ".xlsx", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(extension, ".csv", StringComparison.OrdinalIgnoreCase))
+        {
+            await ShowScheduleErrorAsync(
+                "Invalid File",
+                "Please select an Excel (.xlsx) or CSV schedule file.");
+            return;
+        }
+
+        IsImporting = true;
+        ShowImportReview = false;
+        ImportPreview.Clear();
+
+        await ShowScheduleLoadingAsync(
+            "Validating Schedule",
+            "Reading the uploaded schedule and checking its format...");
+
+        try
+        {
+            ImportPreview = await CalendarService.PreviewImportAsync(file);
+
+            await CloseScheduleAlertAsync();
+
+            if (ImportPreview.Count == 0)
+            {
+                await ShowScheduleErrorAsync(
+                    "No Schedule Found",
+                    "The uploaded file does not contain any valid scheduled visits.");
+                return;
+            }
+
+            ShowImportReview = true;
+        }
+        catch (HttpRequestException ex)
+        {
+            await CloseScheduleAlertAsync();
+            await ShowScheduleErrorAsync(
+                "Schedule Validation Failed",
+                GetScheduleErrorMessage(ex));
+        }
+        catch (InvalidOperationException ex)
+        {
+            await CloseScheduleAlertAsync();
+            await ShowScheduleErrorAsync(
+                "Invalid Schedule File",
+                GetScheduleErrorMessage(ex));
+        }
+        catch (Exception)
+        {
+            await CloseScheduleAlertAsync();
+            await ShowScheduleErrorAsync(
+                "Unable to Read Schedule",
+                "The uploaded file could not be processed. Please verify that it is a valid weekly schedule file.");
+        }
+        finally
+        {
+            IsImporting = false;
+        }
+    }
+
+    private async Task ProceedWithImport()
+    {
+        if (IsImporting || ImportPreview.Count == 0)
+            return;
+
+        IsImporting = true;
+
+        ShowImportReview = false;
+        await InvokeAsync(StateHasChanged);
+        await Task.Yield();
+
+        await ShowScheduleLoadingAsync(
+            "Importing Schedule",
+            "Saving the selected schedules to CCAP...");
+
+        ScheduleImportResult result;
+
+        // ------------------------------------------------------------
+        // STEP 1: COMMIT THE IMPORT
+        // Only exceptions from CommitImportAsync are import failures.
+        // ------------------------------------------------------------
+        try
+        {
+            result = await CalendarService.CommitImportAsync(ImportPreview);
+        }
+        catch (HttpRequestException ex)
+        {
+            await CloseScheduleAlertAsync();
+
+            await ShowScheduleErrorAsync(
+                "Import Failed",
+                GetScheduleErrorMessage(ex));
+
+            IsImporting = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+        catch (InvalidOperationException ex)
+        {
+            await CloseScheduleAlertAsync();
+
+            await ShowScheduleErrorAsync(
+                "Import Validation Failed",
+                GetScheduleErrorMessage(ex));
+
+            IsImporting = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+        catch (Exception)
+        {
+            await CloseScheduleAlertAsync();
+
+            await ShowScheduleErrorAsync(
+                "Import Failed",
+                "The schedules could not be imported. Please try again.");
+
+            IsImporting = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        // ------------------------------------------------------------
+        // STEP 2: THE DATABASE IMPORT SUCCEEDED
+        // ------------------------------------------------------------
+        ImportPreview.Clear();
+
+        await CloseScheduleAlertAsync();
+
+        // ------------------------------------------------------------
+        // STEP 3: REFRESH THE CALENDAR SEPARATELY
+        // A refresh failure must NOT be reported as an import failure.
+        // LoadSchedulesAsync already handles its own exceptions.
+        // ------------------------------------------------------------
+        await LoadSchedulesAsync();
+
+        // ------------------------------------------------------------
+        // STEP 4: SHOW THE ACTUAL IMPORT RESULT
+        // ------------------------------------------------------------
+        var resultMessage =
+            $"{result.Added} added, {result.Overwritten} overwritten, {result.Kept} kept" +
+            (result.Skipped > 0 ? $", {result.Skipped} skipped" : "") + ".";
+
+        if (result.Warnings > 0 || result.Skipped > 0)
+        {
+            var warningMessage = resultMessage;
+
+            if (result.Warnings > 0)
+                warningMessage +=
+                    $" {result.Warnings} schedule(s) were saved with mapping warnings.";
+
+            if (result.Skipped > 0)
+                warningMessage +=
+                    " Rows that could not be imported were skipped.";
+
+            await ShowScheduleWarningAsync(
+                "Import Completed with Warnings",
+                warningMessage);
+        }
+        else
+        {
+            await ShowScheduleSuccessAsync(
+                "Schedule Imported",
+                resultMessage);
+        }
+
+        IsImporting = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ShowScheduleLoadingAsync(string title, string text)
+    {
+        await JS.InvokeVoidAsync("ccapScheduleAlert.loading", title, text);
+    }
+
+    private async Task CloseScheduleAlertAsync()
+    {
+        await JS.InvokeVoidAsync("ccapScheduleAlert.close");
+    }
+
+    private async Task ShowScheduleErrorAsync(string title, string text)
+    {
+        await JS.InvokeVoidAsync("ccapScheduleAlert.error", title, text);
+    }
+
+    private async Task ShowScheduleSuccessAsync(string title, string text)
+    {
+        await JS.InvokeVoidAsync("ccapScheduleAlert.success", title, text);
+    }
+
+    private async Task ShowScheduleWarningAsync(string title, string text)
+    {
+        await JS.InvokeVoidAsync("ccapScheduleAlert.warning", title, text);
+    }
+
+    private static string GetScheduleErrorMessage(Exception ex)
+    {
+        return string.IsNullOrWhiteSpace(ex.Message)
+            ? "The schedule file could not be validated."
+            : ex.Message;
+    }
+
+    private void CloseImportReview()
+    {
+        if (IsImporting)
+            return;
+
+        ShowImportReview = false;
+        ImportPreview.Clear();
+        StateHasChanged();
+    }
+
+
+}

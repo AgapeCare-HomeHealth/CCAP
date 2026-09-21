@@ -1,4 +1,4 @@
-﻿@code {
+@code {
 
     [Parameter]
     public bool IsCollapsed { get; set; }
@@ -46,6 +46,14 @@
                 @if (!IsCollapsed)
                 {
                     <span>My Patients</span>
+                }
+            </NavLink>
+
+            <NavLink href="/patients/archive" class="nav-item">
+                <i class="bi bi-archive"></i>
+                @if (!IsCollapsed)
+                {
+                    <span>Archived Patients</span>
                 }
             </NavLink>
 
@@ -189,6 +197,39 @@
             }
 
         </details> *@
+        <!-- ======================= -->
+        <!-- Scheduling -->
+        <!-- ======================= -->
+
+        <details class="menu-dropdown">
+
+            <summary>
+                <div>
+                    <i class="bi bi-calendar3"></i>
+
+                    @if (!IsCollapsed)
+                    {
+                        <span>Scheduling</span>
+                    }
+                </div>
+
+                @if (!IsCollapsed)
+                {
+                    <i class="bi bi-chevron-down arrow"></i>
+                }
+            </summary>
+
+            @if (!IsCollapsed)
+            {
+                <NavLink href="/scheduling/calendar"
+                         Match="NavLinkMatch.All"
+                         class="submenu-item">
+                    Calendar
+                </NavLink>
+            }
+
+        </details>
+
 
         <!-- ======================= -->
         <!-- Admin -->
@@ -223,6 +264,14 @@
             {
                 <NavLink href="/admin/users" class="submenu-item">
                     Users
+                </NavLink>
+
+                <NavLink href="/admin/lookup-options" class="submenu-item">
+                    <i class="bi bi-list-check me-2"></i>Lookup Options
+                </NavLink>
+
+                <NavLink href="/admin/service-types" class="submenu-item">
+                    <i class="bi bi-clipboard2-pulse me-2"></i>Service / Order Types
                 </NavLink>
 
                 <NavLink href="/admin/roles" class="submenu-item">

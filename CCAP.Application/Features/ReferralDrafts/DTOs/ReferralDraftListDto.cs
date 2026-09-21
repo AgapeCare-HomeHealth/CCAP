@@ -8,9 +8,9 @@ public sealed class ReferralDraftListDto
 
     public string SavedByName { get; init; } = string.Empty;
 
-    public string PatientName { get; init; } = string.Empty;
+    public string PdfFileName { get; init; } = string.Empty;
 
-    public string ReferralNumber { get; init; } = string.Empty;
+    public long? PdfFileSize { get; init; }
 
     public string Status { get; init; } = string.Empty;
 

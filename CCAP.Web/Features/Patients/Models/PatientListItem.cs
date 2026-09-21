@@ -9,4 +9,5 @@ public class PatientListItem
     public string PrimaryDiagnosis { get; set; } = string.Empty;
     public string AssignedClinician { get; set; } = string.Empty;
     public string NextVisit { get; set; } = string.Empty;
+    public Guid? AssignedClinicianId { get; set; }
 }

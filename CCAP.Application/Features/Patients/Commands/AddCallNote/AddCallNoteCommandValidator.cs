@@ -20,6 +20,11 @@ public sealed class AddCallNoteCommandValidator
                 "Recorded by user ID is required.");
         }
 
+        if (string.IsNullOrWhiteSpace(request.ContactType)) throw new ArgumentException("Contact type is required.");
+        if (request.ContactType.Length > 100) throw new ArgumentException("Contact type cannot exceed 100 characters.");
+        if (string.IsNullOrWhiteSpace(request.Method)) throw new ArgumentException("Communication method is required.");
+        if (request.Method.Length > 50) throw new ArgumentException("Communication method cannot exceed 50 characters.");
+
         if (string.IsNullOrWhiteSpace(request.Subject))
         {
             throw new ArgumentException(
@@ -38,10 +43,10 @@ public sealed class AddCallNoteCommandValidator
                 "Call note content is required.");
         }
 
-        if (request.Notes.Length > 5000)
+        if (request.Notes.Length > 50000)
         {
             throw new ArgumentException(
-                "Call note content cannot exceed 5000 characters.");
+                "Call note content cannot exceed 50000 characters.");
         }
 
         if (request.Outcome is not null &&

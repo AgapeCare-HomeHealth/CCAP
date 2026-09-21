@@ -15,6 +15,26 @@ public sealed class PatientWorkflowResponseDto
     public PatientSummaryResponseDto Summary { get; set; } = new();
 
     public List<ComplianceItemResponseDto> ComplianceItems { get; set; } = [];
+
+    public WorkflowDetailsResponseDto WorkflowDetails { get; set; } = new();
+}
+
+public sealed class WorkflowDetailsResponseDto
+{
+    public DateOnly? PreAuthDueDate { get; set; }
+    public int? NumberOfVisits { get; set; }
+    public string CaseMixType { get; set; } = "";
+    public string DmeMedSupplyNotes { get; set; } = "";
+    public string SocFeedbackFromPatient { get; set; } = "";
+    public DateOnly? TifDate { get; set; }
+    public DateOnly? RocDate { get; set; }
+    public DateOnly? RecertDate { get; set; }
+    public bool? PcpPtNotified { get; set; }
+    public DateOnly? DischargeDate { get; set; }
+    public string DischargeFeedback { get; set; } = "";
+    public string TransferDestination { get; set; } = "";
+    public DateOnly? TransferDate { get; set; }
+    public string TransferReason { get; set; } = "";
 }
 
 public sealed class PatientHeaderResponseDto
@@ -174,5 +194,7 @@ public sealed class ComplianceItemResponseDto
     public Guid? CompletedByUserId { get; set; }
 
     public string CompletedByUserName { get; set; } = "";
+
+    public int Phase { get; set; }
 }
 

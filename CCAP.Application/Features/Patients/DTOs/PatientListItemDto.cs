@@ -7,4 +7,5 @@ public sealed record PatientListItemDto(
     string Status,
     string PrimaryDiagnosis,
     string AssignedClinician,
-    string? NextVisit);
+    string? NextVisit,
+    Guid? AssignedClinicianId);

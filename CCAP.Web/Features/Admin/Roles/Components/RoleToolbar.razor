@@ -1,4 +1,4 @@
-﻿@using CCAP.Web.Features.Admin.Roles.Models
+@using CCAP.Web.Features.Admin.Roles.Models
 
 <div class="toolbar-card">
 
@@ -42,6 +42,10 @@
             </select>
 
         </div>
+
+        <!-- Sort -->
+        <div class="col-lg-3 col-md-6"><label class="toolbar-label">Sort By</label><select class="form-select" @bind="Filter.SortBy"><option value="RoleName">Role Name</option><option value="Users">User Count</option><option value="Permissions">Permission Count</option><option value="Status">Status</option></select></div>
+        <div class="col-lg-2 col-md-6"><label class="toolbar-label">Direction</label><select class="form-select" @bind="Filter.SortDescending"><option value="false">Ascending</option><option value="true">Descending</option></select></div>
 
         <!-- Empty Space -->
 

@@ -2,10 +2,12 @@
 
 @if (Visible)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);" @onclick="Close">
+        <div class="modal-dialog modal-lg modal-dialog-centered" @onclick:stopPropagation="true">
             <div class="modal-content">
                 <EditForm Model="Model" OnValidSubmit="Save">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
                     <div class="modal-header">
                         <h5 class="modal-title">Edit Patient</h5>
                         <button type="button" class="btn-close" @onclick="Close"></button>
@@ -21,27 +23,27 @@
                             <div class="col-md-4">
                                 <label class="form-label">First Name</label>
                                 <InputText class="form-control" @bind-Value="Model.FirstName" />
+                                <ValidationMessage For="() => Model.FirstName" />
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Middle Name</label>
                                 <InputText class="form-control" @bind-Value="Model.MiddleName" />
+                                <ValidationMessage For="() => Model.MiddleName" />
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Last Name</label>
                                 <InputText class="form-control" @bind-Value="Model.LastName" />
+                                <ValidationMessage For="() => Model.LastName" />
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">MRN</label>
                                 <InputText class="form-control" @bind-Value="Model.MRN" />
+                                <ValidationMessage For="() => Model.MRN" />
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Status</label>
-                                <InputSelect class="form-select" @bind-Value="Model.Status">
-                                    <option>Active</option>
-                                    <option>Pending</option>
-                                    <option>On Hold</option>
-                                    <option>Discharged</option>
-                                </InputSelect>
+                                <input class="form-control" value="@Model.Status" readonly />
+                                <div class="form-text">Patient status is managed by the workflow.</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">SOC Date</label>
@@ -49,7 +51,8 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Coordinator</label>
-                                <InputText class="form-control" @bind-Value="Model.Coordinator" />
+                                <input class="form-control" value="@Model.Coordinator" readonly />
+                                <div class="form-text">Coordinator assignment is managed separately.</div>
                             </div>
                         </div>
                     </div>

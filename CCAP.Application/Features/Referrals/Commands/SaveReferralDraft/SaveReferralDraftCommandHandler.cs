@@ -45,6 +45,18 @@ public sealed class SaveReferralDraftCommandHandler
                     "Referral draft was not found.");
             }
 
+            if (existing.CreatedByUserId != request.CreatedByUserId)
+            {
+                throw new UnauthorizedAccessException(
+                    "You do not have access to this referral draft.");
+            }
+
+            if (existing.Status != CCAP.Domain.Enums.ReferralStatus.Draft)
+            {
+                throw new InvalidOperationException(
+                    "Only active referral drafts can be updated.");
+            }
+
             existing.Update(
                 request.Data);
 

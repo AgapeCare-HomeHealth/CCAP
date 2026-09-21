@@ -1,8 +1,9 @@
-﻿using MediatR;
+using MediatR;
 
 namespace CCAP.Application.Features.Referrals.Commands.CreateReferralIntake;
 
 public sealed record CreateReferralIntakeCommand(
+    Guid? ReferralDraftId,
     string MRN,
     string FirstName,
     string MiddleName,
@@ -43,4 +44,5 @@ public sealed record CreateReferralIntakeCommand(
     // PDF is temporarily optional
     Stream? PdfStream,
     string? PdfFileName,
-    string? PdfContentType) : IRequest<CreateReferralIntakeResult>;
+    string? PdfContentType,
+    long? PdfSize) : IRequest<CreateReferralIntakeResult>;

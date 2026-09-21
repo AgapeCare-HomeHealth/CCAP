@@ -28,6 +28,8 @@ public static class PermissionPolicies
     public const string FoleyManage = "foley.manage";
     public const string OrdersView = "orders.view";
     public const string OrdersManage = "orders.manage";
+    public const string LookupOptionsView = "lookups.view";
+    public const string LookupOptionsManage = "lookups.manage";
 
     public static void AddCcapPolicies(this IServiceCollection services)
     {
@@ -59,6 +61,8 @@ public static class PermissionPolicies
             Add(options, FoleyManage);
             Add(options, OrdersView);
             Add(options, OrdersManage);
+            Add(options, LookupOptionsView);
+            Add(options, LookupOptionsManage);
         });
     }
 

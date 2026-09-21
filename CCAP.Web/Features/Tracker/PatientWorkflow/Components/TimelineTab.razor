@@ -1,340 +1,46 @@
-﻿@using CCAP.Web.Features.Tracker.PatientWorkflow.Model
 @using CCAP.Web.Features.Tracker.PatientWorkflow.Models
 
-@if (Workflow is null)
-{
-    <div class="timeline-empty">
-        <div class="timeline-empty-icon">
-            <i class="bi bi-clock-history"></i>
-        </div>
-
-        <h5>Timeline unavailable</h5>
-        <p>Patient workflow information could not be loaded.</p>
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">Patient Timeline</h5>
+        <small class="text-muted">A chronological history of actions and patient events.</small>
     </div>
-
-    return;
-}
-
-<div class="timeline-container">
-
-    <!-- Patient Header -->
-    <div class="timeline-header">
-        <div>
-            <h4 class="mb-1">Patient Timeline</h4>
-
-            <div class="timeline-patient-info">
-                <span>
-                    <i class="bi bi-person"></i>
-                    @Workflow.Header.FirstName
-                    @Workflow.Header.MiddleName
-                    @Workflow.Header.LastName
-                </span>
-
-                <span>
-                    <i class="bi bi-person-vcard"></i>
-                    MRN: @Workflow.Header.MRN
-                </span>
-
-                @if (!string.IsNullOrWhiteSpace(Workflow.Header.ReferralNumber))
+    <div class="card-body">
+        @if (Workflow?.RecentActivities?.Any() == true)
+        {
+            <div class="timeline-list">
+                @foreach (var activity in Workflow.RecentActivities.OrderByDescending(x => x.ActivityDate))
                 {
-                    <span>
-                        <i class="bi bi-file-earmark-text"></i>
-                        Referral: @Workflow.Header.ReferralNumber
-                    </span>
-                }
-            </div>
-        </div>
-
-        <div class="timeline-status">
-            @if (!string.IsNullOrWhiteSpace(Workflow.Header.Status))
-            {
-                <span class="status-badge">
-                    @Workflow.Header.Status
-                </span>
-            }
-        </div>
-    </div>
-
-    <!-- Workflow Timeline -->
-    @if (Workflow.WorkflowStages.Any())
-    {
-        <section class="timeline-section">
-
-            <div class="section-heading">
-                <div>
-                    <h5>Workflow Progress</h5>
-                    <p>
-                        Patient workflow stages and their current status.
-                    </p>
-                </div>
-            </div>
-
-            <div class="workflow-timeline">
-
-                @foreach (var stage in Workflow.WorkflowStages.OrderBy(x => x.Sequence))
-                {
-                    <div class="timeline-item @GetStageClass(stage.Status)">
-
-                        <div class="timeline-marker">
-                            @if (stage.Status == WorkflowStatus.Completed)
-                            {
-                                <i class="bi bi-check-lg"></i>
-                            }
-                            else if (stage.Status == WorkflowStatus.Current)
-                            {
-                                <i class="bi bi-arrow-right"></i>
-                            }
-                            else
-                            {
-                                <i class="bi bi-circle"></i>
-                            }
-                        </div>
-
-                        <div class="timeline-content">
-
-                            <div class="timeline-item-header">
-
-                                <div>
-                                    <div class="timeline-stage-sequence">
-                                        Stage @stage.Sequence
-                                    </div>
-
-                                    <h6>@stage.StageName</h6>
+                    <div class="timeline-item border-bottom pb-3 mb-3">
+                        <div class="d-flex justify-content-between align-items-start gap-3">
+                            <div>
+                                <div class="fw-semibold">@activity.Title</div>
+                                @if (!string.IsNullOrWhiteSpace(activity.Description))
+                                {
+                                    <div class="text-muted mt-1">@activity.Description</div>
+                                }
+                                <div class="small text-muted mt-2">
+                                    <i class="bi bi-person me-1"></i>@activity.PerformedBy
                                 </div>
-
-                                <span class="stage-status @GetStatusClass(stage.Status)">
-                                    @GetStatusText(stage.Status)
-                                </span>
-
                             </div>
-
-                            @if (!string.IsNullOrWhiteSpace(stage.Description))
-                            {
-                                <p class="timeline-description">
-                                    @stage.Description
-                                </p>
-                            }
-
-                            <div class="timeline-meta">
-
-                                @if (!string.IsNullOrWhiteSpace(stage.AssignedUserName))
-                                {
-                                    <span>
-                                        <i class="bi bi-person"></i>
-                                        @stage.AssignedUserName
-                                    </span>
-                                }
-
-                                @if (stage.CompletedDate.HasValue)
-                                {
-                                    <span>
-                                        <i class="bi bi-calendar-check"></i>
-                                        Completed
-                                        @stage.CompletedDate.Value.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")
-                                    </span>
-                                }
-
+                            <div class="text-end text-nowrap">
+                                <span class="badge bg-light text-dark">@activity.ActivityType</span>
+                                <div class="small text-muted mt-1">
+                                    @activity.ActivityDate.ToLocalTime().ToString("MM/dd/yyyy h:mm tt")
+                                </div>
                             </div>
-
                         </div>
                     </div>
                 }
-
             </div>
-        </section>
-    }
-
-    <!-- Activity Timeline -->
-    @if (Workflow.RecentActivities.Any())
-    {
-        <section class="timeline-section">
-
-            <div class="section-heading">
-                <div>
-                    <h5>Recent Activity</h5>
-                    <p>
-                        Recent activity recorded for this patient.
-                    </p>
-                </div>
-            </div>
-
-            <div class="activity-timeline">
-
-                @foreach (var activity in Workflow.RecentActivities
-                    .OrderByDescending(x => x.ActivityDate))
-                {
-                    <div class="activity-item">
-
-                        <div class="activity-marker">
-                            <i class="@GetActivityIcon(activity.ActivityType)"></i>
-                        </div>
-
-                        <div class="activity-content">
-
-                            <div class="activity-header">
-
-                                <div>
-                                    <h6>@activity.Title</h6>
-
-                                    @if (!string.IsNullOrWhiteSpace(activity.ActivityType))
-                                    {
-                                        <span class="activity-type">
-                                            @activity.ActivityType
-                                        </span>
-                                    }
-                                </div>
-
-                                <time>
-                                    @activity.ActivityDate.ToLocalTime()
-                                    .ToString("MMM dd, yyyy h:mm tt")
-                                </time>
-
-                            </div>
-
-                            @if (!string.IsNullOrWhiteSpace(activity.Description))
-                            {
-                                <p>
-                                    @activity.Description
-                                </p>
-                            }
-
-                            <div class="activity-performed-by">
-                                <i class="bi bi-person"></i>
-
-                                @if (string.IsNullOrWhiteSpace(activity.PerformedBy))
-                                {
-                                    <span>System</span>
-                                }
-                                else
-                                {
-                                    <span>@activity.PerformedBy</span>
-                                }
-                            </div>
-
-                        </div>
-                    </div>
-                }
-
-            </div>
-
-            <div class="timeline-info">
-                <i class="bi bi-info-circle"></i>
-
-                <span>
-                    Showing the recent activity currently provided by the
-                    patient workflow API.
-                </span>
-            </div>
-
-        </section>
-    }
-    else
-    {
-        <section class="timeline-section">
-
-            <div class="section-heading">
-                <div>
-                    <h5>Recent Activity</h5>
-                    <p>
-                        Activity recorded for this patient.
-                    </p>
-                </div>
-            </div>
-
-            <div class="activity-empty">
-                <i class="bi bi-clock-history"></i>
-
-                <h6>No activity recorded</h6>
-
-                <p>
-                    There is currently no recent activity available for this patient.
-                </p>
-            </div>
-
-        </section>
-    }
-
+        }
+        else
+        {
+            <div class="text-center text-muted py-5">No timeline events recorded.</div>
+        }
+    </div>
 </div>
 
 @code {
-
-    [Parameter]
-    public PatientWorkflowDto? Workflow { get; set; }
-
-    private static string GetStageClass(WorkflowStatus status)
-    {
-        return status switch
-        {
-            WorkflowStatus.Completed => "stage-completed",
-            WorkflowStatus.Current => "stage-current",
-            _ => "stage-pending"
-        };
-    }
-
-    private static string GetStatusClass(WorkflowStatus status)
-    {
-        return status switch
-        {
-            WorkflowStatus.Completed => "status-completed",
-            WorkflowStatus.Current => "status-current",
-            _ => "status-pending"
-        };
-    }
-
-    private static string GetStatusText(WorkflowStatus status)
-    {
-        return status switch
-        {
-            WorkflowStatus.Completed => "Completed",
-            WorkflowStatus.Current => "Current",
-            _ => "Pending"
-        };
-    }
-
-    private static string GetActivityIcon(string? activityType)
-    {
-        if (string.IsNullOrWhiteSpace(activityType))
-        {
-            return "bi bi-clock-history";
-        }
-
-        var type = activityType.Trim().ToLowerInvariant();
-
-        if (type.Contains("call"))
-        {
-            return "bi bi-telephone";
-        }
-
-        if (type.Contains("message") || type.Contains("communication"))
-        {
-            return "bi bi-chat-dots";
-        }
-
-        if (type.Contains("fax"))
-        {
-            return "bi bi-file-earmark-arrow-up";
-        }
-
-        if (type.Contains("insurance") || type.Contains("authorization"))
-        {
-            return "bi bi-shield-check";
-        }
-
-        if (type.Contains("task"))
-        {
-            return "bi bi-list-check";
-        }
-
-        if (type.Contains("referral"))
-        {
-            return "bi bi-file-earmark-medical";
-        }
-
-        if (type.Contains("visit"))
-        {
-            return "bi bi-calendar-event";
-        }
-
-        return "bi bi-clock-history";
-    }
+    [Parameter] public PatientWorkflowDto? Workflow { get; set; }
 }

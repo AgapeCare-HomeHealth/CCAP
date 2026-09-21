@@ -371,3 +371,16 @@
         max-width: none;
     }
 }
+
+
+.topbar-menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 998;
+}
+
+.topbar .notification-panel,
+.topbar .user-profile > * {
+    position: relative;
+    z-index: 1000;
+}

@@ -1,4 +1,4 @@
-﻿using CCAP.Application.Features.ReferralDrafts.ReadModels;
+using CCAP.Application.Features.ReferralDrafts.ReadModels;
 using CCAP.Domain.Entities;
 
 namespace CCAP.Application.Abstractions.Persistence;
@@ -25,5 +25,7 @@ public interface IReferralDraftRepository
             int pageNumber,
             int pageSize,
             string? search,
+            string sortBy,
+            bool sortDescending,
             CancellationToken cancellationToken);
 }

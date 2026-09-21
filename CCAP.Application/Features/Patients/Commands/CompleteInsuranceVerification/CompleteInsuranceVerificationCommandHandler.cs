@@ -1,63 +1,43 @@
-﻿using CCAP.Application.Abstractions.Persistence;
+using CCAP.Application.Abstractions.Persistence;
+using CCAP.Domain.Entities;
 using MediatR;
 
 namespace CCAP.Application.Features.Patients.Commands.CompleteInsuranceVerification;
 
-public sealed class CompleteInsuranceVerificationCommandHandler
-    : IRequestHandler<CompleteInsuranceVerificationCommand>
+public sealed class CompleteInsuranceVerificationCommandHandler : IRequestHandler<CompleteInsuranceVerificationCommand>
 {
-    private const string InsuranceVerificationRequirement =
-        "INSURANCE_VERIFICATION";
-
     private readonly IPatientRepository _patients;
+    private readonly IPatientTaskRepository _tasks;
     private readonly IComplianceRepository _compliance;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPatientAuditLogRepository _auditLogs;
 
-    public CompleteInsuranceVerificationCommandHandler(
-        IPatientRepository patients,
-        IComplianceRepository compliance,
-        IUnitOfWork unitOfWork)
+    public CompleteInsuranceVerificationCommandHandler(IPatientRepository patients, IPatientTaskRepository tasks, IComplianceRepository compliance, IUnitOfWork unitOfWork, IPatientAuditLogRepository auditLogs)
+    { _patients = patients; _tasks = tasks; _compliance = compliance; _unitOfWork = unitOfWork; _auditLogs = auditLogs; }
+
+    public async Task Handle(CompleteInsuranceVerificationCommand request, CancellationToken cancellationToken)
     {
-        _patients = patients;
-        _compliance = compliance;
-        _unitOfWork = unitOfWork;
-    }
+        if (request.PatientId == Guid.Empty) throw new ArgumentException("Patient ID is required.");
+        if (request.VerifiedByUserId == Guid.Empty) throw new ArgumentException("Verified by user ID is required.");
 
-    public async Task Handle(
-        CompleteInsuranceVerificationCommand request,
-        CancellationToken cancellationToken)
-    {
-        var patient = await _patients.GetByIdAsync(
-            request.PatientId,
-            cancellationToken);
+        var patient = await _patients.GetByIdForUpdateAsync(request.PatientId, cancellationToken) ?? throw new KeyNotFoundException("Patient not found.");
+        if (patient.InsuranceVerifiedAt.HasValue) return;
 
-        if (patient is null)
+        patient.VerifyInsurance(request.VerifiedByUserId);
+
+        var compliance = await _compliance.GetByPatientAndRequirementAsync(request.PatientId, "INSURANCE_VERIFICATION", cancellationToken);
+        if (compliance is null)
         {
-            throw new KeyNotFoundException(
-                "Patient not found.");
+            compliance = new ComplianceRecord(request.PatientId, "INSURANCE_VERIFICATION", "Insurance eligibility and authorization were reviewed and confirmed.");
+            await _compliance.AddAsync(compliance, cancellationToken);
         }
+        if (!compliance.IsCompleted) compliance.Complete(request.VerifiedByUserId);
 
-        var complianceRecord =
-            await _compliance.GetByPatientAndRequirementAsync(
-                request.PatientId,
-                InsuranceVerificationRequirement,
-                cancellationToken);
+        var task = await _tasks.GetPendingByPatientAndTitleAsync(request.PatientId, "Verify Insurance", cancellationToken);
+        task?.Complete();
 
-        if (complianceRecord is null)
-        {
-            throw new KeyNotFoundException(
-                "Insurance verification requirement was not found.");
-        }
-
-        if (complianceRecord.IsCompleted)
-        {
-            return;
-        }
-
-        complianceRecord.Complete(
-            request.VerifiedByUserId);
-
-        await _unitOfWork.SaveChangesAsync(
-            cancellationToken);
+        patient.Activities.Add(new Activity(patient.PatientId, request.VerifiedByUserId, "Insurance", "Insurance verification completed", "Insurance was verified."));
+        await _auditLogs.AddAsync(new PatientAuditLog(patient.PatientId, request.VerifiedByUserId, "Insurance", patient.PatientId.ToString(), "UPDATE", "Unverified", "Verified", "Insurance verification completed."), cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 }

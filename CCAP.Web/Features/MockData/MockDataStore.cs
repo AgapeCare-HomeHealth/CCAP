@@ -2,7 +2,6 @@ using CCAP.Web.Features.Admin.Roles.Models;
 using CCAP.Web.Features.Admin.Users.Models;
 using CCAP.Web.Features.Dashboard.Models;
 using CCAP.Web.Features.Patients.Models;
-using CCAP.Web.Features.Tracker.PatientWorkflow.Model;
 using CCAP.Web.Features.Tracker.PatientWorkflow.Models;
 
 namespace CCAP.Web.Features.MockData;

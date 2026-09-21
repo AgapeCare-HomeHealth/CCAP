@@ -76,11 +76,59 @@ public sealed class PatientRepository : IPatientRepository
 
             .Include(x => x.Visits)
 
+            .Include(x => x.Activities)
+
             .FirstOrDefaultAsync(
                 x => x.PatientId == patientId,
                 cancellationToken);
     }
 
+
+    public async Task<(IReadOnlyList<Patient> Items, int TotalCount)> GetPagedAsync(
+        int pageNumber,
+        int pageSize,
+        string? search,
+        string? status,
+        Guid? clinicianId,
+        string sortBy,
+        bool sortDescending,
+        CancellationToken cancellationToken)
+    {
+        var query = _context.Patients
+            .Include(x => x.Clinician)
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(x =>
+                x.FirstName.Contains(term) ||
+                (x.MiddleName != null && x.MiddleName.Contains(term)) ||
+                x.LastName.Contains(term) ||
+                x.MRN.Contains(term) ||
+                (x.PrimaryDiagnosis != null && x.PrimaryDiagnosis.Contains(term)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<CCAP.Domain.Enums.PatientStatus>(status, true, out var parsedStatus))
+            query = query.Where(x => x.Status == parsedStatus);
+
+        if (clinicianId.HasValue && clinicianId.Value != Guid.Empty)
+            query = query.Where(x => x.ClinicianId == clinicianId.Value);
+
+        query = sortBy.ToLowerInvariant() switch
+        {
+            "mrn" => sortDescending ? query.OrderByDescending(x => x.MRN) : query.OrderBy(x => x.MRN),
+            "status" => sortDescending ? query.OrderByDescending(x => x.Status) : query.OrderBy(x => x.Status),
+            "diagnosis" => sortDescending ? query.OrderByDescending(x => x.PrimaryDiagnosis) : query.OrderBy(x => x.PrimaryDiagnosis),
+            "clinician" => sortDescending ? query.OrderByDescending(x => x.Clinician!.LastName).ThenByDescending(x => x.Clinician!.FirstName) : query.OrderBy(x => x.Clinician!.LastName).ThenBy(x => x.Clinician!.FirstName),
+            _ => sortDescending ? query.OrderByDescending(x => x.LastName).ThenByDescending(x => x.FirstName) : query.OrderBy(x => x.LastName).ThenBy(x => x.FirstName)
+        };
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+        return (items, totalCount);
+    }
 
     public Task<List<Patient>> GetAllAsync(
         CancellationToken cancellationToken)

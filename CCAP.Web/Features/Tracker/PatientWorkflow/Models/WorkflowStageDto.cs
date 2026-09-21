@@ -1,5 +1,4 @@
-﻿using CCAP.Web.Features.Tracker.PatientWorkflow.Model;
-
+﻿
 namespace CCAP.Web.Features.Tracker.PatientWorkflow.Models;
 
 public class WorkflowStageDto
