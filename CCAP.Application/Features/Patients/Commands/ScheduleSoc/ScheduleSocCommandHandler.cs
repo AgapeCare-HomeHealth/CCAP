@@ -94,7 +94,8 @@ public sealed class ScheduleSocCommandHandler
                 new Visit(
                     patient.PatientId,
                     patient.ClinicianId.Value,
-                    scheduledDate));
+                    scheduledDate,
+                    request.ScheduledByUserId));
         }
         else
         {

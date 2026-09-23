@@ -819,6 +819,8 @@ public sealed class ReferralIntakeService
         int pageNumber,
         int pageSize,
         string? search = null,
+        string sortBy = "UpdatedAt",
+        bool sortDescending = true,
         CancellationToken cancellationToken = default)
     {
         var url =
@@ -831,6 +833,8 @@ public sealed class ReferralIntakeService
             url +=
                 $"&search={Uri.EscapeDataString(search.Trim())}";
         }
+
+        url += $"&sortBy={Uri.EscapeDataString(sortBy)}&sortDescending={sortDescending.ToString().ToLowerInvariant()}";
 
         return await _api.GetFromJsonAsync<
             PagedResult<ReferralDraftListItem>>(

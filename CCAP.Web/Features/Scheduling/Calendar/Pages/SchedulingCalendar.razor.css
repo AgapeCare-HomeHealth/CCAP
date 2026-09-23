@@ -532,6 +532,9 @@
     color: #64748b;
     cursor: pointer;
     line-height: 1;
+    position: relative;
+    z-index: 1;
+    pointer-events: auto;
 }
 
     .close-panel-button:hover {
@@ -712,4 +715,182 @@
     .schedule-details-content {
         grid-template-columns: 1fr;
     }
+}
+
+.import-review-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 24px;
+}
+
+.import-review-modal {
+    width: min(1200px, 100%);
+    max-height: 90vh;
+    overflow: auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.25);
+}
+
+.import-review-header,
+.import-review-footer {
+    padding: 18px 22px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.import-review-header p { margin: 4px 0 0; color: #6c757d; }
+.import-review-footer { border-top: 1px solid #e9ecef; border-bottom: 0; align-items: center; justify-content: flex-end; }
+.import-summary { padding: 12px 22px; display: flex; gap: 18px; background: #f8f9fa; }
+.import-table { padding: 0 22px 12px; }
+.overwrite-choice { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
+.overwrite-choice input { margin-top: 3px; }
+
+.import-review-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:2000; padding:24px; }
+.import-review-modal { width:min(1200px,100%); max-height:90vh; overflow:auto; background:white; border-radius:12px; box-shadow:0 20px 60px rgba(0,0,0,.25); }
+.import-review-header,.import-review-footer { padding:18px 22px; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; border-bottom:1px solid #e9ecef; }
+.import-review-header p { margin:4px 0 0; color:#6c757d; }
+.import-review-footer { border-top:1px solid #e9ecef; border-bottom:0; align-items:center; justify-content:flex-end; }
+.import-summary { padding:12px 22px; display:flex; gap:18px; background:#f8f9fa; }
+.import-table { padding:0 22px 12px; }
+.overwrite-choice { display:flex; gap:8px; align-items:flex-start; cursor:pointer; }
+.overwrite-choice input { margin-top:3px; }
+
+
+/* Schedule import review: keep actions visible and clickable. */
+.import-review-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, .45);
+}
+
+.import-review-modal {
+    width: min(1200px, 100%);
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .25);
+}
+
+.import-review-header {
+    flex: 0 0 auto;
+}
+
+.import-review-header > div {
+    min-width: 0;
+    flex: 1;
+}
+
+.import-review-close {
+    flex: 0 0 auto;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #64748b;
+    font-size: 30px;
+    line-height: 38px;
+    text-align: center;
+    cursor: pointer;
+    position: relative;
+    z-index: 10;
+    pointer-events: auto;
+}
+
+.import-review-close:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.import-review-body {
+    min-height: 0;
+    overflow: auto;
+    flex: 1 1 auto;
+}
+
+.import-review-body .import-table {
+    padding-bottom: 12px;
+}
+
+.import-review-footer {
+    flex: 0 0 auto;
+    position: relative;
+    z-index: 10;
+    background: #fff;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 14px 22px;
+    border-top: 1px solid #e9ecef;
+    border-bottom: 0;
+}
+
+.import-review-footer .btn {
+    min-width: 130px;
+    position: relative;
+    z-index: 11;
+    pointer-events: auto;
+}
+
+@media (max-width: 768px) {
+    .import-review-overlay {
+        padding: 10px;
+    }
+
+    .import-review-modal {
+        max-height: 94vh;
+    }
+
+    .import-summary {
+        flex-wrap: wrap;
+    }
+
+    .import-review-footer {
+        flex-wrap: wrap;
+    }
+
+    .import-review-footer .btn {
+        flex: 1 1 140px;
+    }
+}
+
+/* Final schedule import modal behavior */
+.import-review-overlay {
+    z-index: 2000;
+}
+.import-review-modal {
+    position: relative;
+}
+.import-review-close,
+.import-review-footer .btn {
+    pointer-events: auto !important;
+}
+.import-review-close:disabled,
+.import-review-footer .btn:disabled {
+    cursor: not-allowed;
+}
+.import-review-footer {
+    flex: 0 0 auto !important;
+}
+.text-warning-emphasis {
+    color: #9a6700 !important;
 }

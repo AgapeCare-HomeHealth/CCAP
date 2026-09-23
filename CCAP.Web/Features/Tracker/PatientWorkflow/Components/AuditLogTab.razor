@@ -5,19 +5,27 @@
 <div class="card shadow-sm border-0">
  <div class="card-header bg-white"><h5 class="mb-0">Audit Log</h5><small class="text-muted">CRUD history for patient records, including old and new values.</small></div>
  @if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <div class="alert alert-danger m-3">@ErrorMessage</div> }
+ <div class="card-body border-bottom py-3"><div class="row g-2"><div class="col-md-5"><input class="form-control" placeholder="Search action, entity, user, or description..." @bind="SearchText" @bind:event="oninput" /></div><div class="col-md-3"><select class="form-select" @bind="ActionFilter"><option value="">All Actions</option><option value="CREATE">CREATE</option><option value="UPDATE">UPDATE</option><option value="DELETE">DELETE</option></select></div><div class="col-md-3"><button class="btn btn-outline-secondary" @onclick="ClearFilters">Clear</button></div></div></div>
  <div class="table-responsive">
   <table class="table table-hover align-middle mb-0">
    <thead class="table-light"><tr><th>Date / Time</th><th>Action</th><th>Entity</th><th>Performed By</th><th>Description</th><th>Old Data</th><th>New Data</th></tr></thead>
    <tbody>
-   @if (Logs.Any()) { @foreach(var log in Logs) { <tr><td>@log.OccurredAt.ToLocalTime().ToString("MM/dd/yyyy h:mm:ss tt")</td><td><span class="badge @ActionClass(log.Action)">@log.Action</span></td><td>@log.EntityType<br/><small class="text-muted">@log.EntityId</small></td><td>@log.PerformedBy</td><td>@log.Description</td><td><pre class="audit-json">@log.OldValues</pre></td><td><pre class="audit-json">@log.NewValues</pre></td></tr> } } else { <tr><td colspan="7" class="text-center text-muted py-5">No audit records found.</td></tr> }
+   @if (Logs.Any()) { @foreach(var log in PagedLogs) { <tr><td>@log.OccurredAt.ToLocalTime().ToString("MM/dd/yyyy h:mm:ss tt")</td><td><span class="badge @ActionClass(log.Action)">@log.Action</span></td><td>@log.EntityType<br/><small class="text-muted">@log.EntityId</small></td><td>@log.PerformedBy</td><td>@log.Description</td><td><pre class="audit-json">@log.OldValues</pre></td><td><pre class="audit-json">@log.NewValues</pre></td></tr> } } else { <tr><td colspan="7" class="text-center text-muted py-5">No audit records found.</td></tr> }
    </tbody>
   </table>
  </div>
+ <TablePager CurrentPage="@CurrentPage" PageSize="@PageSize" TotalItems="@FilteredLogs.Count" OnPageChanged="GoToPage" OnPageSizeChanged="ChangePageSize" />
 </div>
 @code {
  [Parameter] public Guid PatientId {get;set;}
  [Parameter] public PatientWorkflowDto? Workflow {get;set;}
  private List<PatientAuditLogDto> Logs=[]; private string? ErrorMessage;
+ private string SearchText=string.Empty; private string ActionFilter=string.Empty; private int CurrentPage=1; private int PageSize=20;
+ private List<PatientAuditLogDto> FilteredLogs => Logs.Where(x => (string.IsNullOrWhiteSpace(SearchText) || x.Action.Contains(SearchText,StringComparison.OrdinalIgnoreCase) || x.EntityType.Contains(SearchText,StringComparison.OrdinalIgnoreCase) || x.PerformedBy.Contains(SearchText,StringComparison.OrdinalIgnoreCase) || x.Description.Contains(SearchText,StringComparison.OrdinalIgnoreCase)) && (string.IsNullOrWhiteSpace(ActionFilter) || string.Equals(x.Action,ActionFilter,StringComparison.OrdinalIgnoreCase))).OrderByDescending(x=>x.OccurredAt).ToList();
+ private IEnumerable<PatientAuditLogDto> PagedLogs=>FilteredLogs.Skip((CurrentPage-1)*PageSize).Take(PageSize);
+ private void ClearFilters(){SearchText=string.Empty;ActionFilter=string.Empty;CurrentPage=1;}
+ private void GoToPage(int page)=>CurrentPage=Math.Max(1,page);
+ private void ChangePageSize(int size){PageSize=Math.Clamp(size,1,100);CurrentPage=1;}
  protected override async Task OnParametersSetAsync(){try{Logs=await WorkflowService.GetAuditLogAsync(PatientId);}catch(Exception ex){ErrorMessage=ex.Message;Logs=[];}}
  private static string ActionClass(string action)=>action switch{"CREATE"=>"bg-success","UPDATE"=>"bg-primary","DELETE"=>"bg-danger",_=>"bg-secondary"};
 }

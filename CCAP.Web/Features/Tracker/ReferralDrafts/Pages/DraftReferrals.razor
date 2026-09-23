@@ -1,4 +1,4 @@
-﻿@page "/referrals/drafts"
+@page "/referrals/drafts"
 @attribute [CcapAuthorize(Policy = "referrals.view")]
 
 @using CCAP.Web.Common.Components
@@ -22,8 +22,7 @@
 
     </div>
 
-    <DraftReferralToolbar SearchText="@SearchText"
-                          SearchTextChanged="@SearchChanged" />
+    <DraftReferralToolbar SearchText="@SearchText" SortBy="@SortBy" SortDescending="@SortDescending" OnSearchChanged="@SearchChanged" OnSortChanged="@SortChanged" />
 
     @if (IsLoading)
     {
@@ -86,6 +85,8 @@
     private int CurrentPage = 1;
 
     private string SearchText = string.Empty;
+    private string SortBy = "UpdatedAt";
+    private bool SortDescending = true;
 
     private PagedResult<ReferralDraftListItem>? Result;
 
@@ -113,7 +114,9 @@
                 await ReferralIntakeService.GetDraftsAsync(
                     CurrentPage,
                     PageSize,
-                    SearchText);
+                    SearchText,
+                    SortBy,
+                    SortDescending);
 
             Drafts = Result.Items;
         }
@@ -132,13 +135,10 @@
 
 
     private async Task SearchChanged(string value)
-    {
-        SearchText = value;
+    { SearchText = value; CurrentPage = 1; await LoadDrafts(); }
 
-        CurrentPage = 1;
-
-        await LoadDrafts();
-    }
+    private async Task SortChanged((string SortBy, bool Descending) value)
+    { SortBy = value.SortBy; SortDescending = value.Descending; CurrentPage = 1; await LoadDrafts(); }
 
 
     private async Task GoToPage(int page)

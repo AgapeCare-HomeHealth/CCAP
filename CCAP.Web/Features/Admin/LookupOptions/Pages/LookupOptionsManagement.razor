@@ -42,11 +42,13 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Search</label>
-                    <input class="form-control" @bind="SearchText" @bind:event="oninput" placeholder="Search group, code, or display name..." />
+                    <input class="form-control" value="@SearchText" @oninput="OnSearchChanged" placeholder="Search group, code, or display name..." />
                 </div>
                 <div class="col-md-4 d-flex align-items-end gap-2">
+                    <select class="form-select" style="max-width:160px" @bind="SortMode"><option value="Group">Group</option><option value="Code">Code</option><option value="DisplayName">Display Name</option><option value="Order">Order</option></select>
+                    <select class="form-select" style="max-width:140px" @bind="ActiveFilter"><option value="">All Status</option><option value="true">Active</option><option value="false">Inactive</option></select>
                     <button class="btn btn-outline-secondary" @onclick="ClearFilters">Clear</button>
-                    <span class="text-muted small align-self-center">@FilteredOptions.Count() option(s)</span>
+                    <span class="text-muted small align-self-center">@FilteredOptions.Count option(s)</span>
                 </div>
             </div>
 
@@ -57,7 +59,7 @@
                     <table class="table align-middle">
                         <thead><tr><th>Group</th><th>Code</th><th>Display Name</th><th>Order</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
                         <tbody>
-                        @foreach (var item in FilteredOptions) {
+                        @foreach (var item in PagedOptions) {
                             <tr>
                                 <td>@item.LookupType</td>
                                 <td><code>@item.Code</code></td>
@@ -73,6 +75,7 @@
                         </tbody>
                     </table>
                 </div>
+                <TablePager CurrentPage="@CurrentPage" PageSize="@PageSize" TotalItems="@FilteredOptions.Count" OnPageChanged="GoToPage" OnPageSizeChanged="ChangePageSize" />
             }
         </div>
     </div>
@@ -118,6 +121,10 @@
     private List<LookupOptionDto> Options = [];
     private string SelectedType = string.Empty;
     private string SearchText = string.Empty;
+    private string SortMode = "Group";
+    private string ActiveFilter = string.Empty;
+    private int CurrentPage = 1;
+    private int PageSize = 20;
     private string SelectedEditorGroup = string.Empty;
     private string NewGroupName = string.Empty;
     private bool Loading;
@@ -128,15 +135,15 @@
     private string? SuccessMessage;
     private LookupOptionEditModel Editor = new();
     private IEnumerable<string> Groups => Options.Select(x => x.LookupType).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x);
-    private IEnumerable<LookupOptionDto> FilteredOptions => Options
+    private List<LookupOptionDto> FilteredOptions => Options
         .Where(x => string.IsNullOrWhiteSpace(SelectedType) || string.Equals(x.LookupType, SelectedType, StringComparison.OrdinalIgnoreCase))
-        .Where(x => string.IsNullOrWhiteSpace(SearchText) ||
-                    x.LookupType.Contains(SearchText.Trim(), StringComparison.OrdinalIgnoreCase) ||
-                    x.Code.Contains(SearchText.Trim(), StringComparison.OrdinalIgnoreCase) ||
-                    x.DisplayName.Contains(SearchText.Trim(), StringComparison.OrdinalIgnoreCase))
-        .OrderBy(x => x.LookupType)
+        .Where(x => string.IsNullOrWhiteSpace(SearchText) || x.LookupType.Contains(SearchText.Trim(), StringComparison.OrdinalIgnoreCase) || x.Code.Contains(SearchText.Trim(), StringComparison.OrdinalIgnoreCase) || x.DisplayName.Contains(SearchText.Trim(), StringComparison.OrdinalIgnoreCase))
+        .Where(x => string.IsNullOrWhiteSpace(ActiveFilter) || x.IsActive == bool.Parse(ActiveFilter))
+        .OrderBy(x => SortMode == "Code" ? x.Code : SortMode == "DisplayName" ? x.DisplayName : SortMode == "Order" ? x.SortOrder.ToString("D10") : x.LookupType)
         .ThenBy(x => x.SortOrder)
-        .ThenBy(x => x.DisplayName);
+        .ThenBy(x => x.DisplayName).ToList();
+    private int TotalPages => FilteredOptions.Count == 0 ? 0 : (int)Math.Ceiling(FilteredOptions.Count / (double)PageSize);
+    private IEnumerable<LookupOptionDto> PagedOptions => FilteredOptions.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -148,7 +155,10 @@
         finally { Loading = false; }
     }
 
-    private void ClearFilters() { SelectedType = string.Empty; SearchText = string.Empty; }
+    private void OnSearchChanged(ChangeEventArgs e) { SearchText = e.Value?.ToString() ?? string.Empty; CurrentPage = 1; }
+    private void ClearFilters() { SelectedType = string.Empty; SearchText = string.Empty; ActiveFilter = string.Empty; SortMode = "Group"; CurrentPage = 1; }
+    private void GoToPage(int page) => CurrentPage = Math.Max(1, Math.Min(page, Math.Max(1, TotalPages)));
+    private void ChangePageSize(int size) { PageSize = Math.Clamp(size, 1, 100); CurrentPage = 1; }
 
     private void OpenCreate()
     {

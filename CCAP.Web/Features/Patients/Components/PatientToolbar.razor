@@ -1,38 +1,17 @@
-﻿<div class="patient-toolbar">
-
-    <div class="toolbar-left">
-
-        <div class="search-box">
-
-            <i class="bi bi-search"></i>
-
-            <input type="text"
-                   placeholder="Search patients..." />
-
-        </div>
-
-    </div>
-
-    <div class="toolbar-right">
-
-        <button class="filter-button">
-
-            <i class="bi bi-funnel"></i>
-
-            Filter
-
-            <i class="bi bi-chevron-down"></i>
-
-        </button>
-
-        @* <button class="primary-button">
-
-            <i class="bi bi-plus-lg"></i>
-
-            New Patient
-
-        </button> *@
-
-    </div>
-
+@using CCAP.Web.Features.Patients.Models
+<div class="toolbar-card">
+ <div class="row g-3 align-items-end">
+  <div class="col-lg-4"><label class="toolbar-label">Search</label><div class="search-box"><i class="bi bi-search"></i><input class="form-control" value="@Filter.Search" @oninput="SearchChanged" placeholder="Search name, MRN, diagnosis..." /></div></div>
+  <div class="col-md-3 col-lg-2"><label class="toolbar-label">Status</label><select class="form-select" @bind="Filter.Status"><option value="">All Status</option><option value="Active">Active</option><option value="OnHold">On Hold</option><option value="Completed">Completed</option><option value="Cancelled">Cancelled</option><option value="Archived">Archived</option></select></div>
+  <div class="col-md-3 col-lg-2"><label class="toolbar-label">Sort By</label><select class="form-select" @bind="Filter.SortBy"><option value="Name">Name</option><option value="MRN">MRN</option><option value="Status">Status</option><option value="Diagnosis">Diagnosis</option><option value="Clinician">Clinician</option></select></div>
+  <div class="col-md-3 col-lg-2"><label class="toolbar-label">Direction</label><select class="form-select" @bind="Filter.SortDescending"><option value="false">Ascending</option><option value="true">Descending</option></select></div>
+  <div class="col-md-3 col-lg-2 d-flex gap-2"><button class="btn btn-primary flex-fill" @onclick="Apply">Apply</button><button class="btn btn-outline-secondary" @onclick="Clear">Clear</button></div>
+ </div>
 </div>
+@code {
+ [Parameter] public PatientListQuery Filter { get; set; } = new();
+ [Parameter] public EventCallback<PatientListQuery> OnFilter { get; set; }
+ private async Task SearchChanged(ChangeEventArgs e){ Filter.Search=e.Value?.ToString() ?? string.Empty; await OnFilter.InvokeAsync(Filter); }
+ private Task Apply()=>OnFilter.InvokeAsync(Filter);
+ private async Task Clear(){Filter=new();await OnFilter.InvokeAsync(Filter);}
+}

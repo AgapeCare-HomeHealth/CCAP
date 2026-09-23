@@ -29,19 +29,26 @@
    </EditForm>
   </div>
  }
+ <div class="card-body border-bottom py-3"><div class="row g-2">
+  <div class="col-md-5"><input class="form-control" placeholder="Search subject, notes, or staff..." @bind="SearchText" @bind:event="oninput" /></div>
+  <div class="col-md-3"><select class="form-select" @bind="ContactFilter"><option value="">All Contact Types</option>@foreach(var x in ContactTypes){<option value="@x.DisplayName">@x.DisplayName</option>}</select></div>
+  <div class="col-md-3"><select class="form-select" @bind="MethodFilter"><option value="">All Methods</option>@foreach(var x in CommunicationMethods){<option value="@x.DisplayName">@x.DisplayName</option>}</select></div>
+  <div class="col-md-1"><button class="btn btn-outline-secondary w-100" @onclick="ClearFilters">Clear</button></div>
+ </div></div>
  <div class="table-responsive">
   <table class="table table-hover align-middle mb-0">
    <thead class="table-light"><tr><th>Date / Time</th><th>Contact Type</th><th>Method</th><th>Subject</th><th>Staff</th><th>Notes</th><th>Outcome</th></tr></thead>
    <tbody>
    @if (Care?.Notes?.Any() == true)
    {
-    @foreach (var note in Care.Notes.OrderByDescending(x => x.CreatedAt))
+    @foreach (var note in PagedNotes)
     { <tr><td>@note.CreatedAt.ToLocalTime().ToString("MM/dd/yyyy h:mm tt")</td><td>@note.ContactType</td><td>@note.Method</td><td>@note.Subject</td><td>@note.CreatedBy</td><td class="communication-notes">@note.Content</td><td>@(string.IsNullOrWhiteSpace(note.Outcome) ? "-" : note.Outcome)</td></tr> }
    }
    else { <tr><td colspan="7" class="text-center text-muted py-5">No communications recorded.</td></tr> }
    </tbody>
   </table>
  </div>
+ <TablePager CurrentPage="@CurrentPage" PageSize="@PageSize" TotalItems="@FilteredNotes.Count" OnPageChanged="GoToPage" OnPageSizeChanged="ChangePageSize" />
 </div>
 
 @code {
@@ -51,7 +58,13 @@
  [Parameter] public Guid PatientId { get; set; }
  [Parameter] public PatientCareProfileDto? Care { get; set; }
  [Parameter] public EventCallback OnSaved { get; set; }
- private CommunicationFormModel Form = new(); private bool ShowForm; private bool Saving; private string? ErrorMessage; private string? SuccessMessage;
+ private CommunicationFormModel Form = new(); private bool ShowForm;
+ private string SearchText=string.Empty; private string ContactFilter=string.Empty; private string MethodFilter=string.Empty; private int CurrentPage=1; private int PageSize=20;
+ private List<PatientNoteDto> FilteredNotes => (Care?.Notes ?? []).Where(x => (string.IsNullOrWhiteSpace(SearchText) || x.Subject.Contains(SearchText,StringComparison.OrdinalIgnoreCase) || x.Content.Contains(SearchText,StringComparison.OrdinalIgnoreCase) || x.CreatedBy.Contains(SearchText,StringComparison.OrdinalIgnoreCase)) && (string.IsNullOrWhiteSpace(ContactFilter) || string.Equals(x.ContactType,ContactFilter,StringComparison.OrdinalIgnoreCase)) && (string.IsNullOrWhiteSpace(MethodFilter) || string.Equals(x.Method,MethodFilter,StringComparison.OrdinalIgnoreCase))).OrderByDescending(x=>x.CreatedAt).ToList();
+ private IEnumerable<PatientNoteDto> PagedNotes=>FilteredNotes.Skip((CurrentPage-1)*PageSize).Take(PageSize);
+ private void ClearFilters(){SearchText=string.Empty;ContactFilter=string.Empty;MethodFilter=string.Empty;CurrentPage=1;}
+ private void GoToPage(int page)=>CurrentPage=Math.Max(1,page);
+ private void ChangePageSize(int size){PageSize=Math.Clamp(size,1,100);CurrentPage=1;} private bool Saving; private string? ErrorMessage; private string? SuccessMessage;
  private void ToggleForm(){ShowForm=!ShowForm;ErrorMessage=null;SuccessMessage=null;if(ShowForm)Form=new();}
  private async Task SaveAsync(){if(Saving)return;Saving=true;ErrorMessage=null;SuccessMessage=null;try{await CareService.AddCommunicationAsync(PatientId,Form.ContactType,Form.Method,Form.Subject,Form.Notes,Form.Outcome);Care=await CareService.GetAsync(PatientId);ShowForm=false;Form=new();SuccessMessage="Communication saved successfully.";await OnSaved.InvokeAsync();}catch(Exception ex){ErrorMessage=ex.Message;}finally{Saving=false;}}
  private sealed class CommunicationFormModel

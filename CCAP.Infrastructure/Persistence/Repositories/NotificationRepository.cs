@@ -51,10 +51,11 @@ public sealed class NotificationRepository
                 x.Status != "Completed" &&
                 x.Status != "Cancelled" &&
                 x.ClinicianId == userId &&
+                x.PatientId.HasValue &&
                 x.ScheduledDate <= horizon)
             .Select(x => new NotificationDto(
                 x.VisitId,
-                x.PatientId,
+                x.PatientId!.Value,
                 x.Patient.FirstName + " " +
                     x.Patient.LastName,
                 "Visit",

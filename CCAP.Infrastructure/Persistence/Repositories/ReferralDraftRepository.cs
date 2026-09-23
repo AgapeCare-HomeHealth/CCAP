@@ -116,6 +116,8 @@ public sealed class ReferralDraftRepository
         int pageNumber,
         int pageSize,
         string? search,
+        string sortBy,
+        bool sortDescending,
         CancellationToken cancellationToken)
     {
         //var query =
@@ -166,10 +168,16 @@ public sealed class ReferralDraftRepository
             await query.CountAsync(
                 cancellationToken);
 
+        var ordered = sortBy.ToLowerInvariant() switch
+        {
+            "createdat" => sortDescending ? query.OrderByDescending(x => x.Draft.CreatedAt) : query.OrderBy(x => x.Draft.CreatedAt),
+            "savedby" => sortDescending ? query.OrderByDescending(x => x.CreatedByName) : query.OrderBy(x => x.CreatedByName),
+            "status" => sortDescending ? query.OrderByDescending(x => x.Draft.Status) : query.OrderBy(x => x.Draft.Status),
+            _ => sortDescending ? query.OrderByDescending(x => x.Draft.UpdatedAt) : query.OrderBy(x => x.Draft.UpdatedAt)
+        };
+
         var rows =
-            await query
-                .OrderByDescending(
-                    x => x.Draft.UpdatedAt)
+            await ordered
                 .ThenByDescending(
                     x => x.Draft.ReferralDraftId)
                 .Skip(

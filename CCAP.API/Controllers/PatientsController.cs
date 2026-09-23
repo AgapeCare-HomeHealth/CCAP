@@ -36,9 +36,16 @@ public sealed class PatientsController : ControllerBase
 
     [HttpGet]
     public async Task<IActionResult> GetPatients(
-        CancellationToken cancellationToken) =>
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? search = null,
+        [FromQuery] string? status = null,
+        [FromQuery] Guid? clinicianId = null,
+        [FromQuery] string sortBy = "Name",
+        [FromQuery] bool sortDescending = false,
+        CancellationToken cancellationToken = default) =>
         Ok(await _sender.Send(
-            new GetPatientsQuery(),
+            new GetPatientsQuery(pageNumber, pageSize, search, status, clinicianId, sortBy, sortDescending),
             cancellationToken));
 
     [HttpGet("service-types")]

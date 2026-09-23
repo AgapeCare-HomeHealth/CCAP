@@ -20,13 +20,20 @@
 
     <div class="card shadow-sm border-0">
         <div class="card-body">
+            <div class="row g-3 mb-3">
+                <div class="col-md-4"><input class="form-control" placeholder="Search code, name, or CSS class..." value="@SearchText" @oninput="OnSearchChanged" /></div>
+                <div class="col-md-2"><select class="form-select" @bind="StatusFilter"><option value="">All Status</option><option value="true">Active</option><option value="false">Inactive</option></select></div>
+                <div class="col-md-2"><select class="form-select" @bind="SortBy"><option value="Code">Code</option><option value="Name">Name</option><option value="Status">Status</option></select></div>
+                <div class="col-md-2"><select class="form-select" @bind="SortDescending"><option value="false">Ascending</option><option value="true">Descending</option></select></div>
+                <div class="col-md-2"><button class="btn btn-outline-secondary w-100" @onclick="ClearFilters">Clear</button></div>
+            </div>
             @if (Loading) { <div class="text-center py-4">Loading...</div> }
             else {
                 <div class="table-responsive">
                     <table class="table align-middle">
                         <thead><tr><th>Code</th><th>Name</th><th>Icon</th><th>CSS Class</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
                         <tbody>
-                        @foreach (var item in Items)
+                        @foreach (var item in PagedItems)
                         {
                             <tr>
                                 <td><code>@item.Code</code></td>
@@ -43,6 +50,7 @@
                         </tbody>
                     </table>
                 </div>
+                <TablePager CurrentPage="@CurrentPage" PageSize="@PageSize" TotalItems="@FilteredItems.Count" OnPageChanged="GoToPage" OnPageSizeChanged="ChangePageSize" />
             }
         </div>
     </div>
@@ -71,6 +79,15 @@
 
 @code {
     private List<ServiceTypeDto> Items = [];
+    private string SearchText = string.Empty;
+    private string StatusFilter = string.Empty;
+    private string SortBy = "Code";
+    private bool SortDescending;
+    private int CurrentPage = 1;
+    private int PageSize = 20;
+    private List<ServiceTypeDto> FilteredItems => SortItems(Items.Where(x => (string.IsNullOrWhiteSpace(StatusFilter) || x.IsActive == bool.Parse(StatusFilter)) && (string.IsNullOrWhiteSpace(SearchText) || x.Code.Contains(SearchText.Trim(), StringComparison.OrdinalIgnoreCase) || x.Name.Contains(SearchText.Trim(), StringComparison.OrdinalIgnoreCase) || x.CssClass.Contains(SearchText.Trim(), StringComparison.OrdinalIgnoreCase)))).ToList();
+    private IEnumerable<ServiceTypeDto> PagedItems => FilteredItems.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
+    private IEnumerable<ServiceTypeDto> SortItems(IEnumerable<ServiceTypeDto> q) => SortBy switch { "Name" => SortDescending ? q.OrderByDescending(x=>x.Name) : q.OrderBy(x=>x.Name), "Status" => SortDescending ? q.OrderByDescending(x=>x.IsActive) : q.OrderBy(x=>x.IsActive), _ => SortDescending ? q.OrderByDescending(x=>x.Code) : q.OrderBy(x=>x.Code) };
     private bool Loading;
     private bool Saving;
     private bool EditorVisible;
@@ -88,6 +105,12 @@
         catch (Exception ex) { ErrorMessage = ex.Message; }
         finally { Loading = false; }
     }
+
+    private int TotalPages => FilteredItems.Count == 0 ? 0 : (int)Math.Ceiling(FilteredItems.Count / (double)PageSize);
+    private void GoToPage(int page) => CurrentPage = Math.Max(1, Math.Min(page, Math.Max(1, TotalPages)));
+    private void ChangePageSize(int size) { PageSize = Math.Clamp(size, 1, 100); CurrentPage = 1; }
+    private void OnSearchChanged(ChangeEventArgs e) { SearchText = e.Value?.ToString() ?? string.Empty; CurrentPage = 1; }
+    private void ClearFilters() { SearchText = string.Empty; StatusFilter = string.Empty; SortBy = "Code"; SortDescending = false; CurrentPage = 1; }
 
     private void OpenCreate() { Editing = false; Editor = new ServiceTypeEditModel { IsActive = true }; EditorVisible = true; }
     private void OpenEdit(ServiceTypeDto item) { Editing = true; Editor = new ServiceTypeEditModel { ServiceTypeId = item.ServiceTypeId, Code = item.Code, Name = item.Name, Icon = item.Icon, CssClass = item.CssClass, IsActive = item.IsActive }; EditorVisible = true; }

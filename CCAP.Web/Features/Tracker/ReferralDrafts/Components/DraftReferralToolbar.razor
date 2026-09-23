@@ -1,49 +1,14 @@
-﻿<div class="patient-toolbar">
-
-    <div class="toolbar-left">
-
-        <div class="search-box">
-
-            <i class="bi bi-search"></i>
-
-            <input type="text"
-                   placeholder="Search draft referrals..."
-                   value="@SearchText"
-                   @oninput="OnSearchChanged" />
-
-        </div>
-
-    </div>
-
-    <div class="toolbar-right">
-
-        <button class="filter-button"
-                type="button">
-
-            <i class="bi bi-funnel"></i>
-
-            Filter
-
-            <i class="bi bi-chevron-down"></i>
-
-        </button>
-
-    </div>
-
-</div>
-
+<div class="toolbar-card"><div class="row g-3 align-items-end">
+ <div class="col-lg-5"><label class="toolbar-label">Search</label><div class="search-box"><i class="bi bi-search"></i><input class="form-control" placeholder="Search draft referrals by user or referral data..." value="@SearchText" @oninput="OnInput" /></div></div>
+ <div class="col-md-3 col-lg-2"><label class="toolbar-label">Sort By</label><select class="form-select" @bind="SortBy"><option value="UpdatedAt">Last Updated</option><option value="CreatedAt">Created</option><option value="SavedBy">Saved By</option><option value="Status">Status</option></select></div>
+ <div class="col-md-3 col-lg-2"><label class="toolbar-label">Direction</label><select class="form-select" @bind="SortDescending"><option value="true">Descending</option><option value="false">Ascending</option></select></div>
+ <div class="col-md-3 col-lg-2"><button class="btn btn-primary w-100" @onclick="ApplySort">Apply</button></div>
+ <div class="col-md-3 col-lg-1"><button class="btn btn-outline-secondary w-100" @onclick="Clear">Clear</button></div>
+ </div></div>
 @code {
-
-    [Parameter]
-    public string SearchText { get; set; } = string.Empty;
-
-    [Parameter]
-    public EventCallback<string> SearchTextChanged { get; set; }
-
-    private async Task OnSearchChanged(ChangeEventArgs e)
-    {
-        var value = e.Value?.ToString() ?? string.Empty;
-
-        await SearchTextChanged.InvokeAsync(value);
-    }
+ [Parameter] public string SearchText {get;set;}=""; [Parameter] public string SortBy {get;set;}="UpdatedAt"; [Parameter] public bool SortDescending {get;set;}=true;
+ [Parameter] public EventCallback<string> OnSearchChanged {get;set;} [Parameter] public EventCallback<(string SortBy,bool Descending)> OnSortChanged {get;set;}
+ private Task OnInput(ChangeEventArgs e)=>OnSearchChanged.InvokeAsync(e.Value?.ToString() ?? "");
+ private Task ApplySort()=>OnSortChanged.InvokeAsync((SortBy,SortDescending));
+ private async Task Clear(){SearchText="";SortBy="UpdatedAt";SortDescending=true;await OnSearchChanged.InvokeAsync("");await OnSortChanged.InvokeAsync((SortBy,SortDescending));}
 }

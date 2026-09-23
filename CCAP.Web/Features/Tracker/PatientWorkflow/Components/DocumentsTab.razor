@@ -70,8 +70,7 @@
 
                     </label>
 
-                    <input class="form-control"
-                           placeholder="Search documents..." />
+                    <input class="form-control" value="@SearchText" @oninput="SearchChanged" placeholder="Search documents..." />
 
                 </div>
 
@@ -83,17 +82,8 @@
 
                     </label>
 
-                    <select class="form-select">
-
-                        <option>All</option>
-                        <option>Referral</option>
-                        <option>Insurance</option>
-                        <option>Orders</option>
-                        <option>Plan of Care</option>
-                        <option>OASIS</option>
-                        <option>Lab</option>
-                        <option>Consent</option>
-
+                    <select class="form-select" @bind="CategoryFilter">
+                        <option value="">All</option><option>Referral</option><option>Insurance</option><option>Orders</option><option>Plan of Care</option><option>OASIS</option><option>Lab</option><option>Consent</option>
                     </select>
 
                 </div>
@@ -106,13 +96,8 @@
 
                     </label>
 
-                    <select class="form-select">
-
-                        <option>All</option>
-                        <option>Reviewed</option>
-                        <option>Pending Review</option>
-                        <option>Missing</option>
-
+                    <select class="form-select" @bind="StatusFilter">
+                        <option value="">All</option><option value="Reviewed">Reviewed</option><option value="Pending Review">Pending Review</option><option value="Missing Signature">Missing Signature</option>
                     </select>
 
                 </div>
@@ -168,156 +153,24 @@
                 </thead>
 
                 <tbody>
-
+                @foreach (var doc in PagedDocuments)
+                {
                     <tr>
-
-                        <td>
-
-                            <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
-
-                            Referral.pdf
-
-                        </td>
-
-                        <td>Referral</td>
-
-                        <td>1.0</td>
-
-                        <td>
-
-                            <span class="badge bg-success">
-
-                                Reviewed
-
-                            </span>
-
-                        </td>
-
-                        <td>
-
-                            <span class="badge bg-success">
-
-                                Complete
-
-                            </span>
-
-                        </td>
-
-                        <td>Jennifer LVN</td>
-
-                        <td>08/04/2026</td>
-
-                        <td>
-
-                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick='() => ViewDocument("Referral.pdf")'>View</button>
-
-                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick='() => DownloadDocument("Referral.pdf")'>Download</button>
-
-                        </td>
-
+                        <td><i class="bi bi-file-earmark-pdf text-danger me-2"></i>@doc.Name</td>
+                        <td>@doc.Category</td><td>@doc.Version</td>
+                        <td><span class="badge @doc.StatusClass">@doc.Status</span></td>
+                        <td><span class="badge @doc.OcrClass">@doc.Ocr</span></td>
+                        <td>@doc.UploadedBy</td><td>@doc.Date</td>
+                        <td><button type="button" class="btn btn-sm btn-outline-primary" @onclick='() => ViewDocument(doc.Name)'>View</button> @if(doc.Replaceable){<button type="button" class="btn btn-sm btn-outline-success" @onclick='() => OpenReplace(doc.Name)'>Replace</button>}</td>
                     </tr>
-
-                    <tr>
-
-                        <td>
-
-                            <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
-
-                            Insurance Card.pdf
-
-                        </td>
-
-                        <td>Insurance</td>
-
-                        <td>1.0</td>
-
-                        <td>
-
-                            <span class="badge bg-warning text-dark">
-
-                                Pending Review
-
-                            </span>
-
-                        </td>
-
-                        <td>
-
-                            <span class="badge bg-secondary">
-
-                                N/A
-
-                            </span>
-
-                        </td>
-
-                        <td>Jennifer LVN</td>
-
-                        <td>08/05/2026</td>
-
-                        <td>
-
-                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick='() => ViewDocument("Insurance Card.pdf")'>View</button>
-
-                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick='() => DownloadDocument("Insurance Card.pdf")'>Download</button>
-
-                        </td>
-
-                    </tr>
-
-                    <tr>
-
-                        <td>
-
-                            <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
-
-                            Plan of Care.pdf
-
-                        </td>
-
-                        <td>Orders</td>
-
-                        <td>2.0</td>
-
-                        <td>
-
-                            <span class="badge bg-danger">
-
-                                Missing Signature
-
-                            </span>
-
-                        </td>
-
-                        <td>
-
-                            <span class="badge bg-success">
-
-                                Complete
-
-                            </span>
-
-                        </td>
-
-                        <td>Renald LVN</td>
-
-                        <td>08/06/2026</td>
-
-                        <td>
-
-                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick='() => ViewDocument("Plan of Care.pdf")'>View</button>
-
-                            <button type="button" class="btn btn-sm btn-outline-success" @onclick='() => OpenReplace("Plan of Care.pdf")'>Replace</button>
-
-                        </td>
-
-                    </tr>
-
+                }
+                @if (!FilteredDocuments.Any()) { <tr><td colspan="8" class="text-center text-muted py-5">No documents match the current filter.</td></tr> }
                 </tbody>
 
             </table>
 
         </div>
+        <TablePager CurrentPage="@CurrentPage" PageSize="@PageSize" TotalItems="@FilteredDocuments.Count" OnPageChanged="GoToPage" OnPageSizeChanged="ChangePageSize" />
 
     </div>
 
@@ -379,6 +232,24 @@
     private string? SelectedFileName;
     private string UploadCategory = "Referral";
     private string? ActionMessage;
+    private string SearchText = string.Empty;
+    private string CategoryFilter = string.Empty;
+    private string StatusFilter = string.Empty;
+    private int CurrentPage = 1;
+    private int PageSize = 20;
+    private List<DocumentRow> Documents =
+    [
+        new("Referral.pdf", "Referral", "1.0", "Reviewed", "Complete", "Jennifer LVN", "08/04/2026", false),
+        new("Insurance Card.pdf", "Insurance", "1.0", "Pending Review", "N/A", "Jennifer LVN", "08/05/2026", false),
+        new("Plan of Care.pdf", "Orders", "2.0", "Missing Signature", "Complete", "Renald LVN", "08/06/2026", true)
+    ];
+    private List<DocumentRow> FilteredDocuments => Documents.Where(x => (string.IsNullOrWhiteSpace(SearchText) || x.Name.Contains(SearchText,StringComparison.OrdinalIgnoreCase) || x.Category.Contains(SearchText,StringComparison.OrdinalIgnoreCase) || x.UploadedBy.Contains(SearchText,StringComparison.OrdinalIgnoreCase)) && (string.IsNullOrWhiteSpace(CategoryFilter) || x.Category == CategoryFilter) && (string.IsNullOrWhiteSpace(StatusFilter) || x.Status == StatusFilter)).ToList();
+    private IEnumerable<DocumentRow> PagedDocuments => FilteredDocuments.Skip((CurrentPage-1)*PageSize).Take(PageSize);
+    private void SearchChanged(ChangeEventArgs e){SearchText=e.Value?.ToString()??string.Empty;CurrentPage=1;}
+    private void GoToPage(int page)=>CurrentPage=Math.Max(1,page);
+    private void ChangePageSize(int size){PageSize=Math.Clamp(size,1,100);CurrentPage=1;}
+    private sealed record DocumentRow(string Name,string Category,string Version,string Status,string Ocr,string UploadedBy,string Date,bool Replaceable)
+    { public string StatusClass=>Status=="Reviewed"?"bg-success":Status=="Pending Review"?"bg-warning text-dark":"bg-danger"; public string OcrClass=>Ocr=="Complete"?"bg-success":"bg-secondary"; }
 
     private void OpenUpload()
     {

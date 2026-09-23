@@ -38,6 +38,8 @@ public sealed class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.HasDefaultSchema("dbo");
+
         modelBuilder.Entity<Announcement>(e =>
         {
             e.ToTable("Announcements");
@@ -394,8 +396,23 @@ public sealed class AppDbContext : DbContext
         {
             e.ToTable("Visits");
             e.HasKey(x => x.VisitId);
-            e.HasOne(x => x.Patient).WithMany(x => x.Visits).HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Cascade);
-            e.HasOne(x => x.Clinician).WithMany().HasForeignKey(x => x.ClinicianId).OnDelete(DeleteBehavior.Restrict);
+            e.Property(x => x.PatientName).HasMaxLength(300).IsRequired();
+            e.HasIndex(x => x.AssignedUserId);
+            e.Property(x => x.ClinicianName).HasMaxLength(300);
+            e.Property(x => x.VisitType).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Location).HasMaxLength(500);
+            e.HasOne(x => x.Patient).WithMany(x => x.Visits)
+                .HasForeignKey(x => x.PatientId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired(false);
+            e.HasOne<ApplicationUser>().WithMany()
+                .HasForeignKey(x => x.AssignedUserId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
+            e.HasOne(x => x.Clinician).WithMany()
+                .HasForeignKey(x => x.ClinicianId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
         });
 
         modelBuilder.Entity<ReferralDocument>(e =>

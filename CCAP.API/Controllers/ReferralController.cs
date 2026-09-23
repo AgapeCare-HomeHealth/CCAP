@@ -117,6 +117,8 @@ public sealed class ReferralController : ControllerBase
     [FromQuery] int pageNumber = 1,
     [FromQuery] int pageSize = 20,
     [FromQuery] string? search = null,
+    [FromQuery] string sortBy = "UpdatedAt",
+    [FromQuery] bool sortDescending = true,
     CancellationToken cancellationToken = default)
     {
         var result =
@@ -124,7 +126,9 @@ public sealed class ReferralController : ControllerBase
                 new GetReferralDraftsQuery(
                     pageNumber,
                     pageSize,
-                    search),
+                    search,
+                    sortBy,
+                    sortDescending),
                 cancellationToken);
 
         return Ok(result);

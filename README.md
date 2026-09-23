@@ -1767,3 +1767,37 @@ The application should make it obvious:
 > **Can the same patient return for another episode without losing historical information?**
 
 The system should preserve the operational concepts of the Excel workflow while providing structured data, permissions, auditability, workflow progression, and a clear patient journey from referral through discharge and closure.
+
+## List, Search, Filter, Sort, and Pagination
+
+The current web application standardizes list behavior across scalable tables:
+
+- Patients and Archived Patients: server-side search, status filtering, sorting, and pagination.
+- Draft Referrals: server-side search, sorting, and pagination.
+- Users: search, role/discipline/status filters, sorting, and pagination.
+- Roles: search/status filters, sorting, and pagination.
+- Lookup Options: group/search/status filters, sorting, and pagination.
+- Service / Order Types: search/status filters, sorting, and pagination.
+- Patient workflow Communications: search, contact type/method filters, and pagination.
+- Patient workflow Audit Log: search, action filter, and pagination.
+- Patient workflow Care Logs: search and pagination.
+- Patient Documents: search, category/status filters, and pagination.
+
+Pagination defaults to 20 rows with 50 and 100 row options. Changing a search/filter resets the list to page 1. Patient and referral-draft lists perform the main filtering, sorting, counting, and paging in the API/database layer rather than loading the complete dataset into the browser.
+
+## Calendar database integration
+
+The Scheduling Calendar no longer uses hard-coded sample schedule entries. The Blazor calendar loads schedule records from the API endpoint `GET /api/scheduling/calendar?startDate={startDate}&endDate={endDate}`.
+
+The endpoint reads persisted `Visits` through the Clean Architecture application/repository layers and returns patient, scheduled date/time, clinician, status, completion date, and notes. Month, Week, Day, Today, and previous/next navigation reload the visible date range from the API.
+
+The schedule import button is intentionally disabled for this phase. The next scheduling phase will implement the `CLINICAL WORK SCHED` Excel import, duplicate detection, and the explicit duplicate review flow where checked entries are overwritten and unchecked entries keep the existing schedule.
+
+
+### Schedule date parsing
+The schedule importer prefers native Excel date values, supports common explicit date formats, and rejects ambiguous text dates instead of guessing.
+
+## Calendar import behavior
+Imported schedules are now persisted even when the patient is not yet present/matched in CCAP. The Visits record stores the imported patient/clinician names and schedule metadata, while PatientId and ClinicianId are optional links when CCAP records are available. Matching remains useful for linking a schedule to a patient but is not an import prerequisite.
+
+The schedule review modal closes before the SweetAlert loading dialog opens, so success/error alerts cannot appear behind the review modal. Close and Cancel explicitly clear the pending review when the import is not running. Mapping warnings use Proceed with Caution and do not block saving.

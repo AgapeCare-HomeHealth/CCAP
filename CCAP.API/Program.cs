@@ -97,22 +97,22 @@ app.UseExceptionHandler(errorApp =>
 
 using (var scope = app.Services.CreateScope())
 {
-    var context = scope.ServiceProvider.GetRequiredService<CCAP.Infrastructure.Persistence.AppDbContext>();
+    var context = scope.ServiceProvider
+        .GetRequiredService<AppDbContext>();
 
-    // In development you may set Database:ApplyMigrations=true to apply
-    // committed EF Core migrations automatically. Production deployments can
-    // instead apply the generated migration SQL as a deployment step.
-    //if (builder.Configuration.GetValue<bool>("Database:ApplyMigrations"))
-    //{
-    //    await context.Database.MigrateAsync();
-    //}
+    if (app.Environment.IsDevelopment() &&
+        builder.Configuration.GetValue<bool>("Database:ApplyMigrations"))
+    {
+        await context.Database.MigrateAsync();
 
-    await context.Database.MigrateAsync();
+        var passwordHasher = scope.ServiceProvider
+            .GetRequiredService<
+                CCAP.Application.Abstractions.Identity.IPasswordHasher>();
 
-    var passwordHasher = scope.ServiceProvider
-        .GetRequiredService<CCAP.Application.Abstractions.Identity.IPasswordHasher>();
-
-    await DatabaseSeeder.SeedAsync(context, passwordHasher);
+        await DatabaseSeeder.SeedAsync(
+            context,
+            passwordHasher);
+    }
 }
 
 

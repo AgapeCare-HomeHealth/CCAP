@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using CCAP.Application.Abstractions.Persistence;
 using CCAP.Application.Common.Models;
 using CCAP.Application.Features.ReferralDrafts.DTOs;
@@ -46,6 +46,8 @@ public sealed class GetReferralDraftsQueryHandler
                 pageNumber,
                 pageSize,
                 search,
+                request.SortBy,
+                request.SortDescending,
                 cancellationToken);
 
         //var items =

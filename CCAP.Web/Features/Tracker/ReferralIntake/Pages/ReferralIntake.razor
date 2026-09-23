@@ -427,14 +427,6 @@
 
             case 2:
 
-                if (string.IsNullOrWhiteSpace(Model.MRN))
-                {
-                    ErrorMessage =
-                        "MRN is required.";
-
-                    return false;
-                }
-
                 if (string.IsNullOrWhiteSpace(Model.FirstName))
                 {
                     ErrorMessage =

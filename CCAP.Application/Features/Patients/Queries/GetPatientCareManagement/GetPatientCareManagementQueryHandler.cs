@@ -161,7 +161,7 @@ public sealed class GetPatientCareManagementQueryHandler
                     x.VisitId,
 
                 PatientId =
-                    x.PatientId,
+                    patient.PatientId,
 
                 ScheduledDate =
                     x.ScheduledDate,

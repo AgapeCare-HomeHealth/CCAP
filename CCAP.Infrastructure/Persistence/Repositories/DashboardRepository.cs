@@ -166,7 +166,8 @@ public sealed class DashboardRepository : IDashboardRepository
                 x.Status != "Completed" &&
                 x.Status != "Cancelled" &&
                 x.ScheduledDate >= now &&
-                x.ClinicianId == userId)
+                x.ClinicianId == userId &&
+                x.PatientId.HasValue)
             .OrderBy(x => x.ScheduledDate)
             .Take(5)
             .Select(x => new UpcomingVisitDto
