@@ -1,9 +1,15 @@
-﻿@page "/scheduling/calendar"
+@page "/scheduling/calendar"
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.JSInterop
 @using CCAP.Web.Features.Scheduling.Calendar.Models
 @using CCAP.Web.Features.Scheduling.Calendar.Services
+@using CCAP.Web.Features.Admin.Users.Models
+@using CCAP.Web.Features.Admin.Users.Services
+@using CCAP.Web.Features.Admin.LookupOptions.Models
+@using CCAP.Web.Features.Admin.LookupOptions.Services
 @inject CalendarService CalendarService
+@inject UserServices UserService
+@inject LookupOptionService LookupService
 @inject IJSRuntime JS
 @attribute [CcapAuthorize(Policy = "referrals.view")]
 
@@ -16,7 +22,14 @@
             <p>View schedules assigned to your CCAP account from the care scheduling system.</p>
         </div>
 
-        <div>
+        <div class="calendar-page-actions">
+            <button type="button"
+                    class="btn-add-schedule"
+                    @onclick="OpenAddSchedule">
+                <span>+</span>
+                Add Schedule
+            </button>
+
             <label class="btn-upload-csv" style="cursor:pointer;">
                 <span>↑</span>
                 Import Schedule
@@ -446,6 +459,178 @@
 </div>
 
 
+@if (ShowAddSchedule)
+{
+    <div class="add-schedule-overlay" @onclick:stopPropagation="true">
+        <div class="add-schedule-modal" role="dialog" aria-modal="true" aria-labelledby="add-schedule-title">
+            <div class="add-schedule-header">
+                <div>
+                    <h3 id="add-schedule-title">Add Schedules</h3>
+                    <p>Add one or more schedules. Day is generated automatically from the selected date.</p>
+                </div>
+
+                <button type="button"
+                        class="add-schedule-close"
+                        title="Close"
+                        aria-label="Close"
+                        @onclick="CloseAddSchedule">
+                    ×
+                </button>
+            </div>
+
+            <div class="add-schedule-body">
+                @if (IsLoadingAddScheduleOptions)
+                {
+                    <div class="add-schedule-options-loading">Loading patients, clinicians, and scheduling options...</div>
+                }
+                else if (!string.IsNullOrWhiteSpace(AddScheduleOptionsError))
+                {
+                    <div class="add-schedule-options-error">@AddScheduleOptionsError</div>
+                }
+
+                <div class="add-schedule-table-wrapper">
+                    <table class="add-schedule-table">
+                        <thead>
+                            <tr>
+                                <th class="auto-column">Visit ID</th>
+                                <th>Date <span class="required-mark">*</span></th>
+                                <th>Day</th>
+                                <th>Time Block <span class="required-mark">*</span></th>
+                                <th>Patient Name <span class="required-mark">*</span></th>
+                                <th>Confirmation Status <span class="required-mark">*</span></th>
+                                <th>Call Notes</th>
+                                <th>Assigned Clinician <span class="required-mark">*</span></th>
+                                <th>Type of Visit <span class="required-mark">*</span></th>
+                                <th>Visit Status</th>
+                                <th>Notes / Flag</th>
+                                <th class="action-column"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in AddScheduleRows)
+                            {
+                                <tr>
+                                    <td class="auto-cell">Auto</td>
+                                    <td>
+                                        <InputDate TValue="DateTime?"
+                                                   class="schedule-input date-input"
+                                                   @bind-Value="row.Date" />
+                                    </td>
+                                    <td class="day-cell">
+                                        @row.Day
+                                    </td>
+                                    <td>
+                                        <select class="schedule-input" @bind="row.TimeBlock">
+                                            <option value="">Select time</option>
+                                            @foreach (var timeBlock in TimeBlocks)
+                                            {
+                                                <option value="@timeBlock">@timeBlock</option>
+                                            }
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="text"
+                                               class="schedule-input"
+                                               @bind="row.PatientName"
+                                               placeholder="Enter patient name" />
+                                    </td>
+                                    <td>
+                                        <select class="schedule-input" @bind="row.ConfirmationStatus">
+                                            <option value="">Select status</option>
+                                            @foreach (var status in ConfirmationStatuses)
+                                            {
+                                                <option value="@status.DisplayName">@status.DisplayName</option>
+                                            }
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <textarea class="schedule-input schedule-textarea"
+                                                  rows="2"
+                                                  placeholder="Notes about the call"
+                                                  @bind="row.CallNotes"></textarea>
+                                    </td>
+                                    <td>
+                                        <select class="schedule-input" @bind="row.AssignedClinicianId">
+                                            <option value="">Select clinician</option>
+                                            @foreach (var clinician in Clinicians)
+                                            {
+                                                <option value="@clinician.UserId">@clinician.FullName</option>
+                                            }
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select class="schedule-input" @bind="row.VisitType">
+                                            <option value="">Select type</option>
+                                            @foreach (var visitType in VisitTypes)
+                                            {
+                                                <option value="@visitType.DisplayName">@visitType.DisplayName</option>
+                                            }
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select class="schedule-input" @bind="row.VisitStatus">
+                                            <option value="">Not set</option>
+                                            @foreach (var status in VisitStatuses)
+                                            {
+                                                <option value="@status.DisplayName">@status.DisplayName</option>
+                                            }
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <textarea class="schedule-input schedule-textarea"
+                                                  rows="2"
+                                                  placeholder="Flag or extra notes"
+                                                  @bind="row.NotesFlag"></textarea>
+                                    </td>
+                                    <td class="action-cell">
+                                        @if (AddScheduleRows.Count > 1)
+                                        {
+                                            <button type="button"
+                                                    class="remove-schedule-row"
+                                                    title="Remove row"
+                                                    @onclick="() => RemoveAddScheduleRow(row)">
+                                                ×
+                                            </button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <button type="button"
+                        class="add-schedule-row-button"
+                        @onclick="AddScheduleRowItem">
+                    <span>+</span>
+                    Add Row
+                </button>
+            </div>
+
+            <div class="add-schedule-footer">
+                <span class="add-schedule-row-count">
+                    @AddScheduleRows.Count schedule@(AddScheduleRows.Count == 1 ? "" : "s")
+                </span>
+
+                <div class="add-schedule-footer-actions">
+                    <button type="button"
+                            class="btn btn-secondary"
+                            @onclick="CloseAddSchedule">
+                        Cancel
+                    </button>
+
+                    <button type="button"
+                            class="btn btn-primary"
+                            @onclick="SaveAddedSchedules">
+                        Save Schedules
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+
 @if (ShowImportReview)
 {
     <div class="import-review-overlay" @onclick:stopPropagation="true">
@@ -496,50 +681,50 @@
                             </tr>
                         </thead>
                         <tbody>
-                        @foreach (var item in ImportPreview)
-                        {
-                            <tr>
-                                <td>
-                                    @if (item.IsDuplicate)
-                                    {
-                                        <label class="overwrite-choice">
-                                            <input type="checkbox" @bind="item.OverwriteExisting" />
-                                            <span>
-                                                <strong>Overwrite this schedule</strong><br />
-                                                <small>Unchecked = Keep existing</small>
-                                            </span>
-                                        </label>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-success">New — Add</span>
-                                    }
+                            @foreach (var item in ImportPreview)
+                            {
+                                <tr>
+                                    <td>
+                                        @if (item.IsDuplicate)
+                                        {
+                                            <label class="overwrite-choice">
+                                                <input type="checkbox" @bind="item.OverwriteExisting" />
+                                                <span>
+                                                    <strong>Overwrite this schedule</strong><br />
+                                                    <small>Unchecked = Keep existing</small>
+                                                </span>
+                                            </label>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-success">New — Add</span>
+                                        }
 
-                                    @if (item.HasWarning)
-                                    {
-                                        <div class="small text-warning-emphasis mt-2">
-                                            <strong>Warning:</strong> @item.ValidationMessage
-                                        </div>
-                                    }
-                                </td>
-                                <td>
-                                    <strong>@item.PatientName</strong><br />
-                                    <span>@item.ScheduledDate.ToString("MMM d, yyyy h:mm tt")</span>
-                                </td>
-                                <td>
-                                    @(item.IsDuplicate
-                                        ? $"{item.ExistingClinicianName} — {item.ExistingStatus}"
-                                        : "None")
-                                </td>
-                                <td>
-                                    <strong>@item.ClinicianName</strong>
-                                    @if (!string.IsNullOrWhiteSpace(item.Location))
-                                    {
-                                        <br /><small>@item.Location</small>
-                                    }
-                                </td>
-                            </tr>
-                        }
+                                        @if (item.HasWarning)
+                                        {
+                                            <div class="small text-warning-emphasis mt-2">
+                                                <strong>Warning:</strong> @item.ValidationMessage
+                                            </div>
+                                        }
+                                    </td>
+                                    <td>
+                                        <strong>@item.PatientName</strong><br />
+                                        <span>@item.ScheduledDate.ToString("MMM d, yyyy h:mm tt")</span>
+                                    </td>
+                                    <td>
+                                        @(item.IsDuplicate
+                                            ? $"{item.ExistingClinicianName} — {item.ExistingStatus}"
+                                            : "None")
+                                    </td>
+                                    <td>
+                                        <strong>@item.ClinicianName</strong>
+                                        @if (!string.IsNullOrWhiteSpace(item.Location))
+                                        {
+                                            <br /><small>@item.Location</small>
+                                        }
+                                    </td>
+                                </tr>
+                            }
                         </tbody>
                     </table>
                 </div>
@@ -662,8 +847,8 @@
         for (var date = calendarStart; date <= calendarEnd; date = date.AddDays(1))
             CalendarDays.Add(date);
     }
-    }
 
+    
     private List<CalendarVisitDto> GetSchedulesForDate(DateTime date)
     {
         return Schedules
@@ -697,6 +882,12 @@
     {
         SelectedSchedule = schedule;
         SelectedDate = schedule.ScheduledDate.Date;
+    }
+
+    private void ClearSelectedDate()
+    {
+        SelectedDate = DateTime.MinValue;
+        SelectedSchedule = null;
     }
 
 
@@ -799,10 +990,6 @@
             : $"{startOfWeek:MMM d} - {endOfWeek:MMM d}, {endOfWeek:yyyy}";
     }
 
-        return $"{startOfWeek:MMM d} - {endOfWeek:MMM d}, {endOfWeek:yyyy}";
-    }
-
-
     // ==========================================
     // WEEK DAYS
     // ==========================================
@@ -822,7 +1009,129 @@
 
     private bool ShowImportReview;
     private bool IsImporting;
+    private bool ShowAddSchedule;
+    private bool IsLoadingAddScheduleOptions;
+    private string? AddScheduleOptionsError;
     private List<ScheduleImportPreviewItem> ImportPreview = [];
+    private List<AddScheduleRow> AddScheduleRows = [];
+
+    private List<UserDto> Clinicians = [];
+    private List<LookupOptionDto> ConfirmationStatuses = [];
+    private List<LookupOptionDto> VisitTypes = [];
+    private List<LookupOptionDto> VisitStatuses = [];
+
+    private readonly string[] TimeBlocks =
+    {
+        "8:00 AM - 9:00 AM",
+        "9:00 AM - 10:00 AM",
+        "10:00 AM - 11:00 AM",
+        "11:00 AM - 12:00 PM",
+        "12:00 PM - 1:00 PM",
+        "1:00 PM - 2:00 PM",
+        "2:00 PM - 3:00 PM",
+        "3:00 PM - 4:00 PM",
+        "4:00 PM - 5:00 PM"
+    };
+
+    private async Task OpenAddSchedule()
+    {
+        AddScheduleRows = [new AddScheduleRow()];
+        ShowAddSchedule = true;
+
+        if (Clinicians.Count > 0 && ConfirmationStatuses.Count > 0 && VisitTypes.Count > 0 && VisitStatuses.Count > 0)
+            return;
+
+        await LoadAddScheduleOptionsAsync();
+    }
+
+    private async Task LoadAddScheduleOptionsAsync()
+    {
+        IsLoadingAddScheduleOptions = true;
+        AddScheduleOptionsError = null;
+
+        try
+        {
+            var usersTask = UserService.GetUsersAsync();
+            var confirmationTask = LookupService.GetAsync("ConfirmationStatus", true);
+            var visitTypesTask = LookupService.GetAsync("VisitType", true);
+            var visitStatusesTask = LookupService.GetAsync("VisitStatus", true);
+
+            await Task.WhenAll(usersTask, confirmationTask, visitTypesTask, visitStatusesTask);
+
+            Clinicians = (await usersTask)
+                .Where(x => x.IsActive && string.Equals(x.Role, "Clinician", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(x => x.LastName)
+                .ThenBy(x => x.FirstName)
+                .ToList();
+
+            ConfirmationStatuses = (await confirmationTask)
+                .OrderBy(x => x.SortOrder)
+                .ToList();
+
+            VisitTypes = (await visitTypesTask)
+                .OrderBy(x => x.SortOrder)
+                .ToList();
+
+            VisitStatuses = (await visitStatusesTask)
+                .OrderBy(x => x.SortOrder)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            AddScheduleOptionsError = $"Unable to load scheduling options: {ex.Message}";
+        }
+        finally
+        {
+            IsLoadingAddScheduleOptions = false;
+        }
+    }
+
+    private void AddScheduleRowItem()
+    {
+        AddScheduleRows.Add(new AddScheduleRow());
+    }
+
+    private void RemoveAddScheduleRow(AddScheduleRow row)
+    {
+        if (AddScheduleRows.Count <= 1)
+            return;
+
+        AddScheduleRows.Remove(row);
+    }
+
+    private void CloseAddSchedule()
+    {
+        ShowAddSchedule = false;
+        AddScheduleRows.Clear();
+    }
+
+    private async Task SaveAddedSchedules()
+    {
+        // Backend/CQRS save will be implemented in a later step.
+        await ShowScheduleLoadingAsync(
+            "Coming Next",
+            "The Add Schedule form is ready. Saving schedules will be connected in the backend step.");
+
+        await Task.Delay(500);
+        await CloseScheduleAlertAsync();
+    }
+
+    private sealed class AddScheduleRow
+    {
+        public DateTime? Date { get; set; }
+        public string TimeBlock { get; set; } = string.Empty;
+        public string PatientName { get; set; } = string.Empty;
+        public string ConfirmationStatus { get; set; } = string.Empty;
+        public string CallNotes { get; set; } = string.Empty;
+        public Guid? AssignedClinicianId { get; set; }
+        public string VisitType { get; set; } = string.Empty;
+        public string VisitStatus { get; set; } = string.Empty;
+        public string NotesFlag { get; set; } = string.Empty;
+
+        public string Day => Date.HasValue
+            ? Date.Value.ToString("dddd")
+            : string.Empty;
+    }
 
     private async Task HandleScheduleFileSelected(InputFileChangeEventArgs e)
     {
@@ -1041,10 +1350,5 @@
         ShowImportReview = false;
         ImportPreview.Clear();
         StateHasChanged();
-    }
-
-        public string ServiceType { get; set; } = "";
-
-        public string Clinician { get; set; } = "";
     }
 }

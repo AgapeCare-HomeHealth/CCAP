@@ -1,9 +1,9 @@
-﻿namespace CCAP.Web.Features.Dashboard.Models
+namespace CCAP.Web.Features.Dashboard.Models
 {
     public class UpcomingVisitDto
     {
-        public string PatientName { get; set; }
-        public string Clinician { get; set; }
+        public string PatientName { get; set; } = string.Empty;
+        public string Clinician { get; set; } = string.Empty;
 
         public DateTime VisitDate { get; set; }
     }

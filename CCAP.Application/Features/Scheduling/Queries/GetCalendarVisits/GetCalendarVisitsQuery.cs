@@ -15,6 +15,10 @@ public sealed class CalendarVisitDto
     public DateTime ScheduledDate { get; set; }
     public DateTime? CompletedDate { get; set; }
     public string Status { get; set; } = string.Empty;
+    public string? TimeBlock { get; set; }
+    public string? ConfirmationStatus { get; set; }
+    public string? CallNotes { get; set; }
     public string Clinician { get; set; } = string.Empty;
+    public string? NotesFlag { get; set; }
     public string? Notes { get; set; }
 }

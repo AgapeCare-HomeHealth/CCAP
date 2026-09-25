@@ -1,3 +1,7 @@
+using CCAP.Application.Abstractions.Storage;
+using CCAP.Application.Features.Patients.Queries.GetPreAuthDocument;
+using CCAP.Application.Features.Patients.Queries.GetPreAuthDocumentFile;
+using CCAP.Application.Features.Patients.Commands.UploadPreAuthDocument;
 using CCAP.API.Authorization;
 using CCAP.API.Contracts.Patients;
 using CCAP.Application.Features.Patients.Commands.AddCallNote;
@@ -192,6 +196,70 @@ public sealed class PatientsController : ControllerBase
         if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
         await _sender.Send(new UpdateWorkflowDetailsCommand(patientId, request.PreAuthDueDate, request.NumberOfVisits, request.CaseMixType, request.DmeMedSupplyNotes, request.SocFeedbackFromPatient, request.TifDate, request.RocDate, request.RecertDate, request.PcpPtNotified, request.DischargeDate, request.DischargeFeedback, request.TransferDestination, request.TransferDate, request.TransferReason, currentUserId), cancellationToken);
         return NoContent();
+    }
+
+    [HttpPost("{patientId:guid}/compliance/pre-auth/document")]
+    [Authorize(Policy = PermissionPolicies.PatientsManage)]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<IActionResult> UploadPreAuthDocument(
+        Guid patientId,
+        IFormFile file,
+        CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length <= 0)
+            return BadRequest("A non-empty file is required.");
+
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var currentUserId))
+            return Unauthorized();
+
+        await using var stream = file.OpenReadStream();
+
+        var result = await _sender.Send(
+            new UploadPreAuthDocumentCommand(
+                patientId,
+                currentUserId,
+                stream,
+                file.FileName,
+                file.ContentType,
+                file.Length),
+            cancellationToken);
+
+        return Ok(result);
+    }
+
+    [HttpGet("{patientId:guid}/compliance/pre-auth/document")]
+    [Authorize(Policy = PermissionPolicies.PatientsView)]
+    public async Task<IActionResult> GetPreAuthDocument(
+        Guid patientId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new GetPreAuthDocumentQuery(patientId),
+            cancellationToken);
+
+        return result is null ? NotFound() : Ok(result);
+    }
+
+    [HttpGet("{patientId:guid}/compliance/pre-auth/document/file")]
+    [Authorize(Policy = PermissionPolicies.PatientsView)]
+    public async Task<IActionResult> GetPreAuthDocumentFile(
+        Guid patientId,
+        [FromServices] IFileStorage fileStorage,
+        CancellationToken cancellationToken)
+    {
+        var document = await _sender.Send(
+            new GetPreAuthDocumentFileQuery(patientId),
+            cancellationToken);
+
+        if (document is null)
+            return NotFound();
+
+        var stream = await fileStorage.OpenReadAsync(
+            document.StorageKey,
+            cancellationToken);
+
+        return File(stream, document.ContentType, enableRangeProcessing: true);
     }
 
     [HttpPut("{patientId:guid}/insurance")]

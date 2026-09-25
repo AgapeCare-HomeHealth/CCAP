@@ -57,14 +57,6 @@ else
 
                     break;
 
-                case "Insurance":
-
-                    <InsuranceTab PatientId="@PatientId"
-                                  Workflow="@Workflow"
-                                  OnCompleted="HandleInsuranceCompleted" />
-
-                    break;
-
                 case "Compliance":
 
                     <ComplianceTab PatientId="@PatientId"
@@ -138,12 +130,6 @@ else
 
         new()
         {
-            Title = "Insurance",
-            Icon = "bi bi-shield-check"
-        },
-
-        new()
-        {
             Title = "Compliance",
             Icon = "bi bi-clipboard-check"
         },
@@ -209,13 +195,6 @@ else
     {
         Workflow = await WorkflowService.GetAsync(PatientId);
         Care = await CareService.GetAsync(PatientId);
-    }
-
-    private async Task HandleInsuranceCompleted()
-    {
-        Workflow =
-            await WorkflowService.GetAsync(
-                PatientId);
     }
 
     private async Task HandleComplianceCompleted()

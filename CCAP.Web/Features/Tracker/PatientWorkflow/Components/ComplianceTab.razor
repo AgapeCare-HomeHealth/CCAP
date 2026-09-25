@@ -9,7 +9,29 @@
     @if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <div class="alert alert-danger">@ErrorMessage</div> }
     <div class="alert alert-info border-0 shadow-sm"><i class="bi bi-info-circle me-2"></i><strong>How to use this tab:</strong> CCAP records confirmations and next actions. The EMR remains the source for clinical documents and visit details. Mark an item complete only after you have checked the corresponding information in the EMR or completed the required coordination action. Dates shown below are workflow dates and are not a substitute for EMR documentation.</div>
 
-    <ComplianceGroup Title="Phase 1 — Referral & Admission Preparation" Description="Confirm the required referral and admission-preparation items from the EMR." Items="Phase1Items" OnComplete="CompleteComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" />
+    @if (PreAuthItem is not null)
+    {
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-1">Phase 1 — Referral & Admission Preparation</h5>
+                <small class="text-muted">Confirm the required referral and admission-preparation items from the EMR.</small>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <PreAuthComplianceCard PatientId="@PatientId"
+                                               Item="@PreAuthItem"
+                                               OnComplete="CompleteComplianceAsync"
+                                               IsSaving="@(IsSaving && SavingRequirementCode == PreAuthItem.RequirementCode)" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <ComplianceGroup Title="Phase 1 — Remaining Requirements" Description="Confirm the remaining referral and admission-preparation items from the EMR." Items="RemainingPhase1Items" OnComplete="CompleteComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" />
+
+    <InsuranceComplianceSection PatientId="@PatientId" Workflow="@Workflow" OnCompleted="OnCompleted" />
     <ComplianceGroup Title="SOC Confirmation" Description="SOC scheduling and the SOC visit are managed in the EMR. Use this section to confirm the SOC compliance result in CCAP." Items="SocItems" OnComplete="CompleteComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" />
     <ComplianceGroup Title="Admission Compliance" Description="These confirmations correspond to the Excel Phase 2 checklist and determine when the Admission stage is complete." Items="AdmissionItems" OnComplete="CompleteComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" />
     <ComplianceGroup Title="Ongoing Care & Recertification" Description="Use these confirmations when applicable during the active episode. TIF/ROC are workflow events; permanent transfer is handled only in Final Outcome." Items="Phase3Items" OnComplete="CompleteComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" />
@@ -38,7 +60,8 @@
  private bool IsSaving; private bool IsSavingDetails; private List<LookupOptionDto> CaseMixOptions = []; private string? ErrorMessage; private string? SavingRequirementCode;
  protected override async Task OnInitializedAsync(){ try{ CaseMixOptions = await LookupService.GetAsync("CaseMixType", true); } catch { CaseMixOptions = []; } }
  private IEnumerable<ComplianceItemDto> Items => Workflow.ComplianceItems ?? [];
- private IEnumerable<ComplianceItemDto> Phase1Items => Items.Where(x=>x.Phase==1 && x.RequirementCode!="INSURANCE_VERIFICATION");
+ private ComplianceItemDto? PreAuthItem => Items.FirstOrDefault(x => string.Equals(x.RequirementCode, "PRE_AUTH_RECEIVED", StringComparison.OrdinalIgnoreCase));
+ private IEnumerable<ComplianceItemDto> RemainingPhase1Items => Items.Where(x=>x.Phase==1 && !string.Equals(x.RequirementCode,"INSURANCE_VERIFICATION",StringComparison.OrdinalIgnoreCase) && !string.Equals(x.RequirementCode,"PRE_AUTH_RECEIVED",StringComparison.OrdinalIgnoreCase));
  private IEnumerable<ComplianceItemDto> SocItems => Items.Where(x=>string.Equals(x.RequirementCode,"SOC_COMPLIANT",StringComparison.OrdinalIgnoreCase));
  private IEnumerable<ComplianceItemDto> AdmissionItems => Items.Where(x=>x.Phase==2 && !string.Equals(x.RequirementCode,"SOC_COMPLIANT",StringComparison.OrdinalIgnoreCase));
  private IEnumerable<ComplianceItemDto> Phase3Items => Items.Where(x=>x.Phase>=3 && !string.Equals(x.RequirementCode,"DISCHARGE_SUMMARY_SIGNED",StringComparison.OrdinalIgnoreCase) && !string.Equals(x.RequirementCode,"NOMNC_SIGNED",StringComparison.OrdinalIgnoreCase) && !string.Equals(x.RequirementCode,"ROC",StringComparison.OrdinalIgnoreCase));

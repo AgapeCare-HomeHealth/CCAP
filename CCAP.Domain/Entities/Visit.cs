@@ -23,6 +23,10 @@ public sealed class Visit
     public string PatientName { get; private set; } = string.Empty;
     public string? ClinicianName { get; private set; }
     public string VisitType { get; private set; } = "Visit";
+    public string? TimeBlock { get; private set; }
+    public string? ConfirmationStatus { get; private set; }
+    public string? CallNotes { get; private set; }
+    public string? NotesFlag { get; private set; }
     public string? Location { get; private set; }
 
     public DateTime ScheduledDate { get; private set; }
@@ -57,6 +61,50 @@ public sealed class Visit
         AssignedUserId = assignedUserId;
         ScheduledDate = scheduledDate;
         Status = "Scheduled";
+    }
+
+    // Used for schedules entered manually from the Scheduling calendar.
+    // Patient identity is intentionally represented by PatientName because
+    // Care Coordinators may schedule a patient who is not yet matched in CCAP.
+    public static Visit CreateManualSchedule(
+        string patientName,
+        DateTime scheduledDate,
+        string timeBlock,
+        string confirmationStatus,
+        string? callNotes,
+        Guid clinicianId,
+        string visitType,
+        string? visitStatus,
+        string? notesFlag,
+        Guid assignedUserId)
+    {
+        if (string.IsNullOrWhiteSpace(patientName))
+            throw new ArgumentException("Patient name is required.", nameof(patientName));
+        if (string.IsNullOrWhiteSpace(timeBlock))
+            throw new ArgumentException("Time block is required.", nameof(timeBlock));
+        if (string.IsNullOrWhiteSpace(confirmationStatus))
+            throw new ArgumentException("Confirmation status is required.", nameof(confirmationStatus));
+        if (clinicianId == Guid.Empty)
+            throw new ArgumentException("Assigned clinician is required.", nameof(clinicianId));
+        if (string.IsNullOrWhiteSpace(visitType))
+            throw new ArgumentException("Visit type is required.", nameof(visitType));
+        if (assignedUserId == Guid.Empty)
+            throw new ArgumentException("Assigned user ID is required.", nameof(assignedUserId));
+
+        return new Visit
+        {
+            VisitId = Guid.NewGuid(),
+            PatientName = patientName.Trim(),
+            ClinicianId = clinicianId,
+            AssignedUserId = assignedUserId,
+            ScheduledDate = scheduledDate,
+            TimeBlock = timeBlock.Trim(),
+            ConfirmationStatus = confirmationStatus.Trim(),
+            CallNotes = string.IsNullOrWhiteSpace(callNotes) ? null : callNotes.Trim(),
+            VisitType = visitType.Trim(),
+            Status = string.IsNullOrWhiteSpace(visitStatus) ? "Scheduled" : visitStatus.Trim(),
+            NotesFlag = string.IsNullOrWhiteSpace(notesFlag) ? null : notesFlag.Trim()
+        };
     }
 
     // Used for imported external schedules. No Patient entity is required.

@@ -35,6 +35,7 @@ public sealed class UserRepository : IUserRepository
         }
 
         return await _context.ApplicationUsers
+            .Include(x => x.Role)
             .AsNoTracking()
             .Where(x => ids.Contains(x.UserId))
             .ToListAsync(cancellationToken);

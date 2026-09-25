@@ -30,6 +30,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<ServiceType> ServiceTypes => Set<ServiceType>();
     public DbSet<PatientServiceOrder> PatientServiceOrders => Set<PatientServiceOrder>();
     public DbSet<ReferralDocument> ReferralDocuments => Set<ReferralDocument>();
+    public DbSet<PatientComplianceDocument> PatientComplianceDocuments => Set<PatientComplianceDocument>();
     public DbSet<Location> Locations => Set<Location>();
     public DbSet<NotificationReadState> NotificationReadStates => Set<NotificationReadState>();
     public DbSet<PatientAuditLog> PatientAuditLogs => Set<PatientAuditLog>();
@@ -400,6 +401,10 @@ public sealed class AppDbContext : DbContext
             e.HasIndex(x => x.AssignedUserId);
             e.Property(x => x.ClinicianName).HasMaxLength(300);
             e.Property(x => x.VisitType).HasMaxLength(100).IsRequired();
+            e.Property(x => x.TimeBlock).HasMaxLength(100);
+            e.Property(x => x.ConfirmationStatus).HasMaxLength(100);
+            e.Property(x => x.CallNotes);
+            e.Property(x => x.NotesFlag);
             e.Property(x => x.Location).HasMaxLength(500);
             e.HasOne(x => x.Patient).WithMany(x => x.Visits)
                 .HasForeignKey(x => x.PatientId)
@@ -413,6 +418,21 @@ public sealed class AppDbContext : DbContext
                 .HasForeignKey(x => x.ClinicianId)
                 .OnDelete(DeleteBehavior.Restrict)
                 .IsRequired(false);
+        });
+
+        modelBuilder.Entity<PatientComplianceDocument>(e =>
+        {
+            e.ToTable("PatientComplianceDocuments");
+            e.HasKey(x => x.PatientComplianceDocumentId);
+            e.Property(x => x.RequirementCode).HasMaxLength(100).IsRequired();
+            e.Property(x => x.StorageKey).HasMaxLength(500);
+            e.Property(x => x.OriginalFileName).HasMaxLength(255).IsRequired();
+            e.Property(x => x.ContentType).HasMaxLength(100).IsRequired();
+            e.Property(x => x.FileSize).IsRequired();
+            e.Property(x => x.UploadedAt).IsRequired();
+            e.Property(x => x.UploadedByUserId).IsRequired();
+            e.HasOne(x => x.Patient).WithMany().HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.PatientId, x.RequirementCode, x.UploadedAt });
         });
 
         modelBuilder.Entity<ReferralDocument>(e =>

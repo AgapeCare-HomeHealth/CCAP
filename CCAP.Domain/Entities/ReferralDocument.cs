@@ -24,7 +24,7 @@ public sealed class ReferralDocument
 
     public ReferralDocument(
         Guid referralId,
-        string storageKey,
+        string? storageKey,
         string originalFileName,
         string contentType,
         long fileSize)

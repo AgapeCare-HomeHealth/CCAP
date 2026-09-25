@@ -56,7 +56,7 @@ public sealed class NotificationRepository
             .Select(x => new NotificationDto(
                 x.VisitId,
                 x.PatientId!.Value,
-                x.Patient.FirstName + " " +
+                x.Patient!.FirstName + " " +
                     x.Patient.LastName,
                 "Visit",
                 "Upcoming patient visit",

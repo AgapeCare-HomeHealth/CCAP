@@ -8,5 +8,6 @@ public interface IVisitRepository
     Task<Visit?> GetByIdForUpdateAsync(Guid visitId, CancellationToken cancellationToken);
     Task<Visit?> FindDuplicateAsync(Guid userId, Guid patientId, DateTime scheduledDate, CancellationToken cancellationToken);
     Task<Visit?> FindImportedDuplicateAsync(Guid userId, string patientName, DateTime scheduledDate, CancellationToken cancellationToken);
+    Task<Visit?> FindScheduleDuplicateAsync(Guid userId, string patientName, DateTime scheduledDate, string timeBlock, CancellationToken cancellationToken);
     Task AddAsync(Visit visit, CancellationToken cancellationToken);
 }

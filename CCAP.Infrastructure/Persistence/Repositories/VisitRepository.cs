@@ -34,6 +34,25 @@ public sealed class VisitRepository : IVisitRepository
             cancellationToken);
     }
 
+    public Task<Visit?> FindScheduleDuplicateAsync(
+        Guid userId,
+        string patientName,
+        DateTime scheduledDate,
+        string timeBlock,
+        CancellationToken cancellationToken)
+    {
+        var normalizedName = NormalizeName(patientName);
+        var normalizedTimeBlock = timeBlock.Trim().ToUpperInvariant();
+
+        return _context.Visits.FirstOrDefaultAsync(
+            x => x.AssignedUserId == userId &&
+                 x.ScheduledDate == scheduledDate &&
+                 x.PatientName.ToUpper() == normalizedName &&
+                 x.TimeBlock != null &&
+                 x.TimeBlock.ToUpper() == normalizedTimeBlock,
+            cancellationToken);
+    }
+
     private static string NormalizeName(string value) =>
         string.Join(" ", value.Trim().ToUpperInvariant()
             .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));

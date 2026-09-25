@@ -543,7 +543,7 @@
             await ShowFailedAlert(
                 ex.Message);
         }
-        catch (HttpRequestException ex)
+        catch (HttpRequestException)
         {
             await ShowErrorAlert(
                 "Unable to communicate with the API. " +

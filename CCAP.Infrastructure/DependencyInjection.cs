@@ -10,6 +10,8 @@ using CCAP.Infrastructure.Storage.Local;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using CCAP.Infrastructure.Scheduling;
+using CCAP.Infrastructure.Storage.AzureBlob;
 
 namespace CCAP.Infrastructure;
 
@@ -76,6 +78,11 @@ public static class DependencyInjection
         services.AddScoped<
             IReferralDocumentRepository,
             ReferralDocumentRepository>();
+
+        services.AddScoped<
+            IPatientComplianceDocumentRepository,
+            PatientComplianceDocumentRepository>();
+
 
         services.AddScoped<
             IServiceTypeRepository,

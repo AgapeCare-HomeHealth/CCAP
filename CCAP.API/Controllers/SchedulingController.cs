@@ -1,6 +1,7 @@
 using CCAP.API.Authorization;
 using CCAP.Application.Abstractions.Scheduling;
 using CCAP.Application.Features.Scheduling.Import;
+using CCAP.Application.Features.Scheduling.Commands.AddSchedules;
 using CCAP.Application.Features.Scheduling.Queries.GetCalendarVisits;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -35,6 +36,37 @@ public sealed class SchedulingController : ControllerBase
         return Ok(await _sender.Send(
             new GetCalendarVisitsQuery(userId, startDate, endDate),
             cancellationToken));
+    }
+
+    [HttpPost]
+    [Authorize(Policy = PermissionPolicies.PatientsManage)]
+    public async Task<IActionResult> AddSchedules(
+        [FromBody] List<AddScheduleItem> schedules,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+            return Unauthorized();
+
+        try
+        {
+            var result = await _sender.Send(
+                new AddSchedulesCommand(userId, schedules),
+                cancellationToken);
+
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPost("import/preview")]

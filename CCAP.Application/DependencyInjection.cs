@@ -22,8 +22,12 @@ using CCAP.Application.Features.Patients.Commands.ScheduleSoc;
 using CCAP.Application.Features.Patients.Commands.UpdateInsurance;
 using CCAP.Application.Features.Patients.Commands.UpdatePatient;
 using CCAP.Application.Features.Patients.Commands.UpdateWorkflowDetails;
+using CCAP.Application.Features.Patients.Commands.UploadPreAuthDocument;
+using CCAP.Application.Features.Patients.Queries.GetPreAuthDocument;
+using CCAP.Application.Features.Patients.Queries.GetPreAuthDocumentFile;
 using CCAP.Application.Features.Patients.Commands.CompleteTask;
 using CCAP.Application.Features.Referrals.Commands.CreateReferralIntake;
+using CCAP.Application.Features.Scheduling.Commands.AddSchedules;
 using CCAP.Application.Features.Users.Commands.ActivateUser;
 using CCAP.Application.Features.Users.Commands.CreateUser;
 using CCAP.Application.Features.Users.Commands.DeactivateUser;
@@ -144,7 +148,18 @@ public static class DependencyInjection
         services.AddTransient<IRequestValidator<UpdateInsuranceCommand>, UpdateInsuranceCommandValidator>();
         services.AddTransient<IRequestValidator<UpdatePatientCommand>, UpdatePatientCommandValidator>();
         services.AddTransient<IRequestValidator<UpdateWorkflowDetailsCommand>, UpdateWorkflowDetailsCommandValidator>();
+        services.AddTransient<IRequestValidator<UploadPreAuthDocumentCommand>, UploadPreAuthDocumentValidator>();
+        services.AddTransient<IRequestValidator<GetPreAuthDocumentQuery>, GetPreAuthDocumentQueryValidator>();
+        services.AddTransient<IRequestValidator<GetPreAuthDocumentFileQuery>, GetPreAuthDocumentFileQueryValidator>();
         services.AddTransient<IRequestValidator<CompleteTaskCommand>, CompleteTaskCommandValidator>();
+
+        // =========================================================
+        // SCHEDULING
+        // =========================================================
+
+        services.AddTransient<
+            IRequestValidator<AddSchedulesCommand>,
+            AddSchedulesCommandValidator>();
 
         // =========================================================
         // AUTHENTICATION

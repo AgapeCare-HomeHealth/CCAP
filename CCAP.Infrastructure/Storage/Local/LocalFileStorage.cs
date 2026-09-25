@@ -44,9 +44,14 @@ public sealed class LocalFileStorage : IFileStorage
 
         Directory.CreateDirectory(directory);
 
+        var safeFileName = Path.GetFileName(fileName);
+        if (string.IsNullOrWhiteSpace(safeFileName))
+            throw new ArgumentException("A valid file name is required.", nameof(fileName));
+
+        var storedFileName = $"{Guid.NewGuid():N}-{safeFileName}";
         var fullPath = Path.Combine(
             directory,
-            fileName);
+            storedFileName);
 
         await using var output = new FileStream(
             fullPath,
@@ -63,7 +68,7 @@ public sealed class LocalFileStorage : IFileStorage
 
         return new StoredFile(
             fullPath,
-            fileName,
+            safeFileName,
             contentType,
             size);
     }

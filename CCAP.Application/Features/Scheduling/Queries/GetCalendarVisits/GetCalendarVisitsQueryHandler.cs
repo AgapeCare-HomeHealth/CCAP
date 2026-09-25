@@ -36,9 +36,13 @@ public sealed class GetCalendarVisitsQueryHandler
             ScheduledDate = x.ScheduledDate,
             CompletedDate = x.CompletedDate,
             Status = x.Status,
+            TimeBlock = x.TimeBlock,
+            ConfirmationStatus = x.ConfirmationStatus,
+            CallNotes = x.CallNotes,
             Clinician = x.Clinician is null
                 ? (x.ClinicianName ?? "Unassigned")
                 : $"{x.Clinician.FirstName} {x.Clinician.LastName}".Trim(),
+            NotesFlag = x.NotesFlag,
             Notes = x.Notes
         }).ToList();
     }

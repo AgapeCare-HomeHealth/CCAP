@@ -382,71 +382,6 @@ namespace CCAP.Infrastructure.Migrations
                     b.ToTable("NotificationReadStates", "dbo");
                 });
 
-            modelBuilder.Entity("CCAP.Domain.Entities.LookupOption", b =>
-                {
-                    b.Property<Guid>("LookupOptionId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("DisplayName")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("LookupType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("int");
-
-                    b.HasKey("LookupOptionId");
-
-                    b.HasIndex("LookupType", "Code")
-                        .IsUnique();
-
-                    b.HasIndex("LookupType", "IsActive", "SortOrder");
-
-                    b.ToTable("LookupOptions", (string)null);
-                });
-
-            modelBuilder.Entity("CCAP.Domain.Entities.NotificationReadState", b =>
-                {
-                    b.Property<Guid>("NotificationReadStateId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("NotificationId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("NotificationType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime>("ReadAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("NotificationReadStateId");
-
-                    b.HasIndex("UserId", "NotificationId", "NotificationType")
-                        .IsUnique();
-
-                    b.ToTable("NotificationReadStates", (string)null);
-                });
-
             modelBuilder.Entity("CCAP.Domain.Entities.Patient", b =>
                 {
                     b.Property<Guid>("PatientId")
@@ -728,100 +663,6 @@ namespace CCAP.Infrastructure.Migrations
                     b.ToTable("PatientCareLogs", "dbo");
                 });
 
-            modelBuilder.Entity("CCAP.Domain.Entities.PatientAuditLog", b =>
-                {
-                    b.Property<Guid>("PatientAuditLogId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<string>("EntityId")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("EntityType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("NewValues")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("OccurredAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("OldValues")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("PatientId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("PerformedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("PatientAuditLogId");
-
-                    b.HasIndex("PerformedByUserId");
-
-                    b.HasIndex("PatientId", "OccurredAt");
-
-                    b.ToTable("PatientAuditLogs", (string)null);
-                });
-
-            modelBuilder.Entity("CCAP.Domain.Entities.PatientCareLog", b =>
-                {
-                    b.Property<Guid>("PatientCareLogId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Item")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("LogType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<Guid>("PatientId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal?>("Quantity")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime>("RecordedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("RecordedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Unit")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.HasKey("PatientCareLogId");
-
-                    b.HasIndex("RecordedByUserId");
-
-                    b.HasIndex("PatientId", "LogType", "RecordedAt");
-
-                    b.ToTable("PatientCareLogs", (string)null);
-                });
-
             modelBuilder.Entity("CCAP.Domain.Entities.PatientServiceOrder", b =>
                 {
                     b.Property<Guid>("PatientServiceOrderId")
@@ -1032,6 +873,32 @@ namespace CCAP.Infrastructure.Migrations
                     b.ToTable("Referrals", "dbo");
                 });
 
+            modelBuilder.Entity("CCAP.Domain.Entities.PatientComplianceDocument", b =>
+                {
+                    b.Property<Guid>("PatientComplianceDocumentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+                    b.Property<string>("ContentType")
+                        .IsRequired().HasMaxLength(100).HasColumnType("nvarchar(100)");
+                    b.Property<long>("FileSize")
+                        .HasColumnType("bigint");
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired().HasMaxLength(255).HasColumnType("nvarchar(255)");
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uniqueidentifier");
+                    b.Property<string>("RequirementCode")
+                        .IsRequired().HasMaxLength(100).HasColumnType("nvarchar(100)");
+                    b.Property<string>("StorageKey")
+                        .HasMaxLength(500).HasColumnType("nvarchar(500)");
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("datetime2");
+                    b.Property<Guid>("UploadedByUserId")
+                        .HasColumnType("uniqueidentifier");
+                    b.HasKey("PatientComplianceDocumentId");
+                    b.HasIndex("PatientId", "RequirementCode", "UploadedAt");
+                    b.ToTable("PatientComplianceDocuments", "dbo");
+                });
+
             modelBuilder.Entity("CCAP.Domain.Entities.ReferralDocument", b =>
                 {
                     b.Property<Guid>("ReferralDocumentId")
@@ -1215,6 +1082,20 @@ namespace CCAP.Infrastructure.Migrations
                     b.Property<string>("Location")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("TimeBlock")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ConfirmationStatus")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("CallNotes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("NotesFlag")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Notes")
                         .HasColumnType("nvarchar(max)");
@@ -1473,6 +1354,16 @@ namespace CCAP.Infrastructure.Migrations
 
                     b.Navigation("Location");
 
+                    b.Navigation("Patient");
+                });
+
+            modelBuilder.Entity("CCAP.Domain.Entities.PatientComplianceDocument", b =>
+                {
+                    b.HasOne("CCAP.Domain.Entities.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                     b.Navigation("Patient");
                 });
 
