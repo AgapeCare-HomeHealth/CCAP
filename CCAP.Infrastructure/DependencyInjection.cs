@@ -79,9 +79,6 @@ public static class DependencyInjection
             IReferralDocumentRepository,
             ReferralDocumentRepository>();
 
-        services.AddScoped<
-            IPatientComplianceDocumentRepository,
-            PatientComplianceDocumentRepository>();
 
 
         services.AddScoped<

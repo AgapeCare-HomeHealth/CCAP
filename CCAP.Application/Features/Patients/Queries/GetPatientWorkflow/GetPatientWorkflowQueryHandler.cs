@@ -584,7 +584,7 @@ public sealed class GetPatientWorkflowQueryHandler
                 "Referral Document",
 
             "INSURANCE_VERIFICATION" =>
-                "Insurance Verification",
+                "Insurance Document Verification",
 
             "PHYSICIAN_ORDERS" =>
                 "Physician Orders",

@@ -1,5 +1,4 @@
 using CCAP.Web.Features.Authentication.Services;
-using Microsoft.AspNetCore.Components.Forms;
 using CCAP.Web.Features.MockData;
 using CCAP.Web.Features.Tracker.PatientWorkflow.Models;
 
@@ -78,17 +77,6 @@ public sealed class PatientWorkflowService
         await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 
-    public async Task CompleteInsuranceVerificationAsync(
-        Guid patientId,
-        CancellationToken cancellationToken = default)
-    {
-        var response = await _api.PostAsJsonAsync(
-            $"api/patients/{patientId}/insurance/verify",
-            new { },
-            cancellationToken);
-
-        await _api.EnsureSuccessAsync(response, cancellationToken);
-    }
 
     public async Task UpdateInsuranceAsync(
         Guid patientId,
@@ -138,63 +126,8 @@ public sealed class PatientWorkflowService
         await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 
-    public async Task<PreAuthDocumentDto?> GetPreAuthDocumentAsync(
-        Guid patientId,
-        CancellationToken cancellationToken = default)
-    {
-        if (_options.Enabled)
-            return null;
 
-        return await _api.GetFromJsonAsync<PreAuthDocumentDto>(
-            $"api/patients/{patientId}/compliance/pre-auth/document",
-            cancellationToken);
-    }
 
-    public async Task UploadPreAuthDocumentAsync(
-        Guid patientId,
-        IBrowserFile file,
-        CancellationToken cancellationToken = default)
-    {
-        if (_options.Enabled)
-            throw new InvalidOperationException("Document uploads require the real API.");
-
-        await using var stream = file.OpenReadStream(10 * 1024 * 1024);
-        using var content = new MultipartFormDataContent();
-        using var streamContent = new StreamContent(stream);
-
-        if (!string.IsNullOrWhiteSpace(file.ContentType))
-            streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
-
-        content.Add(streamContent, "file", file.Name);
-
-        var response = await _api.PostMultipartAsync(
-            $"api/patients/{patientId}/compliance/pre-auth/document",
-            content,
-            cancellationToken);
-
-        await _api.EnsureSuccessAsync(response, cancellationToken);
-    }
-
-    public async Task<(byte[] Content, string ContentType)?> GetPreAuthDocumentFileAsync(
-        Guid patientId,
-        CancellationToken cancellationToken = default)
-    {
-        if (_options.Enabled)
-            return null;
-
-        using var response = await _api.GetAsync(
-            $"api/patients/{patientId}/compliance/pre-auth/document/file",
-            cancellationToken);
-
-        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-            return null;
-
-        await _api.EnsureSuccessAsync(response, cancellationToken);
-
-        var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-        var contentType = response.Content.Headers.ContentType?.MediaType ?? "application/octet-stream";
-        return (bytes, contentType);
-    }
 
     public async Task UpdateWorkflowDetailsAsync(Guid patientId, WorkflowDetailsDto model, CancellationToken cancellationToken = default)
     {

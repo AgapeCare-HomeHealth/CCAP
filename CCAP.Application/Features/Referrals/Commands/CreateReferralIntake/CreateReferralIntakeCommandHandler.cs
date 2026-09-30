@@ -295,7 +295,7 @@ public sealed class CreateReferralIntakeCommandHandler
 
         // Insurance verification is represented once as a workflow confirmation;
         // the Insurance tab and Compliance tab operate on this same record.
-        await AddCompliance(patient.PatientId, "INSURANCE_VERIFICATION", "Insurance eligibility and authorization were reviewed and confirmed.", cancellationToken);
+        await AddCompliance(patient.PatientId, "INSURANCE_VERIFICATION", "Review the insurance document in the EMR and confirm the insurance name, member ID, and authorization details match. Mark this item complete only after everything has been verified.", cancellationToken);
 
         // =============================================================
         // COMPLIANCE REQUIREMENTS

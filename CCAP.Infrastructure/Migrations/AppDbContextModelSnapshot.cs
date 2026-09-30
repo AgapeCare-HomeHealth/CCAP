@@ -873,32 +873,6 @@ namespace CCAP.Infrastructure.Migrations
                     b.ToTable("Referrals", "dbo");
                 });
 
-            modelBuilder.Entity("CCAP.Domain.Entities.PatientComplianceDocument", b =>
-                {
-                    b.Property<Guid>("PatientComplianceDocumentId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-                    b.Property<string>("ContentType")
-                        .IsRequired().HasMaxLength(100).HasColumnType("nvarchar(100)");
-                    b.Property<long>("FileSize")
-                        .HasColumnType("bigint");
-                    b.Property<string>("OriginalFileName")
-                        .IsRequired().HasMaxLength(255).HasColumnType("nvarchar(255)");
-                    b.Property<Guid>("PatientId")
-                        .HasColumnType("uniqueidentifier");
-                    b.Property<string>("RequirementCode")
-                        .IsRequired().HasMaxLength(100).HasColumnType("nvarchar(100)");
-                    b.Property<string>("StorageKey")
-                        .HasMaxLength(500).HasColumnType("nvarchar(500)");
-                    b.Property<DateTime>("UploadedAt")
-                        .HasColumnType("datetime2");
-                    b.Property<Guid>("UploadedByUserId")
-                        .HasColumnType("uniqueidentifier");
-                    b.HasKey("PatientComplianceDocumentId");
-                    b.HasIndex("PatientId", "RequirementCode", "UploadedAt");
-                    b.ToTable("PatientComplianceDocuments", "dbo");
-                });
-
             modelBuilder.Entity("CCAP.Domain.Entities.ReferralDocument", b =>
                 {
                     b.Property<Guid>("ReferralDocumentId")
@@ -1354,16 +1328,6 @@ namespace CCAP.Infrastructure.Migrations
 
                     b.Navigation("Location");
 
-                    b.Navigation("Patient");
-                });
-
-            modelBuilder.Entity("CCAP.Domain.Entities.PatientComplianceDocument", b =>
-                {
-                    b.HasOne("CCAP.Domain.Entities.Patient", "Patient")
-                        .WithMany()
-                        .HasForeignKey("PatientId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
                     b.Navigation("Patient");
                 });
 

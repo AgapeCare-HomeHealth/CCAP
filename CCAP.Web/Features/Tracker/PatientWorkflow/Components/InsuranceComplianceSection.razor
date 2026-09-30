@@ -6,8 +6,8 @@
 @inject PatientWorkflowService WorkflowService
 @inject LookupOptionService LookupService
 
-<div class="card shadow-sm border-0 mb-4 insurance-compliance-section">
-    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+<div class="border rounded p-3 mb-3 insurance-compliance-section">
+    <div class="d-flex justify-content-between align-items-center">
         <div>
             <h5 class="mb-1">Insurance Information</h5>
             <small class="text-muted">Review the insurance details and confirm the insurance document received from the Care Coordinator.</small>
@@ -23,7 +23,7 @@
         }
     </div>
 
-    <div class="card-body">
+    <div class="pt-3">
         @if (!string.IsNullOrWhiteSpace(ErrorMessage))
         {
             <div class="alert alert-danger">@ErrorMessage</div>
@@ -57,21 +57,6 @@
                 <i class="bi bi-pencil me-1"></i>Edit Information
             </button>
 
-            @if (!IsVerified)
-            {
-                <button type="button" class="btn btn-success" @onclick="VerifyInsurance" disabled="@IsProcessing">
-                    @if (IsProcessing)
-                    {
-                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-                        <span>Verifying...</span>
-                    }
-                    else
-                    {
-                        <i class="bi bi-shield-check me-1"></i>
-                        <span>Verify Insurance</span>
-                    }
-                </button>
-            }
         </div>
 
         @if (IsVerified)
@@ -200,26 +185,6 @@
             IsEditing = false;
             EditModel = new InsuranceEditModel();
             await ReloadWorkflow();
-        }
-        catch (Exception ex) { ErrorMessage = ex.Message; }
-        finally { IsProcessing = false; }
-    }
-
-    private async Task VerifyInsurance()
-    {
-        if (Workflow is null || IsProcessing) return;
-        IsProcessing = true;
-        ErrorMessage = null;
-        try
-        {
-            if (string.IsNullOrWhiteSpace(Workflow.Summary.Insurance))
-            {
-                ErrorMessage = "Primary insurance is required before verification.";
-                return;
-            }
-            await WorkflowService.CompleteInsuranceVerificationAsync(PatientId);
-            await ReloadWorkflow();
-            if (OnCompleted.HasDelegate) await OnCompleted.InvokeAsync();
         }
         catch (Exception ex) { ErrorMessage = ex.Message; }
         finally { IsProcessing = false; }
