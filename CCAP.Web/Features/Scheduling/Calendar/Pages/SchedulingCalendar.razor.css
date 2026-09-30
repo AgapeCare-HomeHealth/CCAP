@@ -936,6 +936,11 @@
    ADD SCHEDULE MODAL
    ========================================== */
 
+/* SweetAlert2 must be above the scheduling modal when displaying save results. */
+.swal2-container {
+    z-index: 2200 !important;
+}
+
 .add-schedule-overlay {
     position: fixed;
     inset: 0;
@@ -1221,4 +1226,12 @@
 .add-schedule-options-error {
     background: #fef2f2;
     border: 1px solid #fecaca;
+}
+
+
+.btn-download-template {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    text-decoration: none;
 }

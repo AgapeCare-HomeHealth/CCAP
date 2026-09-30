@@ -63,8 +63,8 @@ public sealed class AddSchedulesCommandHandler : IRequestHandler<AddSchedulesCom
 
         foreach (var row in request.Schedules)
         {
-            var scheduledDate = row.Date!.Value.Date;
-            var key = BuildDuplicateKey(row.PatientName, scheduledDate, row.TimeBlock);
+            var scheduledDate = row.Date!.Value.Date.Add(ParseStartTime(row.TimeBlock));
+            var key = BuildDuplicateKey(row.PatientName, scheduledDate.Date, row.TimeBlock);
 
             if (!existingKeys.Add(key))
             {
@@ -77,6 +77,7 @@ public sealed class AddSchedulesCommandHandler : IRequestHandler<AddSchedulesCom
                 row.PatientName,
                 scheduledDate,
                 row.TimeBlock,
+                row.VisitType,
                 cancellationToken);
 
             if (existing is not null)
@@ -141,13 +142,40 @@ public sealed class AddSchedulesCommandHandler : IRequestHandler<AddSchedulesCom
                 throw new InvalidOperationException(
                     $"Invalid visit type: '{row.VisitType}'.");
 
+            // "Scheduled" is the system/default status for a newly-created
+            // calendar visit. It is intentionally allowed even when the
+            // admin-managed VisitStatus lookup only contains workflow
+            // statuses such as Completed/Missed/Rescheduled/Cancelled.
             if (!string.IsNullOrWhiteSpace(row.VisitStatus) &&
+                !string.Equals(row.VisitStatus.Trim(), "Scheduled", StringComparison.OrdinalIgnoreCase) &&
                 !visitStatusNames.Contains(row.VisitStatus.Trim()))
             {
                 throw new InvalidOperationException(
                     $"Invalid visit status: '{row.VisitStatus}'.");
             }
         }
+    }
+
+    private static TimeSpan ParseStartTime(string timeBlock)
+    {
+        var normalized = timeBlock.Trim().Replace('–', '-');
+        var separator = normalized.IndexOf('-');
+
+        if (separator < 0)
+            throw new ArgumentException($"Invalid time block: '{timeBlock}'.", nameof(timeBlock));
+
+        var startText = normalized[..separator].Trim();
+
+        if (!DateTime.TryParse(
+                startText,
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AllowWhiteSpaces,
+                out var start))
+        {
+            throw new ArgumentException($"Invalid time block: '{timeBlock}'.", nameof(timeBlock));
+        }
+
+        return start.TimeOfDay;
     }
 
     private static string BuildDuplicateKey(

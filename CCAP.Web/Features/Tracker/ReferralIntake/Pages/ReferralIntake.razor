@@ -368,150 +368,36 @@
         switch (CurrentStep)
         {
             case 1:
-
-                // =====================================================
-                // NEW REFERRAL
-                // =====================================================
-
-                if (!Model.ReferralDraftId.HasValue)
-                {
-                    if (Model.ReferralPdf is null)
-                    {
-                        ErrorMessage =
-                            "Please upload the referral PDF.";
-
-                        return false;
-                    }
-
-                    if (!Model.ReferralPdf.Name.EndsWith(
-                            ".pdf",
-                            StringComparison.OrdinalIgnoreCase))
-                    {
-                        ErrorMessage =
-                            "Only PDF files are accepted.";
-
-                        return false;
-                    }
-
-                    break;
-                }
-
-                // =====================================================
-                // EXISTING DRAFT
-                // =====================================================
-
-                // The PDF itself is not stored yet.
-                // Existing draft metadata is enough to show
-                // the previously uploaded file in Step 1.
-
-                if (string.IsNullOrWhiteSpace(
-                        Model.ReferralPdfFileName))
-                {
-                    ErrorMessage =
-                        "The referral PDF information is missing.";
-
-                    return false;
-                }
-
-                if (!Model.ReferralPdfFileName.EndsWith(
-                        ".pdf",
-                        StringComparison.OrdinalIgnoreCase))
-                {
-                    ErrorMessage =
-                        "The saved referral file is not a PDF.";
-
-                    return false;
-                }
-
-                break;
+                // Uploading a PDF is optional. If supplied, Step 1 extracts
+                // whatever fields it can and the user can review/edit them.
+                return true;
 
             case 2:
-
                 if (string.IsNullOrWhiteSpace(Model.FirstName))
                 {
-                    ErrorMessage =
-                        "First name is required.";
-
+                    ErrorMessage = "First name is required.";
                     return false;
                 }
 
                 if (string.IsNullOrWhiteSpace(Model.LastName))
                 {
-                    ErrorMessage =
-                        "Last name is required.";
-
+                    ErrorMessage = "Last name is required.";
                     return false;
                 }
 
-                break;
+                if (Model.DateOfBirth is null)
+                {
+                    ErrorMessage = "Date of birth is required.";
+                    return false;
+                }
 
+                return true;
+
+            // Referral, assignment, and scheduling fields are optional at
+            // intake because most details are already available in the EMR.
             case 3:
-
-                if (string.IsNullOrWhiteSpace(
-                        Model.ReferralNumber))
-                {
-                    ErrorMessage =
-                        "Referral number is required.";
-
-                    return false;
-                }
-
-                if (Model.ReferralDate.Date >
-                    DateTime.Today)
-                {
-                    ErrorMessage =
-                        "Referral date cannot be in the future.";
-
-                    return false;
-                }
-
-                if (string.IsNullOrWhiteSpace(
-                        Model.ReferralSource))
-                {
-                    ErrorMessage =
-                        "Referral source is required.";
-
-                    return false;
-                }
-
-                break;
-
             case 4:
-
-                if (Model.CoordinatorId is null)
-                {
-                    ErrorMessage =
-                        "Please select a care coordinator.";
-
-                    return false;
-                }
-
-                if (Model.DisciplineId is null)
-                {
-                    ErrorMessage =
-                        "Please select a discipline.";
-
-                    return false;
-                }
-
-                if (Model.SocDate is null)
-                {
-                    ErrorMessage =
-                        "Please select the SOC date.";
-
-                    return false;
-                }
-
-                if (string.IsNullOrWhiteSpace(
-                        Model.CaseStatus))
-                {
-                    ErrorMessage =
-                        "Please select the case status.";
-
-                    return false;
-                }
-
-                break;
+                return true;
         }
 
         return true;

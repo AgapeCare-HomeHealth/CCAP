@@ -3,15 +3,10 @@
 @using Microsoft.JSInterop
 @using CCAP.Web.Features.Scheduling.Calendar.Models
 @using CCAP.Web.Features.Scheduling.Calendar.Services
-@using CCAP.Web.Features.Admin.Users.Models
-@using CCAP.Web.Features.Admin.Users.Services
-@using CCAP.Web.Features.Admin.LookupOptions.Models
-@using CCAP.Web.Features.Admin.LookupOptions.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @inject CalendarService CalendarService
-@inject UserServices UserService
-@inject LookupOptionService LookupService
 @inject IJSRuntime JS
-@attribute [CcapAuthorize(Policy = "referrals.view")]
+@attribute [CcapAuthorize(Policy = "scheduling.view")]
 
 <div class="scheduling-calendar-page">
 
@@ -22,20 +17,30 @@
             <p>View schedules assigned to your CCAP account from the care scheduling system.</p>
         </div>
 
-        <div class="calendar-page-actions">
-            <button type="button"
-                    class="btn-add-schedule"
-                    @onclick="OpenAddSchedule">
-                <span>+</span>
-                Add Schedule
-            </button>
+        @if (CanManageScheduling)
+        {
+            <div class="calendar-page-actions">
+                <button type="button"
+                        class="btn-add-schedule"
+                        @onclick="OpenAddSchedule">
+                    <span>+</span>
+                    Add Schedule
+                </button>
 
-            <label class="btn-upload-csv" style="cursor:pointer;">
-                <span>↑</span>
-                Import Schedule
-                <InputFile OnChange="HandleScheduleFileSelected" accept=".xlsx,.csv" style="display:none;" />
-            </label>
-        </div>
+                <label class="btn-upload-csv" style="cursor:pointer;">
+                    <span>↑</span>
+                    Import Schedule
+                    <InputFile OnChange="HandleScheduleFileSelected" accept=".xlsx,.csv" style="display:none;" />
+                </label>
+
+                <a class="btn-download-template"
+                   href="/templates/CC_Sched_Import_Template.xlsx"
+                   download="CC_Sched_Import_Template.xlsx">
+                    <span>↓</span>
+                    Download Template
+                </a>
+            </div>
+        }
     </div>
 
 
@@ -675,56 +680,68 @@
                         <thead>
                             <tr>
                                 <th>Action</th>
-                                <th>Scheduled Visit</th>
+                                <th>Date</th>
+                                <th>Day</th>
+                                <th>Time Block</th>
+                                <th>Patient Name</th>
+                                <th>Confirmation Status</th>
+                                <th>Call Notes</th>
+                                <th>Assigned Clinician</th>
+                                <th>Type of Visit</th>
+                                <th>Visit Status</th>
+                                <th>Notes / Flag</th>
                                 <th>Existing Schedule</th>
-                                <th>New Import</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var item in ImportPreview)
-                            {
-                                <tr>
-                                    <td>
-                                        @if (item.IsDuplicate)
-                                        {
-                                            <label class="overwrite-choice">
-                                                <input type="checkbox" @bind="item.OverwriteExisting" />
-                                                <span>
-                                                    <strong>Overwrite this schedule</strong><br />
-                                                    <small>Unchecked = Keep existing</small>
-                                                </span>
-                                            </label>
-                                        }
-                                        else
-                                        {
-                                            <span class="badge bg-success">New — Add</span>
-                                        }
+                        @foreach (var item in ImportPreview)
+                        {
+                            <tr>
+                                <td>
+                                    @if (item.IsDuplicate)
+                                    {
+                                        <label class="overwrite-choice">
+                                            <input type="checkbox" @bind="item.OverwriteExisting" />
+                                            <span>
+                                                <strong>Overwrite</strong><br />
+                                                <small>Unchecked = Keep</small>
+                                            </span>
+                                        </label>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success">New — Add</span>
+                                    }
 
-                                        @if (item.HasWarning)
-                                        {
-                                            <div class="small text-warning-emphasis mt-2">
-                                                <strong>Warning:</strong> @item.ValidationMessage
-                                            </div>
-                                        }
-                                    </td>
-                                    <td>
-                                        <strong>@item.PatientName</strong><br />
-                                        <span>@item.ScheduledDate.ToString("MMM d, yyyy h:mm tt")</span>
-                                    </td>
-                                    <td>
-                                        @(item.IsDuplicate
-                                            ? $"{item.ExistingClinicianName} — {item.ExistingStatus}"
-                                            : "None")
-                                    </td>
-                                    <td>
-                                        <strong>@item.ClinicianName</strong>
-                                        @if (!string.IsNullOrWhiteSpace(item.Location))
-                                        {
-                                            <br /><small>@item.Location</small>
-                                        }
-                                    </td>
-                                </tr>
-                            }
+                                    @if (item.HasWarning)
+                                    {
+                                        <div class="text-warning-emphasis mt-2">
+                                            <strong>Warning:</strong> @item.ValidationMessage
+                                        </div>
+                                    }
+                                </td>
+                                <td>@item.ScheduledDate.ToString("MMM d, yyyy")</td>
+                                <td>@item.ScheduledDate.ToString("dddd")</td>
+                                <td>@item.TimeBlock</td>
+                                <td><strong>@item.PatientName</strong></td>
+                                <td>@item.ConfirmationStatus</td>
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(item.CallNotes))
+                                    {
+                                        <span>@item.CallNotes</span>
+                                    }
+                                </td>
+                                <td>@item.ClinicianName</td>
+                                <td>@item.VisitType</td>
+                                <td>@item.VisitStatus</td>
+                                <td>@item.NotesFlag</td>
+                                <td>
+                                    @(item.IsDuplicate
+                                        ? $"{item.ExistingClinicianName} — {item.ExistingStatus}"
+                                        : "None")
+                                </td>
+                            </tr>
+                        }
                         </tbody>
                     </table>
                 </div>
@@ -756,6 +773,10 @@
 }
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private bool CanManageScheduling;
 
     private CalendarView CurrentView = CalendarView.Month;
 
@@ -793,6 +814,14 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (AuthenticationStateTask is not null)
+        {
+            var authState = await AuthenticationStateTask;
+            CanManageScheduling = authState.User.HasClaim(
+                "permission",
+                "scheduling.manage");
+        }
+
         GenerateCalendarDays();
         await LoadSchedulesAsync();
     }
@@ -1015,10 +1044,10 @@
     private List<ScheduleImportPreviewItem> ImportPreview = [];
     private List<AddScheduleRow> AddScheduleRows = [];
 
-    private List<UserDto> Clinicians = [];
-    private List<LookupOptionDto> ConfirmationStatuses = [];
-    private List<LookupOptionDto> VisitTypes = [];
-    private List<LookupOptionDto> VisitStatuses = [];
+    private List<SchedulingClinicianDto> Clinicians = [];
+    private List<SchedulingLookupOptionDto> ConfirmationStatuses = [];
+    private List<SchedulingLookupOptionDto> VisitTypes = [];
+    private List<SchedulingLookupOptionDto> VisitStatuses = [];
 
     private readonly string[] TimeBlocks =
     {
@@ -1051,30 +1080,12 @@
 
         try
         {
-            var usersTask = UserService.GetUsersAsync();
-            var confirmationTask = LookupService.GetAsync("ConfirmationStatus", true);
-            var visitTypesTask = LookupService.GetAsync("VisitType", true);
-            var visitStatusesTask = LookupService.GetAsync("VisitStatus", true);
+            var options = await CalendarService.GetSchedulingOptionsAsync();
 
-            await Task.WhenAll(usersTask, confirmationTask, visitTypesTask, visitStatusesTask);
-
-            Clinicians = (await usersTask)
-                .Where(x => x.IsActive && string.Equals(x.Role, "Clinician", StringComparison.OrdinalIgnoreCase))
-                .OrderBy(x => x.LastName)
-                .ThenBy(x => x.FirstName)
-                .ToList();
-
-            ConfirmationStatuses = (await confirmationTask)
-                .OrderBy(x => x.SortOrder)
-                .ToList();
-
-            VisitTypes = (await visitTypesTask)
-                .OrderBy(x => x.SortOrder)
-                .ToList();
-
-            VisitStatuses = (await visitStatusesTask)
-                .OrderBy(x => x.SortOrder)
-                .ToList();
+            Clinicians = options.Clinicians;
+            ConfirmationStatuses = options.ConfirmationStatuses;
+            VisitTypes = options.VisitTypes;
+            VisitStatuses = options.VisitStatuses;
         }
         catch (Exception ex)
         {
@@ -1107,13 +1118,110 @@
 
     private async Task SaveAddedSchedules()
     {
-        // Backend/CQRS save will be implemented in a later step.
-        await ShowScheduleLoadingAsync(
-            "Coming Next",
-            "The Add Schedule form is ready. Saving schedules will be connected in the backend step.");
+        if (AddScheduleRows.Count == 0)
+            return;
 
-        await Task.Delay(500);
-        await CloseScheduleAlertAsync();
+        if (AddScheduleRows.Any(row =>
+            !row.Date.HasValue ||
+            string.IsNullOrWhiteSpace(row.TimeBlock) ||
+            string.IsNullOrWhiteSpace(row.PatientName) ||
+            string.IsNullOrWhiteSpace(row.ConfirmationStatus) ||
+            !row.AssignedClinicianId.HasValue ||
+            string.IsNullOrWhiteSpace(row.VisitType)))
+        {
+            await ShowScheduleErrorAsync(
+                "Incomplete Schedule",
+                "Complete Date, Time Block, Patient Name, Confirmation Status, Assigned Clinician, and Type of Visit for every row.");
+            return;
+        }
+
+        IsImporting = true;
+
+        await ShowScheduleLoadingAsync(
+            "Saving Schedules",
+            "Saving schedules to the CCAP calendar...");
+
+        try
+        {
+            var items = AddScheduleRows.Select(row => new AddScheduleItem
+            {
+                Date = row.Date,
+                TimeBlock = row.TimeBlock.Trim(),
+                PatientName = row.PatientName.Trim(),
+                ConfirmationStatus = row.ConfirmationStatus.Trim(),
+                CallNotes = string.IsNullOrWhiteSpace(row.CallNotes)
+                    ? null
+                    : row.CallNotes.Trim(),
+                AssignedClinicianId = row.AssignedClinicianId,
+                VisitType = row.VisitType.Trim(),
+                VisitStatus = string.IsNullOrWhiteSpace(row.VisitStatus)
+                    ? "Scheduled"
+                    : row.VisitStatus.Trim(),
+                NotesFlag = string.IsNullOrWhiteSpace(row.NotesFlag)
+                    ? null
+                    : row.NotesFlag.Trim()
+            }).ToList();
+
+            var result = await CalendarService.AddSchedulesAsync(items);
+
+            // Close the Add Schedule modal and force a render before opening
+            // the SweetAlert result. The custom modal has a higher z-index than
+            // SweetAlert, so waiting for the render prevents the success dialog
+            // from appearing behind the form.
+            ShowAddSchedule = false;
+            AddScheduleRows.Clear();
+            IsImporting = false;
+
+            await CloseScheduleAlertAsync();
+            await LoadSchedulesAsync();
+            await InvokeAsync(StateHasChanged);
+            await Task.Delay(50);
+
+            var message =
+                $"{result.Added} schedule(s) added" +
+                (result.SkippedDuplicates > 0
+                    ? $", {result.SkippedDuplicates} duplicate(s) skipped."
+                    : ".");
+
+            if (result.SkippedDuplicates > 0)
+            {
+                await ShowScheduleWarningAsync(
+                    "Schedules Saved with Warnings",
+                    message);
+            }
+            else
+            {
+                await ShowScheduleSuccessAsync(
+                    "Schedules Saved",
+                    message);
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            await CloseScheduleAlertAsync();
+            await ShowScheduleErrorAsync(
+                "Save Failed",
+                GetScheduleErrorMessage(ex));
+        }
+        catch (InvalidOperationException ex)
+        {
+            await CloseScheduleAlertAsync();
+            await ShowScheduleErrorAsync(
+                "Schedule Validation Failed",
+                GetScheduleErrorMessage(ex));
+        }
+        catch (Exception ex)
+        {
+            await CloseScheduleAlertAsync();
+            await ShowScheduleErrorAsync(
+                "Save Failed",
+                GetScheduleErrorMessage(ex));
+        }
+        finally
+        {
+            IsImporting = false;
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private sealed class AddScheduleRow

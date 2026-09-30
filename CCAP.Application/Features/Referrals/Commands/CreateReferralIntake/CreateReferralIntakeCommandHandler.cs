@@ -83,29 +83,50 @@ public sealed class CreateReferralIntakeCommandHandler
         }
 
         // =========================================================
+        // DEFAULT IDENTIFIERS
+        // =========================================================
+        // MRN and referral number are system identifiers. They are not
+        // intake requirements because the EMR may contain them already
+        // or the referral document may not provide them. Generate stable
+        // values when they are absent.
+        // =========================================================
+
+        var mrn = string.IsNullOrWhiteSpace(request.MRN)
+            ? $"MRN-{Guid.NewGuid():N}"
+            : request.MRN.Trim();
+
+        var referralNumber = string.IsNullOrWhiteSpace(request.ReferralNumber)
+            ? $"REF-{Guid.NewGuid():N}"
+            : request.ReferralNumber.Trim();
+
+        var referralDate = request.ReferralDate == default
+            ? DateTime.UtcNow
+            : request.ReferralDate;
+
+        // =========================================================
         // DUPLICATE CHECKS
         // =========================================================
 
         var existingPatient =
             await _patients.GetByMrnAsync(
-                request.MRN,
+                mrn,
                 cancellationToken);
 
         if (existingPatient is not null)
         {
             throw new InvalidOperationException(
-                $"A patient with MRN '{request.MRN}' already exists.");
+                $"A patient with MRN '{mrn}' already exists.");
         }
 
         var referralExists =
             await _referrals.ExistsByReferralNumberAsync(
-                request.ReferralNumber,
+                referralNumber,
                 cancellationToken);
 
         if (referralExists)
         {
             throw new InvalidOperationException(
-                $"Referral number '{request.ReferralNumber}' already exists.");
+                $"Referral number '{referralNumber}' already exists.");
         }
 
         // =========================================================
@@ -134,7 +155,7 @@ public sealed class CreateReferralIntakeCommandHandler
 
         var patient =
             new Patient(
-                request.MRN,
+                mrn,
                 request.FirstName,
                 request.LastName);
 
@@ -175,8 +196,8 @@ public sealed class CreateReferralIntakeCommandHandler
 
         var referral =
             new Referral(
-                request.ReferralNumber,
-                request.ReferralDate,
+                referralNumber,
+                referralDate,
                 request.ReferralSource,
                 request.Priority,
                 location.LocationId,
