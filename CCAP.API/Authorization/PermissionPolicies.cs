@@ -30,6 +30,8 @@ public static class PermissionPolicies
     public const string OrdersManage = "orders.manage";
     public const string LookupOptionsView = "lookups.view";
     public const string LookupOptionsManage = "lookups.manage";
+    public const string SchedulingView = "scheduling.view";
+    public const string SchedulingManage = "scheduling.manage";
 
     public static void AddCcapPolicies(this IServiceCollection services)
     {
@@ -63,6 +65,8 @@ public static class PermissionPolicies
             Add(options, OrdersManage);
             Add(options, LookupOptionsView);
             Add(options, LookupOptionsManage);
+            Add(options, SchedulingView);
+            Add(options, SchedulingManage);
         });
     }
 

@@ -3,6 +3,7 @@ using CCAP.API.Authorization;
 using CCAP.Application.Features.ReferralDrafts.Queries;
 using CCAP.Application.Features.Referrals.Commands.CreateReferralIntake;
 using CCAP.Application.Features.Referrals.Commands.SaveReferralDraft;
+using CCAP.Application.Abstractions.Referrals;
 using CCAP.Application.Features.ReferralDrafts.Queries.GetReferralDraftById;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -18,13 +19,17 @@ namespace CCAP.API.Controllers;
 public sealed class ReferralController : ControllerBase
 {
     private readonly ISender _sender;
+    private readonly IReferralDocumentExtractionService _documentExtraction;
 
     private const long MaxFileSize =
         10 * 1024 * 1024; // 10 MB
 
-    public ReferralController(ISender sender)
+    public ReferralController(
+        ISender sender,
+        IReferralDocumentExtractionService documentExtraction)
     {
         _sender = sender;
+        _documentExtraction = documentExtraction;
     }
 
     // =========================================================
@@ -103,6 +108,42 @@ public sealed class ReferralController : ControllerBase
                     innerException =
                         ex.InnerException?.Message
                 });
+        }
+    }
+
+    // ========================================================
+    // EXTRACT REFERRAL PDF
+    // ========================================================
+
+    [HttpPost("extract")]
+    [Authorize(Policy = PermissionPolicies.ReferralsManage)]
+    [RequestSizeLimit(MaxFileSize)]
+    public async Task<IActionResult> ExtractReferral(
+    IFormFile pdf,
+    CancellationToken cancellationToken)
+    {
+        if (pdf is null || pdf.Length <= 0)
+            return BadRequest(new { message = "Please upload a non-empty referral PDF." });
+
+        if (!pdf.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { message = "Only PDF files are accepted." });
+
+        if (pdf.Length > MaxFileSize)
+            return BadRequest(new { message = "Referral PDF cannot exceed 10 MB." });
+
+        try
+        {
+            await using Stream stream = pdf.OpenReadStream();
+
+            var result = await _documentExtraction.ExtractAsync(
+                stream,
+                cancellationToken);
+
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return UnprocessableEntity(new { message = ex.Message });
         }
     }
 
@@ -250,9 +291,9 @@ public sealed class ReferralController : ControllerBase
             var result = await _sender.Send(
                 new CreateReferralIntakeCommand(
                     request.ReferralDraftId,
-                    request.MRN,
+                    request.MRN ?? string.Empty,
                     request.FirstName,
-                    request.MiddleName,
+                    request.MiddleName ?? string.Empty,
                     request.LastName,
 
                     request.DateOfBirth,
@@ -270,7 +311,7 @@ public sealed class ReferralController : ControllerBase
                     request.EmergencyContactRelationship,
                     request.EmergencyContactPhone,
 
-                    request.ReferralNumber,
+                    request.ReferralNumber ?? string.Empty,
                     request.ReferralDate,
                     request.ReferralSource,
                     request.Priority,

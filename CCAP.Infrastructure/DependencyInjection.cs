@@ -12,6 +12,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using CCAP.Infrastructure.Scheduling;
 using CCAP.Infrastructure.Storage.AzureBlob;
+using CCAP.Application.Abstractions.Referrals;
+using CCAP.Infrastructure.Referrals;
 
 namespace CCAP.Infrastructure;
 
@@ -62,6 +64,8 @@ public static class DependencyInjection
             VisitRepository>();
 
         services.AddScoped<IScheduleImportService, ScheduleImportService>();
+
+        services.AddScoped<IReferralDocumentExtractionService, ReferralDocumentExtractionService>();
 
         services.AddScoped<
             IReferralRepository,

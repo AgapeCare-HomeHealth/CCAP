@@ -39,17 +39,20 @@ public sealed class VisitRepository : IVisitRepository
         string patientName,
         DateTime scheduledDate,
         string timeBlock,
+        string visitType,
         CancellationToken cancellationToken)
     {
         var normalizedName = NormalizeName(patientName);
         var normalizedTimeBlock = timeBlock.Trim().ToUpperInvariant();
+        var normalizedVisitType = visitType.Trim().ToUpperInvariant();
 
         return _context.Visits.FirstOrDefaultAsync(
             x => x.AssignedUserId == userId &&
-                 x.ScheduledDate == scheduledDate &&
+                 x.ScheduledDate.Date == scheduledDate.Date &&
                  x.PatientName.ToUpper() == normalizedName &&
                  x.TimeBlock != null &&
-                 x.TimeBlock.ToUpper() == normalizedTimeBlock,
+                 x.TimeBlock.ToUpper() == normalizedTimeBlock &&
+                 x.VisitType.ToUpper() == normalizedVisitType,
             cancellationToken);
     }
 

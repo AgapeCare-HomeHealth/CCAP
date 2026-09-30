@@ -1801,3 +1801,23 @@ The schedule importer prefers native Excel date values, supports common explicit
 Imported schedules are now persisted even when the patient is not yet present/matched in CCAP. The Visits record stores the imported patient/clinician names and schedule metadata, while PatientId and ClinicianId are optional links when CCAP records are available. Matching remains useful for linking a schedule to a patient but is not an import prerequisite.
 
 The schedule review modal closes before the SweetAlert loading dialog opens, so success/error alerts cannot appear behind the review modal. Close and Cancel explicitly clear the pending review when the import is not running. Mapping warnings use Proceed with Caution and do not block saving.
+
+## Scheduling authorization/import compile fix (2026-09-29)
+
+- `ScheduleImportResult` is defined once in `CCAP.Application.Abstractions.Scheduling` so `IScheduleImportService` and `ScheduleImportService` use the same return type.
+- Scheduling clinician DTOs expose a computed `FullName` property used by the calendar UI.
+- The scheduling import remains protected by `scheduling.manage`; calendar/options remain protected by `scheduling.view`.
+- The canonical import template is `CCAP.Web/wwwroot/templates/CC_Sched_Import_Template.xlsx`.
+
+## Referral PDF extraction / OCR
+
+New Referral now treats only **First Name + Last Name + Date of Birth** as required at final submission. MRN, referral number, referral metadata, assignment, SOC, insurance, physician, diagnosis, and service fields may be populated later because the EMR is the source of truth.
+
+When a referral PDF is uploaded in Step 1, CCAP calls `POST /api/referrals/extract`:
+
+- Digital PDF: reads the PDF text layer directly.
+- Scanned PDF: extracts embedded page images and runs Tesseract OCR.
+- Extracted values are written into the wizard for review/editing; they are not silently treated as authoritative.
+- Drafts preserve the extracted structured values so reopening a draft does not require re-extraction.
+
+Before testing scanned PDFs, run `setup-referral-ocr.ps1` or place `eng.traineddata` in `CCAP/CCAP.API/tessdata` on the API server. The OCR wrapper also requires the Microsoft Visual C++ 2022 runtime on Windows hosts.

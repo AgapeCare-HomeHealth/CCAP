@@ -4,25 +4,40 @@ using CCAP.Application.Features.Scheduling.Import;
 using CCAP.Domain.Entities;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
-using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 
 namespace CCAP.Infrastructure.Scheduling;
 
 public sealed class ScheduleImportService : IScheduleImportService
 {
+    private static readonly HashSet<string> ClinicianCredentials =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "RN", "LVN", "HHA", "PT", "OT", "ST", "MSW", "LCSW", "NP", "MD"
+        };
+
     private readonly IPatientRepository _patients;
+    private readonly IUserRepository _users;
     private readonly IVisitRepository _visits;
     private readonly IUnitOfWork _unitOfWork;
 
-    public ScheduleImportService(IPatientRepository patients, IVisitRepository visits, IUnitOfWork unitOfWork)
+    public ScheduleImportService(
+        IPatientRepository patients,
+        IUserRepository users,
+        IVisitRepository visits,
+        IUnitOfWork unitOfWork)
     {
         _patients = patients;
+        _users = users;
         _visits = visits;
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<IReadOnlyList<ScheduleImportPreviewItem>> PreviewAsync(Guid userId, Stream fileStream, string fileName, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<ScheduleImportPreviewItem>> PreviewAsync(
+        Guid userId,
+        Stream fileStream,
+        string fileName,
+        CancellationToken cancellationToken)
     {
         var extension = Path.GetExtension(fileName);
 
@@ -39,7 +54,7 @@ public sealed class ScheduleImportService : IScheduleImportService
         {
             rows = string.Equals(extension, ".csv", StringComparison.OrdinalIgnoreCase)
                 ? ReadCsvSchedule(fileStream)
-                : ReadSchedule(fileStream);
+                : ReadExcelSchedule(fileStream);
         }
         catch (OpenXmlPackageException)
         {
@@ -60,66 +75,79 @@ public sealed class ScheduleImportService : IScheduleImportService
         if (rows.Count == 0)
         {
             throw new InvalidOperationException(
-                "The uploaded file does not contain any scheduled visits. " +
-                "Make sure it follows the weekly schedule format with dates, time slots, and patient names.");
+                "The uploaded schedule does not contain any valid rows.");
         }
 
         var patients = await _patients.GetAllAsync(cancellationToken);
-        var result = new List<ScheduleImportPreviewItem>();
+        var users = await _users.GetAllAsync(cancellationToken);
+
+        var clinicians = users
+            .Where(x =>
+                x.IsActive &&
+                x.Role is not null &&
+                string.Equals(
+                    x.Role.RoleName,
+                    "Clinician",
+                    StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var result = new List<ScheduleImportPreviewItem>(rows.Count);
 
         foreach (var row in rows)
         {
-            // Patient matching is optional. An imported schedule is an
-            // external scheduling record and must be persisted even when the
-            // patient has not yet been created or matched in CCAP.
-            var patient = patients.FirstOrDefault(p =>
-                NormalizeName($"{p.FirstName} {p.LastName}") == NormalizeName(row.PatientName) ||
-                NormalizeName($"{p.LastName}, {p.FirstName}") == NormalizeName(row.PatientName));
+            var patient = FindPatient(patients, row.PatientName);
+            var clinician = FindClinician(clinicians, row.AssignedClinician);
 
             var item = new ScheduleImportPreviewItem
             {
                 RowNumber = row.RowNumber,
                 PatientName = row.PatientName,
                 PatientId = patient?.PatientId,
-                ClinicianId = patient?.ClinicianId,
-                ClinicianName = patient?.Clinician is null
-                    ? "Unassigned"
-                    : $"{patient.Clinician.FirstName} {patient.Clinician.LastName}".Trim(),
                 ScheduledDate = row.ScheduledDate,
+                TimeBlock = row.TimeBlock,
+                ConfirmationStatus = row.ConfirmationStatus,
+                CallNotes = row.CallNotes,
+                ClinicianId = clinician?.UserId,
+                ClinicianName = row.AssignedClinician,
                 VisitType = row.VisitType,
-                Location = row.Location,
-                Notes = row.Notes,
-                // Missing Patient/Clinician mappings are warnings, not
-                // import blockers. The imported text is retained on Visit.
+                VisitStatus = row.VisitStatus,
+                NotesFlag = row.NotesFlag,
                 CanImport = true
             };
 
-            Visit? duplicate = null;
+            var warnings = new List<string>();
 
-            if (patient is not null)
-            {
-                duplicate = await _visits.FindDuplicateAsync(
-                    userId,
-                    patient.PatientId,
-                    row.ScheduledDate,
-                    cancellationToken);
+            if (patient is null)
+                warnings.Add("Patient was not found in CCAP. The original patient name will be stored on the schedule.");
 
-                // Also recognize a previously imported schedule that was
-                // saved before the patient was matched in CCAP.
-                duplicate ??= await _visits.FindImportedDuplicateAsync(
-                    userId,
-                    row.PatientName,
-                    row.ScheduledDate,
-                    cancellationToken);
-            }
-            else
+            if (string.IsNullOrWhiteSpace(row.AssignedClinician))
+                warnings.Add("Assigned clinician is blank.");
+            else if (clinician is null)
+                warnings.Add(
+                    $"Assigned clinician '{row.AssignedClinician}' was not matched to an active CCAP clinician. The original name will be retained.");
+
+            if (string.IsNullOrWhiteSpace(row.ConfirmationStatus))
+                warnings.Add("Confirmation Status is blank.");
+
+            if (string.IsNullOrWhiteSpace(row.VisitType))
+                warnings.Add("Type of Visit is blank.");
+
+            if (string.IsNullOrWhiteSpace(row.VisitStatus))
+                warnings.Add("Visit Status is blank. The schedule will use Scheduled.");
+
+            if (warnings.Count > 0)
             {
-                duplicate = await _visits.FindImportedDuplicateAsync(
-                    userId,
-                    row.PatientName,
-                    row.ScheduledDate,
-                    cancellationToken);
+                item.HasWarning = true;
+                item.ValidationMessage = string.Join(" ", warnings);
             }
+
+            var duplicate = await _visits.FindScheduleDuplicateAsync(
+                userId,
+                row.PatientName,
+                row.ScheduledDate,
+                row.TimeBlock,
+                row.VisitType,
+                cancellationToken);
 
             if (duplicate is not null)
             {
@@ -133,26 +161,16 @@ public sealed class ScheduleImportService : IScheduleImportService
                         : $"{duplicate.Clinician.FirstName} {duplicate.Clinician.LastName}".Trim());
             }
 
-            if (patient is null)
-            {
-                item.HasWarning = true;
-                item.ValidationMessage =
-                    "Patient was not found in CCAP. The schedule will still be saved as an external schedule.";
-            }
-            else if (!patient.ClinicianId.HasValue)
-            {
-                item.HasWarning = true;
-                item.ValidationMessage =
-                    "Patient has no assigned clinician in CCAP. The schedule will still be saved as unassigned.";
-            }
-
             result.Add(item);
         }
 
         return result;
     }
 
-    public async Task<ScheduleImportResult> CommitAsync(Guid userId, IReadOnlyList<ScheduleImportCommitItem> items, CancellationToken cancellationToken)
+    public async Task<ScheduleImportResult> CommitAsync(
+        Guid userId,
+        IReadOnlyList<ScheduleImportCommitItem> items,
+        CancellationToken cancellationToken)
     {
         if (items.Count == 0)
             throw new ArgumentException("No schedules were selected for import.");
@@ -163,30 +181,13 @@ public sealed class ScheduleImportService : IScheduleImportService
 
         foreach (var item in items)
         {
-            Visit? existing = null;
-
-            if (item.PatientId.HasValue)
-            {
-                existing = await _visits.FindDuplicateAsync(
-                    userId,
-                    item.PatientId.Value,
-                    item.ScheduledDate,
-                    cancellationToken);
-
-                existing ??= await _visits.FindImportedDuplicateAsync(
-                    userId,
-                    item.PatientName,
-                    item.ScheduledDate,
-                    cancellationToken);
-            }
-            else
-            {
-                existing = await _visits.FindImportedDuplicateAsync(
-                    userId,
-                    item.PatientName,
-                    item.ScheduledDate,
-                    cancellationToken);
-            }
+            var existing = await _visits.FindScheduleDuplicateAsync(
+                userId,
+                item.PatientName,
+                item.ScheduledDate,
+                item.TimeBlock,
+                item.VisitType,
+                cancellationToken);
 
             if (existing is not null)
             {
@@ -199,13 +200,16 @@ public sealed class ScheduleImportService : IScheduleImportService
                 existing.UpdateImportedSchedule(
                     item.PatientName,
                     item.ScheduledDate,
+                    item.TimeBlock,
+                    item.ConfirmationStatus,
+                    item.CallNotes,
                     item.ClinicianName,
                     item.PatientId,
                     item.ClinicianId,
                     userId,
                     item.VisitType,
-                    item.Location,
-                    item.Notes);
+                    item.VisitStatus,
+                    item.NotesFlag);
 
                 overwritten++;
                 continue;
@@ -214,19 +218,23 @@ public sealed class ScheduleImportService : IScheduleImportService
             var importedVisit = Visit.CreateImportedSchedule(
                 item.PatientName,
                 item.ScheduledDate,
+                item.TimeBlock,
+                item.ConfirmationStatus,
+                item.CallNotes,
                 item.ClinicianName,
                 item.PatientId,
                 item.ClinicianId,
                 userId,
                 item.VisitType,
-                item.Location,
-                item.Notes);
+                item.VisitStatus,
+                item.NotesFlag);
 
             await _visits.AddAsync(importedVisit, cancellationToken);
             added++;
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
         return new ScheduleImportResult
         {
             Added = added,
@@ -236,240 +244,434 @@ public sealed class ScheduleImportService : IScheduleImportService
         };
     }
 
-    private static string NormalizeName(string value) =>
-        string.Join(" ", value.Trim().ToUpperInvariant().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+    private static Patient? FindPatient(
+        IEnumerable<Patient> patients,
+        string patientName)
+    {
+        var normalized = NormalizePersonName(patientName);
 
-    private sealed record ParsedRow(int RowNumber, string PatientName, DateTime ScheduledDate, string VisitType, string? Location, string? Notes);
+        return patients.FirstOrDefault(p =>
+            NormalizePersonName($"{p.FirstName} {p.LastName}") == normalized ||
+            NormalizePersonName($"{p.LastName}, {p.FirstName}") == normalized);
+    }
+
+    private static ApplicationUser? FindClinician(
+        IReadOnlyList<ApplicationUser> clinicians,
+        string? sourceName)
+    {
+        if (string.IsNullOrWhiteSpace(sourceName))
+            return null;
+
+        var normalizedSource = NormalizeClinicianName(sourceName);
+
+        // First try the complete name.
+        var exact = clinicians
+            .Where(x =>
+                NormalizePersonName($"{x.FirstName} {x.LastName}") == normalizedSource ||
+                NormalizePersonName($"{x.LastName}, {x.FirstName}") == normalizedSource)
+            .ToList();
+
+        if (exact.Count == 1)
+            return exact[0];
+
+        // The supplied template commonly contains first name + credential,
+        // e.g. "NICOLE LVN" or "MARK RN". If the first name is unique,
+        // use it as a safe fallback.
+        var firstName = normalizedSource.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault();
+
+        if (!string.IsNullOrWhiteSpace(firstName))
+        {
+            var firstNameMatches = clinicians
+                .Where(x => NormalizePersonName(x.FirstName) == firstName)
+                .ToList();
+
+            if (firstNameMatches.Count == 1)
+                return firstNameMatches[0];
+        }
+
+        return null;
+    }
+
+    private static string NormalizeClinicianName(string value)
+    {
+        var tokens = value
+            .Trim()
+            .ToUpperInvariant()
+            .Replace(",", " ")
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
+            .Where(x => !ClinicianCredentials.Contains(x))
+            .ToArray();
+
+        return NormalizePersonName(string.Join(" ", tokens));
+    }
+
+    private static string NormalizePersonName(string value) =>
+        string.Join(
+            " ",
+            value
+                .Trim()
+                .ToUpperInvariant()
+                .Replace(",", " ")
+                .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
+    private sealed record ParsedRow(
+        int RowNumber,
+        string PatientName,
+        DateTime ScheduledDate,
+        string TimeBlock,
+        string ConfirmationStatus,
+        string? CallNotes,
+        string AssignedClinician,
+        string VisitType,
+        string VisitStatus,
+        string? NotesFlag);
+
+    private static List<ParsedRow> ReadExcelSchedule(Stream stream)
+    {
+        if (stream.CanSeek)
+            stream.Position = 0;
+
+        using var document = SpreadsheetDocument.Open(stream, false);
+
+        var workbookPart = document.WorkbookPart
+            ?? throw new InvalidOperationException("The workbook is invalid.");
+
+        var sharedStrings =
+            workbookPart.SharedStringTablePart?.SharedStringTable;
+
+        var output = new List<ParsedRow>();
+        var foundTemplateSheet = false;
+
+        foreach (var sheet in workbookPart.Workbook.Sheets?.Elements<Sheet>() ?? [])
+        {
+            var worksheetPart =
+                (WorksheetPart)workbookPart.GetPartById(sheet.Id!.Value!);
+
+            var rows = worksheetPart.Worksheet
+                .GetFirstChild<SheetData>()?
+                .Elements<Row>()
+                .ToList() ?? [];
+
+            if (rows.Count == 0)
+                continue;
+
+            var headerRow = rows.FirstOrDefault(r =>
+                r.Elements<Cell>().Any(c =>
+                    string.Equals(
+                        GetCellValue(c, sharedStrings)?.Trim(),
+                        "Patient Name",
+                        StringComparison.OrdinalIgnoreCase)));
+
+            // Ignore worksheets that are not schedule data sheets.
+            // This allows the workbook to contain a blank "Template" sheet
+            // alongside one or more populated schedule sheets.
+            if (headerRow is null)
+                continue;
+
+            foundTemplateSheet = true;
+
+            var columns = BuildHeaderMap(headerRow, sharedStrings);
+            ValidateRequiredHeaders(columns);
+
+            foreach (var row in rows)
+            {
+                if (ReferenceEquals(row, headerRow))
+                    continue;
+
+                var patientName = GetMappedCell(
+                    row, columns, "Patient Name", sharedStrings)?.Trim();
+
+                if (string.IsNullOrWhiteSpace(patientName))
+                    continue;
+
+                var rowNumber = (int)(row.RowIndex?.Value ?? 0);
+
+                var dateText = GetMappedCell(
+                    row, columns, "Date", sharedStrings);
+
+                if (!TryParseScheduleDate(dateText, out var date))
+                    throw new InvalidOperationException(
+                        $"Sheet '{sheet.Name?.Value}' row {rowNumber}: Date is missing or invalid.");
+
+                var timeBlock = GetMappedCell(
+                    row, columns, "Time Block", sharedStrings)?.Trim();
+
+                if (string.IsNullOrWhiteSpace(timeBlock))
+                    throw new InvalidOperationException(
+                        $"Sheet '{sheet.Name?.Value}' row {rowNumber}: Time Block is required.");
+
+                ValidateTimeBlock(timeBlock);
+
+                var confirmationStatus = GetMappedCell(
+                    row, columns, "Confirmation Status", sharedStrings)?.Trim()
+                    ?? string.Empty;
+
+                var callNotes = GetMappedCell(
+                    row, columns, "Call Notes", sharedStrings)?.Trim();
+
+                var assignedClinician = GetMappedCell(
+                    row, columns, "Assigned Clinician", sharedStrings)?.Trim()
+                    ?? string.Empty;
+
+                var visitType = GetMappedCell(
+                    row, columns, "Type of Visit", sharedStrings)?.Trim();
+
+                var visitStatus = GetMappedCell(
+                    row, columns, "Visit Status", sharedStrings)?.Trim();
+
+                var notesFlag = GetMappedCell(
+                    row, columns, "Notes / Flag", sharedStrings)?.Trim();
+
+                output.Add(new ParsedRow(
+                    rowNumber,
+                    patientName,
+                    date.Date,
+                    timeBlock,
+                    confirmationStatus,
+                    NullIfEmpty(callNotes),
+                    assignedClinician,
+                    string.IsNullOrWhiteSpace(visitType) ? "Visit" : visitType,
+                    string.IsNullOrWhiteSpace(visitStatus) ? "Scheduled" : visitStatus,
+                    NullIfEmpty(notesFlag)));
+            }
+        }
+
+        if (!foundTemplateSheet)
+            throw new InvalidOperationException(
+                "The uploaded Excel file does not match the CC Sched template. The required schedule headers were not found.");
+
+        return output;
+    }
 
     private static List<ParsedRow> ReadCsvSchedule(Stream stream)
     {
-        if (stream.CanSeek) stream.Position = 0;
+        if (stream.CanSeek)
+            stream.Position = 0;
+
         using var reader = new StreamReader(stream, leaveOpen: true);
-        var lines = new List<string>();
+
+        var rows = new List<List<string>>();
+
         while (!reader.EndOfStream)
-            lines.Add(reader.ReadLine() ?? string.Empty);
+            rows.Add(ParseCsvLine(reader.ReadLine() ?? string.Empty));
 
-        var cells = lines.Select(ParseCsvLine).ToList();
-        if (cells.Count == 0) return [];
+        if (rows.Count == 0)
+            return [];
 
-        var dayGroups = new List<(int StartColumn, DateTime Date)>();
-        foreach (var row in cells.Take(8))
-        {
-            for (var i = 0; i < row.Count; i++)
-            {
-                if (TryParseScheduleDate(null, row[i], out var date))
-                    dayGroups.Add((i + 1, date.Date));
-            }
-        }
+        var headerIndex = rows.FindIndex(row =>
+            row.Any(cell =>
+                string.Equals(
+                    cell.Trim(),
+                    "Patient Name",
+                    StringComparison.OrdinalIgnoreCase)));
 
-        dayGroups = dayGroups
-            .GroupBy(x => new { x.StartColumn, Date = x.Date.Date })
-            .Select(x => x.First())
-            .ToList();
-
-        if (dayGroups.Count == 0)
+        if (headerIndex < 0)
             throw new InvalidOperationException(
-                "This file does not appear to be a weekly schedule. No schedule dates were found above the patient columns.");
+                "The uploaded CSV file does not match the CC Sched template. The 'Patient Name' header was not found.");
 
-        var hasTimeSlot = cells.Any(row =>
-            row.Count > 0 && TryParseTimeRange(row[0], out _, out _));
-
-        var headerText = string.Join(" ", cells.Take(8).SelectMany(x => x))
-            .ToUpperInvariant();
-
-        var hasPatientHeader = headerText.Contains("PATIENT");
-        var hasScheduleLayoutHeader =
-            headerText.Contains("CITY/ZIP") ||
-            headerText.Contains("CITY / ZIP") ||
-            headerText.Contains("ADD NOTES") ||
-            headerText.Contains("NOTES");
-
-        if (!hasTimeSlot || !hasPatientHeader || !hasScheduleLayoutHeader)
-        {
-            throw new InvalidOperationException(
-                "The uploaded file is not in the expected weekly schedule format. " +
-                "Expected dates, time slots, PATIENT, CITY/ZIP CODE, and ADD NOTES fields.");
-        }
+        var columns = BuildHeaderMap(rows[headerIndex]);
+        ValidateRequiredHeaders(columns);
 
         var output = new List<ParsedRow>();
-        for (var rowIndex = 0; rowIndex < cells.Count; rowIndex++)
+
+        for (var i = headerIndex + 1; i < rows.Count; i++)
         {
-            var row = cells[rowIndex];
-            var timeText = row.Count > 0 ? row[0] : null;
-            if (!TryParseTimeRange(timeText, out var start, out _)) continue;
-            foreach (var group in dayGroups)
-            {
-                var patient = GetCsvCell(row, group.StartColumn - 1)?.Trim();
-                if (string.IsNullOrWhiteSpace(patient)) continue;
-                var location = GetCsvCell(row, group.StartColumn)?.Trim();
-                var notes = GetCsvCell(row, group.StartColumn + 1)?.Trim();
-                var end = default(TimeSpan);
-                TryParseTimeRange(timeText, out _, out end);
-                output.Add(new ParsedRow(rowIndex + 1, patient, group.Date.Add(start), "Visit", location, notes));
-            }
-        }
-        if (output.Count == 0)
-            throw new InvalidOperationException(
-                "The uploaded file has the weekly schedule structure, but no patient schedules were found.");
+            var row = rows[i];
 
-        return output;
-    }
+            var patientName = GetMappedCell(
+                row, columns, "Patient Name")?.Trim();
 
-    private static string? GetCsvCell(List<string> row, int index) =>
-        index >= 0 && index < row.Count ? row[index] : null;
-
-    private static List<string> ParseCsvLine(string line)
-    {
-        var values = new List<string>();
-        var current = new System.Text.StringBuilder();
-        var quoted = false;
-        for (var i = 0; i < line.Length; i++)
-        {
-            var ch = line[i];
-            if (ch == '\"')
-            {
-                if (quoted && i + 1 < line.Length && line[i + 1] == '\"')
-                {
-                    current.Append('\"');
-                    i++;
-                }
-                else quoted = !quoted;
-            }
-            else if (ch == ',' && !quoted)
-            {
-                values.Add(current.ToString());
-                current.Clear();
-            }
-            else current.Append(ch);
-        }
-        values.Add(current.ToString());
-        return values;
-    }
-
-    private static List<ParsedRow> ReadSchedule(Stream stream)
-    {
-        if (stream.CanSeek) stream.Position = 0;
-
-        using var document = SpreadsheetDocument.Open(stream, false);
-        var workbookPart = document.WorkbookPart ?? throw new InvalidOperationException("The workbook is invalid.");
-        var sheet = workbookPart.Workbook.Sheets?.Elements<Sheet>().FirstOrDefault();
-        if (sheet is null)
-            throw new InvalidOperationException("The uploaded Excel file does not contain a worksheet.");
-
-        var worksheetPart = (WorksheetPart)workbookPart.GetPartById(sheet.Id!.Value!);
-        var rows = worksheetPart.Worksheet.GetFirstChild<SheetData>()?.Elements<Row>().ToList() ?? [];
-        var sharedStrings = workbookPart.SharedStringTablePart?.SharedStringTable;
-
-        // The real exported schedule is a single worksheet. Its layout follows
-        // the same grid as the reference CLINICAL WORK SCHED worksheet:
-        // time slots in column A, and each day occupying a group of columns
-        // (PATIENT, CITY/ZIP CODE, ADD NOTES) with the date above the group.
-        // Do not depend on a worksheet name.
-        var dayGroups = new List<(int StartColumn, DateTime Date)>();
-
-        foreach (var row in rows.Take(8))
-        {
-            foreach (var cell in row.Elements<Cell>())
-            {
-                var value = GetCellValue(cell, sharedStrings);
-                if (TryParseScheduleDate(cell, value, out var date))
-                {
-                    var column = ColumnIndex(cell.CellReference!.Value!);
-                    if (!dayGroups.Any(x => x.StartColumn == column && x.Date.Date == date.Date))
-                        dayGroups.Add((column, date.Date));
-                }
-            }
-        }
-
-        if (dayGroups.Count == 0)
-            throw new InvalidOperationException(
-                "This file does not appear to be a weekly schedule. No schedule dates were found above the patient columns.");
-
-        var headerText = string.Join(" ",
-                rows.Take(8)
-                    .SelectMany(r => r.Elements<Cell>())
-                    .Select(c => GetCellValue(c, sharedStrings) ?? string.Empty))
-            .ToUpperInvariant();
-
-        var hasTimeSlot = rows.Any(r =>
-        {
-            var timeCell = r.Elements<Cell>().FirstOrDefault(c =>
-                ColumnIndex(c.CellReference!.Value!) == 1);
-            return TryParseTimeRange(GetCellValue(timeCell, sharedStrings), out _, out _);
-        });
-
-        var hasPatientHeader = headerText.Contains("PATIENT");
-        var hasScheduleLayoutHeader =
-            headerText.Contains("CITY/ZIP") ||
-            headerText.Contains("CITY / ZIP") ||
-            headerText.Contains("ADD NOTES") ||
-            headerText.Contains("NOTES");
-
-        if (!hasTimeSlot || !hasPatientHeader || !hasScheduleLayoutHeader)
-        {
-            throw new InvalidOperationException(
-                "The uploaded file is not in the expected weekly schedule format. " +
-                "Expected dates, time slots, PATIENT, CITY/ZIP CODE, and ADD NOTES fields.");
-        }
-
-        var output = new List<ParsedRow>();
-        foreach (var row in rows)
-        {
-            var timeCell = row.Elements<Cell>().FirstOrDefault(c =>
-                ColumnIndex(c.CellReference!.Value!) == 1);
-            var timeText = GetCellValue(timeCell, sharedStrings);
-            if (!TryParseTimeRange(timeText, out var start, out var end))
+            if (string.IsNullOrWhiteSpace(patientName))
                 continue;
 
-            foreach (var group in dayGroups)
-            {
-                var patient = GetCellValue(GetCell(row, group.StartColumn), sharedStrings)?.Trim();
-                if (string.IsNullOrWhiteSpace(patient))
-                    continue;
+            var dateText = GetMappedCell(row, columns, "Date");
 
-                var location = GetCellValue(GetCell(row, group.StartColumn + 1), sharedStrings)?.Trim();
-                var notes = GetCellValue(GetCell(row, group.StartColumn + 2), sharedStrings)?.Trim();
-                output.Add(new ParsedRow(
-                    (int)(row.RowIndex?.Value ?? 0),
-                    patient,
-                    group.Date.Add(start),
-                    "Visit",
-                    location,
-                    notes));
-            }
+            if (!TryParseScheduleDate(dateText, out var date))
+                throw new InvalidOperationException(
+                    $"Row {i + 1}: Date is missing or invalid.");
+
+            var timeBlock = GetMappedCell(row, columns, "Time Block")?.Trim();
+
+            if (string.IsNullOrWhiteSpace(timeBlock))
+                throw new InvalidOperationException(
+                    $"Row {i + 1}: Time Block is required.");
+
+            ValidateTimeBlock(timeBlock);
+
+            var confirmationStatus =
+                GetMappedCell(row, columns, "Confirmation Status")?.Trim() ?? string.Empty;
+
+            var callNotes =
+                GetMappedCell(row, columns, "Call Notes")?.Trim();
+
+            var assignedClinician =
+                GetMappedCell(row, columns, "Assigned Clinician")?.Trim() ?? string.Empty;
+
+            var visitType =
+                GetMappedCell(row, columns, "Type of Visit")?.Trim();
+
+            var visitStatus =
+                GetMappedCell(row, columns, "Visit Status")?.Trim();
+
+            var notesFlag =
+                GetMappedCell(row, columns, "Notes / Flag")?.Trim();
+
+            output.Add(new ParsedRow(
+                i + 1,
+                patientName,
+                date.Date,
+                timeBlock,
+                confirmationStatus,
+                NullIfEmpty(callNotes),
+                assignedClinician,
+                string.IsNullOrWhiteSpace(visitType) ? "Visit" : visitType,
+                string.IsNullOrWhiteSpace(visitStatus) ? "Scheduled" : visitStatus,
+                NullIfEmpty(notesFlag)));
         }
-
-        if (output.Count == 0)
-            throw new InvalidOperationException(
-                "The uploaded file has the weekly schedule structure, but no patient schedules were found.");
 
         return output;
     }
 
-    private static Cell? GetCell(Row row, int column) => row.Elements<Cell>().FirstOrDefault(c => ColumnIndex(c.CellReference!.Value!) == column);
-
-    private static string? GetCellValue(Cell? cell, SharedStringTable? sharedStrings)
+    private static Dictionary<string, int> BuildHeaderMap(
+        Row headerRow,
+        SharedStringTable? sharedStrings)
     {
-        if (cell is null) return null;
+        var result = new Dictionary<string, int>(
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var cell in headerRow.Elements<Cell>())
+        {
+            var header = NormalizeHeader(
+                GetCellValue(cell, sharedStrings));
+
+            if (string.IsNullOrWhiteSpace(header))
+                continue;
+
+            result[header] =
+                ColumnIndex(cell.CellReference?.Value ?? string.Empty);
+        }
+
+        return result;
+    }
+
+    private static Dictionary<string, int> BuildHeaderMap(
+        IReadOnlyList<string> headerRow)
+    {
+        var result = new Dictionary<string, int>(
+            StringComparer.OrdinalIgnoreCase);
+
+        for (var i = 0; i < headerRow.Count; i++)
+        {
+            var header = NormalizeHeader(headerRow[i]);
+
+            if (!string.IsNullOrWhiteSpace(header))
+                result[header] = i;
+        }
+
+        return result;
+    }
+
+    private static void ValidateRequiredHeaders(
+        IReadOnlyDictionary<string, int> columns)
+    {
+        var required = new[]
+        {
+            "Date",
+            "Time Block",
+            "Patient Name",
+            "Confirmation Status",
+            "Assigned Clinician",
+            "Type of Visit"
+        };
+
+        var missing = required
+            .Where(x => !columns.ContainsKey(NormalizeHeader(x)))
+            .ToList();
+
+        if (missing.Count > 0)
+        {
+            throw new InvalidOperationException(
+                "The uploaded file does not match the CC Sched template. " +
+                $"Missing column(s): {string.Join(", ", missing)}.");
+        }
+    }
+
+    private static string NormalizeHeader(string? value) =>
+        string.Join(
+            " ",
+            (value ?? string.Empty)
+                .Trim()
+                .ToUpperInvariant()
+                .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
+    private static string? GetMappedCell(
+        Row row,
+        IReadOnlyDictionary<string, int> columns,
+        string header,
+        SharedStringTable? sharedStrings)
+    {
+        return columns.TryGetValue(NormalizeHeader(header), out var column)
+            ? GetCellValue(
+                GetCell(row, column),
+                sharedStrings)
+            : null;
+    }
+
+    private static string? GetMappedCell(
+        IReadOnlyList<string> row,
+        IReadOnlyDictionary<string, int> columns,
+        string header)
+    {
+        return columns.TryGetValue(NormalizeHeader(header), out var column) &&
+               column >= 0 &&
+               column < row.Count
+            ? row[column]
+            : null;
+    }
+
+    private static string? NullIfEmpty(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static Cell? GetCell(Row row, int column) =>
+        row.Elements<Cell>()
+            .FirstOrDefault(c =>
+                ColumnIndex(c.CellReference?.Value ?? string.Empty) == column);
+
+    private static string? GetCellValue(
+        Cell? cell,
+        SharedStringTable? sharedStrings)
+    {
+        if (cell is null)
+            return null;
+
         var value = cell.CellValue?.InnerText ?? cell.InnerText;
-        if (cell.DataType?.Value == CellValues.SharedString && int.TryParse(value, out var index))
+
+        if (cell.DataType?.Value == CellValues.SharedString &&
+            int.TryParse(value, out var index))
+        {
             return sharedStrings?.ElementAtOrDefault(index)?.InnerText;
-        if (cell.DataType?.Value == CellValues.InlineString) return cell.InlineString?.InnerText;
+        }
+
+        if (cell.DataType?.Value == CellValues.InlineString)
+            return cell.InlineString?.InnerText;
+
         return value;
     }
 
-    private static bool TryParseScheduleDate(Cell? cell, string? value, out DateTime date)
+    private static bool TryParseScheduleDate(
+        string? value,
+        out DateTime date)
     {
         date = default;
 
         if (string.IsNullOrWhiteSpace(value))
             return false;
 
-        // Excel stores real date cells as OLE Automation serial numbers.
-        // Prefer that value because it is unambiguous regardless of how
-        // Excel displays the date (MM/dd/yyyy, dd/MM/yyyy, etc.).
+        var text = value.Trim();
+
         if (double.TryParse(
-                value.Trim(),
+                text,
                 NumberStyles.Float,
                 CultureInfo.InvariantCulture,
                 out var serial))
@@ -486,15 +688,11 @@ public sealed class ScheduleImportService : IScheduleImportService
             }
             catch (ArgumentException)
             {
-                // Not a valid Excel/OLE date. Continue with text parsing.
+                // Continue with explicit text formats.
             }
         }
 
-        var text = value.Trim();
-
-        // Try formats whose meaning is not dependent on the current
-        // machine/browser culture.
-        var explicitFormats = new[]
+        var formats = new[]
         {
             "yyyy-MM-dd",
             "yyyy/MM/dd",
@@ -513,23 +711,23 @@ public sealed class ScheduleImportService : IScheduleImportService
             "dd MMMM yyyy"
         };
 
-        var candidates = new List<DateTime>();
-
-        foreach (var format in explicitFormats)
-        {
-            if (DateTime.TryParseExact(
+        var candidates = formats
+            .Select(format =>
+            {
+                return DateTime.TryParseExact(
                     text,
                     format,
                     CultureInfo.InvariantCulture,
                     DateTimeStyles.AllowWhiteSpaces,
                     out var parsed)
-                && parsed.Year >= 2000
-                && parsed.Year <= 2100)
-            {
-                if (!candidates.Any(x => x.Date == parsed.Date))
-                    candidates.Add(parsed.Date);
-            }
-        }
+                    ? parsed.Date
+                    : (DateTime?)null;
+            })
+            .Where(x => x.HasValue)
+            .Select(x => x!.Value)
+            .Where(x => x.Year >= 2000 && x.Year <= 2100)
+            .Distinct()
+            .ToList();
 
         if (candidates.Count == 1)
         {
@@ -537,54 +735,99 @@ public sealed class ScheduleImportService : IScheduleImportService
             return true;
         }
 
-        // A value such as 03/04/2026 is genuinely ambiguous:
-        // it can mean March 4 or April 3. Never silently choose one.
         if (candidates.Count > 1)
         {
             throw new InvalidOperationException(
-                $"The date '{text}' is ambiguous. Please use an unambiguous date " +
-                "format such as YYYY-MM-DD, or make sure the Excel cell is stored as a date.");
-        }
-
-        // Last attempt for formats such as localized month names. This is
-        // intentionally only accepted when the result is unambiguous.
-        if (DateTime.TryParse(
-                text,
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.AllowWhiteSpaces,
-                out var fallback)
-            && fallback.Year >= 2000
-            && fallback.Year <= 2100)
-        {
-            date = fallback.Date;
-            return true;
+                $"The date '{text}' is ambiguous. Please use an unambiguous date format.");
         }
 
         return false;
     }
 
-    private static bool TryParseTimeRange(string? text, out TimeSpan start, out TimeSpan end)
+    private static void ValidateTimeBlock(string timeBlock)
     {
-        start = end = default;
-        if (string.IsNullOrWhiteSpace(text)) return false;
-        var parts = text.Trim().Replace("–", "-").Split('-', 2);
-        if (parts.Length != 2) return false;
-        return TryParseTime(parts[0], out start) && TryParseTime(parts[1], out end);
+        var normalized = timeBlock.Trim().Replace('–', '-');
+        var parts = normalized.Split('-', 2);
+
+        if (parts.Length != 2 ||
+            !TryParseTime(parts[0], out _) ||
+            !TryParseTime(parts[1], out _))
+        {
+            throw new InvalidOperationException(
+                $"Invalid Time Block '{timeBlock}'. Expected a range such as '10:00AM–12:00PM'.");
+        }
     }
 
-    private static bool TryParseTime(string text, out TimeSpan time)
+    private static bool TryParseTime(
+        string value,
+        out TimeSpan time)
     {
-        text = text.Trim().Replace(" ", "").ToUpperInvariant();
-        if (DateTime.TryParseExact(text, new[] { "htt", "h:mmtt", "hh:mmtt", "H:mm", "HH:mm" }, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
-        { time = parsed.TimeOfDay; return true; }
-        time = default; return false;
+        value = value.Trim().Replace(" ", string.Empty).ToUpperInvariant();
+
+        if (DateTime.TryParseExact(
+                value,
+                new[] { "htt", "h:mmtt", "hh:mmtt", "H:mm", "HH:mm" },
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out var parsed))
+        {
+            time = parsed.TimeOfDay;
+            return true;
+        }
+
+        time = default;
+        return false;
     }
 
     private static int ColumnIndex(string reference)
     {
-        var letters = new string(reference.TakeWhile(char.IsLetter).ToArray());
+        var letters = new string(
+            reference.TakeWhile(char.IsLetter).ToArray());
+
         var result = 0;
-        foreach (var c in letters) result = result * 26 + (c - 'A' + 1);
+
+        foreach (var c in letters)
+            result = result * 26 + (c - 'A' + 1);
+
         return result;
+    }
+
+    private static List<string> ParseCsvLine(string line)
+    {
+        var values = new List<string>();
+        var current = new System.Text.StringBuilder();
+        var quoted = false;
+
+        for (var i = 0; i < line.Length; i++)
+        {
+            var ch = line[i];
+
+            if (ch == '"')
+            {
+                if (quoted &&
+                    i + 1 < line.Length &&
+                    line[i + 1] == '"')
+                {
+                    current.Append('"');
+                    i++;
+                }
+                else
+                {
+                    quoted = !quoted;
+                }
+            }
+            else if (ch == ',' && !quoted)
+            {
+                values.Add(current.ToString());
+                current.Clear();
+            }
+            else
+            {
+                current.Append(ch);
+            }
+        }
+
+        values.Add(current.ToString());
+        return values;
     }
 }

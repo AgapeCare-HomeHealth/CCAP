@@ -97,7 +97,7 @@ public sealed class Visit
             PatientName = patientName.Trim(),
             ClinicianId = clinicianId,
             AssignedUserId = assignedUserId,
-            ScheduledDate = scheduledDate,
+            ScheduledDate = scheduledDate.Date.Add(ParseStartTime(timeBlock)),
             TimeBlock = timeBlock.Trim(),
             ConfirmationStatus = confirmationStatus.Trim(),
             CallNotes = string.IsNullOrWhiteSpace(callNotes) ? null : callNotes.Trim(),
@@ -107,25 +107,38 @@ public sealed class Visit
         };
     }
 
-    // Used for imported external schedules. No Patient entity is required.
+    // Used for imported external schedules. The import uses the same Visit
+    // table and the same scheduling fields as manually added schedules.
     public static Visit CreateImportedSchedule(
         string patientName,
         DateTime scheduledDate,
+        string timeBlock,
+        string confirmationStatus,
+        string? callNotes,
         string? clinicianName,
         Guid? patientId,
         Guid? clinicianId,
         Guid assignedUserId,
-        string visitType = "Visit",
-        string? location = null,
-        string? notes = null)
+        string visitType,
+        string visitStatus,
+        string? notesFlag)
     {
         if (string.IsNullOrWhiteSpace(patientName))
             throw new ArgumentException("Patient name is required.", nameof(patientName));
 
+        if (string.IsNullOrWhiteSpace(timeBlock))
+            throw new ArgumentException("Time block is required.", nameof(timeBlock));
+
+        if (string.IsNullOrWhiteSpace(confirmationStatus))
+            throw new ArgumentException("Confirmation status is required.", nameof(confirmationStatus));
+
         if (assignedUserId == Guid.Empty)
             throw new ArgumentException("Assigned user ID is required.", nameof(assignedUserId));
 
-        var visit = new Visit
+        if (string.IsNullOrWhiteSpace(visitType))
+            throw new ArgumentException("Visit type is required.", nameof(visitType));
+
+        return new Visit
         {
             VisitId = Guid.NewGuid(),
             PatientId = patientId,
@@ -133,14 +146,76 @@ public sealed class Visit
             AssignedUserId = assignedUserId,
             PatientName = patientName.Trim(),
             ClinicianName = string.IsNullOrWhiteSpace(clinicianName) ? null : clinicianName.Trim(),
-            VisitType = string.IsNullOrWhiteSpace(visitType) ? "Visit" : visitType.Trim(),
-            Location = string.IsNullOrWhiteSpace(location) ? null : location.Trim(),
-            ScheduledDate = scheduledDate,
-            Status = "Scheduled",
-            Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim()
+            VisitType = visitType.Trim(),
+            TimeBlock = timeBlock.Trim(),
+            ConfirmationStatus = confirmationStatus.Trim(),
+            CallNotes = string.IsNullOrWhiteSpace(callNotes) ? null : callNotes.Trim(),
+            NotesFlag = string.IsNullOrWhiteSpace(notesFlag) ? null : notesFlag.Trim(),
+            ScheduledDate = scheduledDate.Date.Add(ParseStartTime(timeBlock)),
+            Status = string.IsNullOrWhiteSpace(visitStatus) ? "Scheduled" : visitStatus.Trim()
         };
+    }
 
-        return visit;
+    public void UpdateImportedSchedule(
+        string patientName,
+        DateTime scheduledDate,
+        string timeBlock,
+        string confirmationStatus,
+        string? callNotes,
+        string? clinicianName,
+        Guid? patientId,
+        Guid? clinicianId,
+        Guid? assignedUserId,
+        string visitType,
+        string visitStatus,
+        string? notesFlag)
+    {
+        if (string.IsNullOrWhiteSpace(patientName))
+            throw new ArgumentException("Patient name is required.", nameof(patientName));
+
+        if (string.IsNullOrWhiteSpace(timeBlock))
+            throw new ArgumentException("Time block is required.", nameof(timeBlock));
+
+        if (string.IsNullOrWhiteSpace(confirmationStatus))
+            throw new ArgumentException("Confirmation status is required.", nameof(confirmationStatus));
+
+        if (string.IsNullOrWhiteSpace(visitType))
+            throw new ArgumentException("Visit type is required.", nameof(visitType));
+
+        PatientName = patientName.Trim();
+        ScheduledDate = scheduledDate.Date.Add(ParseStartTime(timeBlock));
+        TimeBlock = timeBlock.Trim();
+        ConfirmationStatus = confirmationStatus.Trim();
+        CallNotes = string.IsNullOrWhiteSpace(callNotes) ? null : callNotes.Trim();
+        ClinicianName = string.IsNullOrWhiteSpace(clinicianName) ? null : clinicianName.Trim();
+        PatientId = patientId;
+        ClinicianId = clinicianId;
+        AssignedUserId = assignedUserId;
+        VisitType = visitType.Trim();
+        Status = string.IsNullOrWhiteSpace(visitStatus) ? "Scheduled" : visitStatus.Trim();
+        NotesFlag = string.IsNullOrWhiteSpace(notesFlag) ? null : notesFlag.Trim();
+    }
+
+    private static TimeSpan ParseStartTime(string timeBlock)
+    {
+        var normalized = timeBlock.Trim().Replace('–', '-');
+        var separator = normalized.IndexOf('-');
+
+        if (separator < 0)
+            throw new ArgumentException("Time block must contain a start and end time.", nameof(timeBlock));
+
+        var startText = normalized[..separator].Trim();
+
+        if (!DateTime.TryParse(
+                startText,
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AllowWhiteSpaces,
+                out var start))
+        {
+            throw new ArgumentException($"Invalid time block: '{timeBlock}'.", nameof(timeBlock));
+        }
+
+        return start.TimeOfDay;
     }
 
     public void Reschedule(DateTime scheduledDate)
@@ -149,32 +224,6 @@ public sealed class Visit
             throw new InvalidOperationException("A completed visit cannot be rescheduled.");
 
         ScheduledDate = scheduledDate;
-        Status = "Scheduled";
-    }
-
-    public void UpdateImportedSchedule(
-        string patientName,
-        DateTime scheduledDate,
-        string? clinicianName,
-        Guid? patientId,
-        Guid? clinicianId,
-        Guid? assignedUserId,
-        string visitType,
-        string? location,
-        string? notes)
-    {
-        if (string.IsNullOrWhiteSpace(patientName))
-            throw new ArgumentException("Patient name is required.", nameof(patientName));
-
-        PatientName = patientName.Trim();
-        ScheduledDate = scheduledDate;
-        ClinicianName = string.IsNullOrWhiteSpace(clinicianName) ? null : clinicianName.Trim();
-        PatientId = patientId;
-        ClinicianId = clinicianId;
-        AssignedUserId = assignedUserId;
-        VisitType = string.IsNullOrWhiteSpace(visitType) ? "Visit" : visitType.Trim();
-        Location = string.IsNullOrWhiteSpace(location) ? null : location.Trim();
-        Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
         Status = "Scheduled";
     }
 

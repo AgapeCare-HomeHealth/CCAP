@@ -1,196 +1,156 @@
 @using CCAP.Web.Features.Tracker.ReferralIntake.Models
+@using CCAP.Web.Features.Tracker.ReferralIntake.Services
 @using Microsoft.AspNetCore.Components.Forms
+@inject ReferralIntakeService ReferralIntakeService
 
 <div class="step-card">
-
     <div class="step-title">
         <h4>Upload Referral PDF</h4>
+        <p class="text-muted mb-0">
+            Upload a digital or scanned referral. CCAP will extract the information it can find,
+            then you can review and correct it before continuing.
+        </p>
     </div>
 
     <div class="row g-4">
-
         <div class="col-lg-7">
-
             <div class="upload-card">
-
                 <InputFile id="uploadReferral"
                            class="d-none"
                            OnChange="OnFileSelected"
                            accept=".pdf,application/pdf" />
 
-                <label for="uploadReferral"
-                       class="upload-dropzone">
-
+                <label for="uploadReferral" class="upload-dropzone">
                     <i class="bi bi-cloud-arrow-up upload-icon"></i>
-
-                    <h5>
-                        Choose Referral PDF
-                    </h5>
-
-                    <span>
-                        PDF files only
-                    </span>
-
+                    <h5>Choose Referral PDF</h5>
+                    <span>Digital PDFs and scanned PDFs are supported</span>
                     <div class="btn btn-success">
+                        <i class="bi bi-file-earmark-arrow-up me-1"></i>
                         Choose File
                     </div>
-
                 </label>
-
             </div>
-
         </div>
 
         <div class="col-lg-5">
-
             <div class="info-card">
-
                 <h5>Uploaded File</h5>
 
                 @if (!HasFileMetadata)
                 {
                     <div class="empty-file">
-
                         <i class="bi bi-file-earmark"></i>
-
-                        <span>
-                            No file selected.
-                        </span>
-
+                        <span>No file selected.</span>
                     </div>
                 }
                 else
                 {
                     <div class="uploaded-file">
-
                         <i class="bi bi-file-earmark-pdf-fill text-danger fs-1"></i>
-
                         <div class="flex-grow-1">
-
-                            <strong>
-                                @Model.ReferralPdfFileName
-                            </strong>
-
-                            <small class="d-block text-muted">
-
-                                @FormatFileSize(Model.ReferralPdfSize)
-
-                            </small>
-
-                            @if (!string.IsNullOrWhiteSpace(
-                                Model.ReferralPdfContentType))
-                            {
-                                <small class="d-block text-muted">
-
-                                    @Model.ReferralPdfContentType
-
-                                </small>
-                            }
-
+                            <strong>@Model.ReferralPdfFileName</strong>
+                            <small class="d-block text-muted">@FormatFileSize(Model.ReferralPdfSize)</small>
+                            <small class="d-block text-muted">@Model.ReferralPdfContentType</small>
                         </div>
-
                     </div>
 
                     <hr />
 
                     <div class="d-flex gap-2">
-
-                        <label for="uploadReferral"
-                               class="btn btn-outline-success btn-sm">
-
-                            <i class="bi bi-arrow-repeat"></i>
-
-                            Replace
-
+                        <label for="uploadReferral" class="btn btn-outline-success btn-sm">
+                            <i class="bi bi-arrow-repeat"></i> Replace
                         </label>
-
-                        <button type="button"
-                                class="btn btn-outline-danger btn-sm"
-                                @onclick="RemoveFile">
-
-                            <i class="bi bi-trash"></i>
-
-                            Remove
-
+                        <button type="button" class="btn btn-outline-danger btn-sm" @onclick="RemoveFile" disabled="@IsExtracting">
+                            <i class="bi bi-trash"></i> Remove
                         </button>
-
-                        @* =================================================
-                           TEMPORARILY DISABLED
-
-The actual PDF is not stored yet.
-                           Enable this button after Azure Blob Storage
-                           is implemented and a secure PDF URL/storage key
-                           is available.
-                           =================================================
-
-                        <button type="button"
-                                class="btn btn-outline-secondary btn-sm"
-                                @onclick="ViewPdf">
-
-                            <i class="bi bi-eye"></i>
-
-                            View PDF
-
-                        </button>
-
-                        *@
-
                     </div>
-
                 }
-
             </div>
-
         </div>
-
     </div>
+
+    @if (IsExtracting)
+    {
+        <div class="alert alert-info mt-4 d-flex align-items-center gap-2">
+            <span class="spinner-border spinner-border-sm"></span>
+            <span>Reading referral PDF and extracting patient/referral information…</span>
+        </div>
+    }
+
+    @if (ExtractionCompleted)
+    {
+        <div class="alert alert-success mt-4">
+            <div class="fw-semibold mb-1">
+                <i class="bi bi-check-circle me-1"></i>
+                Referral information extracted
+            </div>
+            <div class="small">
+                @(LastExtractionUsedOcr
+                    ? "OCR was used because this appears to be a scanned referral."
+                    : "The PDF text layer was read directly.")
+                @if (DetectedFieldCount > 0)
+                {
+                    <span class="d-block mt-1">Detected <strong>@DetectedFieldCount</strong> referral field(s). Review the populated values before continuing.</span>
+                }
+                else
+                {
+                    <span class="d-block mt-1">No structured values were detected. You can still continue and enter the referral manually; name and date of birth are the only required fields.</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(DetectedForm))
+                {
+                    <span class="d-block mt-1">Detected form: <strong>@DetectedForm</strong>@(string.IsNullOrWhiteSpace(DetectedFormVersion) ? "" : $" v{DetectedFormVersion}")</span>
+                }
+                @if (LastExtractionConfidence.HasValue)
+                {
+                    <span> OCR confidence: @LastExtractionConfidence.Value.ToString("P0")</span>
+                }
+            </div>
+        </div>
+    }
 
     @if (!string.IsNullOrWhiteSpace(ErrorMessage))
     {
-        <div class="alert alert-danger mt-4">
-            <i class="bi bi-exclamation-circle me-1"></i>
+        <div class="alert alert-warning mt-4">
+            <i class="bi bi-exclamation-triangle me-1"></i>
             @ErrorMessage
         </div>
     }
 
-    <div class="alert alert-light mt-4">
-
-        <i class="bi bi-info-circle-fill text-success"></i>
-
-        Accepted format: PDF.
-        Maximum size: 10 MB.
-
+    <div class="alert alert-light mt-4 mb-0">
+        <i class="bi bi-info-circle-fill text-success me-1"></i>
+        PDF upload is optional. When uploaded, CCAP extracts available values; you can edit them.
+        Only <strong>patient name</strong> and <strong>date of birth</strong> are required to submit a new referral.
+        Maximum PDF size: 10 MB.
     </div>
-
 </div>
 
 @code {
-
     [Parameter]
     public ReferralIntakeModel Model { get; set; } = null!;
 
-    private const long MaxFileSize =
-        10 * 1024 * 1024;
-
+    private const long MaxFileSize = 10 * 1024 * 1024;
     private string? ErrorMessage;
+    private bool IsExtracting;
+    private bool ExtractionCompleted;
+    private bool LastExtractionUsedOcr;
+    private double? LastExtractionConfidence;
+    private string? DetectedForm;
+    private string? DetectedFormVersion;
+    private int DetectedFieldCount;
 
-    private bool HasFileMetadata =>
-        !string.IsNullOrWhiteSpace(
-            Model.ReferralPdfFileName);
+    private bool HasFileMetadata => !string.IsNullOrWhiteSpace(Model.ReferralPdfFileName);
 
-    private async Task OnFileSelected(
-        InputFileChangeEventArgs e)
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
     {
         var file = e.File;
-
         ErrorMessage = null;
+        ExtractionCompleted = false;
+        LastExtractionConfidence = null;
 
         if (file is null)
             return;
 
-        if (!file.Name.EndsWith(
-                ".pdf",
-                StringComparison.OrdinalIgnoreCase))
+        if (!file.Name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
         {
             ErrorMessage = "Only PDF files are accepted.";
             ClearFile();
@@ -213,92 +173,123 @@ The actual PDF is not stored yet.
 
         try
         {
-            await using var input =
-                file.OpenReadStream(MaxFileSize);
+            await using var input = file.OpenReadStream(MaxFileSize);
+            using var memoryStream = new MemoryStream();
+            await input.CopyToAsync(memoryStream);
 
-            using var memoryStream =
-                new MemoryStream();
+            Model.ReferralPdfBytes = memoryStream.ToArray();
+            Model.ReferralPdfFileName = file.Name;
+            Model.ReferralPdfContentType = "application/pdf";
+            Model.ReferralPdfSize = file.Size;
+            Model.ReferralPdf = file;
 
-            await input.CopyToAsync(
-                memoryStream);
-
-            Model.ReferralPdfBytes =
-                memoryStream.ToArray();
-
-            Model.ReferralPdfFileName =
-                file.Name;
-
-            Model.ReferralPdfContentType =
-                string.IsNullOrWhiteSpace(file.ContentType)
-                    ? "application/pdf"
-                    : file.ContentType;
-
-            Model.ReferralPdfSize =
-                file.Size;
-
-            Model.ReferralPdf =
-                file;
+            await ExtractValuesAsync();
         }
         catch (Exception ex)
         {
             ErrorMessage = string.IsNullOrWhiteSpace(ex.Message)
                 ? "The selected PDF could not be read."
                 : ex.Message;
-            ClearFile();
         }
+    }
+
+    private async Task ExtractValuesAsync()
+    {
+        if (Model.ReferralPdfBytes is not { Length: > 0 })
+            return;
+
+        IsExtracting = true;
+        ErrorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var result = await ReferralIntakeService.ExtractReferralPdfAsync(
+                Model.ReferralPdfBytes,
+                Model.ReferralPdfFileName ?? "referral.pdf");
+
+            ApplyExtractedValues(result);
+            LastExtractionUsedOcr = result.OcrUsed;
+            LastExtractionConfidence = result.Confidence;
+            DetectedForm = result.DetectedForm;
+            DetectedFormVersion = result.DetectedFormVersion;
+            DetectedFieldCount = result.DetectedFieldCount;
+            ExtractionCompleted = true;
+        }
+        catch (Exception ex)
+        {
+            // The PDF is still retained. Extraction failure should not prevent
+            // manual entry because name + DOB remain the only required fields.
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsExtracting = false;
+        }
+    }
+
+    private void ApplyExtractedValues(ReferralDocumentExtractionDto result)
+    {
+        Model.MRN = SetIfPresent(Model.MRN, result.MRN);
+        Model.FirstName = SetIfPresent(Model.FirstName, result.FirstName);
+        Model.MiddleName = SetIfPresent(Model.MiddleName, result.MiddleName);
+        Model.LastName = SetIfPresent(Model.LastName, result.LastName);
+        if (result.DateOfBirth.HasValue) Model.DateOfBirth = result.DateOfBirth;
+        Model.Gender = SetIfPresent(Model.Gender, result.Gender);
+        Model.PrimaryPhone = SetIfPresent(Model.PrimaryPhone, result.PrimaryPhone);
+        Model.AlternatePhone = SetIfPresent(Model.AlternatePhone, result.AlternatePhone);
+        Model.StreetAddress = SetIfPresent(Model.StreetAddress, result.StreetAddress);
+        Model.City = SetIfPresent(Model.City, result.City);
+        Model.State = SetIfPresent(Model.State, result.State);
+        Model.ZipCode = SetIfPresent(Model.ZipCode, result.ZipCode);
+        Model.EmergencyContactName = SetIfPresent(Model.EmergencyContactName, result.EmergencyContactName);
+        Model.EmergencyContactRelationship = SetIfPresent(Model.EmergencyContactRelationship, result.EmergencyContactRelationship);
+        Model.EmergencyContactPhone = SetIfPresent(Model.EmergencyContactPhone, result.EmergencyContactPhone);
+        Model.ReferralNumber = SetIfPresent(Model.ReferralNumber, result.ReferralNumber);
+        if (result.ReferralDate.HasValue) Model.ReferralDate = result.ReferralDate.Value;
+        Model.ReferralSource = SetIfPresent(Model.ReferralSource, result.ReferralSource);
+        Model.Priority = SetIfPresent(Model.Priority, result.Priority);
+        Model.PrimaryInsurance = SetIfPresent(Model.PrimaryInsurance, result.PrimaryInsurance);
+        Model.InsuranceMemberId = SetIfPresent(Model.InsuranceMemberId, result.InsuranceMemberId);
+        if (result.AuthorizationDate.HasValue) Model.AuthorizationDate = result.AuthorizationDate;
+        if (result.ApprovedVisits.HasValue) Model.ApprovedVisits = result.ApprovedVisits;
+        Model.ReferringPhysician = SetIfPresent(Model.ReferringPhysician, result.ReferringPhysician);
+        Model.PhysicianPhone = SetIfPresent(Model.PhysicianPhone, result.PhysicianPhone);
+        Model.PrimaryDiagnosis = SetIfPresent(Model.PrimaryDiagnosis, result.PrimaryDiagnosis);
+        Model.SecondaryDiagnosis = SetIfPresent(Model.SecondaryDiagnosis, result.SecondaryDiagnosis);
+        Model.ReferralNotes = SetIfPresent(Model.ReferralNotes, result.ReferralNotes);
+
+        if (result.OrderedServices.Count > 0)
+            Model.OrderedServices = result.OrderedServices;
+    }
+
+    private static string SetIfPresent(string target, string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? target
+            : value.Trim();
     }
 
     private void ClearFile()
     {
         Model.ReferralPdf = null;
-
         Model.ReferralPdfBytes = null;
-
         Model.ReferralPdfFileName = null;
-
         Model.ReferralPdfContentType = null;
-
         Model.ReferralPdfSize = null;
+        ExtractionCompleted = false;
+        DetectedForm = null;
+        DetectedFormVersion = null;
+        DetectedFieldCount = 0;
     }
 
-    private void RemoveFile()
-    {
-        ClearFile();
-    }
+    private void RemoveFile() => ClearFile();
 
-    private static string FormatFileSize(
-        long? bytes)
+    private static string FormatFileSize(long? bytes)
     {
-        if (!bytes.HasValue ||
-            bytes.Value <= 0)
-        {
+        if (!bytes.HasValue || bytes.Value <= 0)
             return "Size unavailable";
-        }
 
-        return Math.Round(
-                bytes.Value / 1024d / 1024d,
-                2)
-            .ToString("0.##")
-            + " MB";
+        return Math.Round(bytes.Value / 1024d / 1024d, 2).ToString("0.##") + " MB";
     }
-
-    @* =========================================================
-       FUTURE PDF VIEWING
-
-       this method can retrieve a secure URL and open
-       the PDF in a new browser tab.
-
-       private async Task ViewPdf()
-       {
-           var url =
-               await FileStorageService.GetReadUrlAsync(
-                   Model.ReferralDraftId!.Value);
-
-           await JS.InvokeVoidAsync(
-               "open",
-               url,
-               "_blank");
-       }
-
-       ========================================================= *@
 }

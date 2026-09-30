@@ -39,7 +39,9 @@ public static class DatabaseSeeder
             ("orders.view", "View Order Alerts", "Orders"),
             ("orders.manage", "Manage Order Alerts", "Orders"),
             ("lookups.view", "View Lookup Options", "Administration"),
-            ("lookups.manage", "Manage Lookup Options", "Administration")
+            ("lookups.manage", "Manage Lookup Options", "Administration"),
+            ("scheduling.view", "View Scheduling Calendar", "Scheduling"),
+            ("scheduling.manage", "Manage Scheduling Calendar", "Scheduling")
         };
 
         var permissionEntities = new List<Permission>();
@@ -102,16 +104,16 @@ public static class DatabaseSeeder
         var rolePermissionCodes = new Dictionary<string, string[]>
         {
             ["Care Coordinator"] =
-            ["dashboard.view", "users.view", "roles.view", "patients.view", "patients.manage", "referrals.view", "referrals.manage",
+            ["dashboard.view", "users.view", "roles.view", "patients.view", "patients.manage", "referrals.view", "referrals.manage", "scheduling.view", "scheduling.manage",
              "fax.view", "fax.manage", "notifications.view", "notifications.manage", "notes.view", "notes.manage",
              "labs.view", "labs.manage", "supplies.view", "supplies.manage", "foley.view", "foley.manage",
              "orders.view", "orders.manage", "lookups.view"],
             ["Clinician"] =
-            ["dashboard.view", "patients.view", "patients.manage", "referrals.view", "fax.view", "fax.manage", "notifications.view", "notifications.manage",
+            ["dashboard.view", "patients.view", "patients.manage", "referrals.view", "scheduling.view", "fax.view", "fax.manage", "notifications.view", "notifications.manage",
              "notes.view", "notes.manage", "labs.view", "labs.manage", "supplies.view", "supplies.manage",
              "foley.view", "foley.manage", "orders.view", "orders.manage"],
             ["Scheduler"] =
-            ["dashboard.view", "patients.view", "referrals.view", "referrals.manage"]
+            ["dashboard.view", "scheduling.view", "scheduling.manage"]
         };
 
         foreach (var pair in rolePermissionCodes)
