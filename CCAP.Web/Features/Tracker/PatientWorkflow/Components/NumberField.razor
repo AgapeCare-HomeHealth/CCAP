@@ -1,0 +1,20 @@
+<div class="col-md-4">
+    <label class="form-label">@Label</label>
+    <InputNumber TValue="int?"
+                 class="form-control"
+                 Value="Value"
+                 ValueChanged="OnValueChanged"
+                 ValueExpression="@(() => Value)" />
+</div>
+
+@code {
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public int? Value { get; set; }
+    [Parameter] public EventCallback<int?> ValueChanged { get; set; }
+
+    private async Task OnValueChanged(int? value)
+    {
+        Value = value;
+        await ValueChanged.InvokeAsync(value);
+    }
+}

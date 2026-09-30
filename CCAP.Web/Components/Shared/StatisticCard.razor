@@ -1,0 +1,28 @@
+﻿<div class="stat-card">
+
+    <div class="icon-circle" style="background:@Color">
+        <i class="@Icon"></i>
+    </div>
+
+    <div class="stat-content">
+        <div class="title">@Title</div>
+        <div class="value">@Value</div>
+    </div>
+
+</div>
+
+@code {
+
+    [Parameter]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public string Value { get; set; } = "";
+
+    [Parameter]
+    public string Icon { get; set; } = "";
+
+    [Parameter]
+    public string Color { get; set; } = "";
+
+}

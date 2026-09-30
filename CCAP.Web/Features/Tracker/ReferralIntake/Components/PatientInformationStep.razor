@@ -1,0 +1,224 @@
+@using CCAP.Web.Features.Admin.LookupOptions.Models
+@using CCAP.Web.Features.Admin.LookupOptions.Services
+@inject LookupOptionService LookupService
+﻿@using CCAP.Web.Features.Tracker.ReferralIntake.Models
+
+@using CCAP.Web.Common.Validation
+
+<div class="step-card">
+
+    <div class="step-title">
+        <h4>Patient Information</h4>
+
+        <p>
+            Enter the patient's demographic and contact information.
+        </p>
+    </div>
+
+    <div class="row g-4">
+
+        <div class="col-md-4">
+            <label class="form-label">
+                First Name <span class="text-danger">*</span>
+            </label>
+
+            <input class="form-control"
+                   @bind="Model.FirstName" />
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label">
+                Last Name <span class="text-danger">*</span>
+            </label>
+
+            <input class="form-control"
+                   @bind="Model.LastName" />
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label">
+                Middle Name
+            </label>
+
+            <input class="form-control"
+                   @bind="Model.MiddleName" />
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label">
+                Date of Birth <span class="text-danger">*</span>
+            </label>
+
+            <input type="date"
+                   class="form-control"
+                   @bind="Model.DateOfBirth" />
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label">
+                MRN <span class="text-danger">*</span>
+            </label>
+
+            <input class="form-control"
+                   @bind="Model.MRN" />
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label">
+                Gender <span class="text-danger">*</span>
+            </label>
+
+            <select class="form-select"
+                    @bind="Model.Gender">
+
+                <option value="">
+                    Select Gender
+                </option>
+
+                @foreach (var option in Genders)
+                {
+                    <option value="@option.DisplayName">@option.DisplayName</option>
+                }
+            </select>
+        </div>
+
+        <div class="col-md-6">
+            <label class="form-label">
+                Primary Phone <span class="text-danger">*</span>
+            </label>
+
+            <InputText class="@FieldValidation.InputClass(PrimaryPhoneError)"
+                       type="tel"
+                       @bind-Value="Model.PrimaryPhone"
+                       @onblur="ValidatePrimaryPhone" />
+
+            @if (!string.IsNullOrWhiteSpace(PrimaryPhoneError))
+            {
+                <div class="invalid-feedback">
+                    @PrimaryPhoneError
+                </div>
+            }
+        </div>
+
+        <div class="col-md-6">
+            <label class="form-label">
+                Alternate Phone
+            </label>
+
+            <InputText class="@FieldValidation.InputClass(AlternatePhoneError)"
+                       type="tel"
+                       @bind-Value="Model.AlternatePhone"
+                       @onblur="ValidateAlternatePhone" />
+
+            @if (!string.IsNullOrWhiteSpace(AlternatePhoneError))
+            {
+                <div class="invalid-feedback">
+                    @AlternatePhoneError
+                </div>
+            }
+        </div>
+
+        <div class="col-12">
+            <label class="form-label">
+                Street Address <span class="text-danger">*</span>
+            </label>
+
+            <input class="form-control"
+                   @bind="Model.StreetAddress" />
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label">
+                City <span class="text-danger">*</span>
+            </label>
+
+            <input class="form-control"
+                   @bind="Model.City" />
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label">
+                State <span class="text-danger">*</span>
+            </label>
+
+            <input class="form-control"
+                   @bind="Model.State" />
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label">
+                ZIP Code <span class="text-danger">*</span>
+            </label>
+
+            <input class="form-control"
+                   @bind="Model.ZipCode" />
+        </div>
+
+    </div>
+
+    <hr class="my-4" />
+
+    <h5 class="mb-3">
+        Emergency Contact
+    </h5>
+
+    <div class="row g-4">
+
+        <div class="col-md-4">
+            <label class="form-label">
+                Contact Name <span class="text-danger">*</span>
+            </label>
+
+            <input class="form-control"
+                   @bind="Model.EmergencyContactName" />
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label">
+                Relationship <span class="text-danger">*</span>
+            </label>
+
+            <input class="form-control"
+                   @bind="Model.EmergencyContactRelationship" />
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label">
+                Phone Number <span class="text-danger">*</span>
+            </label>
+
+            <input class="form-control"
+                   @bind="Model.EmergencyContactPhone" />
+        </div>
+
+    </div>
+
+</div>
+
+@code {
+    private List<LookupOptionDto> Genders = [];
+    protected override async Task OnInitializedAsync() => Genders = await LookupService.GetAsync("Gender", true);
+
+    [Parameter]
+    public ReferralIntakeModel Model { get; set; } = null!;
+
+    private string? PrimaryPhoneError;
+    private string? AlternatePhoneError;
+
+    private void ValidatePrimaryPhone()
+    {
+        PrimaryPhoneError =
+            FieldValidation.Phone(
+                Model.PrimaryPhone,
+                "Primary phone",
+                required: true);
+    }
+
+    private void ValidateAlternatePhone()
+    {
+        AlternatePhoneError =
+            FieldValidation.Phone(
+                Model.AlternatePhone,
+                "Alternate phone");
+    }
+}

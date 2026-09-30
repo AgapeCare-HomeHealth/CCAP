@@ -1,0 +1,244 @@
+@page "/tracker/patient/{PatientId:guid}"
+@attribute [CcapAuthorize(Policy = "patients.view")]
+
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Components
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Models
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Services
+
+@inject PatientWorkflowService WorkflowService
+@inject PatientCareManagementService CareService
+
+<PageTitle>Patient Workflow</PageTitle>
+
+@if (IsLoading)
+{
+    <div class="d-flex justify-content-center py-5">
+        <div class="spinner-border" role="status"></div>
+    </div>
+}
+else if (Workflow is null)
+{
+    <div class="alert alert-warning">
+        Patient record was not found.
+    </div>
+}
+else
+{
+    <div class="patient-workflow-page">
+
+        <!-- Patient Header -->
+        <PatientHeader Patient="@Workflow.Header"
+                       OnSave="SavePatientHeader" />
+
+        <!-- Tabs -->
+        <section class="mt-4">
+            <WorkflowTabs Tabs="@Tabs"
+                          OnTabChanged="OnTabChanged" />
+        </section>
+
+        <!-- Workflow Progress -->
+        <section class="mt-4">
+            <WorkflowProgress Stages="@Workflow.WorkflowStages" />
+        </section>
+
+        <!-- Patient tabs intentionally own their detailed information; avoid repeating it above. -->
+
+        <!-- Patient Tab -->
+        <section class="mt-4">
+
+            @switch (SelectedTab)
+            {
+                case "Overview":
+
+                    <OverviewTab PatientId="@PatientId"
+                                 Workflow="@Workflow"
+                                 Care="@Care"
+                                 OnChangeTab="OnTabChanged" />
+
+                    break;
+
+                case "Compliance":
+
+                    <ComplianceTab PatientId="@PatientId"
+                                   Workflow="@Workflow"
+                                   OnCompleted="HandleComplianceCompleted" />
+
+                    break;
+
+                case "Final Outcome":
+                    <DischargeTab Workflow="@Workflow" OnCompleted="HandleDischargeCompleted" />
+                    break;
+
+                @* case "Documents":
+
+                    <DocumentsTab />
+
+                    break; *@
+
+                case "Communication":
+
+                    <CommunicationTab PatientId="@PatientId" Care="@Care" OnSaved="ReloadPatientData" />
+
+                    break;
+
+                case "Timeline":
+
+                    <TimelineTab Workflow="@Workflow" />
+
+                    break;
+
+                case "Audit Log":
+
+                    <AuditLogTab PatientId="@PatientId" Workflow="@Workflow" />
+
+                    break;
+
+                case "Orders & Care":
+
+                    <PatientCareManagementTab PatientId="@PatientId" OnChanged="ReloadPatientData" />
+
+                    break;
+            }
+
+        </section>
+
+    </div>
+}
+
+@code {
+
+    [Parameter]
+    public Guid PatientId { get; set; }
+
+    private PatientWorkflowDto? Workflow;
+
+    private PatientCareProfileDto? Care;
+
+    private bool IsLoading = true;
+
+    private string SelectedTab = "Overview";
+
+
+    private readonly List<WorkflowTabDto> Tabs =
+    [
+        new()
+        {
+            Title = "Overview",
+            Icon = "bi bi-house",
+            Active = true
+        },
+
+        new()
+        {
+            Title = "Compliance",
+            Icon = "bi bi-clipboard-check"
+        },
+
+        // new()
+        // {
+        //     Title = "Documents",
+        //     Icon = "bi bi-folder2-open"
+        // },
+
+        new()
+        {
+            Title = "Communication",
+            Icon = "bi bi-chat-left-text"
+        },
+
+        new()
+        {
+            Title = "Timeline",
+            Icon = "bi bi-clock-history"
+        },
+
+        new()
+        {
+            Title = "Audit Log",
+            Icon = "bi bi-journal-text"
+        },
+
+        new()
+        {
+            Title = "Orders & Care",
+            Icon = "bi bi-clipboard2-pulse"
+        },
+
+        new()
+        {
+            Title = "Final Outcome",
+            Icon = "bi bi-box-arrow-right"
+        }
+    ];
+
+
+    protected override async Task OnParametersSetAsync()
+    {
+        IsLoading = true;
+
+        try
+        {
+            Workflow = await WorkflowService.GetAsync(PatientId);
+
+            if (Workflow is not null)
+            {
+                Care = await CareService.GetAsync(PatientId);
+            }
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task ReloadPatientData()
+    {
+        Workflow = await WorkflowService.GetAsync(PatientId);
+        Care = await CareService.GetAsync(PatientId);
+    }
+
+    private async Task HandleComplianceCompleted()
+    {
+        Workflow =
+            await WorkflowService.GetAsync(
+                PatientId);
+    }
+
+    private async Task HandleSocCompleted()
+    {
+        Workflow =
+            await WorkflowService.GetAsync(
+                PatientId);
+    }
+
+    private async Task HandleDischargeCompleted()
+    {
+        Workflow = await WorkflowService.GetAsync(PatientId);
+        Care = await CareService.GetAsync(PatientId);
+    }
+
+    private void OnTabChanged(string tabTitle)
+    {
+        SelectedTab = tabTitle;
+
+        foreach (var tab in Tabs)
+        {
+            tab.Active = tab.Title == tabTitle;
+        }
+    }
+
+
+    private async Task SavePatientHeader(PatientEditModel model)
+    {
+        await WorkflowService.UpdateHeaderAsync(model);
+
+        Workflow = await WorkflowService.GetAsync(PatientId);
+
+        Care = await CareService.GetAsync(PatientId);
+
+        StateHasChanged();
+    }
+
+
+
+}

@@ -1,0 +1,33 @@
+.step-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 5px 18px rgba(0,0,0,.06);
+}
+
+.step-title {
+    margin-bottom: 30px;
+}
+
+    .step-title h4 {
+        font-weight: 700;
+    }
+
+    .step-title p {
+        color: #6c757d;
+    }
+
+.form-label {
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.form-control,
+.form-select {
+    height: 46px;
+    border-radius: 10px;
+}
+
+hr {
+    opacity: .12;
+}

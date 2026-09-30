@@ -1,0 +1,14 @@
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Models
+<div class="card shadow-sm border-0 h-100">
+ <div class="card-header bg-white d-flex justify-content-between align-items-center"><h5 class="mb-0">@Title</h5><button class="btn btn-sm btn-primary" @onclick="() => OnAdd.InvokeAsync(LogType)"><i class="bi bi-plus-lg me-1"></i>Add</button></div>
+ <div class="card-body border-bottom py-2"><div class="d-flex gap-2"><input class="form-control" placeholder="Search item, unit, staff, or notes..." value="@SearchText" @oninput="SearchChanged" /><button class="btn btn-outline-secondary" @onclick="ClearSearch">Clear</button></div></div>
+ <div class="table-responsive"><table class="table table-hover mb-0"><thead class="table-light"><tr><th>Date</th><th>Item</th><th>Qty</th><th>Unit</th><th>Recorded By</th><th>Notes</th></tr></thead><tbody>@if(PagedLogs.Any()){@foreach(var x in PagedLogs){<tr><td>@x.RecordedAt.ToLocalTime().ToString("MM/dd/yyyy h:mm tt")</td><td>@x.Item</td><td>@(x.Quantity?.ToString() ?? "-")</td><td>@(string.IsNullOrWhiteSpace(x.Unit)?"-":x.Unit)</td><td>@x.RecordedBy</td><td>@x.Notes</td></tr>}}else{<tr><td colspan="6" class="text-center text-muted py-4">No records.</td></tr>}</tbody></table></div>
+ <TablePager CurrentPage="@CurrentPage" PageSize="@PageSize" TotalItems="@FilteredLogs.Count" OnPageChanged="GoToPage" OnPageSizeChanged="ChangePageSize" />
+</div>
+@code{
+ [Parameter]public string Title{get;set;}=""; [Parameter]public string LogType{get;set;}=""; [Parameter]public List<PatientCareLogDto> Logs{get;set;}=[]; [Parameter]public EventCallback<string> OnAdd{get;set;}
+ private string SearchText=string.Empty; private int CurrentPage=1; private int PageSize=20;
+ private List<PatientCareLogDto> FilteredLogs=>Logs.Where(x=>string.IsNullOrWhiteSpace(SearchText)||x.Item.Contains(SearchText,StringComparison.OrdinalIgnoreCase)||(x.Unit??"").Contains(SearchText,StringComparison.OrdinalIgnoreCase)||x.RecordedBy.Contains(SearchText,StringComparison.OrdinalIgnoreCase)||(x.Notes??"").Contains(SearchText,StringComparison.OrdinalIgnoreCase)).OrderByDescending(x=>x.RecordedAt).ToList();
+ private IEnumerable<PatientCareLogDto> PagedLogs=>FilteredLogs.Skip((CurrentPage-1)*PageSize).Take(PageSize);
+ private void SearchChanged(ChangeEventArgs e){SearchText=e.Value?.ToString()??string.Empty;CurrentPage=1;} private void ClearSearch(){SearchText=string.Empty;CurrentPage=1;} private void GoToPage(int page)=>CurrentPage=Math.Max(1,page); private void ChangePageSize(int size){PageSize=Math.Clamp(size,1,100);CurrentPage=1;}
+}

@@ -1,0 +1,46 @@
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Models
+
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">Patient Timeline</h5>
+        <small class="text-muted">A chronological history of actions and patient events.</small>
+    </div>
+    <div class="card-body">
+        @if (Workflow?.RecentActivities?.Any() == true)
+        {
+            <div class="timeline-list">
+                @foreach (var activity in Workflow.RecentActivities.OrderByDescending(x => x.ActivityDate))
+                {
+                    <div class="timeline-item border-bottom pb-3 mb-3">
+                        <div class="d-flex justify-content-between align-items-start gap-3">
+                            <div>
+                                <div class="fw-semibold">@activity.Title</div>
+                                @if (!string.IsNullOrWhiteSpace(activity.Description))
+                                {
+                                    <div class="text-muted mt-1">@activity.Description</div>
+                                }
+                                <div class="small text-muted mt-2">
+                                    <i class="bi bi-person me-1"></i>@activity.PerformedBy
+                                </div>
+                            </div>
+                            <div class="text-end text-nowrap">
+                                <span class="badge bg-light text-dark">@activity.ActivityType</span>
+                                <div class="small text-muted mt-1">
+                                    @activity.ActivityDate.ToLocalTime().ToString("MM/dd/yyyy h:mm tt")
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="text-center text-muted py-5">No timeline events recorded.</div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public PatientWorkflowDto? Workflow { get; set; }
+}

@@ -1,0 +1,236 @@
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Models
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Services
+@using CCAP.Web.Features.Admin.LookupOptions.Models
+@using CCAP.Web.Features.Admin.LookupOptions.Services
+
+@inject PatientWorkflowService WorkflowService
+@inject LookupOptionService LookupService
+
+<div class="card shadow-sm border-0 mb-4 insurance-compliance-section">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="mb-1">Insurance Information</h5>
+            <small class="text-muted">Review the insurance details and confirm the insurance document received from the Care Coordinator.</small>
+        </div>
+
+        @if (IsVerified)
+        {
+            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Verified</span>
+        }
+        else
+        {
+            <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle me-1"></i>Needs Verification</span>
+        }
+    </div>
+
+    <div class="card-body">
+        @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+        {
+            <div class="alert alert-danger">@ErrorMessage</div>
+        }
+
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="small text-muted mb-1">Primary Insurance</div>
+                <div class="fw-semibold">@Display(Workflow?.Summary.Insurance)</div>
+            </div>
+            <div class="col-md-6">
+                <div class="small text-muted mb-1">Insurance Member ID</div>
+                <div class="fw-semibold">@Display(Workflow?.Summary.InsuranceMemberId)</div>
+            </div>
+            <div class="col-md-4">
+                <div class="small text-muted mb-1">Authorization Date</div>
+                <div class="fw-semibold">@(Workflow?.Summary.AuthorizationDate?.ToString("MM/dd/yyyy") ?? "Not provided")</div>
+            </div>
+            <div class="col-md-4">
+                <div class="small text-muted mb-1">Approved Visits</div>
+                <div class="fw-semibold">@(Workflow?.Summary.AuthorizedVisits?.ToString() ?? "Not provided")</div>
+            </div>
+            <div class="col-md-4">
+                <div class="small text-muted mb-1">Authorization Required</div>
+                <div class="fw-semibold">@(Workflow?.Summary.AuthorizationRequired == true ? "Yes" : "No")</div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-4">
+            <button type="button" class="btn btn-outline-primary" @onclick="BeginEdit" disabled="@IsProcessing">
+                <i class="bi bi-pencil me-1"></i>Edit Information
+            </button>
+
+            @if (!IsVerified)
+            {
+                <button type="button" class="btn btn-success" @onclick="VerifyInsurance" disabled="@IsProcessing">
+                    @if (IsProcessing)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        <span>Verifying...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-shield-check me-1"></i>
+                        <span>Verify Insurance</span>
+                    }
+                </button>
+            }
+        </div>
+
+        @if (IsVerified)
+        {
+            <div class="border-top mt-4 pt-4">
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="small text-muted mb-1">Verified On</div>
+                        <div class="fw-semibold">@DisplayVerifiedDate(Workflow?.Summary.InsuranceVerifiedAt)</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="small text-muted mb-1">Verified By</div>
+                        <div class="fw-semibold">@Display(Workflow?.Summary.InsuranceVerifiedBy)</div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@if (IsEditing && Workflow is not null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Insurance Information</h5>
+                    <button type="button" class="btn-close" @onclick="CancelEdit"></button>
+                </div>
+                <EditForm Model="@EditModel" OnValidSubmit="SaveInsurance">
+                    <DataAnnotationsValidator />
+                    <div class="modal-body">
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <label class="form-label">Primary Insurance</label>
+                                <select class="form-select" @bind="EditModel.PrimaryInsurance">
+                                    <option value="">Select insurance...</option>
+                                    @foreach (var option in InsuranceOptions)
+                                    {
+                                        <option value="@option.Code">@option.DisplayName</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Insurance Member ID</label>
+                                <InputText class="form-control" @bind-Value="EditModel.InsuranceMemberId" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Authorization Date</label>
+                                <InputDate class="form-control" @bind-Value="EditModel.AuthorizationDate" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Approved Visits</label>
+                                <InputNumber class="form-control" @bind-Value="EditModel.ApprovedVisits" min="0" />
+                            </div>
+                            <div class="col-md-4 d-flex align-items-center">
+                                <div class="form-check mt-3">
+                                    <InputCheckbox class="form-check-input" @bind-Value="EditModel.AuthorizationRequired" />
+                                    <label class="form-check-label">Authorization Required</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit" disabled="@IsProcessing">Cancel</button>
+                        <button type="submit" class="btn btn-primary" disabled="@IsProcessing">@(IsProcessing ? "Saving..." : "Save Changes")</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid PatientId { get; set; }
+    [Parameter] public PatientWorkflowDto? Workflow { get; set; }
+    [Parameter] public EventCallback OnCompleted { get; set; }
+
+    private string? ErrorMessage;
+    private List<LookupOptionDto> InsuranceOptions { get; set; } = [];
+    private bool IsEditing;
+    private bool IsProcessing;
+    private InsuranceEditModel EditModel { get; set; } = new();
+    private bool IsVerified => Workflow?.Summary.InsuranceVerified == true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { InsuranceOptions = await LookupService.GetAsync("Insurance", true); }
+        catch { InsuranceOptions = []; }
+    }
+
+    private void BeginEdit()
+    {
+        if (Workflow is null) return;
+        EditModel = new InsuranceEditModel
+        {
+            PrimaryInsurance = Workflow.Summary.Insurance,
+            InsuranceMemberId = Workflow.Summary.InsuranceMemberId,
+            AuthorizationDate = Workflow.Summary.AuthorizationDate,
+            ApprovedVisits = Workflow.Summary.AuthorizedVisits,
+            AuthorizationRequired = Workflow.Summary.AuthorizationRequired
+        };
+        ErrorMessage = null;
+        IsEditing = true;
+    }
+
+    private void CancelEdit()
+    {
+        IsEditing = false;
+        ErrorMessage = null;
+        EditModel = new InsuranceEditModel();
+    }
+
+    private async Task SaveInsurance()
+    {
+        if (Workflow is null || IsProcessing) return;
+        if (string.IsNullOrWhiteSpace(EditModel.PrimaryInsurance)) { ErrorMessage = "Primary insurance is required."; return; }
+        if (EditModel.ApprovedVisits < 0) { ErrorMessage = "Approved visits cannot be negative."; return; }
+        if (EditModel.AuthorizationDate.HasValue && EditModel.AuthorizationDate.Value > DateOnly.FromDateTime(DateTime.Today)) { ErrorMessage = "Authorization date cannot be in the future."; return; }
+
+        IsProcessing = true;
+        ErrorMessage = null;
+        try
+        {
+            await WorkflowService.UpdateInsuranceAsync(PatientId, EditModel);
+            IsEditing = false;
+            EditModel = new InsuranceEditModel();
+            await ReloadWorkflow();
+        }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { IsProcessing = false; }
+    }
+
+    private async Task VerifyInsurance()
+    {
+        if (Workflow is null || IsProcessing) return;
+        IsProcessing = true;
+        ErrorMessage = null;
+        try
+        {
+            if (string.IsNullOrWhiteSpace(Workflow.Summary.Insurance))
+            {
+                ErrorMessage = "Primary insurance is required before verification.";
+                return;
+            }
+            await WorkflowService.CompleteInsuranceVerificationAsync(PatientId);
+            await ReloadWorkflow();
+            if (OnCompleted.HasDelegate) await OnCompleted.InvokeAsync();
+        }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { IsProcessing = false; }
+    }
+
+    private async Task ReloadWorkflow()
+    {
+        var updatedWorkflow = await WorkflowService.GetAsync(PatientId);
+        if (updatedWorkflow is not null) Workflow = updatedWorkflow;
+    }
+
+    private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "Not provided" : value;
+    private static string DisplayVerifiedDate(DateTime? value) => value.HasValue ? value.Value.ToLocalTime().ToString("MM/dd/yyyy h:mm tt") : "Not available";
+}

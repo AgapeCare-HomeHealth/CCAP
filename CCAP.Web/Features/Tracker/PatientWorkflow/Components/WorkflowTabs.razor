@@ -1,0 +1,35 @@
+﻿@using CCAP.Web.Features.Tracker.PatientWorkflow.Models
+
+<div class="workflow-tabs card shadow-sm border-0">
+
+    <div class="card-body p-0">
+
+        <div class="nav nav-tabs workflow-nav">
+
+            @foreach (var tab in Tabs)
+            {
+                <button class="nav-link @(tab.Active ? "active" : "")"
+                        @onclick="() => OnTabChanged.InvokeAsync(tab.Title)">
+
+                    <i class="@tab.Icon me-2"></i>
+
+                    @tab.Title
+
+                </button>
+            }
+
+        </div>
+
+    </div>
+
+</div>
+
+@code {
+
+    [Parameter]
+    public List<WorkflowTabDto> Tabs { get; set; } = [];
+
+    [Parameter]
+    public EventCallback<string> OnTabChanged { get; set; }
+
+}

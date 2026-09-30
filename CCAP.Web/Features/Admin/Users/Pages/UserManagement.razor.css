@@ -1,0 +1,19 @@
+﻿.user-management-page {
+    padding: 30px;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 30px;
+}
+
+    .page-header h2 {
+        font-weight: 700;
+        margin-bottom: 6px;
+    }
+
+    .page-header p {
+        color: #6c757d;
+    }

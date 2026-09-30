@@ -1,0 +1,45 @@
+﻿<div class="empty-state @Class">
+    @if (!string.IsNullOrWhiteSpace(Icon))
+    {
+        <div class="empty-state__icon">
+            <i class="@Icon"></i>
+        </div>
+    }
+
+    <div class="empty-state__title">
+        @Title
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Message))
+    {
+        <div class="empty-state__message">
+            @Message
+        </div>
+    }
+
+    @if (ChildContent is not null)
+    {
+        <div class="empty-state__action">
+            @ChildContent
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string Title { get; set; } = "No records yet";
+
+    [Parameter]
+    public string Message { get; set; } =
+        "There are no records for this patient.";
+
+    [Parameter]
+    public string Icon { get; set; } =
+        "bi bi-inbox";
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

@@ -1,0 +1,304 @@
+@using CCAP.Web.Features.Tracker.ReferralIntake.Models
+@using Microsoft.AspNetCore.Components.Forms
+
+<div class="step-card">
+
+    <div class="step-title">
+        <h4>Upload Referral PDF</h4>
+    </div>
+
+    <div class="row g-4">
+
+        <div class="col-lg-7">
+
+            <div class="upload-card">
+
+                <InputFile id="uploadReferral"
+                           class="d-none"
+                           OnChange="OnFileSelected"
+                           accept=".pdf,application/pdf" />
+
+                <label for="uploadReferral"
+                       class="upload-dropzone">
+
+                    <i class="bi bi-cloud-arrow-up upload-icon"></i>
+
+                    <h5>
+                        Choose Referral PDF
+                    </h5>
+
+                    <span>
+                        PDF files only
+                    </span>
+
+                    <div class="btn btn-success">
+                        Choose File
+                    </div>
+
+                </label>
+
+            </div>
+
+        </div>
+
+        <div class="col-lg-5">
+
+            <div class="info-card">
+
+                <h5>Uploaded File</h5>
+
+                @if (!HasFileMetadata)
+                {
+                    <div class="empty-file">
+
+                        <i class="bi bi-file-earmark"></i>
+
+                        <span>
+                            No file selected.
+                        </span>
+
+                    </div>
+                }
+                else
+                {
+                    <div class="uploaded-file">
+
+                        <i class="bi bi-file-earmark-pdf-fill text-danger fs-1"></i>
+
+                        <div class="flex-grow-1">
+
+                            <strong>
+                                @Model.ReferralPdfFileName
+                            </strong>
+
+                            <small class="d-block text-muted">
+
+                                @FormatFileSize(Model.ReferralPdfSize)
+
+                            </small>
+
+                            @if (!string.IsNullOrWhiteSpace(
+                                Model.ReferralPdfContentType))
+                            {
+                                <small class="d-block text-muted">
+
+                                    @Model.ReferralPdfContentType
+
+                                </small>
+                            }
+
+                        </div>
+
+                    </div>
+
+                    <hr />
+
+                    <div class="d-flex gap-2">
+
+                        <label for="uploadReferral"
+                               class="btn btn-outline-success btn-sm">
+
+                            <i class="bi bi-arrow-repeat"></i>
+
+                            Replace
+
+                        </label>
+
+                        <button type="button"
+                                class="btn btn-outline-danger btn-sm"
+                                @onclick="RemoveFile">
+
+                            <i class="bi bi-trash"></i>
+
+                            Remove
+
+                        </button>
+
+                        @* =================================================
+                           TEMPORARILY DISABLED
+
+The actual PDF is not stored yet.
+                           Enable this button after Azure Blob Storage
+                           is implemented and a secure PDF URL/storage key
+                           is available.
+                           =================================================
+
+                        <button type="button"
+                                class="btn btn-outline-secondary btn-sm"
+                                @onclick="ViewPdf">
+
+                            <i class="bi bi-eye"></i>
+
+                            View PDF
+
+                        </button>
+
+                        *@
+
+                    </div>
+
+                }
+
+            </div>
+
+        </div>
+
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert alert-danger mt-4">
+            <i class="bi bi-exclamation-circle me-1"></i>
+            @ErrorMessage
+        </div>
+    }
+
+    <div class="alert alert-light mt-4">
+
+        <i class="bi bi-info-circle-fill text-success"></i>
+
+        Accepted format: PDF.
+        Maximum size: 10 MB.
+
+    </div>
+
+</div>
+
+@code {
+
+    [Parameter]
+    public ReferralIntakeModel Model { get; set; } = null!;
+
+    private const long MaxFileSize =
+        10 * 1024 * 1024;
+
+    private string? ErrorMessage;
+
+    private bool HasFileMetadata =>
+        !string.IsNullOrWhiteSpace(
+            Model.ReferralPdfFileName);
+
+    private async Task OnFileSelected(
+        InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+
+        ErrorMessage = null;
+
+        if (file is null)
+            return;
+
+        if (!file.Name.EndsWith(
+                ".pdf",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            ErrorMessage = "Only PDF files are accepted.";
+            ClearFile();
+            return;
+        }
+
+        if (file.Size <= 0)
+        {
+            ErrorMessage = "The selected PDF is empty.";
+            ClearFile();
+            return;
+        }
+
+        if (file.Size > MaxFileSize)
+        {
+            ErrorMessage = "The referral PDF cannot exceed 10 MB.";
+            ClearFile();
+            return;
+        }
+
+        try
+        {
+            await using var input =
+                file.OpenReadStream(MaxFileSize);
+
+            using var memoryStream =
+                new MemoryStream();
+
+            await input.CopyToAsync(
+                memoryStream);
+
+            Model.ReferralPdfBytes =
+                memoryStream.ToArray();
+
+            Model.ReferralPdfFileName =
+                file.Name;
+
+            Model.ReferralPdfContentType =
+                string.IsNullOrWhiteSpace(file.ContentType)
+                    ? "application/pdf"
+                    : file.ContentType;
+
+            Model.ReferralPdfSize =
+                file.Size;
+
+            Model.ReferralPdf =
+                file;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = string.IsNullOrWhiteSpace(ex.Message)
+                ? "The selected PDF could not be read."
+                : ex.Message;
+            ClearFile();
+        }
+    }
+
+    private void ClearFile()
+    {
+        Model.ReferralPdf = null;
+
+        Model.ReferralPdfBytes = null;
+
+        Model.ReferralPdfFileName = null;
+
+        Model.ReferralPdfContentType = null;
+
+        Model.ReferralPdfSize = null;
+    }
+
+    private void RemoveFile()
+    {
+        ClearFile();
+    }
+
+    private static string FormatFileSize(
+        long? bytes)
+    {
+        if (!bytes.HasValue ||
+            bytes.Value <= 0)
+        {
+            return "Size unavailable";
+        }
+
+        return Math.Round(
+                bytes.Value / 1024d / 1024d,
+                2)
+            .ToString("0.##")
+            + " MB";
+    }
+
+    @* =========================================================
+       FUTURE PDF VIEWING
+
+       this method can retrieve a secure URL and open
+       the PDF in a new browser tab.
+
+       private async Task ViewPdf()
+       {
+           var url =
+               await FileStorageService.GetReadUrlAsync(
+                   Model.ReferralDraftId!.Value);
+
+           await JS.InvokeVoidAsync(
+               "open",
+               url,
+               "_blank");
+       }
+
+       ========================================================= *@
+}

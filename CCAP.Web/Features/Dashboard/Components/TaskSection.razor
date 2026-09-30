@@ -1,0 +1,46 @@
+@using CCAP.Web.Features.Dashboard.Models
+
+<div class="task-card">
+    <div class="task-header">
+        <div>
+            <h5>My Tasks (@FilteredTasks.Count())</h5>
+        </div>
+        <button type="button" class="btn btn-outline-primary btn-sm" @onclick="ShowAll">
+            View All Tasks
+        </button>
+    </div>
+
+    <div class="task-filters">
+        <button type="button" class="filter-chip @(CurrentFilter == "All" ? "active" : "")" @onclick='() => SetFilter("All")'>
+            All (@Tasks.Count())
+        </button>
+        <button type="button" class="filter-chip high @(CurrentFilter == "High" ? "active" : "")" @onclick='() => SetFilter("High")'>
+            High (@Tasks.Count(x => x.Priority == "High"))
+        </button>
+        <button type="button" class="filter-chip due @(CurrentFilter == "Due" ? "active" : "")" @onclick='() => SetFilter("Due")'>
+            Due Today (@Tasks.Count(x => x.DueDate.Date == DateTime.Today))
+        </button>
+        <button type="button" class="filter-chip upcoming @(CurrentFilter == "Upcoming" ? "active" : "")" @onclick='() => SetFilter("Upcoming")'>
+            Upcoming (@Tasks.Count(x => x.DueDate.Date > DateTime.Today))
+        </button>
+    </div>
+
+    <TaskTable Tasks="FilteredTasks" />
+</div>
+
+@code {
+    [Parameter] public IEnumerable<MyTaskDto> Tasks { get; set; } = Enumerable.Empty<MyTaskDto>();
+
+    private string CurrentFilter { get; set; } = "All";
+
+    private IEnumerable<MyTaskDto> FilteredTasks => CurrentFilter switch
+    {
+        "High" => Tasks.Where(x => x.Priority == "High"),
+        "Due" => Tasks.Where(x => x.DueDate.Date == DateTime.Today),
+        "Upcoming" => Tasks.Where(x => x.DueDate.Date > DateTime.Today),
+        _ => Tasks
+    };
+
+    private void SetFilter(string filter) => CurrentFilter = filter;
+    private void ShowAll() => CurrentFilter = "All";
+}

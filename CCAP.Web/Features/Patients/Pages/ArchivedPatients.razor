@@ -1,0 +1,18 @@
+@page "/patients/archive"
+@attribute [CcapAuthorize(Policy = "patients.view")]
+@using CCAP.Web.Common.Models
+@using CCAP.Web.Features.Patients.Models
+@using CCAP.Web.Features.Patients.Components
+@inject CCAP.Web.Features.Patients.Services.PatientService PatientService
+<PageTitle>Archived Patients</PageTitle>
+<div class="patients-page"><div class="page-header d-flex justify-content-between align-items-start"><div><h2>Archived Patients</h2><p>Closed patient journeys retained for history and audit.</p></div><a class="btn btn-outline-primary" href="/patients">Back to Active Patients</a></div>
+<PatientToolbar Filter="Filter" OnFilter="ApplyFilter" />
+@if(IsLoading){<div class="py-5 text-center">Loading archived patients...</div>}else if(!string.IsNullOrWhiteSpace(ErrorMessage)){<div class="alert alert-danger">@ErrorMessage</div>}else{<PatientTable Patients="PatientList" /><PatientPagination CurrentPage="@CurrentPage" PageSize="@PageSize" TotalItems="@(Result?.TotalCount ?? 0)" OnPageChanged="GoToPage" OnPageSizeChanged="ChangePageSize" />}</div>
+@code {
+ private List<PatientListItem> PatientList=[]; private PagedResult<PatientListItem>? Result; private PatientListQuery Filter=new(){Status="Archived"}; private int CurrentPage=1; private int PageSize=20; private bool IsLoading; private string? ErrorMessage;
+ protected override async Task OnInitializedAsync()=>await LoadAsync();
+ private async Task LoadAsync(){IsLoading=true;ErrorMessage=null;try{Filter.Status="Archived";Result=await PatientService.GetPatientsAsync(CurrentPage,PageSize,Filter);PatientList=Result.Items;}catch(Exception ex){PatientList=[];ErrorMessage=$"Unable to load archived patients: {ex.Message}";}finally{IsLoading=false;}}
+ private async Task ApplyFilter(PatientListQuery filter){filter.Status="Archived";Filter=filter;CurrentPage=1;await LoadAsync();}
+ private async Task GoToPage(int page){CurrentPage=page;await LoadAsync();}
+ private async Task ChangePageSize(int size){PageSize=size;CurrentPage=1;await LoadAsync();}
+}

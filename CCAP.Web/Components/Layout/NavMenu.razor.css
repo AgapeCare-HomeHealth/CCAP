@@ -1,0 +1,413 @@
+/* ==========================================
+   NAV MENU / SIDEBAR
+========================================== */
+
+
+/* ==========================================
+   SIDEBAR
+========================================== */
+
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    width: 260px;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    background: #F8FAF9;
+    color: #334155;
+    overflow: hidden;
+    z-index: 1000;
+    /* Subtle vertical separation */
+    border-right: 1px solid #DDE7E4;
+    /* Card-like popup shadow */
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.10);
+    transition: width 0.25s ease, box-shadow 0.25s ease;
+}
+
+
+/* ==========================================
+   HEADER / LOGO AREA
+========================================== */
+
+.sidebar-header {
+    height: 76px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    background: #FFFFFF;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+.sidebar-header-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    transition: 0.25s ease;
+}
+
+
+/* ==========================================
+   EXPANDED LOGO
+========================================== */
+
+.sidebar-logo-expanded {
+    width: 210px;
+    height: auto;
+    max-height: 62px;
+    object-fit: contain;
+    display: block;
+}
+
+
+/* ==========================================
+   COLLAPSED LOGO
+========================================== */
+
+.sidebar-logo-collapsed {
+    width: 34px;
+    height: 34px;
+    object-fit: contain;
+    display: block;
+}
+
+
+/* ==========================================
+   SIDEBAR TITLE
+========================================== */
+
+.sidebar-title {
+    overflow: hidden;
+}
+
+
+/* ==========================================
+   CENTER LOGO WHEN COLLAPSED
+========================================== */
+
+.sidebar.collapsed .sidebar-header-content {
+    justify-content: center;
+}
+
+
+/* ==========================================
+   NAVIGATION CONTAINER
+========================================== */
+
+.sidebar-nav {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 20px 12px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+
+    /* ==========================================
+   NAVIGATION ITEMS
+========================================== */
+
+    .sidebar-nav ::deep .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        height: 46px;
+        min-height: 46px;
+        padding: 0 14px;
+        border-radius: 9px;
+        text-decoration: none;
+        color: #475569 !important;
+        font-size: 14px;
+        font-weight: 500;
+        transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+
+        /* ==========================================
+   NAVIGATION ICONS
+========================================== */
+
+        .sidebar-nav ::deep .nav-item i {
+            width: 20px;
+            text-align: center;
+            font-size: 17px;
+            color: #64748B !important;
+            flex-shrink: 0;
+            transition: color 0.2s ease;
+        }
+
+
+        /* ==========================================
+   NAVIGATION HOVER
+========================================== */
+
+        .sidebar-nav ::deep .nav-item:hover {
+            background: #F0F7F5;
+            color: #20786C !important;
+        }
+
+            .sidebar-nav ::deep .nav-item:hover i {
+                color: #20786C !important;
+            }
+
+
+        /* ==========================================
+   NAVIGATION ACTIVE
+========================================== */
+
+        .sidebar-nav ::deep .nav-item.active {
+            background: #E3F2EF !important;
+            color: #176B60 !important;
+            font-weight: 600;
+            box-shadow: inset 3px 0 0 #20786C;
+        }
+
+            .sidebar-nav ::deep .nav-item.active i {
+                color: #176B60 !important;
+            }
+
+
+/* ==========================================
+   DROPDOWN / EXPANDING MENU
+========================================== */
+
+.menu-dropdown {
+    margin: 0;
+}
+
+
+    /* ==========================================
+   DROPDOWN SUMMARY
+========================================== */
+
+    .menu-dropdown summary {
+        list-style: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 46px;
+        min-height: 46px;
+        padding: 0 14px;
+        border-radius: 9px;
+        cursor: pointer;
+        color: #475569 !important;
+        font-size: 14px;
+        font-weight: 500;
+        transition: background 0.2s ease, color 0.2s ease;
+    }
+
+
+        /* Remove browser marker */
+
+        .menu-dropdown summary::-webkit-details-marker {
+            display: none;
+        }
+
+
+        /* ==========================================
+   DROPDOWN CONTENT
+========================================== */
+
+        .menu-dropdown summary div {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+
+            /* ==========================================
+   DROPDOWN ICON
+========================================== */
+
+            .menu-dropdown summary div i {
+                width: 20px;
+                text-align: center;
+                font-size: 17px;
+                color: #64748B !important;
+                flex-shrink: 0;
+                transition: color 0.2s ease;
+            }
+
+
+        /* ==========================================
+   DROPDOWN HOVER
+========================================== */
+
+        .menu-dropdown summary:hover {
+            background: #F0F7F5;
+            color: #20786C !important;
+        }
+
+            .menu-dropdown summary:hover div i {
+                color: #20786C !important;
+            }
+
+
+    /* ==========================================
+   DROPDOWN OPEN
+========================================== */
+
+    .menu-dropdown[open] summary {
+        background: #F0F7F5;
+        color: #20786C !important;
+    }
+
+        .menu-dropdown[open] summary div i {
+            color: #20786C !important;
+        }
+
+
+    /* ==========================================
+   ARROW
+========================================== */
+
+    .menu-dropdown summary .arrow {
+        width: auto;
+        color: #64748B !important;
+        font-size: 12px;
+        transition: transform 0.25s ease, color 0.2s ease;
+    }
+
+    .menu-dropdown[open] summary .arrow {
+        color: #20786C !important;
+        transform: rotate(180deg);
+    }
+
+
+/* ==========================================
+   SUBMENU
+========================================== */
+
+.sidebar-nav ::deep .submenu-item {
+    display: block;
+    margin-top: 3px;
+    padding: 9px 14px 9px 49px;
+    border-radius: 8px;
+    text-decoration: none;
+    color: #64748B !important;
+    font-size: 13px;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+
+    /* ==========================================
+   SUBMENU HOVER
+========================================== */
+
+    .sidebar-nav ::deep .submenu-item:hover {
+        background: #F0F7F5;
+        color: #20786C !important;
+    }
+
+
+    /* ==========================================
+   SUBMENU ACTIVE
+========================================== */
+
+    .sidebar-nav ::deep .submenu-item.active {
+        background: #E3F2EF;
+        color: #176B60 !important;
+        font-weight: 600;
+        box-shadow: inset 3px 0 0 #20786C;
+    }
+
+
+/* ==========================================
+   COLLAPSED SIDEBAR
+========================================== */
+
+.sidebar.collapsed {
+    width: 72px;
+}
+
+
+    /* Hide text/submenus */
+
+    .sidebar.collapsed .sidebar-title,
+    .sidebar.collapsed .submenu-item {
+        display: none;
+    }
+
+
+    /* ==========================================
+   COLLAPSED NAVIGATION
+========================================== */
+
+    .sidebar.collapsed .sidebar-nav ::deep .nav-item {
+        justify-content: center;
+        padding: 0;
+    }
+
+
+    /* ==========================================
+   COLLAPSED DROPDOWN
+========================================== */
+
+    .sidebar.collapsed .menu-dropdown summary {
+        justify-content: center;
+        padding: 0;
+    }
+
+        .sidebar.collapsed .menu-dropdown summary div {
+            justify-content: center;
+            width: 100%;
+        }
+
+
+    /* Hide arrow */
+
+    .sidebar.collapsed .arrow {
+        display: none;
+    }
+
+
+    /* ==========================================
+   COLLAPSED ICON SIZE
+========================================== */
+
+    .sidebar.collapsed .sidebar-nav ::deep .nav-item i {
+        font-size: 18px;
+    }
+
+
+/* ==========================================
+   FOOTER
+========================================== */
+
+.sidebar-footer {
+    flex-shrink: 0;
+    padding: 16px;
+    text-align: center;
+    font-size: 12px;
+    color: #9CA3AF;
+    background: #FFFFFF;
+    border-top: 1px solid #E5E7EB;
+}
+
+
+/* ==========================================
+   SCROLLBAR
+========================================== */
+
+.sidebar-nav::-webkit-scrollbar {
+    width: 5px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+    background: #D1D5DB;
+    border-radius: 10px;
+}
+
+    .sidebar-nav::-webkit-scrollbar-thumb:hover {
+        background: #9CA3AF;
+    }

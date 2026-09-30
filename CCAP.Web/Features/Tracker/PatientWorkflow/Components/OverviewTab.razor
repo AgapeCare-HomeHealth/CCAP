@@ -1,0 +1,458 @@
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Models
+
+<div class="overview-tab">
+
+    <!-- Top summary cards -->
+    <div class="row g-4">
+
+        <!-- Needs Attention -->
+        <div class="col-xl-5">
+            <div class="card shadow-sm border-0 h-100">
+
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Needs Attention</h5>
+                </div>
+
+                <div class="card-body">
+
+                    @if (NeedsAttention.Any())
+                    {
+                        <ul class="list-group list-group-flush">
+
+                            @foreach (var item in NeedsAttention)
+                            {
+                                <li class="list-group-item px-0 d-flex justify-content-between align-items-start">
+
+                                    <div class="pe-3">
+                                        <strong>@item.Title</strong>
+
+                                        @if (!string.IsNullOrWhiteSpace(item.Description))
+                                        {
+                                            <div class="small text-muted mt-1">
+                                                @item.Description
+                                            </div>
+                                        }
+                                    </div>
+
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-primary flex-shrink-0"
+                                            @onclick="() => OpenTab(item.Tab)">
+                                        Open
+                                    </button>
+
+                                </li>
+                            }
+
+                        </ul>
+                    }
+                    else
+                    {
+                        <div class="text-success py-3">
+                            <i class="bi bi-check-circle me-2"></i>
+                            No urgent items.
+                        </div>
+                    }
+
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Next Action -->
+        <div class="col-xl-4">
+
+            <div class="card shadow-sm border-0 h-100">
+
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Next Action</h5>
+                </div>
+
+                <div class="card-body">
+
+                    @if (HasNextAction)
+                    {
+                        <h5 class="mb-2">
+                            @Workflow!.NextAction!.Title
+                        </h5>
+
+                        @if (!string.IsNullOrWhiteSpace(Workflow.NextAction.Description))
+                        {
+                            <p class="text-muted mb-3">
+                                @Workflow.NextAction.Description
+                            </p>
+                        }
+
+                        <div class="small text-muted mb-3">
+                            Due:
+                            @Workflow.NextAction.DueDate
+                            .ToLocalTime()
+                            .ToString("MM/dd/yyyy")
+                        </div>
+
+                        <button type="button"
+                                class="btn btn-primary"
+                                @onclick="OpenNextAction">
+                            Open Task
+                        </button>
+                    }
+                    else
+                    {
+                        <div class="text-center text-success py-4">
+
+                            <i class="bi bi-check-circle fs-2"></i>
+
+                            <div class="mt-2">
+                                No pending action.
+                            </div>
+
+                        </div>
+                    }
+
+                </div>
+            </div>
+
+        </div>
+
+
+        <!-- Current Stage -->
+        <div class="col-xl-3">
+
+            <div class="card shadow-sm border-0 h-100">
+
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Current Workflow</h5>
+                </div>
+
+                <div class="card-body">
+
+                    @if (!string.IsNullOrWhiteSpace(CurrentStageText))
+                    {
+                        <div class="mb-3">
+
+                            <div class="small text-muted">
+                                Current Stage
+                            </div>
+
+                            <div class="fw-semibold">
+                                @CurrentStageText
+                            </div>
+
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(WorkflowStatusText))
+                    {
+                        <div>
+
+                            <div class="small text-muted">
+                                Status
+                            </div>
+
+                            <span class="badge @WorkflowStatusClass">
+                                @WorkflowStatusText
+                            </span>
+
+                        </div>
+                    }
+
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Workflow Status -->
+    <div class="card shadow-sm border-0 mt-4">
+
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+
+            <h5 class="mb-0">
+                Workflow Status
+            </h5>
+
+        </div>
+
+        <div class="card-body">
+
+            @if (Workflow?.WorkflowStages is not null &&
+                 Workflow.WorkflowStages.Any())
+            {
+                <div class="row g-3">
+
+                    @foreach (var stage in Workflow.WorkflowStages.OrderBy(x => x.Sequence))
+                    {
+                        var statusText = stage.Status.ToString();
+
+                        <div class="col-6 col-md-4 col-xl-2">
+
+                            <div class="small text-muted mb-1">
+                                @stage.StageName
+                            </div>
+
+                            <span class="badge @StageClass(statusText)">
+                                @statusText
+                            </span>
+
+                        </div>
+                    }
+
+                </div>
+            }
+            else
+            {
+                <div class="text-muted">
+                    No workflow stages are currently available.
+                </div>
+            }
+
+        </div>
+    </div>
+
+</div>
+
+
+@code {
+
+    [Parameter]
+    public Guid PatientId { get; set; }
+
+    [Parameter]
+    public PatientWorkflowDto? Workflow { get; set; }
+
+    [Parameter]
+    public PatientCareProfileDto? Care { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnChangeTab { get; set; }
+
+
+    private bool HasNextAction =>
+        Workflow?.NextAction is not null &&
+        Workflow.NextAction.TaskId != Guid.Empty;
+
+
+    private IEnumerable<(string Title, string Description, string Tab)> NeedsAttention
+    {
+        get
+        {
+            if (!HasNextAction)
+            {
+                return Array.Empty<(string, string, string)>();
+            }
+
+            var nextAction = Workflow!.NextAction!;
+
+            return new[]
+            {
+                (
+                    nextAction.Title,
+                    nextAction.Description,
+                    TabFor(nextAction.Title)
+                )
+            };
+        }
+    }
+
+
+    private string CurrentStageText
+    {
+        get
+        {
+            if (Workflow?.WorkflowStages is null)
+            {
+                return string.Empty;
+            }
+
+            var activeStage = Workflow.WorkflowStages
+                .OrderBy(x => x.Sequence)
+                .FirstOrDefault(x =>
+                    string.Equals(
+                        x.Status.ToString(),
+                        "InProgress",
+                        StringComparison.OrdinalIgnoreCase)
+                    ||
+                    string.Equals(
+                        x.Status.ToString(),
+                        "In Progress",
+                        StringComparison.OrdinalIgnoreCase));
+
+            if (activeStage is not null)
+            {
+                return activeStage.StageName;
+            }
+
+            var firstIncomplete = Workflow.WorkflowStages
+                .OrderBy(x => x.Sequence)
+                .FirstOrDefault(x =>
+                    !string.Equals(
+                        x.Status.ToString(),
+                        "Completed",
+                        StringComparison.OrdinalIgnoreCase));
+
+            return firstIncomplete?.StageName ?? "Workflow Complete";
+        }
+    }
+
+
+    private string WorkflowStatusText
+    {
+        get
+        {
+            if (Workflow?.WorkflowStages is null ||
+                !Workflow.WorkflowStages.Any())
+            {
+                return string.Empty;
+            }
+
+            var activeStage = Workflow.WorkflowStages
+                .OrderBy(x => x.Sequence)
+                .FirstOrDefault(x =>
+                    string.Equals(
+                        x.Status.ToString(),
+                        "InProgress",
+                        StringComparison.OrdinalIgnoreCase)
+                    ||
+                    string.Equals(
+                        x.Status.ToString(),
+                        "In Progress",
+                        StringComparison.OrdinalIgnoreCase));
+
+            if (activeStage is not null)
+            {
+                return activeStage.Status.ToString();
+            }
+
+            return Workflow.WorkflowStages
+                .OrderBy(x => x.Sequence)
+                .First()
+                .Status
+                .ToString();
+        }
+    }
+
+
+    private string WorkflowStatusClass
+    {
+        get
+        {
+            return StageClass(WorkflowStatusText);
+        }
+    }
+
+
+    private async Task OpenTab(string tab)
+    {
+        if (string.IsNullOrWhiteSpace(tab))
+        {
+            return;
+        }
+
+        await OnChangeTab.InvokeAsync(tab);
+    }
+
+
+    private async Task OpenNextAction()
+    {
+        if (!HasNextAction)
+        {
+            return;
+        }
+
+        var tab = TabFor(Workflow!.NextAction!.Title);
+
+        await OpenTab(tab);
+    }
+
+
+    private static string TabFor(string title)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            return "Compliance";
+        }
+
+        if (title.Contains(
+                "Insurance",
+                StringComparison.OrdinalIgnoreCase)
+            ||
+            title.Contains(
+                "Authorization",
+                StringComparison.OrdinalIgnoreCase)
+            ||
+            title.Contains(
+                "Payor",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return "Insurance";
+        }
+
+        if (title.Contains(
+                "Order",
+                StringComparison.OrdinalIgnoreCase)
+            ||
+            title.Contains(
+                "POC",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return "Orders & Care";
+        }
+
+        if (title.Contains(
+                "Communication",
+                StringComparison.OrdinalIgnoreCase)
+            ||
+            title.Contains(
+                "Call",
+                StringComparison.OrdinalIgnoreCase)
+            ||
+            title.Contains(
+                "Email",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return "Communication";
+        }
+
+        /*
+         * SOC/F2F and other required workflow confirmations
+         * belong in Compliance.
+         */
+        return "Compliance";
+    }
+
+
+    private static string StageClass(string status)
+    {
+        if (string.Equals(
+                status,
+                "Completed",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return "bg-success";
+        }
+
+        if (string.Equals(
+                status,
+                "InProgress",
+                StringComparison.OrdinalIgnoreCase)
+            ||
+            string.Equals(
+                status,
+                "In Progress",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return "bg-primary";
+        }
+
+        if (string.Equals(
+                status,
+                "Pending",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return "bg-secondary";
+        }
+
+        return "bg-secondary";
+    }
+}

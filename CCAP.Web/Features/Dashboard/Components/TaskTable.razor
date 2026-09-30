@@ -1,0 +1,154 @@
+﻿@using CCAP.Web.Features.Dashboard.Models
+@inject NavigationManager Navigation
+
+<div class="table-responsive">
+
+    <table class="table task-table align-middle mb-0">
+
+        <thead>
+
+            <tr>
+
+                <th>Priority</th>
+
+                <th>Task</th>
+
+                <th>Patient</th>
+
+                <th>Due Date</th>
+
+                <th>Assigned To</th>
+
+                <th class="text-center">
+                    Action
+                </th>
+
+            </tr>
+
+        </thead>
+
+        <tbody>
+
+            @if (Tasks.Any())
+            {
+                @foreach (var task in Tasks)
+                {
+                    <tr>
+
+                        <td>
+
+                            @switch (task.Priority)
+                            {
+                                case "High":
+
+                                    <span class="badge bg-danger">
+
+                                        High
+
+                                    </span>
+
+                                    break;
+
+                                case "Medium":
+
+                                    <span class="badge bg-warning text-dark">
+
+                                        Medium
+
+                                    </span>
+
+                                    break;
+
+                                default:
+
+                                    <span class="badge bg-success">
+
+                                        Low
+
+                                    </span>
+
+                                    break;
+                            }
+
+                        </td>
+
+                        <td>
+
+                            <div class="fw-semibold">
+
+                                @task.TaskName
+
+                            </div>
+
+                            <small class="text-muted">
+
+                                @task.CurrentStage
+
+                            </small>
+
+                        </td>
+
+                        <td>
+
+                            @task.PatientName
+
+                        </td>
+
+                        <td>
+
+                            @task.DueDate.ToString("MMM dd hh:mm tt")
+
+                        </td>
+
+                        <td>
+
+                            @task.AssignedTo
+
+                        </td>
+
+                        <td class="text-center">
+
+                            <button type="button" class="btn btn-success btn-sm"
+                                    @onclick="() => OpenTask(task)">
+                                Open
+                            </button>
+
+                        </td>
+
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+
+                    <td colspan="6"
+                        class="text-center py-5">
+
+                        No tasks assigned.
+
+                    </td>
+
+                </tr>
+            }
+
+        </tbody>
+
+    </table>
+
+</div>
+
+@code {
+
+    [Parameter]
+
+    public IEnumerable<MyTaskDto> Tasks { get; set; }
+        = Enumerable.Empty<MyTaskDto>();
+
+    private void OpenTask(MyTaskDto task)
+    {
+        if (task.PatientId != Guid.Empty)
+            Navigation.NavigateTo($"/tracker/patient/{task.PatientId}");
+    }
+
+}

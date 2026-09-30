@@ -1,0 +1,372 @@
+@using Microsoft.AspNetCore.Components.Forms
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Models
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Services
+@inject PatientWorkflowService WorkflowService
+
+<div class="border rounded p-3 h-100 pre-auth-compliance-card">
+    <div class="d-flex justify-content-between align-items-start gap-3">
+        <div>
+            <div class="fw-semibold">@Item.RequirementName</div>
+            <div class="small text-muted">@Item.Description</div>
+        </div>
+
+        @if (Item.IsCompleted)
+        {
+            <span class="badge bg-success">Completed</span>
+        }
+        else
+        {
+            <button class="btn btn-sm btn-primary"
+                    @onclick="() => OnComplete.InvokeAsync(Item.RequirementCode)"
+                    disabled="@IsSaving">
+                @(IsSaving ? "Saving..." : "Mark Complete")
+            </button>
+        }
+    </div>
+
+    <div class="border-top mt-3 pt-3">
+        <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+            <div>
+                <div class="fw-semibold">Insurance Document</div>
+                <div class="small text-muted">
+                    Upload the insurance document received by the Care Coordinator for confirmation.
+                    PDF, JPG, JPEG, and PNG files up to 10 MB are supported.
+                </div>
+            </div>
+            @if (SavedDocument is not null)
+            {
+                <span class="badge bg-success-subtle text-success-emphasis">Uploaded</span>
+            }
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(FileErrorMessage))
+        {
+            <div class="alert alert-danger py-2 mb-3">@FileErrorMessage</div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(SuccessMessage))
+        {
+            <div class="alert alert-success py-2 mb-3">@SuccessMessage</div>
+        }
+
+        @if (SavedDocument is not null)
+        {
+            <div class="saved-insurance-file mb-3">
+                <div>
+                    <div class="small text-muted">Stored document</div>
+                    <div class="fw-semibold text-break">@SavedDocument.FileName</div>
+                    <div class="small text-muted">
+                        @FormatFileSize(SavedDocument.FileSize) · @SavedDocument.ContentType ·
+                        Uploaded @SavedDocument.UploadedAt.ToLocalTime().ToString("MM/dd/yyyy h:mm tt")
+                    </div>
+                </div>
+                <button type="button"
+                        class="btn btn-sm btn-outline-primary"
+                        disabled="@IsStoredPreviewLoading"
+                        @onclick="ViewStoredFileAsync">
+                    @if (IsStoredPreviewLoading)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        <span>Loading...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-eye me-1"></i>
+                        <span>View</span>
+                    }
+                </button>
+            </div>
+        }
+
+        <div class="row g-2 align-items-end">
+            <div class="col-md-8">
+                <label class="form-label">Insurance File</label>
+                <InputFile OnChange="HandleFileSelected"
+                           class="form-control"
+                           accept=".pdf,.png,.jpg,.jpeg" />
+            </div>
+
+            <div class="col-md-4 d-flex gap-2 justify-content-md-end">
+                <button type="button"
+                        class="btn btn-outline-primary"
+                        disabled="@(!HasSelectedFile || IsPreviewLoading)"
+                        @onclick="ViewSelectedFileAsync">
+                    @if (IsPreviewLoading)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        <span>Loading...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-eye me-1"></i>
+                        <span>View</span>
+                    }
+                </button>
+
+                <button type="button"
+                        class="btn btn-primary"
+                        disabled="@(!HasSelectedFile || IsUploading)"
+                        @onclick="UploadFileAsync">
+                    @if (IsUploading)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        <span>Uploading...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-upload me-1"></i>
+                        <span>Upload</span>
+                    }
+                </button>
+            </div>
+        </div>
+
+        @if (HasSelectedFile)
+        {
+            <div class="selected-insurance-file mt-3">
+                <div>
+                    <div class="small text-muted">Selected file</div>
+                    <div class="fw-semibold text-break">@SelectedFileName</div>
+                    <div class="small text-muted">@FormatFileSize(SelectedFileSize) · @SelectedFileContentType</div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="ClearSelectedFile">
+                    <i class="bi bi-x-lg me-1"></i>Remove
+                </button>
+            </div>
+        }
+
+        @if (Item.IsCompleted && Item.CompletedAt.HasValue)
+        {
+            <div class="small text-muted mt-2">
+                Confirmed @Item.CompletedAt.Value.ToLocalTime().ToString("MM/dd/yyyy h:mm tt")
+                @if (!string.IsNullOrWhiteSpace(Item.CompletedByUserName))
+                {
+                    <span>by @Item.CompletedByUserName</span>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@if (ShowViewModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content pre-auth-document-modal">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title mb-1">Insurance Document</h5>
+                        <div class="small text-muted">@PreviewFileName</div>
+                    </div>
+                    <button type="button" class="btn-close" @onclick="CloseView"></button>
+                </div>
+
+                <div class="modal-body p-0">
+                    @if (IsPreviewPdf)
+                    {
+                        <iframe src="@PreviewDataUrl"
+                                title="Insurance document preview"
+                                class="insurance-document-preview"></iframe>
+                    }
+                    else if (IsPreviewImage)
+                    {
+                        <div class="insurance-image-preview">
+                            <img src="@PreviewDataUrl" alt="Insurance document preview" />
+                        </div>
+                    }
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseView">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid PatientId { get; set; }
+    [Parameter] public ComplianceItemDto Item { get; set; } = new();
+    [Parameter] public EventCallback<string> OnComplete { get; set; }
+    [Parameter] public bool IsSaving { get; set; }
+
+    private const long MaxFileSize = 10 * 1024 * 1024;
+
+    private IBrowserFile? SelectedFile;
+    private string? SelectedFileName;
+    private string? SelectedFileContentType;
+    private long SelectedFileSize;
+    private string? PreviewDataUrl;
+    private string? PreviewFileName;
+    private string? PreviewContentType;
+    private string? FileErrorMessage;
+    private string? SuccessMessage;
+    private bool ShowViewModal;
+    private bool IsPreviewLoading;
+    private bool IsStoredPreviewLoading;
+    private bool IsUploading;
+    private PreAuthDocumentDto? SavedDocument;
+
+    private bool HasSelectedFile => SelectedFile is not null;
+    private bool IsPreviewPdf => string.Equals(PreviewContentType, "application/pdf", StringComparison.OrdinalIgnoreCase);
+    private bool IsPreviewImage => PreviewContentType?.StartsWith("image/", StringComparison.OrdinalIgnoreCase) == true;
+
+    protected override async Task OnInitializedAsync() => await LoadSavedDocumentAsync();
+
+    private async Task LoadSavedDocumentAsync()
+    {
+        try
+        {
+            SavedDocument = await WorkflowService.GetPreAuthDocumentAsync(PatientId);
+        }
+        catch (Exception ex)
+        {
+            FileErrorMessage = $"Unable to load the stored insurance document: {ex.Message}";
+        }
+    }
+
+    private void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        ClearSelectedFile();
+        SuccessMessage = null;
+
+        var file = e.File;
+        if (file is null)
+            return;
+
+        if (file.Size <= 0)
+        {
+            FileErrorMessage = "The selected file is empty.";
+            return;
+        }
+
+        if (file.Size > MaxFileSize)
+        {
+            FileErrorMessage = "The insurance document must be 10 MB or smaller.";
+            return;
+        }
+
+        if (!IsSupportedFile(file))
+        {
+            FileErrorMessage = "Only PDF, JPG, JPEG, and PNG files are supported.";
+            return;
+        }
+
+        SelectedFile = file;
+        SelectedFileName = file.Name;
+        SelectedFileContentType = file.ContentType;
+        SelectedFileSize = file.Size;
+        FileErrorMessage = null;
+    }
+
+    private async Task UploadFileAsync()
+    {
+        if (SelectedFile is null || IsUploading)
+            return;
+
+        IsUploading = true;
+        FileErrorMessage = null;
+        SuccessMessage = null;
+
+        try
+        {
+            await WorkflowService.UploadPreAuthDocumentAsync(PatientId, SelectedFile);
+            await LoadSavedDocumentAsync();
+            SuccessMessage = "The insurance document was uploaded successfully.";
+            ClearSelectedFile();
+        }
+        catch (Exception ex)
+        {
+            FileErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsUploading = false;
+        }
+    }
+
+    private async Task ViewSelectedFileAsync()
+    {
+        if (SelectedFile is null)
+            return;
+
+        IsPreviewLoading = true;
+        FileErrorMessage = null;
+
+        try
+        {
+            await using var stream = SelectedFile.OpenReadStream(MaxFileSize);
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+            OpenPreview(memoryStream.ToArray(), SelectedFileContentType ?? "application/octet-stream", SelectedFileName ?? SelectedFile.Name);
+        }
+        catch (Exception ex)
+        {
+            FileErrorMessage = $"Unable to preview the selected file: {ex.Message}";
+        }
+        finally
+        {
+            IsPreviewLoading = false;
+        }
+    }
+
+    private async Task ViewStoredFileAsync()
+    {
+        if (SavedDocument is null)
+            return;
+
+        IsStoredPreviewLoading = true;
+        FileErrorMessage = null;
+
+        try
+        {
+            var result = await WorkflowService.GetPreAuthDocumentFileAsync(PatientId);
+            if (result is null)
+            {
+                FileErrorMessage = "The stored insurance document could not be found.";
+                return;
+            }
+
+            OpenPreview(result.Value.Content, result.Value.ContentType, SavedDocument.FileName);
+        }
+        catch (Exception ex)
+        {
+            FileErrorMessage = $"Unable to open the stored insurance document: {ex.Message}";
+        }
+        finally
+        {
+            IsStoredPreviewLoading = false;
+        }
+    }
+
+    private void OpenPreview(byte[] content, string contentType, string fileName)
+    {
+        PreviewDataUrl = $"data:{contentType};base64,{Convert.ToBase64String(content)}";
+        PreviewContentType = contentType;
+        PreviewFileName = fileName;
+        ShowViewModal = true;
+    }
+
+    private void ClearSelectedFile()
+    {
+        SelectedFile = null;
+        SelectedFileName = null;
+        SelectedFileContentType = null;
+        SelectedFileSize = 0;
+    }
+
+    private void CloseView() => ShowViewModal = false;
+
+    private static bool IsSupportedFile(IBrowserFile file) =>
+        string.Equals(file.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(file.ContentType, "image/png", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(file.ContentType, "image/jpeg", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(file.ContentType, "image/jpg", StringComparison.OrdinalIgnoreCase);
+
+    private static string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024d:0.0} KB";
+        return $"{bytes / (1024d * 1024d):0.0} MB";
+    }
+}

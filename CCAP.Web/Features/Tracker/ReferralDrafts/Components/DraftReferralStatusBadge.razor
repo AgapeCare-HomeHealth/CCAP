@@ -1,0 +1,20 @@
+﻿<span class="patient-status-badge @GetStatusClass()">
+    @Status
+</span>
+
+@code {
+
+    [Parameter]
+    public string Status { get; set; } = string.Empty;
+
+    private string GetStatusClass()
+    {
+        return Status.ToLowerInvariant() switch
+        {
+            "draft" => "draft",
+            "underreview" => "review",
+            "under review" => "review",
+            _ => string.Empty
+        };
+    }
+}

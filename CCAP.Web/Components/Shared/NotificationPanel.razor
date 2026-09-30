@@ -1,0 +1,80 @@
+@using CCAP.Web.Features.Notifications.Models
+
+@if (Visible)
+{
+    <div class="notification-panel">
+        <div class="notification-header">
+            <div>
+                <h5>Notifications</h5>
+                @if (UnreadCount > 0)
+                {
+                    <span class="notification-header-count">@UnreadCount unread</span>
+                }
+            </div>
+        </div>
+
+        @if (Notifications.Count == 0)
+        {
+            <div class="notification-empty">
+                <i class="bi bi-check-circle"></i>
+                <h6>You're all caught up!</h6>
+                <p>No action is currently required.</p>
+            </div>
+        }
+        else
+        {
+            <div class="notification-list">
+                @foreach (var notification in Notifications)
+                {
+                    <button type="button"
+                            class="notification-item @(notification.IsRead ? "is-read" : "")"
+                            @onclick="() => NotificationSelected.InvokeAsync(notification)">
+                        <span class="notification-severity @GetSeverityClass(notification.Severity)">
+                            <i class="@GetIcon(notification.Type)"></i>
+                        </span>
+                        <span class="notification-content">
+                            <span class="notification-title">@notification.Title</span>
+                            <span class="notification-patient">@notification.PatientName</span>
+                            <span class="notification-message">@notification.Message</span>
+                            @if (notification.DueDate.HasValue)
+                            {
+                                <span class="notification-due">
+                                    Due @notification.DueDate.Value.ToString("MM/dd/yyyy")
+                                </span>
+                            }
+                        </span>
+                        @if (!notification.IsRead)
+                        {
+                            <span class="notification-unread-dot"></span>
+                        }
+                    </button>
+                }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public IReadOnlyList<UserNotificationDto> Notifications { get; set; } = [];
+    [Parameter] public EventCallback<UserNotificationDto> NotificationSelected { get; set; }
+
+    private int UnreadCount => Notifications.Count(x => !x.IsRead);
+
+    private static string GetSeverityClass(string severity) => severity switch
+    {
+        "Critical" => "severity-critical",
+        "Warning" => "severity-warning",
+        _ => "severity-info"
+    };
+
+    private static string GetIcon(string type) => type switch
+    {
+        "Order" => "bi bi-file-earmark-text",
+        "Lab" => "bi bi-eyedropper",
+        "Supply" => "bi bi-box-seam",
+        "Foley" => "bi bi-heart-pulse",
+        "Fax" => "bi bi-printer",
+        _ => "bi bi-bell"
+    };
+}

@@ -1,0 +1,38 @@
+﻿<div class="patient-pagination">
+
+    <div class="pagination-info">
+
+        Showing 1 to @TotalItems of @TotalItems patients
+
+    </div>
+
+    <div class="pagination-controls">
+
+        <button class="page-btn" disabled>
+
+            <i class="bi bi-chevron-left"></i>
+
+        </button>
+
+        <button class="page-btn active">
+
+            1
+
+        </button>
+
+        <button class="page-btn" disabled>
+
+            <i class="bi bi-chevron-right"></i>
+
+        </button>
+
+    </div>
+
+</div>
+
+@code {
+
+    [Parameter]
+    public int TotalItems { get; set; }
+
+}
