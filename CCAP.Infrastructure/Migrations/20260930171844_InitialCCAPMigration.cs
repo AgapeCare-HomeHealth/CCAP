@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CCAP.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class initialCCAPschema : Migration
+    public partial class InitialCCAPMigration : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -648,6 +648,10 @@ namespace CCAP.Infrastructure.Migrations
                     PatientName = table.Column<string>(type: "nvarchar(300)", maxLength: 300, nullable: false),
                     ClinicianName = table.Column<string>(type: "nvarchar(300)", maxLength: 300, nullable: true),
                     VisitType = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    TimeBlock = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    ConfirmationStatus = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    CallNotes = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    NotesFlag = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Location = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
                     ScheduledDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     CompletedDate = table.Column<DateTime>(type: "datetime2", nullable: true),

@@ -95,18 +95,50 @@ app.UseExceptionHandler(errorApp =>
     });
 });
 
+//using (var scope = app.Services.CreateScope())
+//{
+//    var context = scope.ServiceProvider
+//        .GetRequiredService<AppDbContext>();
+
+//    if (app.Environment.IsDevelopment() &&
+//        builder.Configuration.GetValue<bool>("Database:ApplyMigrations"))
+//    {
+//        await context.Database.MigrateAsync();
+
+//        var passwordHasher = scope.ServiceProvider
+//            .GetRequiredService<
+//                CCAP.Application.Abstractions.Identity.IPasswordHasher>();
+
+//        await DatabaseSeeder.SeedAsync(
+//            context,
+//            passwordHasher);
+//    }
+//}
+
 using (var scope = app.Services.CreateScope())
 {
-    var context = scope.ServiceProvider
+    var services = scope.ServiceProvider;
+
+    var context = services
         .GetRequiredService<AppDbContext>();
 
-    if (app.Environment.IsDevelopment() &&
-        builder.Configuration.GetValue<bool>("Database:ApplyMigrations"))
+    var applyMigrations =
+        builder.Configuration.GetValue<bool>(
+            "Database:ApplyMigrations");
+
+    var seedDatabase =
+        builder.Configuration.GetValue<bool>(
+            "Database:Seed");
+
+    if (applyMigrations)
     {
         await context.Database.MigrateAsync();
+    }
 
-        var passwordHasher = scope.ServiceProvider
-            .GetRequiredService<
+    if (seedDatabase)
+    {
+        var passwordHasher =
+            services.GetRequiredService<
                 CCAP.Application.Abstractions.Identity.IPasswordHasher>();
 
         await DatabaseSeeder.SeedAsync(
@@ -114,7 +146,6 @@ using (var scope = app.Services.CreateScope())
             passwordHasher);
     }
 }
-
 
 if (app.Environment.IsDevelopment())
 {
