@@ -152,7 +152,7 @@ public sealed class Visit
             CallNotes = string.IsNullOrWhiteSpace(callNotes) ? null : callNotes.Trim(),
             NotesFlag = string.IsNullOrWhiteSpace(notesFlag) ? null : notesFlag.Trim(),
             ScheduledDate = scheduledDate.Date.Add(ParseStartTime(timeBlock)),
-            Status = string.IsNullOrWhiteSpace(visitStatus) ? "Scheduled" : visitStatus.Trim()
+            Status = string.IsNullOrWhiteSpace(visitStatus) ? string.Empty : visitStatus.Trim()
         };
     }
 
@@ -192,7 +192,7 @@ public sealed class Visit
         ClinicianId = clinicianId;
         AssignedUserId = assignedUserId;
         VisitType = visitType.Trim();
-        Status = string.IsNullOrWhiteSpace(visitStatus) ? "Scheduled" : visitStatus.Trim();
+        Status = string.IsNullOrWhiteSpace(visitStatus) ? string.Empty : visitStatus.Trim();
         NotesFlag = string.IsNullOrWhiteSpace(notesFlag) ? null : notesFlag.Trim();
     }
 

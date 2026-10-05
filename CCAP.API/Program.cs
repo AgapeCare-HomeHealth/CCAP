@@ -1,5 +1,6 @@
 using CCAP.API.Authorization;
 using CCAP.Application;
+using CCAP.Application.Common.Validation;
 using CCAP.Infrastructure;
 using CCAP.Infrastructure.Identity;
 using CCAP.Infrastructure.Persistence;
@@ -76,7 +77,24 @@ app.UseExceptionHandler(errorApp =>
 {
     errorApp.Run(async context =>
     {
-        var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+        var exception = context.Features
+            .Get<IExceptionHandlerFeature>()?.Error;
+
+        context.Response.ContentType = "application/json";
+
+        if (exception is RequestValidationException validationException)
+        {
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+
+            await context.Response.WriteAsJsonAsync(new
+            {
+                message = "Please correct the validation errors.",
+                errors = validationException.Errors
+            });
+
+            return;
+        }
+
         var statusCode = exception switch
         {
             ArgumentException => StatusCodes.Status400BadRequest,
@@ -87,10 +105,14 @@ app.UseExceptionHandler(errorApp =>
         };
 
         context.Response.StatusCode = statusCode;
-        context.Response.ContentType = "application/json";
+
+        var message = statusCode == StatusCodes.Status500InternalServerError
+            ? "An unexpected server error occurred."
+            : exception?.Message ?? "The request could not be completed.";
+
         await context.Response.WriteAsJsonAsync(new
         {
-            message = exception?.Message ?? "An unexpected error occurred."
+            message
         });
     });
 });

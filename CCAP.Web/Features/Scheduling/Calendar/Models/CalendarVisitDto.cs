@@ -12,6 +12,7 @@ public sealed class CalendarVisitDto
     public string? ConfirmationStatus { get; set; }
     public string? CallNotes { get; set; }
     public string Clinician { get; set; } = string.Empty;
+    public string VisitType { get; set; } = "Visit";
     public string? NotesFlag { get; set; }
     public string? Notes { get; set; }
 }
@@ -32,7 +33,7 @@ public sealed class ScheduleImportPreviewItem
     public string ClinicianName { get; set; } = "Unassigned";
 
     public string VisitType { get; set; } = "Visit";
-    public string VisitStatus { get; set; } = "Scheduled";
+    public string VisitStatus { get; set; } = string.Empty;
     public string? NotesFlag { get; set; }
 
     public bool IsDuplicate { get; set; }
@@ -61,7 +62,7 @@ public sealed class ScheduleImportCommitItem
     public string? ClinicianName { get; set; }
 
     public string VisitType { get; set; } = "Visit";
-    public string VisitStatus { get; set; } = "Scheduled";
+    public string VisitStatus { get; set; } = string.Empty;
     public string? NotesFlag { get; set; }
 
     public Guid? ExistingVisitId { get; set; }

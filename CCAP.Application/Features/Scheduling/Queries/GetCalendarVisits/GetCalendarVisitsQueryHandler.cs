@@ -42,6 +42,7 @@ public sealed class GetCalendarVisitsQueryHandler
             Clinician = x.Clinician is null
                 ? (x.ClinicianName ?? "Unassigned")
                 : $"{x.Clinician.FirstName} {x.Clinician.LastName}".Trim(),
+            VisitType = x.VisitType,
             NotesFlag = x.NotesFlag,
             Notes = x.Notes
         }).ToList();

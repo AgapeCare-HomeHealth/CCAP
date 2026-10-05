@@ -132,9 +132,6 @@ public sealed class ScheduleImportService : IScheduleImportService
             if (string.IsNullOrWhiteSpace(row.VisitType))
                 warnings.Add("Type of Visit is blank.");
 
-            if (string.IsNullOrWhiteSpace(row.VisitStatus))
-                warnings.Add("Visit Status is blank. The schedule will use Scheduled.");
-
             if (warnings.Count > 0)
             {
                 item.HasWarning = true;
@@ -432,7 +429,7 @@ public sealed class ScheduleImportService : IScheduleImportService
                     NullIfEmpty(callNotes),
                     assignedClinician,
                     string.IsNullOrWhiteSpace(visitType) ? "Visit" : visitType,
-                    string.IsNullOrWhiteSpace(visitStatus) ? "Scheduled" : visitStatus,
+                    string.IsNullOrWhiteSpace(visitStatus) ? string.Empty : visitStatus,
                     NullIfEmpty(notesFlag)));
             }
         }
@@ -526,7 +523,7 @@ public sealed class ScheduleImportService : IScheduleImportService
                 NullIfEmpty(callNotes),
                 assignedClinician,
                 string.IsNullOrWhiteSpace(visitType) ? "Visit" : visitType,
-                string.IsNullOrWhiteSpace(visitStatus) ? "Scheduled" : visitStatus,
+                string.IsNullOrWhiteSpace(visitStatus) ? string.Empty : visitStatus,
                 NullIfEmpty(notesFlag)));
         }
 

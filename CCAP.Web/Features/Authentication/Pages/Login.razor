@@ -2,14 +2,15 @@
 @attribute [AllowAnonymous]
 @layout LoginLayout
 
-@using System.Diagnostics
+@using CCAP.Web.Features.Authentication.Models
 @using CCAP.Web.Features.Authentication.Services
 @using CCAP.Web.Features.Authentication.State
 @using CCAP.Web.Features.MockData
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
 
-@inject MockDataOptions MockOptions 
+@inject MockDataOptions MockOptions
 @inject AuthenticationService AuthenticationService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
@@ -18,28 +19,23 @@
 <PageTitle>Login</PageTitle>
 
 <div class="login-page">
-
     <div class="login-card">
 
-        <!-- Logo -->
         <div class="login-logo-container">
             <img src="/images/logo.png"
                  alt="CCAP"
                  class="login-logo" />
         </div>
 
-        <!-- Header -->
         <div class="login-header">
             <h2>CCAP Login</h2>
             <p>Sign in to access the CCAP application.</p>
         </div>
 
-        <!-- Mock Mode -->
         @if (MockOptions.Enabled)
         {
             <div class="login-info">
                 <i class="bi bi-info-circle"></i>
-
                 <span>
                     Mock mode is enabled.
                     API authentication is temporarily disconnected.
@@ -47,208 +43,173 @@
             </div>
         }
 
-        <!-- Error -->
         @if (!string.IsNullOrWhiteSpace(ErrorMessage))
         {
-            <div class="login-error">
-
+            <div class="login-error" role="alert" aria-live="polite">
                 <i class="bi bi-exclamation-circle"></i>
-
-                <span>
-                    @ErrorMessage
-                </span>
-
+                <span>@ErrorMessage</span>
             </div>
         }
 
-        <!-- Email -->
-        <div class="form-group">
+        <EditForm Model="LoginModel"
+                  class="login-form"
+                  OnValidSubmit="LoginAsync"
+                  OnInvalidSubmit="HandleInvalidSubmit"
+                  FormName="ccap-login">
+            <DataAnnotationsValidator />
 
-            <label for="email">
-                Email
-            </label>
+            <div class="form-group">
+                <label for="email">Email</label>
 
-            <div class="input-wrapper">
+                <div class="input-wrapper">
+                    <i class="bi bi-person input-icon"></i>
 
-                <i class="bi bi-person input-icon"></i>
+                    <InputText id="email"
+                               class="login-input"
+                               @bind-Value="LoginModel.Email"
+                               type="email"
+                               placeholder="Enter your email"
+                               autocomplete="username" />
+                </div>
 
-                <input id="email"
-                       class="login-input"
-                       @bind="Email"
-                       @bind:event="oninput"
-                       type="email"
-                       placeholder="Enter your email"
-                       autocomplete="username" />
-
+                <ValidationMessage For="@(() => LoginModel.Email)" />
             </div>
 
-        </div>
+            <div class="form-group">
+                <label for="password">Password</label>
 
-        <!-- Password -->
-        <div class="form-group">
+                <div class="input-wrapper">
+                    <i class="bi bi-lock input-icon"></i>
 
-            <label for="password">
-                Password
-            </label>
+                    <InputText id="password"
+                               class="login-input password-input"
+                               @bind-Value="LoginModel.Password"
+                               type="@PasswordInputType"
+                               placeholder="Enter your password"
+                               autocomplete="current-password" />
 
-            <div class="input-wrapper">
+                    <button type="button"
+                            class="password-toggle"
+                            @onclick="TogglePasswordVisibility"
+                            aria-label="@PasswordToggleLabel"
+                            title="@PasswordToggleLabel">
+                        <i class="bi @(ShowPassword ? "bi-eye-slash" : "bi-eye")"></i>
+                    </button>
+                </div>
 
-                <i class="bi bi-lock input-icon"></i>
-
-                <input id="password"
-                       class="login-input"
-                       @bind="Password"
-                       @bind:event="oninput"
-                       type="password"
-                       placeholder="Enter your password"
-                       autocomplete="current-password" />
-
-                <i class="bi bi-eye password-icon"></i>
-
+                <ValidationMessage For="@(() => LoginModel.Password)" />
             </div>
 
-        </div>
+            <button type="submit"
+                    class="login-button"
+                    disabled="@IsLoading">
+                @if (IsLoading)
+                {
+                    <span>
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        Signing in...
+                    </span>
+                }
+                else
+                {
+                    <span>Sign In</span>
+                }
+            </button>
+        </EditForm>
 
-        <!-- Login Button -->
-        <button class="login-button"
-                @onclick="LoginAsync"
-                disabled="@IsLoading">
-
-            @if (IsLoading)
-            {
-                <span>
-                    <span class="spinner-border spinner-border-sm me-2"></span>
-                    Signing in...
-                </span>
-            }
-            else
-            {
-                <span>
-                    Sign In
-                </span>
-            }
-
-        </button>
-
-        <!-- Divider -->
-        <div class="login-divider">
-            <span>USE</span>
-        </div>
-
-        <!-- Development Account -->
-        <div class="development-account">
-
-            <div class="development-icon">
-                <i class="bi bi-person-fill"></i>
+        @if (MockOptions.Enabled)
+        {
+            <div class="login-divider">
+                <span>USE</span>
             </div>
 
-            <div class="development-info">
+            <div class="development-account">
+                <div class="development-icon">
+                    <i class="bi bi-person-fill"></i>
+                </div>
 
-                <span class="development-label">
-                    Development account:
-                </span>
+                <div class="development-info">
+                    <span class="development-label">
+                        Development account:
+                    </span>
 
-                <strong>
-                    admin@ccap.local / Admin123!
-                </strong>
-
+                    <strong>
+                        admin@ccap.local / Admin123!
+                    </strong>
+                </div>
             </div>
-
-        </div>
-
+        }
     </div>
-
 </div>
 
 @code {
-
     [SupplyParameterFromQuery(Name = "returnUrl")]
     private string? ReturnUrl { get; set; }
 
-    private string Email = string.Empty;
-
-    private string Password = string.Empty;
-
+    private LoginFormModel LoginModel { get; } = new();
     private string? ErrorMessage;
-
     private bool IsLoading;
+    private bool ShowPassword;
 
+    private string PasswordInputType => ShowPassword ? "text" : "password";
+    private string PasswordToggleLabel => ShowPassword ? "Hide password" : "Show password";
+
+    private void TogglePasswordVisibility()
+    {
+        ShowPassword = !ShowPassword;
+    }
+
+    private void HandleInvalidSubmit(EditContext _)
+    {
+        // Do not leave a previous authentication/network error visible
+        // when the current issue is local form validation.
+        ErrorMessage = null;
+    }
 
     private async Task LoginAsync()
     {
+        if (IsLoading)
+            return;
+
         ErrorMessage = null;
-
-        // ============================================
-        // Basic validation
-        // ============================================
-
-        if (string.IsNullOrWhiteSpace(Email))
-        {
-            ErrorMessage = "Please enter your email.";
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(Password))
-        {
-            ErrorMessage = "Please enter your password.";
-            return;
-        }
-
         IsLoading = true;
 
         try
         {
-            // ============================================
-            // AuthenticationService handles:
-            //
-            // Mock mode  -> Mock validation
-            // API mode   -> CCAP API authentication
-            // ============================================
-
-            var result =
-                await AuthenticationService.LoginAsync(
-                    Email.Trim(),
-                    Password);
+            var result = await AuthenticationService.LoginAsync(
+                LoginModel.Email.Trim(),
+                LoginModel.Password);
 
             if (!result.Success)
             {
-                ErrorMessage = result.Message;
+                ErrorMessage = string.IsNullOrWhiteSpace(result.Message)
+                    ? "Unable to sign in. Please check your credentials and try again."
+                    : result.Message;
+
                 return;
             }
 
-            // ============================================
-            // Update Blazor authentication state
-            // ============================================
-
-            if (AuthenticationStateProvider
-                is CcapAuthenticationStateProvider provider)
+            if (AuthenticationStateProvider is CcapAuthenticationStateProvider provider)
             {
                 await provider.NotifyLoginAsync();
             }
 
-            // Reset the session-expiration notification
-            // because the user has successfully logged in.
             SessionExpirationService.Reset();
-
-
-            // ============================================
-            // Redirect
-            // ============================================
 
             var target =
                 string.IsNullOrWhiteSpace(ReturnUrl) ||
-                !ReturnUrl.StartsWith("/")
+                !ReturnUrl.StartsWith('/') ||
+                ReturnUrl.StartsWith("//")
                     ? "/dashboard"
                     : ReturnUrl;
 
             Navigation.NavigateTo(target);
-
         }
-        catch (Exception ex)
+        catch
         {
-            ErrorMessage = MockOptions.Enabled
-                ? $"Unable to complete mock login: {ex.Message}"
-                : $"Unable to connect to CCAP API: {ex.Message}";
+            // AuthenticationService already converts expected API/network failures
+            // to a safe user-facing result. This is only a final UI safety net.
+            ErrorMessage = "Something went wrong while signing in. Please try again.";
         }
         finally
         {
