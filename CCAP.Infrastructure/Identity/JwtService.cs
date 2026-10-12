@@ -17,7 +17,9 @@ public sealed class JwtService : IJwtService
     public DateTime GetExpirationUtc() =>
         DateTime.UtcNow.AddMinutes(_settings.ExpireMinutes);
 
-    public string GenerateToken(ApplicationUser user)
+    public string GenerateToken(ApplicationUser user) => GenerateToken(user, user.Role);
+
+    public string GenerateToken(ApplicationUser user, Role role)
     {
         var claims = new[]
         {
@@ -25,9 +27,9 @@ public sealed class JwtService : IJwtService
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
             new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
             new Claim(ClaimTypes.Name, $"{user.FirstName} {user.LastName}"),
-            new Claim(ClaimTypes.Role, user.Role.RoleName)
+            new Claim(ClaimTypes.Role, role.RoleName)
         }.Concat(
-            user.Role.RolePermissions
+            role.RolePermissions
                 .Where(x => x.Permission is not null)
                 .Select(x => new Claim("permission", x.Permission.PermissionCode))
         ).ToArray();

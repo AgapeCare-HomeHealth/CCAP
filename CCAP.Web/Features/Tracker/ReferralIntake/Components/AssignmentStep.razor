@@ -45,15 +45,34 @@
                 </select>
             </div>
 
-            <div class="col-md-6">
-                <label class="form-label">Discipline</label>
-                <select class="form-select" @bind="Model.DisciplineId">
-                    <option value="">Select Discipline</option>
-                    @foreach (var discipline in Disciplines)
+            <div class="col-12">
+                <label class="form-label">Ordered Services</label>
+                <div class="service-grid">
+                    @foreach (var service in ReferralServiceOptions.All)
                     {
-                        <option value="@discipline.Id">@discipline.Name</option>
+                        <label class="service-item">
+                            <input type="checkbox" checked="@Model.OrderedServices.Contains(service)" disabled />
+                            @service
+                        </label>
                     }
-                </select>
+                </div>
+                <div class="form-text">These selections come from Referral Information and are not edited here.</div>
+            </div>
+
+            <div class="col-12">
+                <label class="form-label">Discipline</label>
+                <div class="service-grid discipline-grid">
+                    @foreach (var discipline in SelectedAssignmentDisciplines)
+                    {
+                        <label class="service-item @(Model.DisciplineId == discipline.Id ? "selected" : string.Empty)">
+                            <input type="checkbox"
+                                   checked="@(Model.DisciplineId == discipline.Id)"
+                                   @onchange="e => ToggleDiscipline(discipline.Id, e.Value)" />
+                            @discipline.Name
+                        </label>
+                    }
+                </div>
+                <div class="form-text">Select the discipline assigned to the clinician. Only disciplines included in Ordered Services are shown.</div>
             </div>
         </div>
 
@@ -64,26 +83,20 @@
         <div class="row g-4">
             <div class="col-md-4">
                 <label class="form-label">Target SOC Date</label>
-                <input type="date" class="form-control" @bind="Model.SocDate" />
+                <input type="date" class="form-control" value="@Model.SocDate?.ToString("yyyy-MM-dd")" readonly />
+                <div class="form-text">Automatically calculated as 48 hours from the initial referral date.</div>
             </div>
 
             <div class="col-md-4">
                 <label class="form-label">Visit Priority</label>
                 <select class="form-select" @bind="Model.VisitPriority">
-                    <option value="">Select Priority</option>
-                    @foreach (var option in Priorities)
-                    { <option value="@option.DisplayName">@option.DisplayName</option> }
+                    <option value="">Select Visit Priority</option>
+                    <option value="Medicare/VA">Medicare/VA</option>
+                    <option value="None Medicare/VA">None Medicare/VA</option>
                 </select>
+                <div class="form-text">Medicare/VA referrals should be scheduled within 24–48 hours.</div>
             </div>
 
-            <div class="col-md-4">
-                <label class="form-label">Case Status</label>
-                <select class="form-select" @bind="Model.CaseStatus">
-                    <option value="">Select Status</option>
-                    @foreach (var option in CaseStatuses)
-                    { <option value="@option.DisplayName">@option.DisplayName</option> }
-                </select>
-            </div>
         </div>
 
         <hr />
@@ -103,13 +116,6 @@
 </div>
 
 @code {
-    private List<LookupOptionDto> Priorities = [];
-    private List<LookupOptionDto> CaseStatuses = [];
-    protected override async Task OnInitializedAsync()
-    {
-        Priorities = await LookupService.GetAsync("Priority", true);
-        CaseStatuses = await LookupService.GetAsync("CaseStatus", true);
-    }
     [Parameter]
     public ReferralIntakeModel Model { get; set; } = null!;
 
@@ -121,6 +127,35 @@
 
     [Parameter]
     public List<LookupDto> Disciplines { get; set; } = [];
+
+    private IEnumerable<LookupDto> AssignmentDisciplines =>
+        Disciplines
+            .Where(d => ReferralServiceOptions.All.Contains(
+                d.Name,
+                StringComparer.OrdinalIgnoreCase))
+            .OrderBy(d => Array.FindIndex(
+                ReferralServiceOptions.All,
+                name => string.Equals(name, d.Name, StringComparison.OrdinalIgnoreCase)));
+
+    private IEnumerable<LookupDto> SelectedAssignmentDisciplines =>
+        AssignmentDisciplines.Where(d => Model.OrderedServices.Any(
+            service => string.Equals(service, d.Name, StringComparison.OrdinalIgnoreCase)));
+
+    private void ToggleDiscipline(Guid disciplineId, object? value)
+    {
+        var isChecked = value is bool selected && selected;
+
+        if (isChecked)
+        {
+            // The domain currently stores one assigned discipline, so the checkbox
+            // presentation behaves as a single-selection control.
+            Model.DisciplineId = disciplineId;
+        }
+        else if (Model.DisciplineId == disciplineId)
+        {
+            Model.DisciplineId = null;
+        }
+    }
 
     [Parameter]
     public bool IsLoading { get; set; }

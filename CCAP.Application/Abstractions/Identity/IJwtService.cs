@@ -5,5 +5,6 @@ namespace CCAP.Application.Abstractions.Identity;
 public interface IJwtService
 {
     string GenerateToken(ApplicationUser user);
+    string GenerateToken(ApplicationUser user, Role role);
     DateTime GetExpirationUtc();
 }

@@ -12,7 +12,14 @@
 
         @if (Item.IsCompleted)
         {
-            <span class="badge bg-success">Completed</span>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-success">Completed</span>
+                <button class="btn btn-sm btn-outline-secondary"
+                        @onclick="() => OnUnmark.InvokeAsync(Item.RequirementCode)"
+                        disabled="@IsUnmarking">
+                    @(IsUnmarking ? "Unmarking..." : "Unmark Complete")
+                </button>
+            </div>
         }
         else
         {
@@ -39,5 +46,7 @@
 @code {
     [Parameter] public ComplianceItemDto Item { get; set; } = new();
     [Parameter] public EventCallback<string> OnComplete { get; set; }
+    [Parameter] public EventCallback<string> OnUnmark { get; set; }
     [Parameter] public bool IsSaving { get; set; }
+    [Parameter] public bool IsUnmarking { get; set; }
 }

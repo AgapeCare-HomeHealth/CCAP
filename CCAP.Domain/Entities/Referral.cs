@@ -21,6 +21,10 @@ public sealed class Referral
 
     public string? Source { get; private set; }
 
+    public string? ReferralType { get; private set; }
+
+    public string? ReferralChannel { get; private set; }
+
     public string? Priority { get; private set; }
 
     public Guid? AssignedUserId { get; private set; }
@@ -49,6 +53,12 @@ public sealed class Referral
 
     public string? PhysicianPhone { get; private set; }
 
+    public string? PhysicianFax { get; private set; }
+
+    public string? PhysicianNpi { get; private set; }
+
+    public string? PcosRegistered { get; private set; }
+
     public string? SecondaryDiagnosis { get; private set; }
 
     public string? ReferralNotes { get; private set; }
@@ -70,6 +80,8 @@ public sealed class Referral
         string referralNumber,
         DateTime referralDate,
         string? source,
+        string? referralType,
+        string? referralChannel,
         string? priority,
         Guid locationId,
         Guid? disciplineId,
@@ -82,6 +94,9 @@ public sealed class Referral
         bool authorizationRequired,
         string? referringPhysician,
         string? physicianPhone,
+        string? physicianFax,
+        string? physicianNpi,
+        string? pcosRegistered,
         string? secondaryDiagnosis,
         string? referralNotes,
         string? internalNotes)
@@ -106,6 +121,12 @@ public sealed class Referral
 
         Source =
             Normalize(source);
+
+        ReferralType =
+            Normalize(referralType);
+
+        ReferralChannel =
+            Normalize(referralChannel);
 
         Priority =
             Normalize(priority);
@@ -142,6 +163,10 @@ public sealed class Referral
 
         PhysicianPhone =
             Normalize(physicianPhone);
+
+        PhysicianFax = Normalize(physicianFax);
+        PhysicianNpi = Normalize(physicianNpi);
+        PcosRegistered = Normalize(pcosRegistered);
 
         SecondaryDiagnosis =
             Normalize(secondaryDiagnosis);
@@ -186,6 +211,8 @@ public sealed class Referral
     string referralNumber,
     DateTime? referralDate,
     string? source,
+    string? referralType,
+    string? referralChannel,
     string? priority,
     Guid? disciplineId,
     string? visitPriority,
@@ -210,6 +237,10 @@ public sealed class Referral
         ReferralDate = referralDate ?? ReferralDate;
 
         Source = Normalize(source);
+
+        ReferralType = Normalize(referralType);
+
+        ReferralChannel = Normalize(referralChannel);
 
         Priority = Normalize(priority);
 

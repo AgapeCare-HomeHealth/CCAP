@@ -66,3 +66,52 @@ hr {
         grid-template-columns: 1fr;
     }
 }
+
+/* Keep Assignment Discipline visually identical to Ordered Services. */
+.service-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.service-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: .2s;
+    background: #fff;
+}
+
+.service-item:hover {
+    border-color: #198754;
+    background: #f8fff9;
+}
+
+.service-item.selected {
+    border-color: #198754;
+    background: #f8fff9;
+    box-shadow: 0 0 0 1px rgba(25, 135, 84, .08);
+}
+
+.service-item input[type="checkbox"] {
+    flex: 0 0 auto;
+    margin: 0;
+}
+
+@media(max-width:992px) {
+    .service-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media(max-width:576px) {
+    .service-grid {
+        grid-template-columns: 1fr;
+    }
+}

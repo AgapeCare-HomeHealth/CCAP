@@ -22,7 +22,9 @@
                     <div class="mb-3">
                         <ComplianceRequirementCard Item="@PreAuthItem"
                                                    OnComplete="CompleteComplianceAsync"
-                                                   IsSaving="@(IsSaving && SavingRequirementCode == PreAuthItem.RequirementCode)" />
+                                                   OnUnmark="UnmarkComplianceAsync"
+                                                   IsSaving="@(IsSaving && SavingRequirementCode == PreAuthItem.RequirementCode)"
+                                                   IsUnmarking="@(IsUnmarking && UnmarkingRequirementCode == PreAuthItem.RequirementCode)" />
                     </div>
                 }
 
@@ -39,7 +41,10 @@
 
                             @if (InsuranceVerificationItem.IsCompleted)
                             {
-                                <span class="badge bg-success">Completed</span>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-success">Completed</span>
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => UnmarkComplianceAsync(InsuranceVerificationItem.RequirementCode)" disabled="@IsUnmarking">@(IsUnmarking ? "Unmarking..." : "Unmark Complete")</button>
+                                </div>
                             }
                             else
                             {
@@ -67,34 +72,42 @@
         </div>
     }
 
-    <ComplianceGroup Title="Phase 1 — Remaining Requirements" Description="Confirm the remaining referral and admission-preparation items from the EMR." Items="RemainingPhase1Items" OnComplete="CompleteComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" />
+    <ComplianceGroup Title="Phase 1 — Remaining Requirements" Description="Confirm the remaining referral and admission-preparation items from the EMR." Items="RemainingPhase1Items" OnComplete="CompleteComplianceAsync" OnUnmark="UnmarkComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" IsUnmarking="IsUnmarking" UnmarkingCode="UnmarkingRequirementCode" />
 
-    <ComplianceGroup Title="SOC Confirmation" Description="SOC scheduling and the SOC visit are managed in the EMR. Use this section to confirm the SOC compliance result in CCAP." Items="SocItems" OnComplete="CompleteComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" />
-    <ComplianceGroup Title="Admission Compliance" Description="These confirmations correspond to the Excel Phase 2 checklist and determine when the Admission stage is complete." Items="AdmissionItems" OnComplete="CompleteComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" />
-    <ComplianceGroup Title="Ongoing Care & Recertification" Description="Use these confirmations when applicable during the active episode. TIF/ROC are workflow events; permanent transfer is handled only in Final Outcome." Items="Phase3Items" OnComplete="CompleteComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" />
+    <ComplianceGroup Title="SOC Confirmation" Description="SOC scheduling and the SOC visit are managed in the EMR. Use this section to confirm the SOC compliance result in CCAP." Items="SocItems" OnComplete="CompleteComplianceAsync" OnUnmark="UnmarkComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" IsUnmarking="IsUnmarking" UnmarkingCode="UnmarkingRequirementCode" />
+    <ComplianceGroup Title="Admission Compliance" Description="These confirmations correspond to the Excel Phase 2 checklist and determine when the Admission stage is complete." Items="AdmissionItems" OnComplete="CompleteComplianceAsync" OnUnmark="UnmarkComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" IsUnmarking="IsUnmarking" UnmarkingCode="UnmarkingRequirementCode" />
+    <ComplianceGroup Title="Ongoing Care & Recertification" Description="Use these confirmations when applicable during the active episode. TIF/ROC are workflow events; permanent transfer is handled only in Final Outcome." Items="Phase3Items" OnComplete="CompleteComplianceAsync" OnUnmark="UnmarkComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" IsUnmarking="IsUnmarking" UnmarkingCode="UnmarkingRequirementCode" />
 
     <div class="card shadow-sm border-0 mb-4">
-      <div class="card-header bg-white"><h5 class="mb-1">Workflow Date & Context Fields</h5><small class="text-muted">These fields correspond to the Excel tracker's dates and free-text context. They support coordination; the EMR remains the source of clinical records.</small></div>
-      <div class="card-body">
-        <div class="row g-3">
-          <DateField Label="Pre-Auth Due" Value="@Workflow.WorkflowDetails.PreAuthDueDate" ValueChanged="@(v => Workflow.WorkflowDetails.PreAuthDueDate = v)" />
-          <NumberField Label="Number of Visits" Value="@Workflow.WorkflowDetails.NumberOfVisits" ValueChanged="@(v => Workflow.WorkflowDetails.NumberOfVisits = v)" />
-          <div class="col-md-4"><label class="form-label">Case Mix Type</label><select class="form-select" @bind="Workflow.WorkflowDetails.CaseMixType"><option value="">Not recorded</option>@foreach(var option in CaseMixOptions){<option value="@option.Code">@option.DisplayName</option>}</select></div>
-          <DateField Label="TIF Date" Value="@Workflow.WorkflowDetails.TifDate" ValueChanged="@(v => Workflow.WorkflowDetails.TifDate = v)" />
-          <DateField Label="ROC Date" Value="@Workflow.WorkflowDetails.RocDate" ValueChanged="@(v => Workflow.WorkflowDetails.RocDate = v)" />
-          <DateField Label="Recert Date" Value="@Workflow.WorkflowDetails.RecertDate" ValueChanged="@(v => Workflow.WorkflowDetails.RecertDate = v)" />
-          <TextField Label="DME / Med Supply Notes" Value="@Workflow.WorkflowDetails.DmeMedSupplyNotes" ValueChanged="@(v => Workflow.WorkflowDetails.DmeMedSupplyNotes = v)" Wide="true" />
-          <TextField Label="SOC Feedback from Patient" Value="@Workflow.WorkflowDetails.SocFeedbackFromPatient" ValueChanged="@(v => Workflow.WorkflowDetails.SocFeedbackFromPatient = v)" Wide="true" />
-          <div class="col-md-4"><label class="form-label">PCP & PT Notified</label><select class="form-select" @bind="PcpPtNotified"><option value="">Not recorded</option><option value="true">Yes</option><option value="false">No</option></select></div>
-        </div>
-        <button class="btn btn-primary mt-3" @onclick="SaveDetailsAsync" disabled="@IsSavingDetails">@(IsSavingDetails ? "Saving..." : "Save Workflow Details")</button>
-      </div>
+      <div class="card-header bg-white d-flex justify-content-between align-items-center"><div><h5 class="mb-1">Referral & Admission Preparation</h5><small class="text-muted">Supporting dates and referral context.</small></div><button class="btn btn-sm btn-primary" @onclick="SaveDetailsAsync" disabled="@IsSavingDetails">@(IsSavingDetails ? "Updating..." : "Update")</button></div>
+      <div class="card-body"><div class="row g-3">
+        <DateField Label="Pre-Auth Due" Value="@Workflow.WorkflowDetails.PreAuthDueDate" ValueChanged="@(v => Workflow.WorkflowDetails.PreAuthDueDate = v)" />
+        <div class="col-md-4"><label class="form-label">Case Mix Type</label><select class="form-select" @bind="Workflow.WorkflowDetails.CaseMixType"><option value="">Not recorded</option>@foreach(var option in CaseMixOptions){<option value="@option.Code">@option.DisplayName</option>}</select></div>
+      </div></div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center"><div><h5 class="mb-1">SOC & Patient Feedback</h5><small class="text-muted">SOC-related context and patient feedback.</small></div><button class="btn btn-sm btn-primary" @onclick="SaveDetailsAsync" disabled="@IsSavingDetails">@(IsSavingDetails ? "Updating..." : "Update")</button></div>
+      <div class="card-body"><div class="row g-3">
+        <TextField Label="DME / Med Supply Notes" Value="@Workflow.WorkflowDetails.DmeMedSupplyNotes" ValueChanged="@(v => Workflow.WorkflowDetails.DmeMedSupplyNotes = v)" Wide="true" />
+        <TextField Label="SOC Feedback from Patient" Value="@Workflow.WorkflowDetails.SocFeedbackFromPatient" ValueChanged="@(v => Workflow.WorkflowDetails.SocFeedbackFromPatient = v)" Wide="true" />
+        <div class="col-md-4"><label class="form-label">PCP & PT Notified</label><select class="form-select" @bind="PcpPtNotified"><option value="">Not recorded</option><option value="true">Yes</option><option value="false">No</option></select></div>
+      </div></div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center"><div><h5 class="mb-1">Ongoing Care & Recertification Dates</h5><small class="text-muted">TIF, ROC and Recertification workflow dates.</small></div><button class="btn btn-sm btn-primary" @onclick="SaveDetailsAsync" disabled="@IsSavingDetails">@(IsSavingDetails ? "Updating..." : "Update")</button></div>
+      <div class="card-body"><div class="row g-3">
+        <DateField Label="TIF Date" Value="@Workflow.WorkflowDetails.TifDate" ValueChanged="@(v => Workflow.WorkflowDetails.TifDate = v)" />
+        <DateField Label="ROC Date" Value="@Workflow.WorkflowDetails.RocDate" ValueChanged="@(v => Workflow.WorkflowDetails.RocDate = v)" />
+        <DateField Label="Recert Date" Value="@Workflow.WorkflowDetails.RecertDate" ValueChanged="@(v => Workflow.WorkflowDetails.RecertDate = v)" />
+      </div></div>
     </div>
 </div>
 
 @code {
  [Parameter] public Guid PatientId {get;set;} [Parameter] public PatientWorkflowDto Workflow {get;set;} = new(); [Parameter] public EventCallback OnCompleted {get;set;}
- private bool IsSaving; private bool IsSavingDetails; private List<LookupOptionDto> CaseMixOptions = []; private string? ErrorMessage; private string? SavingRequirementCode;
+ private bool IsSaving; private bool IsSavingDetails; private bool IsUnmarking; private List<LookupOptionDto> CaseMixOptions = []; private string? ErrorMessage; private string? SavingRequirementCode; private string? UnmarkingRequirementCode;
  protected override async Task OnInitializedAsync(){ try{ CaseMixOptions = await LookupService.GetAsync("CaseMixType", true); } catch { CaseMixOptions = []; } }
  private IEnumerable<ComplianceItemDto> Items => Workflow.ComplianceItems ?? [];
  private ComplianceItemDto? PreAuthItem => Items.FirstOrDefault(x => string.Equals(x.RequirementCode, "PRE_AUTH_RECEIVED", StringComparison.OrdinalIgnoreCase));
@@ -104,6 +117,7 @@
  private IEnumerable<ComplianceItemDto> AdmissionItems => Items.Where(x=>x.Phase==2 && !string.Equals(x.RequirementCode,"SOC_COMPLIANT",StringComparison.OrdinalIgnoreCase));
  private IEnumerable<ComplianceItemDto> Phase3Items => Items.Where(x=>x.Phase>=3 && !string.Equals(x.RequirementCode,"DISCHARGE_SUMMARY_SIGNED",StringComparison.OrdinalIgnoreCase) && !string.Equals(x.RequirementCode,"NOMNC_SIGNED",StringComparison.OrdinalIgnoreCase) && !string.Equals(x.RequirementCode,"ROC",StringComparison.OrdinalIgnoreCase));
  private string PcpPtNotified { get => Workflow.WorkflowDetails.PcpPtNotified.HasValue ? Workflow.WorkflowDetails.PcpPtNotified.Value.ToString().ToLowerInvariant() : ""; set => Workflow.WorkflowDetails.PcpPtNotified = string.IsNullOrEmpty(value) ? null : bool.Parse(value); }
+ private async Task UnmarkComplianceAsync(string code){ if(IsUnmarking)return; IsUnmarking=true; UnmarkingRequirementCode=code; ErrorMessage=null; try{await WorkflowService.UnmarkComplianceAsync(PatientId,code); await OnCompleted.InvokeAsync();}catch(Exception ex){ErrorMessage=ex.Message;}finally{IsUnmarking=false;UnmarkingRequirementCode=null;}}
  private async Task CompleteComplianceAsync(string code){ if(IsSaving)return; IsSaving=true; SavingRequirementCode=code; ErrorMessage=null; try{await WorkflowService.CompleteComplianceAsync(PatientId,code); await OnCompleted.InvokeAsync();}catch(Exception ex){ErrorMessage=ex.Message;}finally{IsSaving=false;SavingRequirementCode=null;} }
  private async Task SaveDetailsAsync(){if(IsSavingDetails)return;IsSavingDetails=true;ErrorMessage=null;try{await WorkflowService.UpdateWorkflowDetailsAsync(PatientId,Workflow.WorkflowDetails);await OnCompleted.InvokeAsync();}catch(Exception ex){ErrorMessage=ex.Message;}finally{IsSavingDetails=false;}}
 }

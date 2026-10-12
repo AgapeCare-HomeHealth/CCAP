@@ -15,7 +15,6 @@ public sealed class MockDataStore
 
     public Guid AdministratorRoleId { get; } = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     public Guid CareCoordinatorRoleId { get; } = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
-    public Guid SchedulerRoleId { get; } = Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc");
     public Guid ClinicianRoleId { get; } = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd");
 
     public List<PatientListItem> Patients { get; } = [];
@@ -108,23 +107,10 @@ public sealed class MockDataStore
             PermissionCount = Permissions.Count(x => x.PermissionCode is "dashboard.view" or "patients.view" or "patients.manage" or "referrals.view" or "fax.view" or "fax.manage" or "notifications.view" or "notifications.manage" or "notes.view" or "notes.manage" or "labs.view" or "labs.manage" or "supplies.view" or "supplies.manage" or "foley.view" or "foley.manage" or "orders.view" or "orders.manage"),
             IsActive = true
         });
-        Roles.Add(new RoleApiDto
-        {
-            RoleId = SchedulerRoleId,
-            RoleName = "Scheduler",
-            Description = "Manages scheduling and assigned visits.",
-            UserCount = 1,
-            PermissionCount = 4,
-            IsActive = true
-        });
-
         var all = Permissions.Select(x => x.PermissionId).ToHashSet();
         RolePermissions[AdministratorRoleId] = all;
         RolePermissions[CareCoordinatorRoleId] = Permissions
             .Where(x => x.PermissionCode is "dashboard.view" or "patients.view" or "patients.manage" or "referrals.view" or "referrals.manage" or "workflow.view" or "workflow.edit" or "fax.view" or "fax.manage" or "notifications.view" or "notifications.manage" or "notes.view" or "notes.manage" or "labs.view" or "labs.manage" or "supplies.view" or "supplies.manage" or "foley.view" or "foley.manage" or "orders.view" or "orders.manage")
-            .Select(x => x.PermissionId).ToHashSet();
-        RolePermissions[SchedulerRoleId] = Permissions
-            .Where(x => x.PermissionCode is "dashboard.view" or "patients.view" or "referrals.view" or "referrals.manage")
             .Select(x => x.PermissionId).ToHashSet();
         RolePermissions[ClinicianRoleId] = Permissions
             .Where(x => x.PermissionCode is "dashboard.view" or "patients.view" or "patients.manage" or "referrals.view" or "fax.view" or "fax.manage" or "notifications.view" or "notifications.manage" or "notes.view" or "notes.manage" or "labs.view" or "labs.manage" or "supplies.view" or "supplies.manage" or "foley.view" or "foley.manage" or "orders.view" or "orders.manage")
@@ -133,9 +119,12 @@ public sealed class MockDataStore
 
     private void BuildDisciplines()
     {
-        Disciplines.Add(new LookupDto { DisciplineId = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd"), Code = "RN", Name = "Registered Nurse" });
-        Disciplines.Add(new LookupDto { DisciplineId = Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"), Code = "LVN", Name = "Licensed Vocational Nurse" });
-        Disciplines.Add(new LookupDto { DisciplineId = Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff"), Code = "PT", Name = "Physical Therapist" });
+        Disciplines.Add(new LookupDto { DisciplineId = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd"), Code = "SN", Name = "Skilled Nursing" });
+        Disciplines.Add(new LookupDto { DisciplineId = Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"), Code = "PT", Name = "Physical Therapy" });
+        Disciplines.Add(new LookupDto { DisciplineId = Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff"), Code = "OT", Name = "Occupational Therapy" });
+        Disciplines.Add(new LookupDto { DisciplineId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), Code = "ST", Name = "Speech Therapy" });
+        Disciplines.Add(new LookupDto { DisciplineId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"), Code = "HHA", Name = "Home Health Aide" });
+        Disciplines.Add(new LookupDto { DisciplineId = Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc"), Code = "MSW", Name = "Medical Social Work (MSW)" });
     }
 
     private void BuildUsers()
@@ -161,7 +150,7 @@ public sealed class MockDataStore
             EmployeeNo = "EMP-0002",
             FirstName = "Maria",
             LastName = "Santos",
-            Email = "maria.santos@ccap.local",
+            Email = "carecoordinator@ccap.local",
             MobileNo = "555-0102",
             RoleId = CareCoordinatorRoleId,
             Role = "Care Coordinator",
@@ -169,19 +158,6 @@ public sealed class MockDataStore
             DisciplineId = Disciplines[1].DisciplineId,
             IsActive = true,
             LastLoginAt = DateTime.Now.AddHours(-2)
-        });
-        Users.Add(new UserDto
-        {
-            UserId = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000003"),
-            EmployeeNo = "EMP-0003",
-            FirstName = "Robert",
-            LastName = "Wilson",
-            Email = "robert.wilson@ccap.local",
-            RoleId = SchedulerRoleId,
-            Role = "Scheduler",
-            Discipline = "",
-            IsActive = true,
-            LastLoginAt = DateTime.Now.AddDays(-1)
         });
         Users.Add(new UserDto
         {

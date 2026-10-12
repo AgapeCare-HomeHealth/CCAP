@@ -193,17 +193,22 @@ public sealed class CreateReferralIntakeCommandHandler
         // =========================================================
         // REFERRAL
         // =========================================================
+        // Target SOC is not user-entered. It is always calculated as
+        // 48 hours from the initial referral date.
+        var targetSocDate = DateOnly.FromDateTime(referralDate.AddHours(48));
 
         var referral =
             new Referral(
                 referralNumber,
                 referralDate,
                 request.ReferralSource,
+                request.ReferralType,
+                request.ReferralChannel,
                 request.Priority,
                 location.LocationId,
                 request.DisciplineId,
                 request.VisitPriority,
-                request.CaseStatus,
+                "Pending",
                 request.PrimaryInsurance,
                 request.InsuranceMemberId,
                 request.AuthorizationDate,
@@ -211,6 +216,9 @@ public sealed class CreateReferralIntakeCommandHandler
                 request.AuthorizationRequired,
                 request.ReferringPhysician,
                 request.PhysicianPhone,
+                request.PhysicianFax,
+                request.PhysicianNpi,
+                request.PcosRegistered,
                 request.SecondaryDiagnosis,
                 request.ReferralNotes,
                 request.InternalNotes);

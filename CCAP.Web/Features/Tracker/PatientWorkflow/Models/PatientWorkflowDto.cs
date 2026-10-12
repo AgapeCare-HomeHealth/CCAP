@@ -1,9 +1,13 @@
-﻿
+
 namespace CCAP.Web.Features.Tracker.PatientWorkflow.Models;
 
 public class PatientWorkflowDto
 {
     public PatientHeaderDto Header { get; set; } = new();
+
+    public DateTime? ReferralDate { get; set; }
+    public string ReferralNotes { get; set; } = string.Empty;
+    public string InternalNotes { get; set; } = string.Empty;
 
     public List<WorkflowStageDto> WorkflowStages { get; set; } = new();
 
@@ -12,6 +16,7 @@ public class PatientWorkflowDto
     public KeyInformationDto KeyInformation { get; set; } = new();
 
     public List<ActivityDto> RecentActivities { get; set; } = new();
+    public List<PatientTimelineEventDto> TimelineEvents { get; set; } = new();
 
     public PatientSummaryDto Summary { get; set; } = new();
 
@@ -32,4 +37,14 @@ public class PatientWorkflowDto
 
     public string SocClinician { get; set; } = string.Empty;
 }
+public sealed class PatientTimelineEventDto
+{
+    public Guid EventId { get; set; }
+    public DateTime EventDate { get; set; }
+    public string EventType { get; set; } = "";
+    public string Title { get; set; } = "";
+    public string Description { get; set; } = "";
+    public string PerformedBy { get; set; } = "System";
+}
+
 public class WorkflowDetailsDto { public DateOnly? PreAuthDueDate {get;set;} public int? NumberOfVisits {get;set;} public string CaseMixType{get;set;}=""; public string DmeMedSupplyNotes{get;set;}=""; public string SocFeedbackFromPatient{get;set;}=""; public DateOnly? TifDate{get;set;} public DateOnly? RocDate{get;set;} public DateOnly? RecertDate{get;set;} public bool? PcpPtNotified{get;set;} public DateOnly? DischargeDate{get;set;} public string DischargeFeedback{get;set;}=""; public string TransferDestination{get;set;}=""; public DateOnly? TransferDate{get;set;} public string TransferReason{get;set;}=""; }

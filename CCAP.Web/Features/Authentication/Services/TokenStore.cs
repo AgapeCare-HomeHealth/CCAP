@@ -7,6 +7,7 @@ namespace CCAP.Web.Features.Authentication.Services;
 public sealed class TokenStore
 {
     private const string StorageKey = "ccap.auth.token";
+    private const string AdminRoleTokenKey = "ccap.auth.admin-role-token";
 
     private readonly ProtectedLocalStorage _storage;
 
@@ -106,6 +107,25 @@ public sealed class TokenStore
         {
             return null;
         }
+    }
+
+    public async Task SetAdminRoleTokenAsync(string? token)
+    {
+        if (!string.IsNullOrWhiteSpace(token)) await _storage.SetAsync(AdminRoleTokenKey, token);
+    }
+
+    public async Task<string?> GetAdminRoleTokenAsync()
+    {
+        try { var result = await _storage.GetAsync<string>(AdminRoleTokenKey); return result.Success ? result.Value : null; }
+        catch { return null; }
+    }
+
+    public async Task DeleteAdminRoleTokenAsync() => await _storage.DeleteAsync(AdminRoleTokenKey);
+
+    public async Task RestoreAdminRoleTokenAsync()
+    {
+        var token = await GetAdminRoleTokenAsync();
+        if (!string.IsNullOrWhiteSpace(token)) await SetAsync(token);
     }
 
     public async Task DeleteAsync()

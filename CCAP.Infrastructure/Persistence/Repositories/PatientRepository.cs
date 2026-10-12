@@ -42,6 +42,12 @@ public sealed class PatientRepository : IPatientRepository
             .Include(x => x.Visits)
                 .ThenInclude(x => x.Clinician)
 
+            .Include(x => x.CallNotes)
+                .ThenInclude(x => x.RecordedBy)
+
+            .Include(x => x.Assessments)
+                .ThenInclude(x => x.CompletedBy)
+
             .Include(x => x.Activities)
                 .ThenInclude(x => x.PerformedBy)
 

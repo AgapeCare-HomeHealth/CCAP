@@ -628,6 +628,25 @@
         TrackerPage = Math.Clamp(page, 1, TrackerTotalPages);
     }
 
+    //         _patientSearchTerm = value;
+    //         SyncSelectionWithFilters();
+    //     }
+    // }
+
+    // private List<string> PhysicianOptions => Clinicians
+    //     .Select(x => x.FullName)
+    //     .Concat(Schedules.Select(x => x.Clinician))
+    //     .Where(x => !string.IsNullOrWhiteSpace(x))
+    //     .Distinct(StringComparer.OrdinalIgnoreCase)
+    //     .OrderBy(x => x)
+    //     .ToList();
+
+    // private List<CalendarVisitDto> FilteredSchedules => Schedules
+    //     .Where(MatchesCurrentFilters)
+    //     .OrderBy(x => x.ScheduledDate)
+    //     .ThenBy(x => x.PatientName)
+    //     .ToList();
+
     protected override async Task OnInitializedAsync()
     {
         if (AuthenticationStateTask is not null)

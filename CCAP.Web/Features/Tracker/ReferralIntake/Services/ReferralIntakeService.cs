@@ -82,6 +82,9 @@ public sealed class ReferralIntakeService
 
         Validate(model);
 
+        // Target SOC is system-calculated: 48 hours after the initial referral date.
+        model.SocDate = DateOnly.FromDateTime(model.ReferralDate.AddHours(48));
+
         // =====================================================
         // MOCK MODE
         // =====================================================
@@ -208,6 +211,16 @@ public sealed class ReferralIntakeService
 
         Add(
             form,
+            "ReferralType",
+            model.ReferralType);
+
+        Add(
+            form,
+            "ReferralChannel",
+            model.ReferralChannel);
+
+        Add(
+            form,
             "Priority",
             model.Priority);
 
@@ -254,6 +267,10 @@ public sealed class ReferralIntakeService
             form,
             "PhysicianPhone",
             model.PhysicianPhone);
+
+        Add(form, "PhysicianFax", model.PhysicianFax);
+        Add(form, "PhysicianNpi", model.PhysicianNpi);
+        Add(form, "PcosRegistered", model.PcosRegistered);
 
         // =====================================================
         // CLINICAL
@@ -310,7 +327,7 @@ public sealed class ReferralIntakeService
         Add(
             form,
             "CaseStatus",
-            model.CaseStatus);
+            "Pending");
 
         // =====================================================
         // INTERNAL NOTES
@@ -667,6 +684,8 @@ public sealed class ReferralIntakeService
             ReferralNumber = model.ReferralNumber,
             ReferralDate = model.ReferralDate,
             ReferralSource = model.ReferralSource,
+            ReferralType = model.ReferralType,
+            ReferralChannel = model.ReferralChannel,
             Priority = model.Priority,
             PrimaryInsurance = model.PrimaryInsurance,
             InsuranceMemberId = model.InsuranceMemberId,
@@ -675,6 +694,9 @@ public sealed class ReferralIntakeService
             AuthorizationRequired = model.AuthorizationRequired,
             ReferringPhysician = model.ReferringPhysician,
             PhysicianPhone = model.PhysicianPhone,
+            PhysicianFax = model.PhysicianFax,
+            PhysicianNpi = model.PhysicianNpi,
+            PcosRegistered = model.PcosRegistered,
             PrimaryDiagnosis = model.PrimaryDiagnosis,
             SecondaryDiagnosis = model.SecondaryDiagnosis,
             OrderedServices = model.OrderedServices.ToList(),
@@ -684,7 +706,7 @@ public sealed class ReferralIntakeService
             DisciplineId = model.DisciplineId,
             SocDate = model.SocDate,
             VisitPriority = model.VisitPriority,
-            CaseStatus = model.CaseStatus,
+            CaseStatus = "Pending",
             InternalNotes = model.InternalNotes
         };
 
@@ -774,6 +796,8 @@ public sealed class ReferralIntakeService
             ReferralNumber = draftData.ReferralNumber,
             ReferralDate = draftData.ReferralDate,
             ReferralSource = draftData.ReferralSource,
+            ReferralType = draftData.ReferralType,
+            ReferralChannel = draftData.ReferralChannel,
             Priority = draftData.Priority,
             PrimaryInsurance = draftData.PrimaryInsurance,
             InsuranceMemberId = draftData.InsuranceMemberId,
@@ -782,6 +806,9 @@ public sealed class ReferralIntakeService
             AuthorizationRequired = draftData.AuthorizationRequired,
             ReferringPhysician = draftData.ReferringPhysician,
             PhysicianPhone = draftData.PhysicianPhone,
+            PhysicianFax = draftData.PhysicianFax,
+            PhysicianNpi = draftData.PhysicianNpi,
+            PcosRegistered = draftData.PcosRegistered,
             PrimaryDiagnosis = draftData.PrimaryDiagnosis,
             SecondaryDiagnosis = draftData.SecondaryDiagnosis,
             OrderedServices = draftData.OrderedServices,
@@ -791,7 +818,7 @@ public sealed class ReferralIntakeService
             DisciplineId = draftData.DisciplineId,
             SocDate = draftData.SocDate,
             VisitPriority = draftData.VisitPriority,
-            CaseStatus = draftData.CaseStatus,
+            CaseStatus = string.IsNullOrWhiteSpace(draftData.CaseStatus) ? "Pending" : draftData.CaseStatus,
             InternalNotes = draftData.InternalNotes
         };
 

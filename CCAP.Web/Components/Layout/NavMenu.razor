@@ -41,7 +41,7 @@
                 }
             </NavLink>
 
-            <NavLink href="/patients" class="nav-item">
+            <NavLink href="/patients" Match="NavLinkMatch.All" class="nav-item">
                 <i class="bi bi-people"></i>
                 @if (!IsCollapsed)
                 {
@@ -49,7 +49,7 @@
                 }
             </NavLink>
 
-            <NavLink href="/patients/archive" class="nav-item">
+            <NavLink href="/patients/archive" Match="NavLinkMatch.All" class="nav-item">
                 <i class="bi bi-archive"></i>
                 @if (!IsCollapsed)
                 {
@@ -71,7 +71,7 @@
         <!-- Referrals -->
         <!-- ======================= -->
 
-        <details class="menu-dropdown">
+        <details class="menu-dropdown" name="ccap-sidebar-menu">
 
             <summary>
 
@@ -114,7 +114,7 @@
         <!-- Workflow Tracker -->
         <!-- ======================= -->
 
-        @* <details class="menu-dropdown">
+        @* <details class="menu-dropdown" name="ccap-sidebar-menu">
 
             <summary>
 
@@ -159,7 +159,7 @@
         <!-- Documents -->
         <!-- ======================= -->
 
-        @* <details class="menu-dropdown">
+        @* <details class="menu-dropdown" name="ccap-sidebar-menu">
 
             <summary>
 
@@ -201,7 +201,7 @@
         <!-- Scheduling -->
         <!-- ======================= -->
 
-        <details class="menu-dropdown">
+        <details class="menu-dropdown" name="ccap-sidebar-menu">
 
             <summary>
                 <div>
@@ -238,27 +238,29 @@
         <!-- Admin -->
         <!-- ======================= -->
 
-        <details class="menu-dropdown">
+        <AuthorizeView Roles="Administrator">
+            <Authorized>
+                <details class="menu-dropdown" name="ccap-sidebar-menu">
 
-            <summary>
+                    <summary>
 
-                <div>
+                        <div>
 
-                    <i class="bi bi-gear"></i>
+                            <i class="bi bi-gear"></i>
 
-                    @if (!IsCollapsed)
-                    {
-                        <span>Admin</span>
-                    }
+                            @if (!IsCollapsed)
+                            {
+                                <span>Admin</span>
+                            }
 
-                </div>
+                        </div>
 
-                @if (!IsCollapsed)
-                {
-                    <i class="bi bi-chevron-down arrow"></i>
-                }
+                        @if (!IsCollapsed)
+                        {
+                            <i class="bi bi-chevron-down arrow"></i>
+                        }
 
-            </summary>
+                    </summary>
 
             @if (!IsCollapsed)
             {
@@ -282,9 +284,11 @@
                     Settings
                 </NavLink> *@
 
-            }
+                    }
 
-        </details>
+                </details>
+            </Authorized>
+        </AuthorizeView>
 
     </nav>
 

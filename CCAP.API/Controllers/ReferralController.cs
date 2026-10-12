@@ -314,6 +314,8 @@ public sealed class ReferralController : ControllerBase
                     request.ReferralNumber ?? string.Empty,
                     request.ReferralDate,
                     request.ReferralSource,
+                    request.ReferralType,
+                    request.ReferralChannel,
                     request.Priority,
 
                     request.PrimaryInsurance,
@@ -324,6 +326,9 @@ public sealed class ReferralController : ControllerBase
 
                     request.ReferringPhysician,
                     request.PhysicianPhone,
+                    request.PhysicianFax,
+                    request.PhysicianNpi,
+                    request.PcosRegistered,
 
                     request.PrimaryDiagnosis,
                     request.SecondaryDiagnosis,

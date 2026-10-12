@@ -136,7 +136,7 @@
                 TotalPermissions = Roles.Sum(x => x.PermissionCount),
                 AssignedUsers = Roles.Sum(x => x.UserCount),
                 CustomRoles = Roles.Count(x =>
-                    !new[] { "Administrator", "Care Coordinator", "Clinician", "Scheduler" }
+                    !new[] { "Administrator", "Care Coordinator", "Clinician" }
                         .Contains(x.RoleName, StringComparer.OrdinalIgnoreCase))
             };
         }

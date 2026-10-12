@@ -823,6 +823,7 @@
     .calendar-day {
         min-height: 120px;
     }
+<<<<<<< HEAD
 }
 
 /* Tracker-only paging; keep the calendar view unaffected. */
@@ -860,6 +861,8 @@
 
 .tracker-pagination-actions button:not(:disabled):hover {
     background: #e2e8f0;
+=======
+>>>>>>> origin/main
 }
 
 .tracker-page-label { white-space: nowrap; }

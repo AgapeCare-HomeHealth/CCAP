@@ -54,6 +54,10 @@ public sealed class CreateReferralIntakeRequest
 
     public string? ReferralSource { get; set; }
 
+    public string? ReferralType { get; set; }
+
+    public string? ReferralChannel { get; set; }
+
     public string? Priority { get; set; }
 
     // =========================================================
@@ -77,6 +81,12 @@ public sealed class CreateReferralIntakeRequest
     public string? ReferringPhysician { get; set; }
 
     public string? PhysicianPhone { get; set; }
+
+    public string? PhysicianFax { get; set; }
+
+    public string? PhysicianNpi { get; set; }
+
+    public string? PcosRegistered { get; set; }
 
     // =========================================================
     // CLINICAL

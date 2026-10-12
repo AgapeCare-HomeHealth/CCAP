@@ -7,6 +7,8 @@
 
 @inject PatientWorkflowService WorkflowService
 @inject PatientCareManagementService CareService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@using Microsoft.AspNetCore.Components.Authorization
 
 <PageTitle>Patient Workflow</PageTitle>
 
@@ -89,7 +91,11 @@ else
 
                 case "Audit Log":
 
-                    <AuditLogTab PatientId="@PatientId" Workflow="@Workflow" />
+                    <AuthorizeView Roles="Administrator">
+                        <Authorized>
+                            <AuditLogTab PatientId="@PatientId" Workflow="@Workflow" />
+                        </Authorized>
+                    </AuthorizeView>
 
                     break;
 
@@ -154,12 +160,6 @@ else
 
         new()
         {
-            Title = "Audit Log",
-            Icon = "bi bi-journal-text"
-        },
-
-        new()
-        {
             Title = "Orders & Care",
             Icon = "bi bi-clipboard2-pulse"
         },
@@ -171,6 +171,15 @@ else
         }
     ];
 
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (state.User.IsInRole("Administrator"))
+        {
+            Tabs.Insert(4, new WorkflowTabDto { Title = "Audit Log", Icon = "bi bi-journal-text" });
+        }
+    }
 
     protected override async Task OnParametersSetAsync()
     {

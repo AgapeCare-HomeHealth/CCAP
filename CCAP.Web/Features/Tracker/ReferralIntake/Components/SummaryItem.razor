@@ -1,0 +1,10 @@
+<div class="@(FullWidth ? "summary-item full-width" : "summary-item")">
+    <label>@Label</label>
+    <span>@(string.IsNullOrWhiteSpace(Value) ? "Not provided" : Value)</span>
+</div>
+
+@code {
+    [Parameter] public string Label { get; set; } = string.Empty;
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public bool FullWidth { get; set; }
+}

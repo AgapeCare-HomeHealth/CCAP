@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.AspNetCore.Components.Forms;
 
 namespace CCAP.Web.Features.Tracker.ReferralIntake.Models;
 
@@ -70,6 +70,10 @@ public sealed class ReferralIntakeModel
 
     public string ReferralSource { get; set; } = string.Empty;
 
+    public string ReferralType { get; set; } = string.Empty;
+
+    public string ReferralChannel { get; set; } = string.Empty;
+
     public string Priority { get; set; } = "Routine";
 
     // =========================
@@ -93,6 +97,12 @@ public sealed class ReferralIntakeModel
     public string ReferringPhysician { get; set; } = string.Empty;
 
     public string PhysicianPhone { get; set; } = string.Empty;
+
+    public string PhysicianFax { get; set; } = string.Empty;
+
+    public string PhysicianNpi { get; set; } = string.Empty;
+
+    public string PcosRegistered { get; set; } = string.Empty;
 
     // =========================
     // Clinical
@@ -120,7 +130,7 @@ public sealed class ReferralIntakeModel
 
     public string VisitPriority { get; set; } = string.Empty;
 
-    public string CaseStatus { get; set; } = string.Empty;
+    public string CaseStatus { get; set; } = "Pending";
 
     public string InternalNotes { get; set; } = string.Empty;
 }

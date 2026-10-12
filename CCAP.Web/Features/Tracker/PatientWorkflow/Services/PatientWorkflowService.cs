@@ -110,6 +110,12 @@ public sealed class PatientWorkflowService
         await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 
+    public async Task UnmarkComplianceAsync(Guid patientId, string requirementCode, CancellationToken cancellationToken = default)
+    {
+        var response = await _api.PostAsJsonAsync($"api/patients/{patientId}/compliance/{Uri.EscapeDataString(requirementCode)}/unmark", new { }, cancellationToken);
+        await _api.EnsureSuccessAsync(response, cancellationToken);
+    }
+
     public async Task ScheduleSocAsync(
     Guid patientId,
     DateOnly socDate,

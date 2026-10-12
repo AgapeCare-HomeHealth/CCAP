@@ -291,6 +291,12 @@ public sealed class Patient
             authorizationRequired;
     }
 
+    public void ClearInsuranceVerification()
+    {
+        InsuranceVerifiedAt = null;
+        InsuranceVerifiedByUserId = null;
+    }
+
     public void VerifyInsurance(Guid verifiedByUserId)
     {
         if (string.IsNullOrWhiteSpace(PrimaryInsurance))

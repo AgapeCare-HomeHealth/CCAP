@@ -31,6 +31,8 @@ public sealed class ReferralIntakeDraftData
     public string ReferralNumber { get; set; } = string.Empty;
     public DateTime ReferralDate { get; set; } = DateTime.Today;
     public string ReferralSource { get; set; } = string.Empty;
+    public string ReferralType { get; set; } = string.Empty;
+    public string ReferralChannel { get; set; } = string.Empty;
     public string Priority { get; set; } = "Routine";
 
     public string PrimaryInsurance { get; set; } = string.Empty;
@@ -41,6 +43,9 @@ public sealed class ReferralIntakeDraftData
 
     public string ReferringPhysician { get; set; } = string.Empty;
     public string PhysicianPhone { get; set; } = string.Empty;
+    public string PhysicianFax { get; set; } = string.Empty;
+    public string PhysicianNpi { get; set; } = string.Empty;
+    public string PcosRegistered { get; set; } = string.Empty;
 
     public string PrimaryDiagnosis { get; set; } = string.Empty;
     public string SecondaryDiagnosis { get; set; } = string.Empty;
@@ -52,6 +57,6 @@ public sealed class ReferralIntakeDraftData
     public Guid? DisciplineId { get; set; }
     public DateOnly? SocDate { get; set; }
     public string VisitPriority { get; set; } = string.Empty;
-    public string CaseStatus { get; set; } = string.Empty;
+    public string CaseStatus { get; set; } = "Pending";
     public string InternalNotes { get; set; } = string.Empty;
 }

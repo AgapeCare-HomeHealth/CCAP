@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CCAP.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260930171844_InitialCCAPMigration")]
-    partial class InitialCCAPMigration
+    [Migration("20261012194619_InitialCCAPShema")]
+    partial class InitialCCAPShema
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -817,6 +817,18 @@ namespace CCAP.Infrastructure.Migrations
                     b.Property<Guid?>("PatientId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("PcosRegistered")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("PhysicianFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("PhysicianNpi")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<string>("PhysicianPhone")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -829,6 +841,10 @@ namespace CCAP.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<string>("ReferralChannel")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<DateTime>("ReferralDate")
                         .HasColumnType("datetime2");
 
@@ -839,6 +855,10 @@ namespace CCAP.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ReferralType")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("ReferringPhysician")
                         .HasMaxLength(200)

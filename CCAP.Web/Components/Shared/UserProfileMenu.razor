@@ -6,23 +6,90 @@
 @inject NavigationManager Navigation
 
 <div class="profile-menu">
-    <div class="profile-menu-divider"></div>
+    @if (IsActualAdministrator)
+    {
+        <div class="profile-menu-divider"></div>
+        <div class="px-3 py-2 small text-muted">Switch Role (view only)</div>
+        <select class="form-select form-select-sm mx-3 mb-2" style="width:calc(100% - 2rem)" value="@CurrentViewRole" @onchange="SwitchRoleAsync">
+            <option value="">Administrator</option>
+            <option value="Care Coordinator">Care Coordinator</option>
+            <option value="Clinician">Clinician</option>
+        </select>
 
-    <div class="profile-menu-divider"></div>
+        @if (IsViewingAnotherRole)
+        {
+            <div class="px-3 pb-2 small text-muted">Currently viewing as @CurrentViewRole</div>
+            <button class="profile-menu-item" @onclick="RestoreAdminViewAsync">
+                <i class="bi bi-arrow-counterclockwise"></i>
+                <span>Return to Administrator View</span>
+            </button>
+        }
+    }
 
     <button class="profile-menu-item logout" @onclick="LogoutAsync">
-        <i class="bi bi-box-arrow-right"></i>
-        <span>Logout</span>
+        <i class="bi bi-box-arrow-right"></i><span>Logout</span>
     </button>
 </div>
 
 @code {
+    private bool IsActualAdministrator;
+    private bool IsViewingAnotherRole;
+    private string? CurrentViewRole;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthenticationStateProvider is CcapAuthenticationStateProvider provider)
+        {
+            var actualRole = await provider.GetActualRoleAsync();
+            IsActualAdministrator = string.Equals(
+                actualRole,
+                "Administrator",
+                StringComparison.OrdinalIgnoreCase);
+
+            CurrentViewRole = provider.ViewRole;
+            IsViewingAnotherRole = !string.IsNullOrWhiteSpace(CurrentViewRole);
+        }
+    }
+
+    private async Task SwitchRoleAsync(ChangeEventArgs e)
+    {
+        var role = e.Value?.ToString();
+
+        if (AuthenticationStateProvider is not CcapAuthenticationStateProvider provider)
+            return;
+
+        // Empty selection means restore the real Administrator view.
+        if (string.IsNullOrWhiteSpace(role))
+        {
+            await provider.RestoreActualRoleAsync();
+            CurrentViewRole = null;
+            IsViewingAnotherRole = false;
+            StateHasChanged();
+            return;
+        }
+
+        await provider.SetViewRoleAsync(role);
+        CurrentViewRole = provider.ViewRole;
+        IsViewingAnotherRole = !string.IsNullOrWhiteSpace(CurrentViewRole);
+        StateHasChanged();
+    }
+
+    private async Task RestoreAdminViewAsync()
+    {
+        if (AuthenticationStateProvider is CcapAuthenticationStateProvider provider)
+            await provider.RestoreActualRoleAsync();
+
+        CurrentViewRole = null;
+        IsViewingAnotherRole = false;
+        StateHasChanged();
+    }
+
     private async Task LogoutAsync()
     {
-        await TokenStore.DeleteAsync();
-
         if (AuthenticationStateProvider is CcapAuthenticationStateProvider provider)
             await provider.NotifyLogoutAsync();
+        else
+            await TokenStore.DeleteAsync();
 
         Navigation.NavigateTo("/login");
     }

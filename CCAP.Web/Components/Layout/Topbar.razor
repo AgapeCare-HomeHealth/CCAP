@@ -8,7 +8,7 @@
 @inject NavigationManager Navigation
 @implements IDisposable
 
-<header class="topbar">
+<header class="topbar @(IsSidebarCollapsed ? "collapsed" : "")">
     <div class="topbar-left">
         <button class="menu-toggle" @onclick="OnToggleSidebar">
             <i class="bi bi-list"></i>
@@ -70,6 +70,9 @@
 </header>
 
 @code {
+
+    [Parameter]
+    public bool IsSidebarCollapsed { get; set; }
     [Parameter]
     public EventCallback OnToggleSidebar { get; set; }
 

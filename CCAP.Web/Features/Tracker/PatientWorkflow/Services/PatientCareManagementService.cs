@@ -36,6 +36,12 @@ public sealed class PatientCareManagementService
         await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 
+    public async Task UpdateServiceOrderAsync(Guid patientId, Guid orderId, Guid serviceTypeId, string? frequency, CancellationToken cancellationToken = default)
+    {
+        var response = await _api.PutAsJsonAsync($"api/patients/{patientId}/service-orders/{orderId}", new { PatientId = patientId, ServiceTypeId = serviceTypeId, Frequency = frequency }, cancellationToken);
+        await _api.EnsureSuccessAsync(response, cancellationToken);
+    }
+
     public async Task AddServiceOrderAsync(Guid patientId, Guid serviceTypeId, string? frequency, string? duration, bool primary, CancellationToken cancellationToken = default)
     {
         var response = await _api.PostAsJsonAsync($"api/patients/{patientId}/service-orders", new { PatientId = patientId, ServiceTypeId = serviceTypeId, Frequency = frequency, Duration = duration, IsPrimaryDiscipline = primary }, cancellationToken);

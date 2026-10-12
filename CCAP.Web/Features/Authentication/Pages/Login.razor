@@ -56,6 +56,7 @@
                   OnValidSubmit="LoginAsync"
                   OnInvalidSubmit="HandleInvalidSubmit"
                   FormName="ccap-login">
+
             <DataAnnotationsValidator />
 
             <div class="form-group">
@@ -134,11 +135,12 @@
                     </span>
 
                     <strong>
-                        admin@ccap.local / Admin123!
+                        carecoordinator@ccap.local / CCAPCareCoordinator@2026!
                     </strong>
                 </div>
             </div>
         }
+
     </div>
 </div>
 
@@ -151,8 +153,11 @@
     private bool IsLoading;
     private bool ShowPassword;
 
-    private string PasswordInputType => ShowPassword ? "text" : "password";
-    private string PasswordToggleLabel => ShowPassword ? "Hide password" : "Show password";
+    private string PasswordInputType =>
+        ShowPassword ? "text" : "password";
+
+    private string PasswordToggleLabel =>
+        ShowPassword ? "Hide password" : "Show password";
 
     private void TogglePasswordVisibility()
     {
@@ -161,8 +166,6 @@
 
     private void HandleInvalidSubmit(EditContext _)
     {
-        // Do not leave a previous authentication/network error visible
-        // when the current issue is local form validation.
         ErrorMessage = null;
     }
 
@@ -207,9 +210,8 @@
         }
         catch
         {
-            // AuthenticationService already converts expected API/network failures
-            // to a safe user-facing result. This is only a final UI safety net.
-            ErrorMessage = "Something went wrong while signing in. Please try again.";
+            ErrorMessage =
+                "Something went wrong while signing in. Please try again.";
         }
         finally
         {
