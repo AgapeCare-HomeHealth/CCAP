@@ -31,3 +31,15 @@
     padding: .45rem .85rem;
     border-radius: 20px;
 }
+
+
+.patient-notes-feed { display: flex; flex-direction: column; }
+.patient-note-entry { display: flex; gap: 14px; padding: 16px 0; border-bottom: 1px solid #edf0f3; }
+.patient-note-entry:first-child { padding-top: 0; }
+.patient-note-entry:last-child { padding-bottom: 0; border-bottom: 0; }
+.patient-note-marker { width: 36px; height: 36px; flex: 0 0 36px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #f0f7f5; color: #20786c; }
+.patient-note-content { flex: 1; min-width: 0; }
+.patient-note-header { display: flex; justify-content: space-between; gap: 16px; }
+.patient-note-source { display: inline-block; margin-top: 3px; font-size: .75rem; color: #6c757d; }
+.patient-note-text { margin-top: 8px; white-space: pre-wrap; color: #495057; line-height: 1.5; }
+@media (max-width: 768px) { .patient-note-header { flex-direction: column; gap: 4px; } }

@@ -7,11 +7,13 @@ using CCAP.Infrastructure.Persistence;
 using CCAP.Infrastructure.Persistence.Repositories;
 using CCAP.Infrastructure.Storage;
 using CCAP.Infrastructure.Storage.Local;
-using CCAP.Infrastructure.Storage.AzureBlob;
-using CCAP.Infrastructure.Scheduling;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using CCAP.Infrastructure.Scheduling;
+using CCAP.Infrastructure.Storage.AzureBlob;
+using CCAP.Application.Abstractions.Referrals;
+using CCAP.Infrastructure.Referrals;
 
 namespace CCAP.Infrastructure;
 
@@ -63,6 +65,8 @@ public static class DependencyInjection
 
         services.AddScoped<IScheduleImportService, ScheduleImportService>();
 
+        services.AddScoped<IReferralDocumentExtractionService, ReferralDocumentExtractionService>();
+
         services.AddScoped<
             IReferralRepository,
             ReferralRepository>();
@@ -78,6 +82,8 @@ public static class DependencyInjection
         services.AddScoped<
             IReferralDocumentRepository,
             ReferralDocumentRepository>();
+
+
 
         services.AddScoped<
             IServiceTypeRepository,

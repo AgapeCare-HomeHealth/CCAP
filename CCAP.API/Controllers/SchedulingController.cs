@@ -1,7 +1,9 @@
 using CCAP.API.Authorization;
 using CCAP.Application.Abstractions.Scheduling;
 using CCAP.Application.Features.Scheduling.Import;
+using CCAP.Application.Features.Scheduling.Commands.AddSchedules;
 using CCAP.Application.Features.Scheduling.Queries.GetCalendarVisits;
+using CCAP.Application.Features.Scheduling.Queries.GetSchedulingOptions;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -24,7 +26,7 @@ public sealed class SchedulingController : ControllerBase
     }
 
     [HttpGet("calendar")]
-    [Authorize(Policy = PermissionPolicies.PatientsView)]
+    [Authorize(Policy = PermissionPolicies.SchedulingView)]
     public async Task<IActionResult> GetCalendar([FromQuery] DateTime startDate, [FromQuery] DateTime endDate, CancellationToken cancellationToken)
     {
         if (endDate <= startDate) return BadRequest("endDate must be after startDate.");
@@ -37,8 +39,54 @@ public sealed class SchedulingController : ControllerBase
             cancellationToken));
     }
 
+    [HttpGet("options")]
+    [Authorize(Policy = PermissionPolicies.SchedulingView)]
+    public async Task<IActionResult> GetOptions(CancellationToken cancellationToken) =>
+        Ok(await _sender.Send(new GetSchedulingOptionsQuery(), cancellationToken));
+
+    [HttpPost]
+    [Authorize(Policy = PermissionPolicies.SchedulingManage)]
+    public async Task<IActionResult> AddSchedules(
+        [FromBody] List<AddScheduleItem> schedules,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+            return Unauthorized();
+
+        try
+        {
+            var result = await _sender.Send(
+                new AddSchedulesCommand(userId, schedules),
+                cancellationToken);
+
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+        {
+            var detail = ex.InnerException?.Message;
+            return StatusCode(StatusCodes.Status500InternalServerError, new
+            {
+                message = string.IsNullOrWhiteSpace(detail)
+                    ? "The schedule could not be saved to the database."
+                    : $"The schedule could not be saved to the database: {detail}"
+            });
+        }
+    }
+
     [HttpPost("import/preview")]
-    [Authorize(Policy = PermissionPolicies.PatientsManage)]
+    [Authorize(Policy = PermissionPolicies.SchedulingManage)]
     [RequestSizeLimit(10 * 1024 * 1024)]
     public async Task<IActionResult> PreviewImport(IFormFile file, CancellationToken cancellationToken)
     {
@@ -87,7 +135,7 @@ public sealed class SchedulingController : ControllerBase
     }
 
     [HttpPost("import/commit")]
-    [Authorize(Policy = PermissionPolicies.PatientsManage)]
+    [Authorize(Policy = PermissionPolicies.SchedulingManage)]
     public async Task<IActionResult> CommitImport([FromBody] List<ScheduleImportCommitItem> items, CancellationToken cancellationToken)
     {
         if (items is null || items.Count == 0) return BadRequest("Select at least one schedule to import.");

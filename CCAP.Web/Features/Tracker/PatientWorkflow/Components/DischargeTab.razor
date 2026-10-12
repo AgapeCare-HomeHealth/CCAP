@@ -37,14 +37,14 @@
                         else
                         {
                             <button type="button" class="btn btn-success" @onclick="ArchiveJourneyAsync" disabled="@IsSaving">
-                                @(IsSaving ? "Archiving..." : "Close & Archive Patient Journey")
+                                @(IsSaving ? "Discharging..." : "Close & Discharge Patient Journey")
                             </button>
                         }
                         <button type="button" class="btn btn-outline-primary" @onclick="GoToPatients">Back to Active Patients</button>
                     </div>
                     @if (JourneyArchived)
                     {
-                        <div class="alert alert-success mt-4 mb-0">Patient journey is closed and archived. The patient no longer belongs in the active patient list.</div>
+                        <div class="alert alert-success mt-4 mb-0">Patient journey is closed and discharged. The patient no longer belongs in the active patient list.</div>
                     }
                 </div>
             </div>

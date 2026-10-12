@@ -814,6 +814,18 @@ namespace CCAP.Infrastructure.Migrations
                     b.Property<Guid?>("PatientId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("PcosRegistered")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("PhysicianFax")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("PhysicianNpi")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<string>("PhysicianPhone")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -826,6 +838,10 @@ namespace CCAP.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<string>("ReferralChannel")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<DateTime>("ReferralDate")
                         .HasColumnType("datetime2");
 
@@ -836,6 +852,10 @@ namespace CCAP.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ReferralType")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("ReferringPhysician")
                         .HasMaxLength(200)
@@ -1043,6 +1063,9 @@ namespace CCAP.Infrastructure.Migrations
                     b.Property<Guid?>("AssignedUserId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("CallNotes")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<Guid?>("ClinicianId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1053,11 +1076,18 @@ namespace CCAP.Infrastructure.Migrations
                     b.Property<DateTime?>("CompletedDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("ConfirmationStatus")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<string>("Location")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
                     b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("NotesFlag")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<Guid?>("PatientId")
@@ -1074,6 +1104,10 @@ namespace CCAP.Infrastructure.Migrations
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TimeBlock")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("VisitType")
                         .IsRequired()

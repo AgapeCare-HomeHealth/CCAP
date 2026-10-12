@@ -77,17 +77,6 @@ public sealed class PatientWorkflowService
         await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 
-    public async Task CompleteInsuranceVerificationAsync(
-        Guid patientId,
-        CancellationToken cancellationToken = default)
-    {
-        var response = await _api.PostAsJsonAsync(
-            $"api/patients/{patientId}/insurance/verify",
-            new { },
-            cancellationToken);
-
-        await _api.EnsureSuccessAsync(response, cancellationToken);
-    }
 
     public async Task UpdateInsuranceAsync(
         Guid patientId,
@@ -121,6 +110,12 @@ public sealed class PatientWorkflowService
         await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 
+    public async Task UnmarkComplianceAsync(Guid patientId, string requirementCode, CancellationToken cancellationToken = default)
+    {
+        var response = await _api.PostAsJsonAsync($"api/patients/{patientId}/compliance/{Uri.EscapeDataString(requirementCode)}/unmark", new { }, cancellationToken);
+        await _api.EnsureSuccessAsync(response, cancellationToken);
+    }
+
     public async Task ScheduleSocAsync(
     Guid patientId,
     DateOnly socDate,
@@ -136,6 +131,9 @@ public sealed class PatientWorkflowService
 
         await _api.EnsureSuccessAsync(response, cancellationToken);
     }
+
+
+
 
     public async Task UpdateWorkflowDetailsAsync(Guid patientId, WorkflowDetailsDto model, CancellationToken cancellationToken = default)
     {

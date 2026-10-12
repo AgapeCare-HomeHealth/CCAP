@@ -39,7 +39,9 @@ public static class DatabaseSeeder
             ("orders.view", "View Order Alerts", "Orders"),
             ("orders.manage", "Manage Order Alerts", "Orders"),
             ("lookups.view", "View Lookup Options", "Administration"),
-            ("lookups.manage", "Manage Lookup Options", "Administration")
+            ("lookups.manage", "Manage Lookup Options", "Administration"),
+            ("scheduling.view", "View Scheduling Calendar", "Scheduling"),
+            ("scheduling.manage", "Manage Scheduling Calendar", "Scheduling")
         };
 
         var permissionEntities = new List<Permission>();
@@ -102,16 +104,16 @@ public static class DatabaseSeeder
         var rolePermissionCodes = new Dictionary<string, string[]>
         {
             ["Care Coordinator"] =
-            ["dashboard.view", "users.view", "roles.view", "patients.view", "patients.manage", "referrals.view", "referrals.manage",
+            ["dashboard.view", "users.view", "roles.view", "patients.view", "patients.manage", "referrals.view", "referrals.manage", "scheduling.view", "scheduling.manage",
              "fax.view", "fax.manage", "notifications.view", "notifications.manage", "notes.view", "notes.manage",
              "labs.view", "labs.manage", "supplies.view", "supplies.manage", "foley.view", "foley.manage",
              "orders.view", "orders.manage", "lookups.view"],
             ["Clinician"] =
-            ["dashboard.view", "patients.view", "patients.manage", "referrals.view", "fax.view", "fax.manage", "notifications.view", "notifications.manage",
+            ["dashboard.view", "patients.view", "patients.manage", "referrals.view", "scheduling.view", "fax.view", "fax.manage", "notifications.view", "notifications.manage",
              "notes.view", "notes.manage", "labs.view", "labs.manage", "supplies.view", "supplies.manage",
              "foley.view", "foley.manage", "orders.view", "orders.manage"],
             ["Scheduler"] =
-            ["dashboard.view", "patients.view", "referrals.view", "referrals.manage"]
+            ["dashboard.view", "scheduling.view", "scheduling.manage"]
         };
 
         foreach (var pair in rolePermissionCodes)
@@ -137,12 +139,14 @@ public static class DatabaseSeeder
 
         var disciplines = new[]
         {
-            ("RN", "Registered Nurse"),
-            ("LVN", "Licensed Vocational Nurse"),
+            ("SN", "Skilled Nursing"),
             ("PT", "Physical Therapy"),
             ("OT", "Occupational Therapy"),
             ("ST", "Speech Therapy"),
-            ("HHA", "Home Health Aide")
+            ("HHA", "Home Health Aide"),
+            ("MSW", "Medical Social Work (MSW)"),
+            ("RN", "Registered Nurse"),
+            ("LVN", "Licensed Vocational Nurse")
         };
 
         foreach (var item in disciplines)
@@ -212,13 +216,68 @@ public static class DatabaseSeeder
             adminUser.Activate();
         }
 
-        if (!await context.Locations.AnyAsync(
-        cancellationToken))
+
+        // Seed Care Coordinator user
+        var careCoordinatorEmail = "carecoordinator@ccap.local";
+
+        var careCoordinatorUser = await context.ApplicationUsers
+            .FirstOrDefaultAsync(
+                x => x.Email == careCoordinatorEmail,
+                cancellationToken);
+
+        if (careCoordinatorUser is null)
         {
-            context.Locations.Add(
-                new Location(
-                    "Main Office",
-                    isDefault: true));
+            careCoordinatorUser = new ApplicationUser(
+                "CCAP-CARECOORDINATOR",
+                "CCAP",
+                "Care Coordinator",
+                careCoordinatorEmail,
+                string.Empty,
+                roles["Care Coordinator"].RoleId,
+                null);
+
+            careCoordinatorUser.SetPasswordHash(
+                passwordHasher.HashPassword(
+                    careCoordinatorUser,
+                    "CCAPCareCoordinator@2026!"));
+
+            context.ApplicationUsers.Add(careCoordinatorUser);
+        }
+        else if (!careCoordinatorUser.IsActive)
+        {
+            careCoordinatorUser.Activate();
+        }
+
+
+        // Seed Clinician user
+        var clinicianEmail = "clinician@ccap.local";
+
+        var clinicianUser = await context.ApplicationUsers
+            .FirstOrDefaultAsync(
+                x => x.Email == clinicianEmail,
+                cancellationToken);
+
+        if (clinicianUser is null)
+        {
+            clinicianUser = new ApplicationUser(
+                "CCAP-CLINICIAN",
+                "CCAP",
+                "Clinician",
+                clinicianEmail,
+                string.Empty,
+                roles["Clinician"].RoleId,
+                null);
+
+            clinicianUser.SetPasswordHash(
+                passwordHasher.HashPassword(
+                    clinicianUser,
+                    "CCAPClinician@2026!"));
+
+            context.ApplicationUsers.Add(clinicianUser);
+        }
+        else if (!clinicianUser.IsActive)
+        {
+            clinicianUser.Activate();
         }
 
         await context.SaveChangesAsync(cancellationToken);

@@ -11,7 +11,7 @@
         <h4>Referral Information</h4>
 
         <p>
-            Enter the referral, insurance, physician and clinical information.
+            Enter the referral information and required intake details.
         </p>
 
     </div>
@@ -23,33 +23,6 @@
     </h5>
 
     <div class="row g-4">
-
-        <!-- Referral Number -->
-        <div class="col-md-4">
-
-            <label class="form-label">
-                Referral Number
-                <span class="text-danger">*</span>
-            </label>
-
-            <input type="text"
-                   class="@ReferralNumberInputClass"
-                   @bind="Model.ReferralNumber"
-                   @onblur="ValidateReferralNumber"
-                   placeholder="Enter referral number" />
-
-            @if (!string.IsNullOrWhiteSpace(ReferralNumberError))
-            {
-                <div class="invalid-feedback">
-                    @ReferralNumberError
-                </div>
-            }
-
-            <div class="form-text">
-                Referral number provided by the referring source.
-            </div>
-
-        </div>
 
         <!-- Referral Date -->
         <div class="col-md-4">
@@ -64,49 +37,44 @@
 
         </div>
 
-        <!-- Referral Source -->
+        <!-- Type of Referral -->
         <div class="col-md-4">
 
             <label class="form-label">
-                Referral Source
+                Type of Referral
             </label>
 
             <select class="form-select"
-                    @bind="Model.ReferralSource">
-
-                <option value="">
-                    Select Referral Source
-                </option>
-
-                @foreach (var option in ReferralSources)
+                    @bind="Model.ReferralType">
+                <option value="">Select Referral Type</option>
+                @foreach (var option in ReferralTypes)
                 {
-                    <option value="@option.DisplayName">@option.DisplayName</option>
+                    <option value="@option">@option</option>
                 }
-
             </select>
 
         </div>
 
-        <!-- Priority -->
+        <!-- Referral Channel -->
         <div class="col-md-4">
 
             <label class="form-label">
-                Priority
+                Channel
             </label>
 
             <select class="form-select"
-                    @bind="Model.Priority">
-
-                @foreach (var option in Priorities)
+                    @bind="Model.ReferralChannel">
+                <option value="">Select Channel</option>
+                @foreach (var option in ReferralChannels)
                 {
-                    <option value="@option.DisplayName">@option.DisplayName</option>
+                    <option value="@option">@option</option>
                 }
-
             </select>
 
         </div>
 
     </div>
+
 
     <hr />
 
@@ -156,57 +124,37 @@
 
     </div>
 
-    <!-- Insurance Row 2 -->
-    <div class="row g-4 mt-1">
-
-        <!-- Authorization Date -->
-        <div class="col-md-6">
-
-            <label class="form-label">
-                Authorization Date
+    <!-- Authorization Required -->
+    <div class="mt-4">
+        <div class="form-check">
+            <input class="form-check-input"
+                   type="checkbox"
+                   id="authorizationRequired"
+                   checked="@Model.AuthorizationRequired"
+                   @onchange="OnAuthorizationRequiredChanged" />
+            <label class="form-check-label" for="authorizationRequired">
+                Authorization Required
             </label>
+        </div>
+    </div>
 
+    <!-- Authorization details -->
+    <div class="row g-4 mt-1">
+        <div class="col-md-6">
+            <label class="form-label">Authorization Date</label>
             <input type="date"
                    class="form-control"
-                   @bind="Model.AuthorizationDate" />
-
+                   @bind="Model.AuthorizationDate"
+                   disabled="@(!Model.AuthorizationRequired)" />
         </div>
 
-        <!-- Number of Approved Visits -->
         <div class="col-md-6">
-
-            <label class="form-label">
-                Number of Approved Visits
-            </label>
-
+            <label class="form-label">Number of Approved Visits</label>
             <input type="number"
                    min="0"
                    class="form-control"
                    @bind="Model.ApprovedVisits" />
-
         </div>
-
-    </div>
-
-    <!-- Authorization Required -->
-    <div class="mt-4">
-
-        <div class="form-check">
-
-            <input class="form-check-input"
-                   type="checkbox"
-                   id="authorizationRequired"
-                   @bind="Model.AuthorizationRequired" />
-
-            <label class="form-check-label"
-                   for="authorizationRequired">
-
-                Authorization Required
-
-            </label>
-
-        </div>
-
     </div>
 
     <hr />
@@ -220,28 +168,33 @@
 
     <div class="row g-4">
 
-        <!-- Physician -->
         <div class="col-md-6">
-
-            <label class="form-label">
-                Physician
-            </label>
-
-            <input class="form-control"
-                   @bind="Model.ReferringPhysician" />
-
+            <label class="form-label">Primary Care Physician</label>
+            <input class="form-control" @bind="Model.ReferringPhysician" />
         </div>
 
-        <!-- Phone -->
         <div class="col-md-6">
+            <label class="form-label">Phone Number</label>
+            <input class="form-control" @bind="Model.PhysicianPhone" />
+        </div>
 
-            <label class="form-label">
-                Phone Number
-            </label>
+        <div class="col-md-4">
+            <label class="form-label">Fax Number</label>
+            <input class="form-control" @bind="Model.PhysicianFax" />
+        </div>
 
-            <input class="form-control"
-                   @bind="Model.PhysicianPhone" />
+        <div class="col-md-4">
+            <label class="form-label">NPI</label>
+            <input class="form-control" @bind="Model.PhysicianNpi" />
+        </div>
 
+        <div class="col-md-4">
+            <label class="form-label">PCOS Registered</label>
+            <select class="form-select" @bind="Model.PcosRegistered">
+                <option value="">Not recorded</option>
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+            </select>
         </div>
 
     </div>
@@ -333,13 +286,27 @@
 
 
 @code {
-    private List<LookupOptionDto> ReferralSources = [];
-    private List<LookupOptionDto> Priorities = [];
     private List<LookupOptionDto> Insurances = [];
+
+    private static readonly string[] ReferralTypes =
+    [
+        "Re-Cert",
+        "ROC (Resumption of Care)",
+        "New (New Patient)",
+        "Repeat"
+    ];
+
+    private static readonly string[] ReferralChannels =
+    [
+        "Allscripts",
+        "Careport",
+        "Direct-Fax",
+        "Direct-email",
+        "Direct-phone",
+        "Direct-in-person"
+    ];
     protected override async Task OnInitializedAsync()
     {
-        ReferralSources = await LookupService.GetAsync("ReferralSource", true);
-        Priorities = await LookupService.GetAsync("Priority", true);
         Insurances = await LookupService.GetAsync("Insurance", true);
     }
 
@@ -347,38 +314,18 @@
     [Parameter]
     public ReferralIntakeModel Model { get; set; } = null!;
 
-    private string? ReferralNumberError;
+    private static readonly string[] ServiceOptions = ReferralServiceOptions.All;
 
-    private static readonly string[] ServiceOptions =
-    [
-        "Skilled Nursing",
-        "Physical Therapy",
-        "Occupational Therapy",
-        "Speech Therapy",
-        "Home Health Aide",
-        "Medical Social Work (MSW)"
-    ];
-
-    private string ReferralNumberInputClass =>
-        string.IsNullOrWhiteSpace(ReferralNumberError)
-            ? "form-control"
-            : "form-control is-invalid";
-
-    private void ValidateReferralNumber()
+    private void OnAuthorizationRequiredChanged(ChangeEventArgs e)
     {
-        ReferralNumberError =
-            string.IsNullOrWhiteSpace(Model.ReferralNumber)
-                ? "Referral number is required."
-                : null;
+        Model.AuthorizationRequired = e.Value is bool value && value;
+        if (!Model.AuthorizationRequired)
+        {
+            Model.AuthorizationDate = null;
+        }
     }
 
-    public bool ValidateStep()
-    {
-        ValidateReferralNumber();
-
-        return string.IsNullOrWhiteSpace(
-            ReferralNumberError);
-    }
+    public bool ValidateStep() => true;
 
     private void ToggleService(
         string service,

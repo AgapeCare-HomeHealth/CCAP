@@ -15,5 +15,10 @@
         public string Payor { get; set; } = string.Empty;
 
         public string Priority { get; set; } = string.Empty;
+
+        public string PrimaryCarePhysician { get; set; } = string.Empty;
+        public string PhysicianFax { get; set; } = string.Empty;
+        public string PhysicianNpi { get; set; } = string.Empty;
+        public string PcosRegistered { get; set; } = string.Empty;
     }
 }

@@ -1,4 +1,5 @@
 @using CCAP.Web.Features.Tracker.PatientWorkflow.Models
+@inject NavigationManager Navigation
 
 <div class="overview-tab">
 
@@ -69,10 +70,10 @@
 
                 <div class="card-body">
 
-                    @if (HasNextAction)
+                    @if (HasNextAction && !Workflow!.NextAction!.IsOverdue)
                     {
                         <h5 class="mb-2">
-                            @Workflow!.NextAction!.Title
+                            @Workflow.NextAction.Title
                         </h5>
 
                         @if (!string.IsNullOrWhiteSpace(Workflow.NextAction.Description))
@@ -83,28 +84,28 @@
                         }
 
                         <div class="small text-muted mb-3">
-                            Due:
-                            @Workflow.NextAction.DueDate
-                            .ToLocalTime()
-                            .ToString("MM/dd/yyyy")
+                            Due: @Workflow.NextAction.DueDate.ToLocalTime().ToString("MM/dd/yyyy h:mm tt")
                         </div>
 
                         <button type="button"
                                 class="btn btn-primary"
                                 @onclick="OpenNextAction">
-                            Open Task
+                            Open
                         </button>
+                    }
+                    else if (HasNextAction && Workflow!.NextAction!.IsOverdue)
+                    {
+                        <div class="text-center py-4">
+                            <i class="bi bi-exclamation-circle text-danger fs-2"></i>
+                            <div class="mt-2 fw-semibold">Resolve the overdue item above</div>
+                            <div class="small text-muted">The overdue task is shown under Needs Attention.</div>
+                        </div>
                     }
                     else
                     {
                         <div class="text-center text-success py-4">
-
                             <i class="bi bi-check-circle fs-2"></i>
-
-                            <div class="mt-2">
-                                No pending action.
-                            </div>
-
+                            <div class="mt-2">No upcoming action.</div>
                         </div>
                     }
 
@@ -163,50 +164,45 @@
     </div>
 
 
-    <!-- Workflow Status -->
+    <!-- Unified Patient Notes -->
     <div class="card shadow-sm border-0 mt-4">
-
         <div class="card-header bg-white d-flex justify-content-between align-items-center">
-
-            <h5 class="mb-0">
-                Workflow Status
-            </h5>
-
+            <div>
+                <h5 class="mb-0">Patient Notes</h5>
+                <small class="text-muted">Notes from referral, communication, care, and compliance in one chronological view.</small>
+            </div>
+            <span class="badge bg-light text-dark">@NoteFeed.Count</span>
         </div>
-
         <div class="card-body">
-
-            @if (Workflow?.WorkflowStages is not null &&
-                 Workflow.WorkflowStages.Any())
+            @if (NoteFeed.Count == 0)
             {
-                <div class="row g-3">
-
-                    @foreach (var stage in Workflow.WorkflowStages.OrderBy(x => x.Sequence))
-                    {
-                        var statusText = stage.Status.ToString();
-
-                        <div class="col-6 col-md-4 col-xl-2">
-
-                            <div class="small text-muted mb-1">
-                                @stage.StageName
-                            </div>
-
-                            <span class="badge @StageClass(statusText)">
-                                @statusText
-                            </span>
-
-                        </div>
-                    }
-
-                </div>
+                <div class="text-muted py-3">No patient notes have been recorded.</div>
             }
             else
             {
-                <div class="text-muted">
-                    No workflow stages are currently available.
+                <div class="patient-notes-feed">
+                    @foreach (var note in NoteFeed)
+                    {
+                        <article class="patient-note-entry">
+                            <div class="patient-note-marker"><i class="@note.Icon"></i></div>
+                            <div class="patient-note-content">
+                                <div class="patient-note-header">
+                                    <div>
+                                        <div class="fw-semibold">@note.Title</div>
+                                        <span class="patient-note-source">@note.Source</span>
+                                    </div>
+                                    <time class="small text-muted">@note.Date.ToLocalTime().ToString("MM/dd/yyyy h:mm tt")</time>
+                                </div>
+                                <div class="patient-note-text">@note.Content</div>
+                                @if (!string.IsNullOrWhiteSpace(note.Author))
+                                {
+                                    <div class="small text-muted mt-2"><i class="bi bi-person me-1"></i>@note.Author</div>
+                                }
+                            </div>
+                        </article>
+                    }
                 </div>
             }
-
         </div>
     </div>
 
@@ -228,6 +224,48 @@
     public EventCallback<string> OnChangeTab { get; set; }
 
 
+    private sealed record NoteFeedItem(
+        DateTime Date,
+        string Source,
+        string Title,
+        string Content,
+        string Author,
+        string Icon);
+
+    private List<NoteFeedItem> NoteFeed
+    {
+        get
+        {
+            var items = new List<NoteFeedItem>();
+
+            if (!string.IsNullOrWhiteSpace(Workflow?.ReferralNotes))
+                items.Add(new NoteFeedItem(Workflow.ReferralDate ?? DateTime.MinValue, "Referral", "Referral Notes", Workflow.ReferralNotes, "", "bi bi-file-earmark-text"));
+
+            if (!string.IsNullOrWhiteSpace(Workflow?.InternalNotes))
+                items.Add(new NoteFeedItem(Workflow.ReferralDate ?? DateTime.MinValue, "Referral / Internal", "Internal Referral Notes", Workflow.InternalNotes, "", "bi bi-shield-lock"));
+
+            foreach (var note in Care?.Notes ?? [])
+            {
+                if (!string.IsNullOrWhiteSpace(note.Content))
+                    items.Add(new NoteFeedItem(note.CreatedAt, "Communication", string.IsNullOrWhiteSpace(note.Subject) ? "Communication Note" : note.Subject, note.Content, note.CreatedBy, "bi bi-chat-left-text"));
+            }
+
+            foreach (var log in Care?.CareLogs ?? [])
+            {
+                if (!string.IsNullOrWhiteSpace(log.Notes))
+                    items.Add(new NoteFeedItem(log.RecordedAt, "Care", string.IsNullOrWhiteSpace(log.Item) ? "Care Log" : log.Item, log.Notes!, log.RecordedBy, "bi bi-clipboard2-pulse"));
+            }
+
+            foreach (var item in Workflow?.ComplianceItems ?? [])
+            {
+                if (!string.IsNullOrWhiteSpace(item.Description) && item.CompletedAt.HasValue)
+                    items.Add(new NoteFeedItem(item.CompletedAt.Value, "Compliance", item.RequirementName, item.Description, item.CompletedByUserName, "bi bi-clipboard-check"));
+            }
+
+            return items.Where(x => x.Date != DateTime.MinValue).OrderByDescending(x => x.Date).ToList();
+        }
+    }
+
     private bool HasNextAction =>
         Workflow?.NextAction is not null &&
         Workflow.NextAction.TaskId != Guid.Empty;
@@ -237,110 +275,43 @@
     {
         get
         {
-            if (!HasNextAction)
-            {
+            if (Workflow?.NextAction is null || Workflow.NextAction.TaskId == Guid.Empty)
                 return Array.Empty<(string, string, string)>();
-            }
 
-            var nextAction = Workflow!.NextAction!;
+            // Needs Attention is reserved for overdue work. This keeps it
+            // distinct from the normal Next Action card.
+            if (!Workflow.NextAction.IsOverdue)
+                return Array.Empty<(string, string, string)>();
 
             return new[]
             {
                 (
-                    nextAction.Title,
-                    nextAction.Description,
-                    TabFor(nextAction.Title)
+                    $"Overdue: {Workflow.NextAction.Title}",
+                    Workflow.NextAction.Description,
+                    TabFor(Workflow.NextAction.Title)
                 )
             };
         }
     }
 
-
-    private string CurrentStageText
+    private WorkflowStageDto? CurrentStage
     {
         get
         {
-            if (Workflow?.WorkflowStages is null)
-            {
-                return string.Empty;
-            }
-
-            var activeStage = Workflow.WorkflowStages
+            return Workflow?.WorkflowStages?
                 .OrderBy(x => x.Sequence)
-                .FirstOrDefault(x =>
-                    string.Equals(
-                        x.Status.ToString(),
-                        "InProgress",
-                        StringComparison.OrdinalIgnoreCase)
-                    ||
-                    string.Equals(
-                        x.Status.ToString(),
-                        "In Progress",
-                        StringComparison.OrdinalIgnoreCase));
-
-            if (activeStage is not null)
-            {
-                return activeStage.StageName;
-            }
-
-            var firstIncomplete = Workflow.WorkflowStages
-                .OrderBy(x => x.Sequence)
-                .FirstOrDefault(x =>
-                    !string.Equals(
-                        x.Status.ToString(),
-                        "Completed",
-                        StringComparison.OrdinalIgnoreCase));
-
-            return firstIncomplete?.StageName ?? "Workflow Complete";
+                .FirstOrDefault(x => x.Status == WorkflowStatus.Current);
         }
     }
 
+    private string CurrentStageText =>
+        CurrentStage?.StageName ?? "Workflow Complete";
 
-    private string WorkflowStatusText
-    {
-        get
-        {
-            if (Workflow?.WorkflowStages is null ||
-                !Workflow.WorkflowStages.Any())
-            {
-                return string.Empty;
-            }
+    private string WorkflowStatusText =>
+        CurrentStage is not null ? "Current" : "Completed";
 
-            var activeStage = Workflow.WorkflowStages
-                .OrderBy(x => x.Sequence)
-                .FirstOrDefault(x =>
-                    string.Equals(
-                        x.Status.ToString(),
-                        "InProgress",
-                        StringComparison.OrdinalIgnoreCase)
-                    ||
-                    string.Equals(
-                        x.Status.ToString(),
-                        "In Progress",
-                        StringComparison.OrdinalIgnoreCase));
-
-            if (activeStage is not null)
-            {
-                return activeStage.Status.ToString();
-            }
-
-            return Workflow.WorkflowStages
-                .OrderBy(x => x.Sequence)
-                .First()
-                .Status
-                .ToString();
-        }
-    }
-
-
-    private string WorkflowStatusClass
-    {
-        get
-        {
-            return StageClass(WorkflowStatusText);
-        }
-    }
-
+    private string WorkflowStatusClass =>
+        CurrentStage is not null ? "bg-primary" : "bg-success";
 
     private async Task OpenTab(string tab)
     {
@@ -356,11 +327,20 @@
     private async Task OpenNextAction()
     {
         if (!HasNextAction)
+            return;
+
+        var nextAction = Workflow!.NextAction!;
+        var tab = TabFor(nextAction.Title);
+
+        // A workflow task can provide a dedicated route. If it does not,
+        // open the CCAP tab that owns the action instead of doing nothing.
+        if (!string.IsNullOrWhiteSpace(nextAction.PageRoute)
+            && !nextAction.PageRoute.Equals("/tracker/patient", StringComparison.OrdinalIgnoreCase)
+            && !nextAction.PageRoute.Equals($"/tracker/patient/{PatientId}", StringComparison.OrdinalIgnoreCase))
         {
+            Navigation.NavigateTo(nextAction.PageRoute);
             return;
         }
-
-        var tab = TabFor(Workflow!.NextAction!.Title);
 
         await OpenTab(tab);
     }
@@ -373,19 +353,13 @@
             return "Compliance";
         }
 
-        if (title.Contains(
-                "Insurance",
-                StringComparison.OrdinalIgnoreCase)
-            ||
-            title.Contains(
-                "Authorization",
-                StringComparison.OrdinalIgnoreCase)
-            ||
-            title.Contains(
-                "Payor",
-                StringComparison.OrdinalIgnoreCase))
+        if (title.Contains("Insurance", StringComparison.OrdinalIgnoreCase)
+            || title.Contains("Authorization", StringComparison.OrdinalIgnoreCase)
+            || title.Contains("Payor", StringComparison.OrdinalIgnoreCase))
         {
-            return "Insurance";
+            // Insurance is now handled inside Compliance; there is no
+            // standalone Insurance tab.
+            return "Compliance";
         }
 
         if (title.Contains(

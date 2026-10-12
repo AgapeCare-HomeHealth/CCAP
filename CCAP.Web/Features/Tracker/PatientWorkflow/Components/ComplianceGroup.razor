@@ -53,6 +53,9 @@
     [Parameter] public string Description { get; set; } = "";
     [Parameter] public IEnumerable<ComplianceItemDto> Items { get; set; } = [];
     [Parameter] public EventCallback<string> OnComplete { get; set; }
+    [Parameter] public EventCallback<string> OnUnmark { get; set; }
+    [Parameter] public bool IsUnmarking { get; set; }
+    [Parameter] public string? UnmarkingCode { get; set; }
     [Parameter] public bool IsSaving { get; set; }
     [Parameter] public string? SavingCode { get; set; }
 }

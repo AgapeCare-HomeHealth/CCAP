@@ -1,9 +1,9 @@
-﻿namespace CCAP.Web.Features.Dashboard.Models
+namespace CCAP.Web.Features.Dashboard.Models
 {
     public class ReferralSummaryDto
     {
-        public string PatientName { get; set; }
-        public string ReferralNumber { get; set; }
+        public string PatientName { get; set; } = string.Empty;
+        public string ReferralNumber { get; set; } = string.Empty;
 
         public DateTime ReferralDate { get; set; }
     }

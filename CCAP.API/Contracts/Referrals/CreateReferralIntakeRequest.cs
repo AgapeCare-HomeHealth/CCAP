@@ -10,11 +10,11 @@ public sealed class CreateReferralIntakeRequest
     // PATIENT
     // =========================================================
 
-    public string MRN { get; set; } = string.Empty;
+    public string? MRN { get; set; }
 
     public string FirstName { get; set; } = string.Empty;
 
-    public string MiddleName { get; set; } = string.Empty;
+    public string? MiddleName { get; set; }
 
     public string LastName { get; set; } = string.Empty;
 
@@ -48,12 +48,15 @@ public sealed class CreateReferralIntakeRequest
     // REFERRAL
     // =========================================================
 
-    public string ReferralNumber { get; set; }
-        = string.Empty;
+    public string? ReferralNumber { get; set; }
 
     public DateTime ReferralDate { get; set; }
 
     public string? ReferralSource { get; set; }
+
+    public string? ReferralType { get; set; }
+
+    public string? ReferralChannel { get; set; }
 
     public string? Priority { get; set; }
 
@@ -78,6 +81,12 @@ public sealed class CreateReferralIntakeRequest
     public string? ReferringPhysician { get; set; }
 
     public string? PhysicianPhone { get; set; }
+
+    public string? PhysicianFax { get; set; }
+
+    public string? PhysicianNpi { get; set; }
+
+    public string? PcosRegistered { get; set; }
 
     // =========================================================
     // CLINICAL

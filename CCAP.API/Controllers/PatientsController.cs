@@ -5,7 +5,6 @@ using CCAP.Application.Features.Patients.Commands.AddServiceOrder;
 using CCAP.Application.Features.Patients.Commands.AddCareLog;
 using CCAP.Application.Features.Patients.Commands.ArchivePatient;
 using CCAP.Application.Features.Patients.Commands.CompleteCare;
-using CCAP.Application.Features.Patients.Commands.CompleteInsuranceVerification;
 using CCAP.Application.Features.Patients.Commands.CompleteSoc;
 using CCAP.Application.Features.Patients.Commands.ScheduleSoc;
 using CCAP.Application.Features.Patients.Commands.UpdateInsurance;
@@ -17,6 +16,7 @@ using CCAP.Application.Features.Patients.Queries.GetPatients;
 using CCAP.Application.Features.Patients.Queries.GetPatientWorkflow;
 using CCAP.Application.Features.Patients.Queries.GetServiceTypes;
 using CCAP.Application.Features.Patients.Commands.CompleteCompliance;
+using CCAP.Application.Features.Patients.Commands.UnmarkCompliance;
 using CCAP.Application.Features.Patients.Commands.CompleteTask;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -75,7 +75,7 @@ public sealed class PatientsController : ControllerBase
 
 
     [HttpGet("{patientId:guid}/audit-log")]
-    [Authorize(Policy = PermissionPolicies.PatientsView)]
+    [Authorize(Roles = "Administrator")]
     public async Task<IActionResult> GetAuditLog(Guid patientId, CancellationToken cancellationToken) => Ok(await _sender.Send(new GetPatientAuditLogQuery(patientId), cancellationToken));
 
     [HttpPost("{patientId:guid}/call-notes")]
@@ -147,28 +147,6 @@ public sealed class PatientsController : ControllerBase
 
         return NoContent();
     }
-
-    [HttpPost("{patientId:guid}/insurance/verify")]
-    [Authorize(Policy = PermissionPolicies.PatientsManage)]
-    public async Task<IActionResult> VerifyInsurance(
-    Guid patientId,
-    CancellationToken cancellationToken)
-    {
-        var userIdValue = User.FindFirstValue(
-            ClaimTypes.NameIdentifier);
-
-        if (!Guid.TryParse(userIdValue, out var currentUserId))
-            return Unauthorized();
-
-        await _sender.Send(
-            new CompleteInsuranceVerificationCommand(
-                patientId,
-                currentUserId),
-            cancellationToken);
-
-        return NoContent();
-    }
-
 
     [HttpPut("{patientId:guid}")]
     [Authorize(Policy = PermissionPolicies.PatientsManage)]
@@ -335,6 +313,16 @@ public sealed class PatientsController : ControllerBase
                 currentUserId),
             cancellationToken);
 
+        return NoContent();
+    }
+
+    [HttpPost("{patientId:guid}/compliance/{requirementCode}/unmark")]
+    [Authorize(Policy = PermissionPolicies.PatientsManage)]
+    public async Task<IActionResult> UnmarkCompliance(Guid patientId, string requirementCode, CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
+        await _sender.Send(new UnmarkComplianceCommand(patientId, requirementCode, currentUserId), cancellationToken);
         return NoContent();
     }
 

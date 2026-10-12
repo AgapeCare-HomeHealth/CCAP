@@ -1,8 +1,8 @@
-﻿namespace CCAP.Web.Features.Dashboard.Models
+namespace CCAP.Web.Features.Dashboard.Models
 {
     public class AnnouncementDto
     {
-        public string Title { get; set; }
-        public string Message { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
     }
 }

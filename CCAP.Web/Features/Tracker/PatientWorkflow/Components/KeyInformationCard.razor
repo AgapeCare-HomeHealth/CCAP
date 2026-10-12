@@ -9,6 +9,11 @@
         <div><strong>Branch:</strong> @Data.Branch</div>
         <div><strong>Payor:</strong> @Data.Payor</div>
         <div><strong>Priority:</strong> @Data.Priority</div>
+        <hr class="my-2" />
+        <div><strong>Primary Care Physician:</strong> @Data.PrimaryCarePhysician</div>
+        <div><strong>Physician Fax:</strong> @Data.PhysicianFax</div>
+        <div><strong>Physician NPI:</strong> @Data.PhysicianNpi</div>
+        <div><strong>PCOS Registered:</strong> @Data.PcosRegistered</div>
     </div>
 </div>
 @code { [Parameter] public KeyInformationDto Data { get; set; } = new(); }

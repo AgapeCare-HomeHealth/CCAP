@@ -47,3 +47,20 @@
     border-radius: 50%;
     margin-top: 6px;
 }
+
+.insurance-compliance-section .badge {
+    font-size: .8rem;
+}
+
+.insurance-compliance-section .form-control,
+.insurance-compliance-section .form-select {
+    min-height: 42px;
+}
+
+.pre-auth-compliance-card {
+    background: #fff;
+}
+
+.pre-auth-compliance-card .form-control {
+    min-height: 42px;
+}

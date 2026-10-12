@@ -16,7 +16,6 @@ using CCAP.Application.Features.Patients.Queries.GetPatientAuditLog;
 using CCAP.Application.Features.Patients.Commands.ArchivePatient;
 using CCAP.Application.Features.Patients.Commands.CompleteCare;
 using CCAP.Application.Features.Patients.Commands.CompleteCompliance;
-using CCAP.Application.Features.Patients.Commands.CompleteInsuranceVerification;
 using CCAP.Application.Features.Patients.Commands.CompleteSoc;
 using CCAP.Application.Features.Patients.Commands.ScheduleSoc;
 using CCAP.Application.Features.Patients.Commands.UpdateInsurance;
@@ -24,6 +23,7 @@ using CCAP.Application.Features.Patients.Commands.UpdatePatient;
 using CCAP.Application.Features.Patients.Commands.UpdateWorkflowDetails;
 using CCAP.Application.Features.Patients.Commands.CompleteTask;
 using CCAP.Application.Features.Referrals.Commands.CreateReferralIntake;
+using CCAP.Application.Features.Scheduling.Commands.AddSchedules;
 using CCAP.Application.Features.Users.Commands.ActivateUser;
 using CCAP.Application.Features.Users.Commands.CreateUser;
 using CCAP.Application.Features.Users.Commands.DeactivateUser;
@@ -138,13 +138,20 @@ public static class DependencyInjection
             CompleteCareCommandValidator>();
 
         services.AddTransient<IRequestValidator<CompleteComplianceCommand>, CompleteComplianceCommandValidator>();
-        services.AddTransient<IRequestValidator<CompleteInsuranceVerificationCommand>, CompleteInsuranceVerificationCommandValidator>();
         services.AddTransient<IRequestValidator<CompleteSocCommand>, CompleteSocCommandValidator>();
         services.AddTransient<IRequestValidator<ScheduleSocCommand>, ScheduleSocCommandValidator>();
         services.AddTransient<IRequestValidator<UpdateInsuranceCommand>, UpdateInsuranceCommandValidator>();
         services.AddTransient<IRequestValidator<UpdatePatientCommand>, UpdatePatientCommandValidator>();
         services.AddTransient<IRequestValidator<UpdateWorkflowDetailsCommand>, UpdateWorkflowDetailsCommandValidator>();
         services.AddTransient<IRequestValidator<CompleteTaskCommand>, CompleteTaskCommandValidator>();
+
+        // =========================================================
+        // SCHEDULING
+        // =========================================================
+
+        services.AddTransient<
+            IRequestValidator<AddSchedulesCommand>,
+            AddSchedulesCommandValidator>();
 
         // =========================================================
         // AUTHENTICATION

@@ -21,7 +21,7 @@
  [Parameter] public PatientWorkflowDto? Workflow {get;set;}
  private List<PatientAuditLogDto> Logs=[]; private string? ErrorMessage;
  private string SearchText=string.Empty; private string ActionFilter=string.Empty; private int CurrentPage=1; private int PageSize=20;
- private List<PatientAuditLogDto> FilteredLogs => Logs.Where(x => (string.IsNullOrWhiteSpace(SearchText) || x.Action.Contains(SearchText,StringComparison.OrdinalIgnoreCase) || x.EntityType.Contains(SearchText,StringComparison.OrdinalIgnoreCase) || x.PerformedBy.Contains(SearchText,StringComparison.OrdinalIgnoreCase) || x.Description.Contains(SearchText,StringComparison.OrdinalIgnoreCase)) && (string.IsNullOrWhiteSpace(ActionFilter) || string.Equals(x.Action,ActionFilter,StringComparison.OrdinalIgnoreCase))).OrderByDescending(x=>x.OccurredAt).ToList();
+ private List<PatientAuditLogDto> FilteredLogs => Logs.Where(x => (string.IsNullOrWhiteSpace(SearchText) || x.Action.Contains(SearchText,StringComparison.OrdinalIgnoreCase) || x.EntityType.Contains(SearchText,StringComparison.OrdinalIgnoreCase) || x.PerformedBy.Contains(SearchText,StringComparison.OrdinalIgnoreCase) || (x.Description ?? string.Empty).Contains(SearchText,StringComparison.OrdinalIgnoreCase)) && (string.IsNullOrWhiteSpace(ActionFilter) || string.Equals(x.Action,ActionFilter,StringComparison.OrdinalIgnoreCase))).OrderByDescending(x=>x.OccurredAt).ToList();
  private IEnumerable<PatientAuditLogDto> PagedLogs=>FilteredLogs.Skip((CurrentPage-1)*PageSize).Take(PageSize);
  private void ClearFilters(){SearchText=string.Empty;ActionFilter=string.Empty;CurrentPage=1;}
  private void GoToPage(int page)=>CurrentPage=Math.Max(1,page);

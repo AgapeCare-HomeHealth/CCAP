@@ -247,6 +247,12 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Source)
                 .HasMaxLength(150);
 
+            e.Property(x => x.ReferralType)
+                .HasMaxLength(100);
+
+            e.Property(x => x.ReferralChannel)
+                .HasMaxLength(100);
+
             e.Property(x => x.Priority)
                 .HasMaxLength(50);
 
@@ -273,6 +279,10 @@ public sealed class AppDbContext : DbContext
 
             e.Property(x => x.PhysicianPhone)
                 .HasMaxLength(50);
+
+            e.Property(x => x.PhysicianFax).HasMaxLength(50);
+            e.Property(x => x.PhysicianNpi).HasMaxLength(50);
+            e.Property(x => x.PcosRegistered).HasMaxLength(30);
 
             e.HasIndex(x => x.ReferralNumber)
                 .IsUnique();
@@ -400,6 +410,10 @@ public sealed class AppDbContext : DbContext
             e.HasIndex(x => x.AssignedUserId);
             e.Property(x => x.ClinicianName).HasMaxLength(300);
             e.Property(x => x.VisitType).HasMaxLength(100).IsRequired();
+            e.Property(x => x.TimeBlock).HasMaxLength(100);
+            e.Property(x => x.ConfirmationStatus).HasMaxLength(100);
+            e.Property(x => x.CallNotes);
+            e.Property(x => x.NotesFlag);
             e.Property(x => x.Location).HasMaxLength(500);
             e.HasOne(x => x.Patient).WithMany(x => x.Visits)
                 .HasForeignKey(x => x.PatientId)

@@ -125,7 +125,14 @@ public sealed class AuthenticationService
         var user = _mock.Users.FirstOrDefault(x =>
             string.Equals(x.Email, email.Trim(), StringComparison.OrdinalIgnoreCase));
 
-        if (user is null || !user.IsActive || password != "Admin123!")
+        var expectedPassword = user?.Role switch
+        {
+            "Administrator" => "CCAPAdmin@2026!",
+            "Care Coordinator" => "CCAPCareCoordinator@2026!",
+            _ => "CCAPCareCoordinator@2026!"
+        };
+
+        if (user is null || !user.IsActive || password != expectedPassword)
         {
             return new LoginResultDto { Success = false, Message = "Invalid email or password." };
         }

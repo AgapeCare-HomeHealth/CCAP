@@ -7,6 +7,8 @@
 
 @inject PatientWorkflowService WorkflowService
 @inject PatientCareManagementService CareService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@using Microsoft.AspNetCore.Components.Authorization
 
 <PageTitle>Patient Workflow</PageTitle>
 
@@ -57,14 +59,6 @@ else
 
                     break;
 
-                case "Insurance":
-
-                    <InsuranceTab PatientId="@PatientId"
-                                  Workflow="@Workflow"
-                                  OnCompleted="HandleInsuranceCompleted" />
-
-                    break;
-
                 case "Compliance":
 
                     <ComplianceTab PatientId="@PatientId"
@@ -97,7 +91,11 @@ else
 
                 case "Audit Log":
 
-                    <AuditLogTab PatientId="@PatientId" Workflow="@Workflow" />
+                    <AuthorizeView Roles="Administrator">
+                        <Authorized>
+                            <AuditLogTab PatientId="@PatientId" Workflow="@Workflow" />
+                        </Authorized>
+                    </AuthorizeView>
 
                     break;
 
@@ -138,12 +136,6 @@ else
 
         new()
         {
-            Title = "Insurance",
-            Icon = "bi bi-shield-check"
-        },
-
-        new()
-        {
             Title = "Compliance",
             Icon = "bi bi-clipboard-check"
         },
@@ -168,12 +160,6 @@ else
 
         new()
         {
-            Title = "Audit Log",
-            Icon = "bi bi-journal-text"
-        },
-
-        new()
-        {
             Title = "Orders & Care",
             Icon = "bi bi-clipboard2-pulse"
         },
@@ -185,6 +171,15 @@ else
         }
     ];
 
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (state.User.IsInRole("Administrator"))
+        {
+            Tabs.Insert(4, new WorkflowTabDto { Title = "Audit Log", Icon = "bi bi-journal-text" });
+        }
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -209,13 +204,6 @@ else
     {
         Workflow = await WorkflowService.GetAsync(PatientId);
         Care = await CareService.GetAsync(PatientId);
-    }
-
-    private async Task HandleInsuranceCompleted()
-    {
-        Workflow =
-            await WorkflowService.GetAsync(
-                PatientId);
     }
 
     private async Task HandleComplianceCompleted()

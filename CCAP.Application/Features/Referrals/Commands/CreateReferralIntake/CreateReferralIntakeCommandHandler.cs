@@ -83,29 +83,50 @@ public sealed class CreateReferralIntakeCommandHandler
         }
 
         // =========================================================
+        // DEFAULT IDENTIFIERS
+        // =========================================================
+        // MRN and referral number are system identifiers. They are not
+        // intake requirements because the EMR may contain them already
+        // or the referral document may not provide them. Generate stable
+        // values when they are absent.
+        // =========================================================
+
+        var mrn = string.IsNullOrWhiteSpace(request.MRN)
+            ? $"MRN-{Guid.NewGuid():N}"
+            : request.MRN.Trim();
+
+        var referralNumber = string.IsNullOrWhiteSpace(request.ReferralNumber)
+            ? $"REF-{Guid.NewGuid():N}"
+            : request.ReferralNumber.Trim();
+
+        var referralDate = request.ReferralDate == default
+            ? DateTime.UtcNow
+            : request.ReferralDate;
+
+        // =========================================================
         // DUPLICATE CHECKS
         // =========================================================
 
         var existingPatient =
             await _patients.GetByMrnAsync(
-                request.MRN,
+                mrn,
                 cancellationToken);
 
         if (existingPatient is not null)
         {
             throw new InvalidOperationException(
-                $"A patient with MRN '{request.MRN}' already exists.");
+                $"A patient with MRN '{mrn}' already exists.");
         }
 
         var referralExists =
             await _referrals.ExistsByReferralNumberAsync(
-                request.ReferralNumber,
+                referralNumber,
                 cancellationToken);
 
         if (referralExists)
         {
             throw new InvalidOperationException(
-                $"Referral number '{request.ReferralNumber}' already exists.");
+                $"Referral number '{referralNumber}' already exists.");
         }
 
         // =========================================================
@@ -134,7 +155,7 @@ public sealed class CreateReferralIntakeCommandHandler
 
         var patient =
             new Patient(
-                request.MRN,
+                mrn,
                 request.FirstName,
                 request.LastName);
 
@@ -172,17 +193,22 @@ public sealed class CreateReferralIntakeCommandHandler
         // =========================================================
         // REFERRAL
         // =========================================================
+        // Target SOC is not user-entered. It is always calculated as
+        // 48 hours from the initial referral date.
+        var targetSocDate = DateOnly.FromDateTime(referralDate.AddHours(48));
 
         var referral =
             new Referral(
-                request.ReferralNumber,
-                request.ReferralDate,
+                referralNumber,
+                referralDate,
                 request.ReferralSource,
+                request.ReferralType,
+                request.ReferralChannel,
                 request.Priority,
                 location.LocationId,
                 request.DisciplineId,
                 request.VisitPriority,
-                request.CaseStatus,
+                "Pending",
                 request.PrimaryInsurance,
                 request.InsuranceMemberId,
                 request.AuthorizationDate,
@@ -190,6 +216,9 @@ public sealed class CreateReferralIntakeCommandHandler
                 request.AuthorizationRequired,
                 request.ReferringPhysician,
                 request.PhysicianPhone,
+                request.PhysicianFax,
+                request.PhysicianNpi,
+                request.PcosRegistered,
                 request.SecondaryDiagnosis,
                 request.ReferralNotes,
                 request.InternalNotes);
@@ -295,7 +324,7 @@ public sealed class CreateReferralIntakeCommandHandler
 
         // Insurance verification is represented once as a workflow confirmation;
         // the Insurance tab and Compliance tab operate on this same record.
-        await AddCompliance(patient.PatientId, "INSURANCE_VERIFICATION", "Insurance eligibility and authorization were reviewed and confirmed.", cancellationToken);
+        await AddCompliance(patient.PatientId, "INSURANCE_VERIFICATION", "Review the insurance document in the EMR and confirm the insurance name, member ID, and authorization details match. Mark this item complete only after everything has been verified.", cancellationToken);
 
         // =============================================================
         // COMPLIANCE REQUIREMENTS

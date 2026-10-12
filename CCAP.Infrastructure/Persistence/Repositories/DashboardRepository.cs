@@ -173,11 +173,11 @@ public sealed class DashboardRepository : IDashboardRepository
             .Select(x => new UpcomingVisitDto
             {
                 PatientName =
-                    x.Patient.FirstName + " " +
+                    x.Patient!.FirstName + " " +
                     x.Patient.LastName,
 
                 Clinician =
-                    x.Clinician.FirstName + " " +
+                    x.Clinician!.FirstName + " " +
                     x.Clinician.LastName,
 
                 VisitDate = x.ScheduledDate

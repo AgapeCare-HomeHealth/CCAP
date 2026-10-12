@@ -1,8 +1,12 @@
-﻿namespace CCAP.Application.Features.Patients.DTOs;
+namespace CCAP.Application.Features.Patients.DTOs;
 
 public sealed class PatientWorkflowResponseDto
 {
     public PatientHeaderResponseDto Header { get; set; } = new();
+
+    public DateTime? ReferralDate { get; set; }
+    public string ReferralNotes { get; set; } = "";
+    public string InternalNotes { get; set; } = "";
 
     public List<WorkflowStageResponseDto> WorkflowStages { get; set; } = [];
 
@@ -11,6 +15,9 @@ public sealed class PatientWorkflowResponseDto
     public KeyInformationResponseDto KeyInformation { get; set; } = new();
 
     public List<ActivityResponseDto> RecentActivities { get; set; } = [];
+
+    // Complete patient-history timeline. This is separate from PatientAuditLogs.
+    public List<PatientTimelineEventResponseDto> TimelineEvents { get; set; } = [];
 
     public PatientSummaryResponseDto Summary { get; set; } = new();
 
@@ -121,6 +128,22 @@ public sealed class KeyInformationResponseDto
     public string Payor { get; set; } = "";
 
     public string Priority { get; set; } = "";
+
+    public string PrimaryCarePhysician { get; set; } = "";
+    public string PhysicianFax { get; set; } = "";
+    public string PhysicianNpi { get; set; } = "";
+    public string PcosRegistered { get; set; } = "";
+}
+
+
+public sealed class PatientTimelineEventResponseDto
+{
+    public Guid EventId { get; set; }
+    public DateTime EventDate { get; set; }
+    public string EventType { get; set; } = "";
+    public string Title { get; set; } = "";
+    public string Description { get; set; } = "";
+    public string PerformedBy { get; set; } = "System";
 }
 
 public sealed class ActivityResponseDto

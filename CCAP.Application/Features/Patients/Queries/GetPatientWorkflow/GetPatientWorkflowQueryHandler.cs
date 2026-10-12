@@ -11,13 +11,16 @@ public sealed class GetPatientWorkflowQueryHandler
 {
     private readonly IPatientRepository _patients;
     private readonly IUserRepository _users;
+    private readonly IPatientCareLogRepository _careLogs;
 
     public GetPatientWorkflowQueryHandler(
         IPatientRepository patients,
-        IUserRepository users)
+        IUserRepository users,
+        IPatientCareLogRepository careLogs)
     {
         _patients = patients;
         _users = users;
+        _careLogs = careLogs;
     }
 
     public async Task<PatientWorkflowResponseDto?> Handle(
@@ -98,7 +101,6 @@ public sealed class GetPatientWorkflowQueryHandler
 
         var activities = patient.Activities
             .OrderByDescending(x => x.ActivityDate)
-            .Take(100)
             .Select(x => new ActivityResponseDto
             {
                 ActivityId = x.ActivityId,
@@ -111,6 +113,8 @@ public sealed class GetPatientWorkflowQueryHandler
                 ActivityType = x.ActivityType
             })
             .ToList();
+
+        var careLogs = await _careLogs.GetByPatientIdAsync(request.PatientId, cancellationToken);
 
         var completedByUserIds = patient.ComplianceRecords
             .Where(x => x.CompletedByUserId.HasValue)
@@ -131,6 +135,129 @@ public sealed class GetPatientWorkflowQueryHandler
                 x => $"{x.FirstName} {x.LastName}".Trim());
 
 
+
+        // Timeline is a patient-history view, not an audit log. It combines
+        // actual workflow/history records from the patient's existing entities.
+        var timelineEvents = new List<PatientTimelineEventResponseDto>();
+
+        timelineEvents.AddRange(patient.Activities.Select(x => new PatientTimelineEventResponseDto
+        {
+            EventId = x.ActivityId,
+            EventDate = x.ActivityDate,
+            EventType = string.IsNullOrWhiteSpace(x.ActivityType) ? "Activity" : x.ActivityType,
+            Title = x.Title,
+            Description = x.Description,
+            PerformedBy = x.PerformedBy is null ? "System" : $"{x.PerformedBy.FirstName} {x.PerformedBy.LastName}"
+        }));
+
+        foreach (var referralItem in patient.Referrals)
+        {
+            timelineEvents.Add(new PatientTimelineEventResponseDto
+            {
+                EventId = referralItem.ReferralId,
+                EventDate = referralItem.ReferralDate,
+                EventType = "Referral",
+                Title = "Referral received",
+                Description = string.IsNullOrWhiteSpace(referralItem.ReferralNotes) ? "Referral record created." : referralItem.ReferralNotes,
+                PerformedBy = "System"
+            });
+
+            if (referralItem.AssignedAt.HasValue)
+            {
+                timelineEvents.Add(new PatientTimelineEventResponseDto
+                {
+                    EventId = Guid.NewGuid(),
+                    EventDate = referralItem.AssignedAt.Value,
+                    EventType = "Referral",
+                    Title = "Referral assigned",
+                    Description = string.IsNullOrWhiteSpace(referralItem.InternalNotes) ? "Referral assigned for processing." : referralItem.InternalNotes,
+                    PerformedBy = referralItem.AssignedUser is null ? "System" : $"{referralItem.AssignedUser.FirstName} {referralItem.AssignedUser.LastName}"
+                });
+            }
+        }
+
+        foreach (var note in patient.CallNotes)
+        {
+            timelineEvents.Add(new PatientTimelineEventResponseDto
+            {
+                EventId = note.CallNoteId,
+                EventDate = note.CallDate,
+                EventType = "Communication",
+                Title = string.IsNullOrWhiteSpace(note.Subject) ? "Communication note" : note.Subject,
+                Description = note.Notes,
+                PerformedBy = note.RecordedBy is null ? "System" : $"{note.RecordedBy.FirstName} {note.RecordedBy.LastName}"
+            });
+        }
+
+        foreach (var visit in patient.Visits)
+        {
+            timelineEvents.Add(new PatientTimelineEventResponseDto
+            {
+                EventId = visit.VisitId,
+                EventDate = visit.CompletedDate ?? visit.ScheduledDate,
+                EventType = "Visit",
+                Title = $"{visit.VisitType} - {visit.Status}",
+                Description = string.Join(" | ", new[] { visit.CallNotes, visit.NotesFlag, visit.Notes }.Where(v => !string.IsNullOrWhiteSpace(v))),
+                PerformedBy = visit.Clinician is null ? (visit.ClinicianName ?? "System") : $"{visit.Clinician.FirstName} {visit.Clinician.LastName}"
+            });
+        }
+
+        foreach (var assessment in patient.Assessments.Where(x => x.CompletedAt.HasValue))
+        {
+            timelineEvents.Add(new PatientTimelineEventResponseDto
+            {
+                EventId = assessment.AssessmentId,
+                EventDate = assessment.CompletedAt!.Value,
+                EventType = "Assessment",
+                Title = "Assessment completed",
+                Description = assessment.Notes ?? string.Empty,
+                PerformedBy = assessment.CompletedBy is null ? "System" : $"{assessment.CompletedBy.FirstName} {assessment.CompletedBy.LastName}"
+            });
+        }
+
+        foreach (var complianceItem in patient.ComplianceRecords.Where(x => x.IsCompleted && x.CompletedAt.HasValue))
+        {
+            timelineEvents.Add(new PatientTimelineEventResponseDto
+            {
+                EventId = complianceItem.ComplianceRecordId,
+                EventDate = complianceItem.CompletedAt!.Value,
+                EventType = "Compliance",
+                Title = $"Compliance completed: {GetComplianceRequirementName(complianceItem.RequirementCode)}",
+                Description = complianceItem.Notes ?? string.Empty,
+                PerformedBy = complianceItem.CompletedByUserId.HasValue && completedByLookup.TryGetValue(complianceItem.CompletedByUserId.Value, out var complianceUser) ? complianceUser : "System"
+            });
+        }
+
+        foreach (var log in careLogs)
+        {
+            timelineEvents.Add(new PatientTimelineEventResponseDto
+            {
+                EventId = log.PatientCareLogId,
+                EventDate = log.RecordedAt,
+                EventType = "Care",
+                Title = string.IsNullOrWhiteSpace(log.Item) ? "Care log recorded" : log.Item,
+                Description = string.Join(" | ", new[] { log.LogType, log.Notes }.Where(v => !string.IsNullOrWhiteSpace(v))),
+                PerformedBy = log.RecordedByUser is null ? "System" : $"{log.RecordedByUser.FirstName} {log.RecordedByUser.LastName}"
+            });
+        }
+
+        foreach (var task in patient.Tasks.Where(x => x.CompletedAt.HasValue))
+        {
+            timelineEvents.Add(new PatientTimelineEventResponseDto
+            {
+                EventId = task.TaskId,
+                EventDate = task.CompletedAt!.Value,
+                EventType = "Task",
+                Title = $"Task completed: {task.Title}",
+                Description = task.Description,
+                PerformedBy = task.AssignedUser is null ? "System" : $"{task.AssignedUser.FirstName} {task.AssignedUser.LastName}"
+            });
+        }
+
+        timelineEvents = timelineEvents
+            .Where(x => x.EventDate != default)
+            .OrderByDescending(x => x.EventDate)
+            .ToList();
 
         var complianceItems =
             patient.ComplianceRecords
@@ -175,6 +302,10 @@ public sealed class GetPatientWorkflowQueryHandler
 
         return new PatientWorkflowResponseDto
         {
+            ReferralDate = referral?.ReferralDate,
+            ReferralNotes = referral?.ReferralNotes ?? string.Empty,
+            InternalNotes = referral?.InternalNotes ?? string.Empty,
+
             Header = new PatientHeaderResponseDto
             {
                 PatientId = patient.PatientId,
@@ -212,7 +343,7 @@ public sealed class GetPatientWorkflowQueryHandler
                 ? new NextActionResponseDto
                 {
                     TaskId = pendingTask.TaskId, Title = pendingTask.Title, Description = pendingTask.Description,
-                    DueDate = pendingTask.DueDate, PageRoute = pendingTask.PageRoute ?? string.Empty, Icon = "bi bi-check2-circle", IsOverdue = pendingTask.DueDate < DateTime.Now
+                    DueDate = pendingTask.DueDate, PageRoute = string.IsNullOrWhiteSpace(pendingTask.PageRoute) ? $"/tracker/patient/{patient.PatientId}" : pendingTask.PageRoute, Icon = "bi bi-check2-circle", IsOverdue = pendingTask.DueDate < DateTime.Now
                 }
                 : nextCompliance is not null
                     ? new NextActionResponseDto
@@ -244,10 +375,16 @@ public sealed class GetPatientWorkflowQueryHandler
                     string.Empty,
 
                 Priority =
-                    referral?.Priority ?? "Routine"
+                    referral?.Priority ?? "Routine",
+
+                PrimaryCarePhysician = referral?.ReferringPhysician ?? string.Empty,
+                PhysicianFax = referral?.PhysicianFax ?? string.Empty,
+                PhysicianNpi = referral?.PhysicianNpi ?? string.Empty,
+                PcosRegistered = referral?.PcosRegistered ?? string.Empty
             },
 
             RecentActivities = activities,
+            TimelineEvents = timelineEvents,
 
             Summary = new PatientSummaryResponseDto
             {
@@ -378,27 +515,95 @@ public sealed class GetPatientWorkflowQueryHandler
 
     private static List<WorkflowStageResponseDto> BuildWorkflowStages(Patient patient, Referral? referral)
     {
+        // Keep the Patient Workflow progress bar aligned with the established
+        // CCAP patient workflow presentation. Insurance is shown as the
+        // compliance checkpoint, followed by Admission and then SOC.
+        // Recertification remains a milestone shown in the progress bar; it is
+        // not a separate recertification workflow/module.
         var referralCompleted = referral is not null;
-        var insuranceCompleted = patient.InsuranceVerifiedAt.HasValue;
-        var socCompleted = patient.ComplianceRecords.Any(x => string.Equals(x.RequirementCode, "SOC_COMPLIANT", StringComparison.OrdinalIgnoreCase) && x.IsCompleted);
-        var admissionRequirementCodes = new[] { "SOC_COMPLIANT", "DME_MED_SUPPLY", "NOA_FILED", "OASIS_SOC_COMPLETE", "QA_APPROVAL", "ORDERS_SIGNED", "DOCS_UPLOADED", "CASE_MIX_IDENTIFIED", "CASE_MIX_ORDERS_SIGNED", "CASE_MIX_PLOTTED" };
-        var admissionCompleted = admissionRequirementCodes.All(code => patient.ComplianceRecords.Any(x => string.Equals(x.RequirementCode, code, StringComparison.OrdinalIgnoreCase) && x.IsCompleted));
-        var terminalTransfer = string.Equals(patient.FinalStatus, "Transferred", StringComparison.OrdinalIgnoreCase);
-        var terminal = patient.CareCompletedAt.HasValue;
-        var recertRequired = patient.RecertDate.HasValue || patient.ComplianceRecords.Any(x => string.Equals(x.RequirementCode, "RECERTIFICATION", StringComparison.OrdinalIgnoreCase));
-        var recertCompleted = patient.ComplianceRecords.Any(x => string.Equals(x.RequirementCode, "RECERTIFICATION", StringComparison.OrdinalIgnoreCase) && x.IsCompleted);
+        var insuranceCompleted = IsComplianceCompleted(patient, "INSURANCE_VERIFICATION");
+        var socCompleted = IsComplianceCompleted(patient, "SOC_COMPLIANT");
+
+        var admissionRequirementCodes = new[]
+        {
+            "DME_MED_SUPPLY",
+            "NOA_FILED",
+            "OASIS_SOC_COMPLETE",
+            "QA_APPROVAL",
+            "ORDERS_SIGNED",
+            "DOCS_UPLOADED",
+            "CASE_MIX_IDENTIFIED",
+            "CASE_MIX_ORDERS_SIGNED",
+            "CASE_MIX_PLOTTED"
+        };
+
+        var admissionCompleted = admissionRequirementCodes.All(code => IsComplianceCompleted(patient, code));
+        var ongoingCareCompleted = patient.CareCompletedAt.HasValue;
+        var recertCompleted = patient.RecertDate.HasValue || IsComplianceCompleted(patient, "RECERTIFICATION");
+        var finalOutcomeCompleted = patient.CareCompletedAt.HasValue || patient.TransferDate.HasValue;
+
         var stages = new List<WorkflowStageResponseDto>
         {
-            CreateWorkflowStage(patient, 1, "REFERRAL", "Referral", referralCompleted, referralCompleted ? referral!.ReferralDate : null),
-            CreateWorkflowStage(patient, 2, "INSURANCE", "Insurance", insuranceCompleted, patient.InsuranceVerifiedAt),
-            CreateWorkflowStage(patient, 3, "SOC", "SOC", socCompleted, GetSocCompletionDate(patient)),
-            CreateWorkflowStage(patient, 4, "ADMISSION", "Admission", admissionCompleted, admissionCompleted ? GetAdmissionCompletionDate(patient, admissionRequirementCodes) : null),
-            CreateWorkflowStage(patient, 5, "ONGOING_CARE", "Ongoing Care", terminal),
-            CreateWorkflowStage(patient, 6, "RECERT", "Recertification", recertCompleted, GetComplianceCompletedDate(patient, "RECERTIFICATION"), recertRequired && !terminal),
-            CreateWorkflowStage(patient, 7, "FINAL_OUTCOME", terminalTransfer ? "Transfer" : "Final Outcome", terminal, terminal ? patient.CareCompletedAt : null)
+            CreateWorkflowStage(patient, 1, "REFERRAL", "Referral", referralCompleted, referral?.ReferralDate),
+            CreateWorkflowStage(patient, 2, "INSURANCE", "Insurance", insuranceCompleted, GetComplianceCompletedDate(patient, "INSURANCE_VERIFICATION")),
+            CreateWorkflowStage(patient, 3, "ADMISSION", "Admission", admissionCompleted, admissionCompleted ? GetAdmissionCompletionDate(patient, admissionRequirementCodes) : null),
+            CreateWorkflowStage(patient, 4, "SOC", "SOC", socCompleted, GetSocCompletionDate(patient)),
+            CreateWorkflowStage(patient, 5, "ONGOING_CARE", "Ongoing Care", ongoingCareCompleted, patient.CareCompletedAt),
+            CreateWorkflowStage(patient, 6, "RECERTIFICATION", "Recertification", recertCompleted, patient.RecertDate?.ToDateTime(TimeOnly.MinValue) ?? GetComplianceCompletedDate(patient, "RECERTIFICATION")),
+            CreateWorkflowStage(patient, 7, "FINAL_OUTCOME", "Final Outcome", finalOutcomeCompleted, patient.CareCompletedAt ?? patient.TransferDate?.ToDateTime(TimeOnly.MinValue))
         };
+
         SetWorkflowState(stages);
         return stages;
+    }
+
+    private static bool IsComplianceCompleted(Patient patient, string requirementCode)
+    {
+        return patient.ComplianceRecords.Any(x =>
+            x.IsCompleted &&
+            string.Equals(x.RequirementCode, requirementCode, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool HasWorkflowHistory(Patient patient, params string[] terms)
+    {
+        return patient.Activities.Any(activity =>
+            terms.Any(term =>
+                activity.Title.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                activity.Description.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                activity.ActivityType.Contains(term, StringComparison.OrdinalIgnoreCase)))
+            || patient.Tasks.Any(task =>
+                task.Status == PatientTaskStatus.Completed &&
+                terms.Any(term =>
+                    task.Title.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    task.Description.Contains(term, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private static DateTime? GetWorkflowHistoryDate(Patient patient, params string[] terms)
+    {
+        var activityDate = patient.Activities
+            .Where(activity => terms.Any(term =>
+                activity.Title.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                activity.Description.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                activity.ActivityType.Contains(term, StringComparison.OrdinalIgnoreCase)))
+            .Select(activity => (DateTime?)activity.ActivityDate)
+            .OrderByDescending(x => x)
+            .FirstOrDefault();
+
+        var taskDate = patient.Tasks
+            .Where(task => task.Status == PatientTaskStatus.Completed && task.CompletedAt.HasValue)
+            .Where(task => terms.Any(term =>
+                task.Title.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                task.Description.Contains(term, StringComparison.OrdinalIgnoreCase)))
+            .Select(task => task.CompletedAt)
+            .OrderByDescending(x => x)
+            .FirstOrDefault();
+
+        return new[] { activityDate, taskDate }
+            .Where(x => x.HasValue)
+            .Select(x => x!.Value)
+            .OrderByDescending(x => x)
+            .Cast<DateTime?>()
+            .FirstOrDefault();
     }
 
     private static DateTime? GetAdmissionCompletionDate(
@@ -584,7 +789,7 @@ public sealed class GetPatientWorkflowQueryHandler
                 "Referral Document",
 
             "INSURANCE_VERIFICATION" =>
-                "Insurance Verification",
+                "Insurance Document Verification",
 
             "PHYSICIAN_ORDERS" =>
                 "Physician Orders",

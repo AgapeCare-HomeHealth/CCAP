@@ -10,6 +10,15 @@ public sealed class CalendarService
 
     public CalendarService(CcapApiClient api) => _api = api;
 
+    public async Task<SchedulingOptionsDto> GetSchedulingOptionsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await _api.GetFromJsonAsync<SchedulingOptionsDto>(
+                   "api/scheduling/options",
+                   cancellationToken)
+               ?? new SchedulingOptionsDto();
+    }
+
     public async Task<List<CalendarVisitDto>> GetVisitsAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
     {
         var url = $"api/scheduling/calendar?startDate={Uri.EscapeDataString(startDate.ToString("O"))}&endDate={Uri.EscapeDataString(endDate.ToString("O"))}";
@@ -44,14 +53,17 @@ public sealed class CalendarService
             {
                 PatientName = x.PatientName,
                 PatientId = x.PatientId,
-                ExistingVisitId = x.ExistingVisitId,
+                ScheduledDate = x.ScheduledDate,
+                TimeBlock = x.TimeBlock,
+                ConfirmationStatus = x.ConfirmationStatus,
+                CallNotes = x.CallNotes,
                 ClinicianId = x.ClinicianId,
                 ClinicianName = x.ClinicianName,
-                HasWarning = x.HasWarning,
-                ScheduledDate = x.ScheduledDate,
                 VisitType = x.VisitType,
-                Location = x.Location,
-                Notes = x.Notes,
+                VisitStatus = x.VisitStatus,
+                NotesFlag = x.NotesFlag,
+                ExistingVisitId = x.ExistingVisitId,
+                HasWarning = x.HasWarning,
                 OverwriteExisting = x.OverwriteExisting
             })
             .ToList();
@@ -66,5 +78,24 @@ public sealed class CalendarService
         var result = await response.Content.ReadFromJsonAsync<ScheduleImportResult>(cancellationToken: cancellationToken) ?? new();
         result.Skipped = skipped;
         return result;
+    }
+
+
+    public async Task<AddSchedulesResult> AddSchedulesAsync(
+        IEnumerable<AddScheduleItem> schedules,
+        CancellationToken cancellationToken = default)
+    {
+        var items = schedules.ToList();
+
+        using var response = await _api.PostAsJsonAsync(
+            "api/scheduling",
+            items,
+            cancellationToken);
+
+        await _api.EnsureSuccessAsync(response, cancellationToken);
+
+        return await response.Content.ReadFromJsonAsync<AddSchedulesResult>(
+                   cancellationToken: cancellationToken)
+               ?? new AddSchedulesResult();
     }
 }

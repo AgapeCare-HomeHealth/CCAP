@@ -1,4 +1,4 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 
 <div class="layout">
 
@@ -10,7 +10,7 @@
 
     <div class="main-content">
 
-        <Topbar OnToggleSidebar="ToggleSidebar" />
+        <Topbar IsSidebarCollapsed="@IsSidebarCollapsed" OnToggleSidebar="ToggleSidebar" />
 
         <main class="page-content">
             @Body

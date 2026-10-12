@@ -5,48 +5,31 @@ using CCAP.Web.Features.Authentication.Services;
 
 namespace CCAP.Web.Features.Authentication.State;
 
-public sealed class CcapAuthenticationStateProvider
-    : AuthenticationStateProvider
+public sealed class CcapAuthenticationStateProvider : AuthenticationStateProvider
 {
     private readonly TokenStore _tokenStore;
-
     private bool _initialized;
+    private string? _viewRole;
 
-    private static readonly ClaimsPrincipal Anonymous =
-        new(new ClaimsIdentity());
+    public bool IsInitialized => _initialized;
 
-    public CcapAuthenticationStateProvider(
-        TokenStore tokenStore)
+    private static readonly ClaimsPrincipal Anonymous = new(new ClaimsIdentity());
+
+    // This is a UI/testing role only. It never changes the ApplicationUser.RoleId
+    // or the JWT stored for the real account.
+    public string? ViewRole => _viewRole;
+
+    public CcapAuthenticationStateProvider(TokenStore tokenStore)
     {
         _tokenStore = tokenStore;
     }
 
-    public bool IsInitialized => _initialized;
-
-    //public override async Task<AuthenticationState>
-    //    GetAuthenticationStateAsync()
-    //{
-    //    var token = await _tokenStore.GetAsync();
-
-    //    if (string.IsNullOrWhiteSpace(token))
-    //    {
-    //        return new AuthenticationState(Anonymous);
-    //    }
-
-    //    var principal = CreatePrincipalFromToken(token);
-
-    //    return new AuthenticationState(principal);
-    //}
-
-    public override async Task<AuthenticationState>
-    GetAuthenticationStateAsync()
+    public override async Task<AuthenticationState> GetAuthenticationStateAsync()
     {
         var token = await _tokenStore.GetAsync();
 
         if (string.IsNullOrWhiteSpace(token))
-        {
             return new AuthenticationState(Anonymous);
-        }
 
         try
         {
@@ -56,19 +39,16 @@ public sealed class CcapAuthenticationStateProvider
             if (jwt.ValidTo <= DateTime.UtcNow)
             {
                 await _tokenStore.DeleteAsync();
-
+                _viewRole = null;
                 return new AuthenticationState(Anonymous);
             }
 
-            var principal =
-                CreatePrincipalFromToken(token);
-
-            return new AuthenticationState(principal);
+            return new AuthenticationState(CreatePrincipalFromToken(token, _viewRole));
         }
         catch
         {
             await _tokenStore.DeleteAsync();
-
+            _viewRole = null;
             return new AuthenticationState(Anonymous);
         }
     }
@@ -79,73 +59,90 @@ public sealed class CcapAuthenticationStateProvider
             return;
 
         await _tokenStore.LoadPersistedAsync();
-
         _initialized = true;
-
-        NotifyAuthenticationStateChanged(
-            GetAuthenticationStateAsync());
+        NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
     }
 
-    //public async Task NotifyLoginAsync()
-    //{
-    //    _initialized = true;
+    public async Task SetViewRoleAsync(string role)
+    {
+        if (string.IsNullOrWhiteSpace(role))
+            return;
 
-    //    NotifyAuthenticationStateChanged(
-    //        GetAuthenticationStateAsync());
+        var actualRole = await GetActualRoleAsync();
+        if (!string.Equals(actualRole, "Administrator", StringComparison.OrdinalIgnoreCase))
+            return;
 
-    //    await Task.CompletedTask;
-    //}
+        if (!IsSupportedViewRole(role))
+            return;
+
+        _viewRole = role;
+        NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
+        await Task.CompletedTask;
+    }
+
+    public async Task RestoreActualRoleAsync()
+    {
+        _viewRole = null;
+        NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
+        await Task.CompletedTask;
+    }
+
+    public async Task<string?> GetActualRoleAsync()
+    {
+        var token = await _tokenStore.GetAsync();
+        if (string.IsNullOrWhiteSpace(token))
+            return null;
+
+        try
+        {
+            var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
+            return jwt.Claims.FirstOrDefault(c =>
+                c.Type == "role" || c.Type == ClaimTypes.Role)?.Value;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public async Task NotifyLoginAsync()
     {
         _initialized = true;
-
-        var authenticationState =
-            await GetAuthenticationStateAsync();
-
-        NotifyAuthenticationStateChanged(
-            Task.FromResult(authenticationState));
+        _viewRole = null;
+        var state = await GetAuthenticationStateAsync();
+        NotifyAuthenticationStateChanged(Task.FromResult(state));
     }
 
     public async Task NotifyLogoutAsync()
     {
         await _tokenStore.DeleteAsync();
-
+        _viewRole = null;
         _initialized = true;
-
-        NotifyAuthenticationStateChanged(
-            Task.FromResult(
-                new AuthenticationState(Anonymous)));
+        NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(Anonymous)));
     }
 
-    private static ClaimsPrincipal CreatePrincipalFromToken(
-        string token)
+    private static bool IsSupportedViewRole(string role) =>
+        role.Equals("Care Coordinator", StringComparison.OrdinalIgnoreCase) ||
+        role.Equals("Clinician", StringComparison.OrdinalIgnoreCase);
+
+    private static ClaimsPrincipal CreatePrincipalFromToken(string token, string? viewRole)
     {
         try
         {
-            var handler = new JwtSecurityTokenHandler();
+            var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
+            var actualRole = jwt.Claims.FirstOrDefault(c =>
+                c.Type == "role" || c.Type == ClaimTypes.Role)?.Value;
 
-            var jwt = handler.ReadJwtToken(token);
-
+            var effectiveRole = string.IsNullOrWhiteSpace(viewRole) ? actualRole : viewRole;
             var claims = new List<Claim>();
 
             foreach (var claim in jwt.Claims)
             {
-                if (claim.Type == "role" ||
-                    claim.Type == ClaimTypes.Role)
-                {
-                    claims.Add(
-                        new Claim(
-                            ClaimTypes.Role,
-                            claim.Value));
-
+                if (claim.Type == "role" || claim.Type == ClaimTypes.Role)
                     continue;
-                }
 
                 if (claim.Type == "permission")
-                {
-                    claims.Add(new Claim("permission", claim.Value));
                     continue;
-                }
 
                 if (claim.Type == "name")
                 {
@@ -168,6 +165,12 @@ public sealed class CcapAuthenticationStateProvider
                 claims.Add(claim);
             }
 
+            if (!string.IsNullOrWhiteSpace(effectiveRole))
+                claims.Add(new Claim(ClaimTypes.Role, effectiveRole));
+
+            foreach (var permission in GetViewPermissions(effectiveRole, jwt))
+                claims.Add(new Claim("permission", permission));
+
             var identity = new ClaimsIdentity(
                 claims,
                 authenticationType: "Bearer",
@@ -178,10 +181,39 @@ public sealed class CcapAuthenticationStateProvider
         }
         catch (Exception ex)
         {
-            Console.WriteLine(
-                $"[CCAP AUTH] Failed to parse JWT: {ex}");
-
+            Console.WriteLine($"[CCAP AUTH] Failed to parse JWT: {ex}");
             return Anonymous;
         }
+    }
+
+    private static IEnumerable<string> GetViewPermissions(string? role, JwtSecurityToken jwt)
+    {
+        if (string.Equals(role, "Administrator", StringComparison.OrdinalIgnoreCase))
+            return jwt.Claims.Where(c => c.Type == "permission").Select(c => c.Value).Distinct(StringComparer.OrdinalIgnoreCase);
+
+        if (string.Equals(role, "Care Coordinator", StringComparison.OrdinalIgnoreCase))
+        {
+            return new[]
+            {
+                "dashboard.view", "users.view", "roles.view", "patients.view", "patients.manage",
+                "referrals.view", "referrals.manage", "scheduling.view", "scheduling.manage",
+                "fax.view", "fax.manage", "notifications.view", "notifications.manage",
+                "notes.view", "notes.manage", "labs.view", "labs.manage", "supplies.view", "supplies.manage",
+                "foley.view", "foley.manage", "orders.view", "orders.manage", "lookups.view"
+            };
+        }
+
+        if (string.Equals(role, "Clinician", StringComparison.OrdinalIgnoreCase))
+        {
+            return new[]
+            {
+                "dashboard.view", "patients.view", "patients.manage", "referrals.view", "scheduling.view",
+                "fax.view", "fax.manage", "notifications.view", "notifications.manage",
+                "notes.view", "notes.manage", "labs.view", "labs.manage", "supplies.view", "supplies.manage",
+                "foley.view", "foley.manage", "orders.view", "orders.manage"
+            };
+        }
+
+        return Array.Empty<string>();
     }
 }
