@@ -173,6 +173,11 @@
                     </div>
                 </div>
 
+                @if (!string.IsNullOrWhiteSpace(StatusUpdateError))
+                {
+                    <div class="tracker-status-error" role="alert">@StatusUpdateError</div>
+                }
+
                 @if (FilteredSchedules.Count == 0)
                 {
                     <div class="tracker-empty-state">
@@ -199,9 +204,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach (var schedule in FilteredSchedules
-                                    .OrderBy(x => x.ScheduledDate)
-                                    .ThenBy(x => x.PatientName))
+                                @foreach (var schedule in PagedTrackerSchedules)
                                 {
                                     <tr class="tracker-row @(SelectedSchedule?.VisitId == schedule.VisitId ? "selected" : "")"
                                         @onclick="() => SelectSchedule(schedule)">
@@ -216,7 +219,28 @@
                                         <td>@DisplayOrPlaceholder(schedule.Clinician)</td>
                                         <td>@DisplayOrPlaceholder(schedule.VisitType)</td>
                                         <td>
-                                            <span class="status-badge @GetVisitStatusClass(schedule.Status)">@DisplayOrPlaceholder(schedule.Status)</span>
+                                            @if (CanManageScheduling)
+                                            {
+                                                <select class="tracker-status-select @GetVisitStatusClass(schedule.Status)"
+                                                        aria-label="Visit status for @schedule.PatientName"
+                                                        value="@schedule.Status"
+                                                        disabled="@SavingVisitIds.Contains(schedule.VisitId)"
+                                                        @onchange="async e => await ChangeVisitStatusAsync(schedule, e.Value?.ToString())"
+                                                        @onclick:stopPropagation="true">
+                                                    @if (string.IsNullOrWhiteSpace(schedule.Status))
+                                                    {
+                                                        <option value="">Not set</option>
+                                                    }
+                                                    @foreach (var status in EditableVisitStatuses)
+                                                    {
+                                                        <option value="@status">@status</option>
+                                                    }
+                                                </select>
+                                            }
+                                            else
+                                            {
+                                                <span class="status-badge @GetVisitStatusClass(schedule.Status)">@DisplayOrPlaceholder(schedule.Status)</span>
+                                            }
                                         </td>
                                         <td>@DisplayOrPlaceholder(schedule.NotesFlag)</td>
                                     </tr>
@@ -224,6 +248,18 @@
                             </tbody>
                         </table>
                     </div>
+                    <nav class="tracker-pagination" aria-label="Scheduling tracker pages">
+                        <span class="tracker-pagination-info">
+                            Showing @TrackerFirstItem–@TrackerLastItem of @FilteredSchedules.Count visits
+                        </span>
+                        <div class="tracker-pagination-actions">
+                            <button type="button" disabled="@(TrackerPage <= 1)"
+                                    @onclick="() => ChangeTrackerPage(TrackerPage - 1)">Previous</button>
+                            <span class="tracker-page-label">Page @TrackerPage of @TrackerTotalPages</span>
+                            <button type="button" disabled="@(TrackerPage >= TrackerTotalPages)"
+                                    @onclick="() => ChangeTrackerPage(TrackerPage + 1)">Next</button>
+                        </div>
+                    </nav>
                 }
             </div>
         }
@@ -481,6 +517,33 @@
     private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
     private bool CanManageScheduling;
+    private static readonly string[] EditableVisitStatuses = ["Scheduled", "Completed", "Missed", "Rescheduled", "Cancelled"];
+    private readonly HashSet<Guid> SavingVisitIds = [];
+    private string? StatusUpdateError;
+
+    private async Task ChangeVisitStatusAsync(CalendarVisitDto schedule, string? status)
+    {
+        if (!CanManageScheduling || status is null || !EditableVisitStatuses.Contains(status) ||
+            status == schedule.Status || !SavingVisitIds.Add(schedule.VisitId))
+            return;
+
+        StatusUpdateError = null;
+        try
+        {
+            await CalendarService.UpdateVisitStatusAsync(schedule.VisitId, status);
+            schedule.Status = status;
+        }
+        catch
+        {
+            StatusUpdateError = $"Could not save the status for {schedule.PatientName}. Please try again.";
+        }
+        finally
+        {
+            SavingVisitIds.Remove(schedule.VisitId);
+        }
+    }
+
+
 
     private enum CalendarTab
     {
@@ -516,6 +579,7 @@
                 return;
 
             _selectedPhysician = value;
+            TrackerPage = 1;
             SyncSelectionWithFilters();
         }
     }
@@ -530,6 +594,7 @@
                 return;
 
             _patientSearchTerm = value;
+            TrackerPage = 1;
             SyncSelectionWithFilters();
         }
     }
@@ -547,6 +612,21 @@
         .OrderBy(x => x.ScheduledDate)
         .ThenBy(x => x.PatientName)
         .ToList();
+
+    // Tracker pagination is presentation-only; the Month view still uses all matching visits.
+    private const int TrackerPageSize = 10;
+    private int TrackerPage = 1;
+    private int TrackerTotalPages => Math.Max(1, (FilteredSchedules.Count + TrackerPageSize - 1) / TrackerPageSize);
+    private int TrackerFirstItem => (TrackerPage - 1) * TrackerPageSize + 1;
+    private int TrackerLastItem => Math.Min(TrackerPage * TrackerPageSize, FilteredSchedules.Count);
+    private IEnumerable<CalendarVisitDto> PagedTrackerSchedules => FilteredSchedules
+        .Skip((TrackerPage - 1) * TrackerPageSize)
+        .Take(TrackerPageSize);
+
+    private void ChangeTrackerPage(int page)
+    {
+        TrackerPage = Math.Clamp(page, 1, TrackerTotalPages);
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -583,11 +663,13 @@
         {
             var (start, end) = GetVisibleDateRange();
             Schedules = await CalendarService.GetVisitsAsync(start, end);
+            TrackerPage = 1;
             SyncSelectionWithFilters();
         }
         catch
         {
             Schedules = [];
+            TrackerPage = 1;
             CalendarLoadErrorMessage = "Unable to load schedules right now. Please try again.";
         }
         finally
@@ -617,6 +699,7 @@
     private void ChangeTab(CalendarTab tab)
     {
         CurrentTab = tab;
+        TrackerPage = 1;
         SelectedSchedule = null;
     }
 
@@ -700,6 +783,7 @@
     {
         _selectedPhysician = string.Empty;
         _patientSearchTerm = string.Empty;
+        TrackerPage = 1;
         SyncSelectionWithFilters();
     }
 

@@ -218,6 +218,19 @@ public sealed class Visit
         return start.TimeOfDay;
     }
 
+    public void ChangeVisitStatus(string status)
+    {
+        var normalized = new[] { "Scheduled", "Completed", "Missed", "Rescheduled", "Cancelled" }
+            .FirstOrDefault(x => string.Equals(x, status?.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (normalized is null)
+            throw new ArgumentException("Invalid visit status.", nameof(status));
+
+        Status = normalized;
+        CompletedDate = normalized == "Completed"
+            ? CompletedDate ?? DateTime.UtcNow
+            : null;
+    }
+
     public void Reschedule(DateTime scheduledDate)
     {
         if (string.Equals(Status, "Completed", StringComparison.OrdinalIgnoreCase))

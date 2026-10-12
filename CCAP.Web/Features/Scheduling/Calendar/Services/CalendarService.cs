@@ -25,6 +25,13 @@ public sealed class CalendarService
         return await _api.GetFromJsonAsync<List<CalendarVisitDto>>(url, cancellationToken) ?? [];
     }
 
+    public async Task UpdateVisitStatusAsync(Guid visitId, string status, CancellationToken cancellationToken = default)
+    {
+        using var response = await _api.PutAsJsonAsync(
+            $"api/scheduling/visits/{visitId}/status", new { Status = status }, cancellationToken);
+        await _api.EnsureSuccessAsync(response, cancellationToken);
+    }
+
     public async Task<List<ScheduleImportPreviewItem>> PreviewImportAsync(IBrowserFile file, CancellationToken cancellationToken = default)
     {
         await using var stream = file.OpenReadStream(10 * 1024 * 1024, cancellationToken);

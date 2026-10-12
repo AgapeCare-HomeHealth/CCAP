@@ -2,6 +2,7 @@ using CCAP.API.Authorization;
 using CCAP.Application.Abstractions.Scheduling;
 using CCAP.Application.Features.Scheduling.Import;
 using CCAP.Application.Features.Scheduling.Commands.AddSchedules;
+using CCAP.Application.Features.Scheduling.Commands.UpdateVisitStatus;
 using CCAP.Application.Features.Scheduling.Queries.GetCalendarVisits;
 using CCAP.Application.Features.Scheduling.Queries.GetSchedulingOptions;
 using MediatR;
@@ -37,6 +38,22 @@ public sealed class SchedulingController : ControllerBase
         return Ok(await _sender.Send(
             new GetCalendarVisitsQuery(userId, startDate, endDate),
             cancellationToken));
+    }
+
+    public sealed record UpdateVisitStatusRequest(string Status);
+
+    [HttpPut("visits/{visitId:guid}/status")]
+    [Authorize(Policy = PermissionPolicies.SchedulingManage)]
+    public async Task<IActionResult> UpdateVisitStatus(Guid visitId, [FromBody] UpdateVisitStatusRequest request, CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var userId)) return Unauthorized();
+        try
+        {
+            await _sender.Send(new UpdateVisitStatusCommand(userId, visitId, request.Status), cancellationToken);
+            return NoContent();
+        }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (KeyNotFoundException) { return NotFound(new { message = "Visit not found." }); }
     }
 
     [HttpGet("options")]

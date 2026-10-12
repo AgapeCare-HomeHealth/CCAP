@@ -824,3 +824,51 @@
         min-height: 120px;
     }
 }
+
+/* Tracker-only paging; keep the calendar view unaffected. */
+.tracker-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 14px 18px;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 13px;
+}
+
+.tracker-pagination-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tracker-pagination-actions button {
+    padding: 7px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    background: #fff;
+    color: #0f172a;
+    cursor: pointer;
+}
+
+.tracker-pagination-actions button:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+.tracker-pagination-actions button:not(:disabled):hover {
+    background: #e2e8f0;
+}
+
+.tracker-page-label { white-space: nowrap; }
+
+/* Tracker status editing uses the existing status palette. */
+.tracker-status-select { width: 100%; min-width: 125px; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 7px; font: inherit; font-size: 12px; font-weight: 600; background: #f1f5f9; color: #475569; cursor: pointer; }
+.tracker-status-select.status-completed { background: #dcfce7; color: #166534; }
+.tracker-status-select.status-missed { background: #ffedd5; color: #9a3412; }
+.tracker-status-select.status-rescheduled { background: #dbeafe; color: #1d4ed8; }
+.tracker-status-select.status-cancelled { background: #fee2e2; color: #b91c1c; }
+.tracker-status-select:disabled { opacity: .55; cursor: wait; }
+.tracker-status-error { padding: 9px 12px; margin-bottom: 12px; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; border-radius: 8px; }
