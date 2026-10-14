@@ -178,6 +178,32 @@
                     <div class="tracker-status-error" role="alert">@StatusUpdateError</div>
                 }
 
+                @if (CanManageScheduling)
+                {
+                    <div class="cc-assignment-toolbar">
+                        <strong>@SelectedCcVisitIds.Count selected</strong>
+                        <select class="filter-select" aria-label="Care Coordinator" @bind="SelectedCareCoordinatorId">
+                            <option value="">Select Care Coordinator</option>
+                            @foreach (var person in CareCoordinators)
+                            {
+                                <option value="@person.UserId.ToString()">@person.FullName</option>
+                            }
+                        </select>
+                        <button type="button" class="toolbar-button" disabled="@(SelectedCcVisitIds.Count == 0 || string.IsNullOrEmpty(SelectedCareCoordinatorId) || IsAssigningCc)"
+                                @onclick="() => ShowCcConfirmation = true">Assign CC</button>
+                        <span>Existing assignments will be skipped.</span>
+                    </div>
+                    @if (ShowCcConfirmation)
+                    {
+                        <div class="cc-confirmation" role="group" aria-label="Confirm Care Coordinator assignment">
+                            <strong>Confirm assignment</strong>
+                            <p>Assign @SelectedCcVisitIds.Count selected visit(s) to @GetSelectedCcName()? Already assigned visits will be skipped.</p>
+                            <button type="button" class="toolbar-button" @onclick="() => ShowCcConfirmation = false">Cancel</button>
+                            <button type="button" class="toolbar-button" disabled="@IsAssigningCc" @onclick="ConfirmCcAssignmentAsync">Confirm Assignment</button>
+                        </div>
+                    }
+                }
+
                 @if (FilteredSchedules.Count == 0)
                 {
                     <div class="tracker-empty-state">
@@ -191,6 +217,7 @@
                         <table class="tracker-table">
                             <thead>
                                 <tr>
+                                    @if (CanManageScheduling) { <th><input type="checkbox" aria-label="Select page visits" checked="@(PagedTrackerSchedules.All(s => SelectedCcVisitIds.Contains(s.VisitId)))" @onchange="ToggleCurrentPage" /></th> }
                                     <th>Date</th>
                                     <th>Day</th>
                                     <th>Time Block</th>
@@ -198,6 +225,7 @@
                                     <th>Confirmation</th>
                                     <th>Call Notes</th>
                                     <th>Assigned Clinician</th>
+                                    <th>CC</th>
                                     <th>Type of Visit</th>
                                     <th>Visit Status</th>
                                     <th>Notes / Flag</th>
@@ -208,15 +236,57 @@
                                 {
                                     <tr class="tracker-row @(SelectedSchedule?.VisitId == schedule.VisitId ? "selected" : "")"
                                         @onclick="() => SelectSchedule(schedule)">
+                                        @if (CanManageScheduling)
+                                        {
+                                            <td><input type="checkbox" aria-label="Select @schedule.PatientName" checked="@(SelectedCcVisitIds.Contains(schedule.VisitId))"
+                                                       @onchange="e => ToggleCcVisit(schedule.VisitId, e.Value is true)" @onclick:stopPropagation="true" /></td>
+                                        }
                                         <td>@schedule.ScheduledDate.ToString("MM/dd/yyyy")</td>
                                         <td>@schedule.ScheduledDate.ToString("ddd")</td>
                                         <td>@(string.IsNullOrWhiteSpace(schedule.TimeBlock) ? GetTimeDisplay(schedule) : schedule.TimeBlock)</td>
                                         <td>
                                             <strong>@schedule.PatientName</strong>
                                         </td>
-                                        <td>@DisplayOrPlaceholder(schedule.ConfirmationStatus)</td>
-                                        <td>@DisplayOrPlaceholder(schedule.CallNotes)</td>
-                                        <td>@DisplayOrPlaceholder(schedule.Clinician)</td>
+                                        <td>
+                                            @if (CanManageScheduling)
+                                            {
+                                                <select class="tracker-status-select" aria-label="Confirmation for @schedule.PatientName"
+                                                        value="@schedule.ConfirmationStatus" disabled="@SavingVisitIds.Contains(schedule.VisitId)"
+                                                        @onchange="e => SaveTrackerFieldAsync(schedule, confirmation: e.Value?.ToString())" @onclick:stopPropagation="true">
+                                                    <option value="">Select status</option>
+                                                    @foreach (var opt in ConfirmationOptions)
+                                                    {
+                                                        <option value="@opt.DisplayName">@opt.DisplayName</option>
+                                                    }
+                                                </select>
+                                            }
+                                            else { @DisplayOrPlaceholder(schedule.ConfirmationStatus) }
+                                        </td>
+                                        <td>
+                                            @if (CanManageScheduling)
+                                            {
+                                                <input class="tracker-inline-input" value="@schedule.CallNotes" maxlength="4000" aria-label="Call notes for @schedule.PatientName"
+                                                       disabled="@SavingVisitIds.Contains(schedule.VisitId)"
+                                                       @onchange="e => SaveTrackerFieldAsync(schedule, callNotes: e.Value?.ToString(), updateNotes: true)" @onclick:stopPropagation="true" />
+                                            }
+                                            else { @DisplayOrPlaceholder(schedule.CallNotes) }
+                                        </td>
+                                        <td>
+                                            @if (CanManageScheduling)
+                                            {
+                                                <select class="tracker-status-select" aria-label="Clinician for @schedule.PatientName"
+                                                        value="@(schedule.ClinicianId?.ToString() ?? string.Empty)" disabled="@SavingVisitIds.Contains(schedule.VisitId)"
+                                                        @onchange="e => SaveTrackerFieldAsync(schedule, clinicianValue: e.Value?.ToString(), updateClinician: true)" @onclick:stopPropagation="true">
+                                                    <option value="">Unassigned</option>
+                                                    @foreach (var clinician in Clinicians)
+                                                    {
+                                                        <option value="@clinician.UserId.ToString()">@clinician.FullName</option>
+                                                    }
+                                                </select>
+                                            }
+                                            else { @DisplayOrPlaceholder(schedule.Clinician) }
+                                        </td>
+                                        <td>@(string.IsNullOrWhiteSpace(schedule.CareCoordinatorName) ? "Unassigned" : schedule.CareCoordinatorName)</td>
                                         <td>@DisplayOrPlaceholder(schedule.VisitType)</td>
                                         <td>
                                             @if (CanManageScheduling)
@@ -517,6 +587,62 @@
     private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
     private bool CanManageScheduling;
+    private List<SchedulingClinicianDto> CareCoordinators = [];
+    private List<SchedulingLookupOptionDto> ConfirmationOptions = [];
+    private readonly HashSet<Guid> SelectedCcVisitIds = [];
+    private string SelectedCareCoordinatorId = string.Empty;
+    private bool ShowCcConfirmation;
+    private bool IsAssigningCc;
+
+    private void ToggleCcVisit(Guid visitId, bool selected)
+    {
+        if (selected) SelectedCcVisitIds.Add(visitId);
+        else SelectedCcVisitIds.Remove(visitId);
+    }
+    private void ToggleCurrentPage(ChangeEventArgs e)
+    {
+        var selected = e.Value is true;
+        foreach (var visit in PagedTrackerSchedules) ToggleCcVisit(visit.VisitId, selected);
+    }
+    private string GetSelectedCcName() => CareCoordinators.FirstOrDefault(c => c.UserId.ToString() == SelectedCareCoordinatorId)?.FullName ?? "selected Care Coordinator";
+
+    private async Task ConfirmCcAssignmentAsync()
+    {
+        if (!CanManageScheduling || IsAssigningCc || !Guid.TryParse(SelectedCareCoordinatorId, out var ccId)) return;
+        IsAssigningCc = true;
+        StatusUpdateError = null;
+        try
+        {
+            var count = await CalendarService.AssignCareCoordinatorAsync(ccId, SelectedCcVisitIds.ToArray());
+            SelectedCcVisitIds.Clear();
+            ShowCcConfirmation = false;
+            await LoadSchedulesAsync();
+            StatusUpdateError = $"Assigned Care Coordinator to {count} visit(s). Existing assignments were skipped.";
+        }
+        catch { StatusUpdateError = "Could not assign the Care Coordinator. Please try again."; }
+        finally { IsAssigningCc = false; }
+    }
+
+    private async Task SaveTrackerFieldAsync(CalendarVisitDto visit, string? confirmation = null, string? callNotes = null,
+        bool updateNotes = false, string? clinicianValue = null, bool updateClinician = false)
+    {
+        if (!CanManageScheduling || !SavingVisitIds.Add(visit.VisitId)) return;
+        StatusUpdateError = null;
+        var newConfirmation = confirmation ?? visit.ConfirmationStatus ?? string.Empty;
+        var newNotes = updateNotes ? callNotes : visit.CallNotes;
+        Guid? newClinician = updateClinician && Guid.TryParse(clinicianValue, out var parsed) ? parsed : (updateClinician ? null : visit.ClinicianId);
+        try
+        {
+            await CalendarService.UpdateTrackerDetailsAsync(visit.VisitId, newConfirmation, newNotes, newClinician);
+            visit.ConfirmationStatus = newConfirmation;
+            visit.CallNotes = newNotes;
+            visit.ClinicianId = newClinician;
+            if (updateClinician) visit.Clinician = Clinicians.FirstOrDefault(c => c.UserId == newClinician)?.FullName ?? "Unassigned";
+        }
+        catch { StatusUpdateError = $"Could not save changes for {visit.PatientName}. Please refresh and try again."; }
+        finally { SavingVisitIds.Remove(visit.VisitId); }
+    }
+
     private static readonly string[] EditableVisitStatuses = ["Scheduled", "Completed", "Missed", "Rescheduled", "Cancelled"];
     private readonly HashSet<Guid> SavingVisitIds = [];
     private string? StatusUpdateError;
@@ -666,10 +792,14 @@
         {
             var options = await CalendarService.GetSchedulingOptionsAsync();
             Clinicians = options.Clinicians;
+            CareCoordinators = options.CareCoordinators;
+            ConfirmationOptions = options.ConfirmationStatuses;
         }
         catch
         {
             Clinicians = [];
+            CareCoordinators = [];
+            ConfirmationOptions = [];
         }
     }
 
@@ -682,6 +812,8 @@
         {
             var (start, end) = GetVisibleDateRange();
             Schedules = await CalendarService.GetVisitsAsync(start, end);
+            SelectedCcVisitIds.Clear();
+            ShowCcConfirmation = false;
             TrackerPage = 1;
             SyncSelectionWithFilters();
         }

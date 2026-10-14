@@ -11,6 +11,9 @@ public sealed class CalendarVisitDto
 {
     public Guid VisitId { get; set; }
     public Guid? PatientId { get; set; }
+    public Guid? CareCoordinatorId { get; set; }
+    public string? CareCoordinatorName { get; set; }
+    public Guid? ClinicianId { get; set; }
     public string PatientName { get; set; } = string.Empty;
     public DateTime ScheduledDate { get; set; }
     public DateTime? CompletedDate { get; set; }

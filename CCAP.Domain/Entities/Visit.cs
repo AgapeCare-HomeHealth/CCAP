@@ -20,6 +20,10 @@ public sealed class Visit
     // personalized to the user who performed the import.
     public Guid? AssignedUserId { get; private set; }
 
+    // Temporary scheduling-level CC assignment; distinct from calendar ownership.
+    public Guid? CareCoordinatorId { get; private set; }
+    public ApplicationUser? CareCoordinator { get; private set; }
+
     public string PatientName { get; private set; } = string.Empty;
     public string? ClinicianName { get; private set; }
     public string VisitType { get; private set; } = "Visit";
@@ -216,6 +220,25 @@ public sealed class Visit
         }
 
         return start.TimeOfDay;
+    }
+
+    public void UpdateTrackerDetails(string confirmationStatus, string? callNotes, Guid? clinicianId, string? clinicianName)
+    {
+        if (string.IsNullOrWhiteSpace(confirmationStatus))
+            throw new ArgumentException("Confirmation status is required.", nameof(confirmationStatus));
+        if (callNotes?.Length > 4000)
+            throw new ArgumentException("Call notes cannot exceed 4000 characters.", nameof(callNotes));
+        ConfirmationStatus = confirmationStatus.Trim();
+        CallNotes = string.IsNullOrWhiteSpace(callNotes) ? null : callNotes.Trim();
+        ClinicianId = clinicianId;
+        ClinicianName = string.IsNullOrWhiteSpace(clinicianName) ? null : clinicianName.Trim();
+    }
+
+    public void AssignCareCoordinator(Guid careCoordinatorId)
+    {
+        if (careCoordinatorId == Guid.Empty) throw new ArgumentException("Select a Care Coordinator.");
+        if (CareCoordinatorId.HasValue) throw new InvalidOperationException("This visit already has a Care Coordinator.");
+        CareCoordinatorId = careCoordinatorId;
     }
 
     public void ChangeVisitStatus(string status)

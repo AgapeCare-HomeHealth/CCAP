@@ -408,6 +408,10 @@ public sealed class AppDbContext : DbContext
             e.HasKey(x => x.VisitId);
             e.Property(x => x.PatientName).HasMaxLength(300).IsRequired();
             e.HasIndex(x => x.AssignedUserId);
+            e.HasIndex(x => x.CareCoordinatorId);
+            e.HasOne(x => x.CareCoordinator).WithMany()
+                .HasForeignKey(x => x.CareCoordinatorId)
+                .OnDelete(DeleteBehavior.Restrict).IsRequired(false);
             e.Property(x => x.ClinicianName).HasMaxLength(300);
             e.Property(x => x.VisitType).HasMaxLength(100).IsRequired();
             e.Property(x => x.TimeBlock).HasMaxLength(100);

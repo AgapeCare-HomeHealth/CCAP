@@ -37,6 +37,13 @@ public sealed class GetSchedulingOptionsQueryHandler
                 x.LastName))
             .ToList();
 
+        var careCoordinators = users
+            .Where(x => x.IsActive && x.Role is not null &&
+                string.Equals(x.Role.RoleName, "Care Coordinator", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(x => x.LastName).ThenBy(x => x.FirstName)
+            .Select(x => new SchedulingClinicianDto(x.UserId, x.FirstName, x.LastName))
+            .ToList();
+
         var confirmationStatuses = await _lookups.GetAsync(
             "ConfirmationStatus", true, cancellationToken);
         var visitTypes = await _lookups.GetAsync(
@@ -46,6 +53,7 @@ public sealed class GetSchedulingOptionsQueryHandler
 
         return new SchedulingOptionsDto(
             clinicians,
+            careCoordinators,
             confirmationStatuses.OrderBy(x => x.SortOrder).Select(ToDto).ToList(),
             visitTypes.OrderBy(x => x.SortOrder).Select(ToDto).ToList(),
             visitStatuses.OrderBy(x => x.SortOrder).Select(ToDto).ToList());

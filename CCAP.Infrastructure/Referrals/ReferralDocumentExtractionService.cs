@@ -73,8 +73,6 @@ public sealed class ReferralDocumentExtractionService : IReferralDocumentExtract
         }
 
         var textValue = digitalText.ToString();
-        var ocrUsed = false;
-        double? confidence = null;
         var profiles = ReferralFormProfileLoader.Load(_configuration);
 
         // First pass: use coordinate-aware PDF text. Do not trim leading
@@ -95,8 +93,6 @@ public sealed class ReferralDocumentExtractionService : IReferralDocumentExtract
                 {
                     var ocrResult = ReferralDocumentFieldParser.Parse(ocr.Text, true, ocr.Confidence, profiles);
                     result = ReferralDocumentFieldParser.MergeMissing(result, ocrResult);
-                    ocrUsed = true;
-                    confidence = ocr.Confidence;
                 }
             }
             catch (InvalidOperationException)

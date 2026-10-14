@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CCAP.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCCAPShema : Migration
+    public partial class InitialCCAPMigration : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -585,8 +585,6 @@ namespace CCAP.Infrastructure.Migrations
                     ReferralDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     Status = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: false),
                     Source = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: true),
-                    ReferralType = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
-                    ReferralChannel = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     Priority = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                     AssignedUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     AssignedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
@@ -601,9 +599,6 @@ namespace CCAP.Infrastructure.Migrations
                     AuthorizationRequired = table.Column<bool>(type: "bit", nullable: false),
                     ReferringPhysician = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
                     PhysicianPhone = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
-                    PhysicianFax = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
-                    PhysicianNpi = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
-                    PcosRegistered = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: true),
                     SecondaryDiagnosis = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     ReferralNotes = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     InternalNotes = table.Column<string>(type: "nvarchar(max)", nullable: true)
