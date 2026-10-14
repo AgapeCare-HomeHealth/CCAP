@@ -25,6 +25,24 @@ public sealed class CalendarService
         return await _api.GetFromJsonAsync<List<CalendarVisitDto>>(url, cancellationToken) ?? [];
     }
 
+    public async Task UpdateTrackerDetailsAsync(Guid visitId, string confirmationStatus, string? callNotes, Guid? clinicianId)
+    {
+        using var response = await _api.PutAsJsonAsync($"api/scheduling/visits/{visitId}/tracker-details",
+            new { ConfirmationStatus = confirmationStatus, CallNotes = callNotes, ClinicianId = clinicianId });
+        await _api.EnsureSuccessAsync(response, default);
+    }
+
+    public async Task<int> AssignCareCoordinatorAsync(Guid coordinatorId, IReadOnlyList<Guid> visitIds)
+    {
+        using var response = await _api.PostAsJsonAsync("api/scheduling/care-coordinators/assign",
+            new { CareCoordinatorId = coordinatorId, VisitIds = visitIds });
+        await _api.EnsureSuccessAsync(response, default);
+        var result = await response.Content.ReadFromJsonAsync<CareCoordinatorAssignmentResult>();
+        return result?.Assigned ?? 0;
+    }
+
+    private sealed class CareCoordinatorAssignmentResult { public int Assigned { get; set; } }
+
     public async Task UpdateVisitStatusAsync(Guid visitId, string status, CancellationToken cancellationToken = default)
     {
         using var response = await _api.PutAsJsonAsync(

@@ -30,6 +30,9 @@ public sealed class GetCalendarVisitsQueryHandler
         {
             VisitId = x.VisitId,
             PatientId = x.PatientId,
+            CareCoordinatorId = x.CareCoordinatorId,
+            CareCoordinatorName = x.CareCoordinator is null ? null : (x.CareCoordinator.FirstName + " " + x.CareCoordinator.LastName).Trim(),
+            ClinicianId = x.ClinicianId,
             PatientName = x.Patient is null
                 ? x.PatientName
                 : $"{x.Patient.FirstName} {x.Patient.LastName}".Trim(),

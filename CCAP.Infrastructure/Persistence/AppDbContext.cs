@@ -357,6 +357,7 @@ public sealed class AppDbContext : DbContext
         {
             e.ToTable("ComplianceRecords");
             e.HasKey(x => x.ComplianceRecordId);
+            e.Property(x => x.ComplianceStatus).HasMaxLength(10);
             e.HasOne(x => x.Patient).WithMany(x => x.ComplianceRecords).HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -408,6 +409,10 @@ public sealed class AppDbContext : DbContext
             e.HasKey(x => x.VisitId);
             e.Property(x => x.PatientName).HasMaxLength(300).IsRequired();
             e.HasIndex(x => x.AssignedUserId);
+            e.HasIndex(x => x.CareCoordinatorId);
+            e.HasOne(x => x.CareCoordinator).WithMany()
+                .HasForeignKey(x => x.CareCoordinatorId)
+                .OnDelete(DeleteBehavior.Restrict).IsRequired(false);
             e.Property(x => x.ClinicianName).HasMaxLength(300);
             e.Property(x => x.VisitType).HasMaxLength(100).IsRequired();
             e.Property(x => x.TimeBlock).HasMaxLength(100);

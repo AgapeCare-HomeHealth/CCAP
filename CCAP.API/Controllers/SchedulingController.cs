@@ -40,6 +40,39 @@ public sealed class SchedulingController : ControllerBase
             cancellationToken));
     }
 
+    public sealed record UpdateTrackerDetailsRequest(string ConfirmationStatus, string? CallNotes, Guid? ClinicianId);
+    public sealed record AssignCareCoordinatorRequest(Guid CareCoordinatorId, List<Guid> VisitIds);
+
+    [HttpPut("visits/{visitId:guid}/tracker-details")]
+    [Authorize(Policy = PermissionPolicies.SchedulingManage)]
+    public async Task<IActionResult> UpdateTrackerDetails(Guid visitId, [FromBody] UpdateTrackerDetailsRequest request, CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var userId)) return Unauthorized();
+        try
+        {
+            await _sender.Send(new CCAP.Application.Features.Scheduling.Commands.UpdateTrackerDetails.UpdateTrackerDetailsCommand(
+                userId, visitId, request.ConfirmationStatus, request.CallNotes, request.ClinicianId), cancellationToken);
+            return NoContent();
+        }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (KeyNotFoundException) { return NotFound(new { message = "Visit not found." }); }
+    }
+
+    [HttpPost("care-coordinators/assign")]
+    [Authorize(Policy = PermissionPolicies.SchedulingManage)]
+    public async Task<IActionResult> AssignCareCoordinators([FromBody] AssignCareCoordinatorRequest request, CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var userId)) return Unauthorized();
+        try
+        {
+            var assigned = await _sender.Send(new CCAP.Application.Features.Scheduling.Commands.AssignCareCoordinators.AssignCareCoordinatorsCommand(
+                userId, request.CareCoordinatorId, request.VisitIds), cancellationToken);
+            return Ok(new { assigned });
+        }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (KeyNotFoundException) { return NotFound(new { message = "Selected visits were not found." }); }
+    }
+
     public sealed record UpdateVisitStatusRequest(string Status);
 
     [HttpPut("visits/{visitId:guid}/status")]

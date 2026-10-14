@@ -40,6 +40,7 @@ public sealed class ReferralIntakeDraftData
     public DateOnly? AuthorizationDate { get; set; }
     public int? ApprovedVisits { get; set; }
     public bool AuthorizationRequired { get; set; }
+    public string PreAuthStatus { get; set; } = string.Empty;
 
     public string ReferringPhysician { get; set; } = string.Empty;
     public string PhysicianPhone { get; set; } = string.Empty;

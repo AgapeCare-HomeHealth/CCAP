@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CCAP.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCCAPShema : Migration
+    public partial class AddInitialCCAPSchema : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -423,6 +423,7 @@ namespace CCAP.Infrastructure.Migrations
                     PatientId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     RequirementCode = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     IsCompleted = table.Column<bool>(type: "bit", nullable: false),
+                    ComplianceStatus = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: true),
                     CompletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     CompletedByUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     Notes = table.Column<string>(type: "nvarchar(max)", nullable: true)
@@ -650,6 +651,7 @@ namespace CCAP.Infrastructure.Migrations
                     PatientId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     ClinicianId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     AssignedUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    CareCoordinatorId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     PatientName = table.Column<string>(type: "nvarchar(300)", maxLength: 300, nullable: false),
                     ClinicianName = table.Column<string>(type: "nvarchar(300)", maxLength: 300, nullable: true),
                     VisitType = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
@@ -669,6 +671,13 @@ namespace CCAP.Infrastructure.Migrations
                     table.ForeignKey(
                         name: "FK_Visits_ApplicationUsers_AssignedUserId",
                         column: x => x.AssignedUserId,
+                        principalSchema: "dbo",
+                        principalTable: "ApplicationUsers",
+                        principalColumn: "UserId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Visits_ApplicationUsers_CareCoordinatorId",
+                        column: x => x.CareCoordinatorId,
                         principalSchema: "dbo",
                         principalTable: "ApplicationUsers",
                         principalColumn: "UserId",
@@ -963,6 +972,12 @@ namespace CCAP.Infrastructure.Migrations
                 schema: "dbo",
                 table: "Visits",
                 column: "AssignedUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Visits_CareCoordinatorId",
+                schema: "dbo",
+                table: "Visits",
+                column: "CareCoordinatorId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Visits_ClinicianId",

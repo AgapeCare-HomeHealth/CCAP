@@ -1,4 +1,4 @@
-﻿@using CCAP.Web.Features.Tracker.PatientWorkflow.Models
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Models
 
 <div class="workflow-card">
 
@@ -50,10 +50,12 @@
                 </div>
 
                 <div class="workflow-status">
-
                     @stage.Description
-
                 </div>
+
+                <span class="badge rounded-pill @GetStageBadgeClass(stage.Status)">
+                    @GetStageStatusLabel(stage.Status)
+                </span>
 
                 @if (stage.CompletedDate.HasValue)
                 {
@@ -81,6 +83,22 @@
 
     [Parameter]
     public List<WorkflowStageDto> Stages { get; set; } = new();
+
+    private static string GetStageBadgeClass(WorkflowStatus status) => status switch
+    {
+        WorkflowStatus.Completed => "bg-success",
+        WorkflowStatus.Current => "bg-primary",
+        WorkflowStatus.NotApplicable => "bg-info text-dark",
+        _ => "bg-secondary"
+    };
+
+    private static string GetStageStatusLabel(WorkflowStatus status) => status switch
+    {
+        WorkflowStatus.Completed => "Complete",
+        WorkflowStatus.Current => "In Progress",
+        WorkflowStatus.NotApplicable => "N/A · Complete",
+        _ => "Pending"
+    };
 
     private static string GetCircleClass(WorkflowStatus status)
     {

@@ -7,6 +7,7 @@ public sealed record GetSchedulingOptionsQuery() : IRequest<SchedulingOptionsDto
 
 public sealed record SchedulingOptionsDto(
     IReadOnlyList<SchedulingClinicianDto> Clinicians,
+    IReadOnlyList<SchedulingClinicianDto> CareCoordinators,
     IReadOnlyList<LookupOptionDto> ConfirmationStatuses,
     IReadOnlyList<LookupOptionDto> VisitTypes,
     IReadOnlyList<LookupOptionDto> VisitStatuses);

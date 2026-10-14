@@ -1,81 +1,82 @@
-﻿<div class="pagination-controls">
-
-    <button class="page-btn"
-            type="button"
-            disabled="@(CurrentPage <= 1)"
-            @onclick="PreviousPage">
-
+﻿<nav class="pagination-controls" aria-label="Table pagination">
+    <button class="page-btn" type="button" aria-label="First page"
+            disabled="@(CurrentPage <= 1)" @onclick="() => SelectPage(1)">
+        <i class="bi bi-chevron-double-left"></i>
+    </button>
+    <button class="page-btn" type="button" aria-label="Previous page"
+            disabled="@(CurrentPage <= 1)" @onclick="PreviousPage">
         <i class="bi bi-chevron-left"></i>
-
     </button>
 
-    @foreach (var page in GetPageNumbers())
+    @foreach (var item in GetPageItems())
     {
-        <button class="page-btn @(page == CurrentPage ? "active" : "")"
-                type="button"
-                @onclick="() => SelectPage(page)">
-
-            @(page)
-
-        </button>
+        if (item.HasValue)
+        {
+            var page = item.Value;
+            <button @key="page" class="page-btn @(page == CurrentPage ? "active" : "")"
+                    type="button" aria-current="@(page == CurrentPage ? "page" : null)"
+                    aria-label="@($"Page {page}")" @onclick="() => SelectPage(page)">
+                @(page)
+            </button>
+        }
+        else
+        {
+            <span class="page-ellipsis" aria-hidden="true">…</span>
+        }
     }
 
-    <button class="page-btn"
-            type="button"
-            disabled="@(CurrentPage >= TotalPages)"
-            @onclick="NextPage">
-
+    <button class="page-btn" type="button" aria-label="Next page"
+            disabled="@(CurrentPage >= TotalPages)" @onclick="NextPage">
         <i class="bi bi-chevron-right"></i>
-
     </button>
-
-</div>
+    <button class="page-btn" type="button" aria-label="Last page"
+            disabled="@(CurrentPage >= TotalPages)" @onclick="() => SelectPage(TotalPages)">
+        <i class="bi bi-chevron-double-right"></i>
+    </button>
+</nav>
 
 @code {
-
-    [Parameter]
-    public int CurrentPage { get; set; }
-
-    [Parameter]
-    public int TotalPages { get; set; }
-
-    [Parameter]
-    public EventCallback<int> OnPageChanged { get; set; }
+    [Parameter] public int CurrentPage { get; set; }
+    [Parameter] public int TotalPages { get; set; }
+    [Parameter] public EventCallback<int> OnPageChanged { get; set; }
 
     private async Task PreviousPage()
     {
-        if (CurrentPage <= 1)
-            return;
-
-        await SelectPage(CurrentPage - 1);
+        if (CurrentPage > 1)
+            await SelectPage(CurrentPage - 1);
     }
 
     private async Task NextPage()
     {
-        if (CurrentPage >= TotalPages)
-            return;
-
-        await SelectPage(CurrentPage + 1);
+        if (CurrentPage < TotalPages)
+            await SelectPage(CurrentPage + 1);
     }
 
     private async Task SelectPage(int page)
     {
-        if (page < 1 || page > TotalPages)
+        if (TotalPages <= 0 || page < 1 || page > TotalPages || page == CurrentPage)
             return;
-
         await OnPageChanged.InvokeAsync(page);
     }
 
-    private IEnumerable<int> GetPageNumbers()
+    private IEnumerable<int?> GetPageItems()
     {
         if (TotalPages <= 7)
-            return Enumerable.Range(1, TotalPages);
+            return Enumerable.Range(1, Math.Max(0, TotalPages)).Select(x => (int?)x);
 
-        var start = Math.Max(1, CurrentPage - 2);
-        var end = Math.Min(TotalPages, CurrentPage + 2);
+        var pages = new SortedSet<int> { 1, TotalPages };
+        for (var page = Math.Max(1, CurrentPage - 2); page <= Math.Min(TotalPages, CurrentPage + 2); page++)
+            pages.Add(page);
 
-        return Enumerable.Range(
-            start,
-            end - start + 1);
+        var result = new List<int?>();
+        int? previous = null;
+        foreach (var page in pages)
+        {
+            if (previous.HasValue && page - previous.Value > 1)
+                result.Add(null);
+            result.Add(page);
+            previous = page;
+        }
+        return result;
     }
 }

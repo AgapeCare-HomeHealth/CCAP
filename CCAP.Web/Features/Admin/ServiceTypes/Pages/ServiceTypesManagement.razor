@@ -1,4 +1,4 @@
-@page "/admin/service-types"
+﻿@page "/admin/service-types"
 @attribute [CcapAuthorize(Policy = "lookups.manage")]
 @using CCAP.Web.Features.Admin.ServiceTypes.Models
 @using CCAP.Web.Features.Admin.ServiceTypes.Services
@@ -22,9 +22,9 @@
         <div class="card-body">
             <div class="row g-3 mb-3">
                 <div class="col-md-4"><input class="form-control" placeholder="Search code, name, or CSS class..." value="@SearchText" @oninput="OnSearchChanged" /></div>
-                <div class="col-md-2"><select class="form-select" @bind="StatusFilter"><option value="">All Status</option><option value="true">Active</option><option value="false">Inactive</option></select></div>
-                <div class="col-md-2"><select class="form-select" @bind="SortBy"><option value="Code">Code</option><option value="Name">Name</option><option value="Status">Status</option></select></div>
-                <div class="col-md-2"><select class="form-select" @bind="SortDescending"><option value="false">Ascending</option><option value="true">Descending</option></select></div>
+                <div class="col-md-2"><select class="form-select" @bind="StatusFilter" @bind:after="ResetPage"><option value="">All Status</option><option value="true">Active</option><option value="false">Inactive</option></select></div>
+                <div class="col-md-2"><select class="form-select" @bind="SortBy" @bind:after="ResetPage"><option value="Code">Code</option><option value="Name">Name</option><option value="Status">Status</option></select></div>
+                <div class="col-md-2"><select class="form-select" @bind="SortDescending" @bind:after="ResetPage"><option value="false">Ascending</option><option value="true">Descending</option></select></div>
                 <div class="col-md-2"><button class="btn btn-outline-secondary w-100" @onclick="ClearFilters">Clear</button></div>
             </div>
             @if (Loading) { <div class="text-center py-4">Loading...</div> }
@@ -101,12 +101,13 @@
     private async Task LoadAsync()
     {
         Loading = true; ErrorMessage = null;
-        try { Items = await Service.GetAsync(false); }
+        try { Items = await Service.GetAsync(false); CurrentPage = Math.Min(CurrentPage, Math.Max(1, TotalPages)); }
         catch (Exception ex) { ErrorMessage = ex.Message; }
         finally { Loading = false; }
     }
 
     private int TotalPages => FilteredItems.Count == 0 ? 0 : (int)Math.Ceiling(FilteredItems.Count / (double)PageSize);
+    private void ResetPage() => CurrentPage = 1;
     private void GoToPage(int page) => CurrentPage = Math.Max(1, Math.Min(page, Math.Max(1, TotalPages)));
     private void ChangePageSize(int size) { PageSize = Math.Clamp(size, 1, 100); CurrentPage = 1; }
     private void OnSearchChanged(ChangeEventArgs e) { SearchText = e.Value?.ToString() ?? string.Empty; CurrentPage = 1; }

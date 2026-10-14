@@ -10,9 +10,12 @@ public sealed class VisitRepository : IVisitRepository
     public VisitRepository(AppDbContext context) => _context = context;
 
     public async Task<IReadOnlyList<Visit>> GetCalendarVisitsAsync(Guid userId, DateTime startDate, DateTime endDate, CancellationToken cancellationToken)
-        => await _context.Visits.AsNoTracking().Include(x => x.Patient).Include(x => x.Clinician)
+        => await _context.Visits.AsNoTracking().Include(x => x.Patient).Include(x => x.Clinician).Include(x => x.CareCoordinator)
             .Where(x => x.AssignedUserId == userId && x.ScheduledDate >= startDate && x.ScheduledDate < endDate)
             .OrderBy(x => x.ScheduledDate).ToListAsync(cancellationToken);
+
+    public Task<List<Visit>> GetForAssignmentAsync(Guid userId, IReadOnlyCollection<Guid> visitIds, CancellationToken cancellationToken)
+        => _context.Visits.Where(x => x.AssignedUserId == userId && visitIds.Contains(x.VisitId)).ToListAsync(cancellationToken);
 
     public Task<Visit?> GetByIdForUpdateAsync(Guid visitId, CancellationToken cancellationToken)
         => _context.Visits.FirstOrDefaultAsync(x => x.VisitId == visitId, cancellationToken);

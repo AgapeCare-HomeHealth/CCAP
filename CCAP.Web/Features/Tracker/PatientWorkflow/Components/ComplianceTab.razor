@@ -32,28 +32,24 @@
 
                 @if (InsuranceVerificationItem is not null)
                 {
-                    <div class="border rounded p-3 mb-3 compliance-requirement-card">
+                    <div class="border rounded p-3 mb-3 compliance-requirement-card @InsuranceStatusBorderClass">
                         <div class="d-flex justify-content-between align-items-start gap-3">
                             <div>
-                                <div class="fw-semibold">@InsuranceVerificationItem.RequirementName</div>
+                                <div class="d-flex align-items-center flex-wrap gap-2">
+                                    <div class="fw-semibold">@InsuranceVerificationItem.RequirementName</div>
+                                    <span class="badge rounded-pill @InsuranceStatusBadgeClass"><i class="bi @InsuranceStatusIcon me-1"></i>@InsuranceStatusLabel</span>
+                                </div>
                                 <div class="small text-muted mt-1">@InsuranceVerificationItem.Description</div>
                             </div>
 
-                            @if (InsuranceVerificationItem.IsCompleted)
-                            {
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="badge bg-success">Completed</span>
-                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => UnmarkComplianceAsync(InsuranceVerificationItem.RequirementCode)" disabled="@IsUnmarking">@(IsUnmarking ? "Unmarking..." : "Unmark Complete")</button>
-                                </div>
-                            }
-                            else
-                            {
-                                <button class="btn btn-sm btn-primary"
-                                        @onclick="() => CompleteComplianceAsync(InsuranceVerificationItem.RequirementCode)"
+                            <div style="min-width:120px">
+                                <select class="form-select form-select-sm" aria-label="Compliance status for @InsuranceVerificationItem.RequirementName"
+                                        value="@(InsuranceVerificationItem.ComplianceStatus ?? (InsuranceVerificationItem.IsCompleted ? "Yes" : ""))"
+                                        @onchange="(e) => HandleComplianceStatusChanged(InsuranceVerificationItem.RequirementCode, e.Value?.ToString())"
                                         disabled="@IsSaving">
-                                    @(IsSaving && SavingRequirementCode == InsuranceVerificationItem.RequirementCode ? "Saving..." : "Mark Complete")
-                                </button>
-                            }
+                                    <option value="">Select...</option><option value="Yes">Yes</option><option value="No">No</option><option value="N/A">N/A</option>
+                                </select>
+                            </div>
                         </div>
 
                         @if (InsuranceVerificationItem.IsCompleted && InsuranceVerificationItem.CompletedAt.HasValue)
@@ -109,6 +105,11 @@
  [Parameter] public Guid PatientId {get;set;} [Parameter] public PatientWorkflowDto Workflow {get;set;} = new(); [Parameter] public EventCallback OnCompleted {get;set;}
  private bool IsSaving; private bool IsSavingDetails; private bool IsUnmarking; private List<LookupOptionDto> CaseMixOptions = []; private string? ErrorMessage; private string? SavingRequirementCode; private string? UnmarkingRequirementCode;
  protected override async Task OnInitializedAsync(){ try{ CaseMixOptions = await LookupService.GetAsync("CaseMixType", true); } catch { CaseMixOptions = []; } }
+ private string InsuranceCurrentStatus => InsuranceVerificationItem?.ComplianceStatus ?? (InsuranceVerificationItem?.IsCompleted == true ? "Yes" : string.Empty);
+ private string InsuranceStatusLabel => InsuranceCurrentStatus switch { "Yes" => "Complete", "N/A" => "Not Applicable · Complete", "No" => "Outstanding", _ => "Pending" };
+ private string InsuranceStatusBadgeClass => InsuranceCurrentStatus switch { "Yes" => "text-bg-success", "N/A" => "text-bg-info", "No" => "text-bg-danger", _ => "text-bg-secondary" };
+ private string InsuranceStatusBorderClass => InsuranceCurrentStatus switch { "Yes" => "border-success border-2", "N/A" => "border-info border-2", "No" => "border-danger border-2", _ => "border-secondary-subtle" };
+ private string InsuranceStatusIcon => InsuranceCurrentStatus switch { "Yes" => "bi-check-circle-fill", "N/A" => "bi-check-circle", "No" => "bi-exclamation-circle-fill", _ => "bi-hourglass-split" };
  private IEnumerable<ComplianceItemDto> Items => Workflow.ComplianceItems ?? [];
  private ComplianceItemDto? PreAuthItem => Items.FirstOrDefault(x => string.Equals(x.RequirementCode, "PRE_AUTH_RECEIVED", StringComparison.OrdinalIgnoreCase));
  private ComplianceItemDto? InsuranceVerificationItem => Items.FirstOrDefault(x => string.Equals(x.RequirementCode, "INSURANCE_VERIFICATION", StringComparison.OrdinalIgnoreCase));
@@ -117,8 +118,13 @@
  private IEnumerable<ComplianceItemDto> AdmissionItems => Items.Where(x=>x.Phase==2 && !string.Equals(x.RequirementCode,"SOC_COMPLIANT",StringComparison.OrdinalIgnoreCase));
  private IEnumerable<ComplianceItemDto> Phase3Items => Items.Where(x=>x.Phase>=3 && !string.Equals(x.RequirementCode,"DISCHARGE_SUMMARY_SIGNED",StringComparison.OrdinalIgnoreCase) && !string.Equals(x.RequirementCode,"NOMNC_SIGNED",StringComparison.OrdinalIgnoreCase) && !string.Equals(x.RequirementCode,"ROC",StringComparison.OrdinalIgnoreCase));
  private string PcpPtNotified { get => Workflow.WorkflowDetails.PcpPtNotified.HasValue ? Workflow.WorkflowDetails.PcpPtNotified.Value.ToString().ToLowerInvariant() : ""; set => Workflow.WorkflowDetails.PcpPtNotified = string.IsNullOrEmpty(value) ? null : bool.Parse(value); }
- private async Task UnmarkComplianceAsync(string code){ if(IsUnmarking)return; IsUnmarking=true; UnmarkingRequirementCode=code; ErrorMessage=null; try{await WorkflowService.UnmarkComplianceAsync(PatientId,code); await OnCompleted.InvokeAsync();}catch(Exception ex){ErrorMessage=ex.Message;}finally{IsUnmarking=false;UnmarkingRequirementCode=null;}}
- private async Task CompleteComplianceAsync(string code){ if(IsSaving)return; IsSaving=true; SavingRequirementCode=code; ErrorMessage=null; try{await WorkflowService.CompleteComplianceAsync(PatientId,code); await OnCompleted.InvokeAsync();}catch(Exception ex){ErrorMessage=ex.Message;}finally{IsSaving=false;SavingRequirementCode=null;} }
+ private async Task HandleComplianceStatusChanged(string code, string? status)
+ {
+     if (status is "Yes" or "No" or "N/A") await SaveComplianceStatusAsync(code, status);
+ }
+ private async Task UnmarkComplianceAsync(string code) { await SaveComplianceStatusAsync(code, "No"); }
+ private async Task CompleteComplianceAsync(string code) { if (code.Contains("|STATUS|", StringComparison.Ordinal)) { var parts = code.Split("|STATUS|", 2, StringSplitOptions.None); await SaveComplianceStatusAsync(parts[0], parts[1]); } else await SaveComplianceStatusAsync(code, "Yes"); }
+ private async Task SaveComplianceStatusAsync(string code, string status) { if(IsSaving || IsUnmarking)return; IsSaving=true; SavingRequirementCode=code; ErrorMessage=null; try { await WorkflowService.SetComplianceStatusAsync(PatientId,code,status); await OnCompleted.InvokeAsync(); } catch(Exception ex) { ErrorMessage=ex.Message; } finally { IsSaving=false; SavingRequirementCode=null; IsUnmarking=false; UnmarkingRequirementCode=null; } }
  private async Task SaveDetailsAsync(){if(IsSavingDetails)return;IsSavingDetails=true;ErrorMessage=null;try{await WorkflowService.UpdateWorkflowDetailsAsync(PatientId,Workflow.WorkflowDetails);await OnCompleted.InvokeAsync();}catch(Exception ex){ErrorMessage=ex.Message;}finally{IsSavingDetails=false;}}
 }
 

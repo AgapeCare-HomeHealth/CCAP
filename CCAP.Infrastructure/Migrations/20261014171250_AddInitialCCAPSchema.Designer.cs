@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CCAP.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261012194619_InitialCCAPShema")]
-    partial class InitialCCAPShema
+    [Migration("20261014171250_AddInitialCCAPSchema")]
+    partial class AddInitialCCAPSchema
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -250,6 +250,10 @@ namespace CCAP.Infrastructure.Migrations
 
                     b.Property<Guid?>("CompletedByUserId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ComplianceStatus")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
 
                     b.Property<bool>("IsCompleted")
                         .HasColumnType("bit");
@@ -1069,6 +1073,9 @@ namespace CCAP.Infrastructure.Migrations
                     b.Property<string>("CallNotes")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<Guid?>("CareCoordinatorId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("ClinicianId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1120,6 +1127,8 @@ namespace CCAP.Infrastructure.Migrations
                     b.HasKey("VisitId");
 
                     b.HasIndex("AssignedUserId");
+
+                    b.HasIndex("CareCoordinatorId");
 
                     b.HasIndex("ClinicianId");
 
@@ -1391,6 +1400,11 @@ namespace CCAP.Infrastructure.Migrations
                         .HasForeignKey("AssignedUserId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("CCAP.Domain.Entities.ApplicationUser", "CareCoordinator")
+                        .WithMany()
+                        .HasForeignKey("CareCoordinatorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("CCAP.Domain.Entities.ApplicationUser", "Clinician")
                         .WithMany()
                         .HasForeignKey("ClinicianId")
@@ -1400,6 +1414,8 @@ namespace CCAP.Infrastructure.Migrations
                         .WithMany("Visits")
                         .HasForeignKey("PatientId")
                         .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("CareCoordinator");
 
                     b.Navigation("Clinician");
 

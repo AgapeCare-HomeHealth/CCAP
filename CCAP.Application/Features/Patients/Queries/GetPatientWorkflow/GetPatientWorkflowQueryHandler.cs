@@ -280,6 +280,8 @@ public sealed class GetPatientWorkflowQueryHandler
                     IsCompleted =
                         x.IsCompleted,
 
+                    ComplianceStatus = x.ComplianceStatus ?? (x.IsCompleted ? "Yes" : null),
+
                     CompletedAt =
                         x.CompletedAt,
 
