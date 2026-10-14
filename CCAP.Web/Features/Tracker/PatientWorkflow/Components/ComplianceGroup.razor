@@ -1,44 +1,48 @@
 @using CCAP.Web.Features.Tracker.PatientWorkflow.Models
 
 <div class="card shadow-sm border-0 mb-4">
-    <div class="card-header bg-white">
-        <h5 class="mb-1">@Title</h5>
-        <small class="text-muted">@Description</small>
+    <div class="card-header bg-white d-flex justify-content-between align-items-start gap-3 flex-wrap">
+        <div>
+            <h5 class="mb-1">@Title</h5>
+            <small class="text-muted">@Description</small>
+        </div>
+        <div class="d-flex flex-wrap gap-2 align-items-center" aria-label="Compliance group progress">
+            <span class="badge rounded-pill bg-success">Complete: @CompletedCount</span>
+            <span class="badge rounded-pill bg-danger">Outstanding: @OutstandingCount</span>
+            <span class="badge rounded-pill bg-secondary">Pending: @PendingCount</span>
+        </div>
     </div>
     <div class="card-body">
         <div class="row g-3">
             @foreach (var item in Items)
             {
-                <div class="col-lg-6">
-                    <div class="border rounded p-3 h-100">
-                        <div class="d-flex justify-content-between align-items-start gap-3">
-                            <div>
-                                <div class="fw-semibold">@item.RequirementName</div>
+                <div class="col-lg-6" @key="item.RequirementCode">
+                    <div class="border rounded p-3 h-100 @GetItemBorderClass(item)">
+                        <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center flex-wrap gap-2 mb-1">
+                                    <div class="fw-semibold">@item.RequirementName</div>
+                                    <span class="badge rounded-pill @GetStatusBadgeClass(item)">@GetStatusLabel(item)</span>
+                                </div>
                                 <div class="small text-muted">@item.Description</div>
                             </div>
-
-                            @if (item.IsCompleted)
-                            {
-                                <span class="badge bg-success">Completed</span>
-                            }
-                            else
-                            {
-                                <button class="btn btn-sm btn-primary"
-                                        @onclick="() => OnComplete.InvokeAsync(item.RequirementCode)"
-                                        disabled="@IsSaving">
-                                    @(IsSaving && SavingCode == item.RequirementCode ? "Saving..." : "Mark Complete")
-                                </button>
-                            }
+                            <div style="min-width:140px">
+                                <select class="form-select form-select-sm @GetSelectClass(item)" aria-label="Compliance status for @item.RequirementName"
+                                        value="@(item.ComplianceStatus ?? (item.IsCompleted ? "Yes" : ""))"
+                                        @onchange="(e) => HandleStatusChanged(item, e.Value?.ToString())"
+                                        disabled="@(IsSaving && SavingCode == item.RequirementCode || IsUnmarking && UnmarkingCode == item.RequirementCode)">
+                                    <option value="">Select status...</option>
+                                    <option value="Yes">Yes — Complete</option>
+                                    <option value="No">No — Outstanding</option>
+                                    <option value="N/A">N/A — Complete</option>
+                                </select>
+                            </div>
                         </div>
-
                         @if (item.IsCompleted && item.CompletedAt.HasValue)
                         {
                             <div class="small text-muted mt-2">
                                 Confirmed @item.CompletedAt.Value.ToLocalTime().ToString("MM/dd/yyyy h:mm tt")
-                                @if (!string.IsNullOrWhiteSpace(item.CompletedByUserName))
-                                {
-                                    <span>by @item.CompletedByUserName</span>
-                                }
+                                @if (!string.IsNullOrWhiteSpace(item.CompletedByUserName)) { <span>by @item.CompletedByUserName</span> }
                             </div>
                         }
                     </div>
@@ -58,4 +62,63 @@
     [Parameter] public string? UnmarkingCode { get; set; }
     [Parameter] public bool IsSaving { get; set; }
     [Parameter] public string? SavingCode { get; set; }
+
+    private int CompletedCount => Items.Count(IsSatisfied);
+    private int OutstandingCount => Items.Count(item => string.Equals(GetEffectiveStatus(item), "No", StringComparison.OrdinalIgnoreCase));
+    private int PendingCount => Items.Count(item => string.IsNullOrWhiteSpace(GetEffectiveStatus(item)));
+
+    private static bool IsSatisfied(ComplianceItemDto item)
+    {
+        var status = GetEffectiveStatus(item);
+        return string.Equals(status, "Yes", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(status, "N/A", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string GetEffectiveStatus(ComplianceItemDto item) =>
+        item.ComplianceStatus ?? (item.IsCompleted ? "Yes" : "");
+
+    private static string GetStatusLabel(ComplianceItemDto item)
+    {
+        var status = GetEffectiveStatus(item);
+        if (string.Equals(status, "Yes", StringComparison.OrdinalIgnoreCase)) return "✓ Complete";
+        if (string.Equals(status, "N/A", StringComparison.OrdinalIgnoreCase)) return "N/A · Complete";
+        if (string.Equals(status, "No", StringComparison.OrdinalIgnoreCase)) return "! Outstanding";
+        return "Pending";
+    }
+
+    private static string GetStatusBadgeClass(ComplianceItemDto item)
+    {
+        var status = GetEffectiveStatus(item);
+        if (string.Equals(status, "Yes", StringComparison.OrdinalIgnoreCase)) return "bg-success";
+        if (string.Equals(status, "N/A", StringComparison.OrdinalIgnoreCase)) return "bg-info text-dark";
+        if (string.Equals(status, "No", StringComparison.OrdinalIgnoreCase)) return "bg-danger";
+        return "bg-secondary";
+    }
+
+    private static string GetItemBorderClass(ComplianceItemDto item)
+    {
+        var status = GetEffectiveStatus(item);
+        if (string.Equals(status, "Yes", StringComparison.OrdinalIgnoreCase)) return "border-success border-2";
+        if (string.Equals(status, "N/A", StringComparison.OrdinalIgnoreCase)) return "border-info border-2";
+        if (string.Equals(status, "No", StringComparison.OrdinalIgnoreCase)) return "border-danger border-2";
+        return "border-secondary-subtle";
+    }
+
+    private static string GetSelectClass(ComplianceItemDto item)
+    {
+        var status = GetEffectiveStatus(item);
+        if (string.Equals(status, "Yes", StringComparison.OrdinalIgnoreCase)) return "border-success";
+        if (string.Equals(status, "N/A", StringComparison.OrdinalIgnoreCase)) return "border-info";
+        if (string.Equals(status, "No", StringComparison.OrdinalIgnoreCase)) return "border-danger";
+        return "";
+    }
+
+    private async Task HandleStatusChanged(ComplianceItemDto item, string? status)
+    {
+        if (status is "Yes" or "No" or "N/A")
+        {
+            if (!string.Equals(item.ComplianceStatus, status, StringComparison.OrdinalIgnoreCase))
+                await OnComplete.InvokeAsync(item.RequirementCode + "|STATUS|" + status);
+        }
+    }
 }

@@ -1,4 +1,4 @@
-﻿public class ComplianceItemDto
+public class ComplianceItemDto
 {
     public Guid ComplianceRecordId { get; set; }
 
@@ -9,6 +9,8 @@
     public string Description { get; set; } = string.Empty;
 
     public bool IsCompleted { get; set; }
+
+    public string? ComplianceStatus { get; set; }
 
     public DateTime? CompletedAt { get; set; }
 

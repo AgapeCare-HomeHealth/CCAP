@@ -357,6 +357,7 @@ public sealed class AppDbContext : DbContext
         {
             e.ToTable("ComplianceRecords");
             e.HasKey(x => x.ComplianceRecordId);
+            e.Property(x => x.ComplianceStatus).HasMaxLength(10);
             e.HasOne(x => x.Patient).WithMany(x => x.ComplianceRecords).HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Cascade);
         });
 

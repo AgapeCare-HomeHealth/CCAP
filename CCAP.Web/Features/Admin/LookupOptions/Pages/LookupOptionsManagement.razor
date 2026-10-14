@@ -1,4 +1,4 @@
-@page "/admin/lookup-options"
+﻿@page "/admin/lookup-options"
 @attribute [CcapAuthorize(Policy = "lookups.manage")]
 @using CCAP.Web.Features.Admin.LookupOptions.Models
 @using CCAP.Web.Features.Admin.LookupOptions.Services
@@ -35,7 +35,7 @@
             <div class="row g-3 mb-3">
                 <div class="col-md-4">
                     <label class="form-label">Lookup Group</label>
-                    <select class="form-select" @bind="SelectedType">
+                    <select class="form-select" @bind="SelectedType" @bind:after="ResetPage">
                         <option value="">All groups</option>
                         @foreach (var type in Groups) { <option value="@type">@type</option> }
                     </select>
@@ -45,8 +45,8 @@
                     <input class="form-control" value="@SearchText" @oninput="OnSearchChanged" placeholder="Search group, code, or display name..." />
                 </div>
                 <div class="col-md-4 d-flex align-items-end gap-2">
-                    <select class="form-select" style="max-width:160px" @bind="SortMode"><option value="Group">Group</option><option value="Code">Code</option><option value="DisplayName">Display Name</option><option value="Order">Order</option></select>
-                    <select class="form-select" style="max-width:140px" @bind="ActiveFilter"><option value="">All Status</option><option value="true">Active</option><option value="false">Inactive</option></select>
+                    <select class="form-select" style="max-width:160px" @bind="SortMode" @bind:after="ResetPage"><option value="Group">Group</option><option value="Code">Code</option><option value="DisplayName">Display Name</option><option value="Order">Order</option></select>
+                    <select class="form-select" style="max-width:140px" @bind="ActiveFilter" @bind:after="ResetPage"><option value="">All Status</option><option value="true">Active</option><option value="false">Inactive</option></select>
                     <button class="btn btn-outline-secondary" @onclick="ClearFilters">Clear</button>
                     <span class="text-muted small align-self-center">@FilteredOptions.Count option(s)</span>
                 </div>
@@ -150,11 +150,12 @@
     private async Task LoadAsync()
     {
         Loading = true; ErrorMessage = null;
-        try { Options = await Service.GetAsync(); }
+        try { Options = await Service.GetAsync(); CurrentPage = Math.Min(CurrentPage, Math.Max(1, TotalPages)); }
         catch (Exception ex) { ErrorMessage = ex.Message; }
         finally { Loading = false; }
     }
 
+    private void ResetPage() => CurrentPage = 1;
     private void OnSearchChanged(ChangeEventArgs e) { SearchText = e.Value?.ToString() ?? string.Empty; CurrentPage = 1; }
     private void ClearFilters() { SelectedType = string.Empty; SearchText = string.Empty; ActiveFilter = string.Empty; SortMode = "Group"; CurrentPage = 1; }
     private void GoToPage(int page) => CurrentPage = Math.Max(1, Math.Min(page, Math.Max(1, TotalPages)));

@@ -174,5 +174,16 @@ public sealed class PatientCareProfileDto
     public List<PatientTaskDto> Tasks { get; set; } = [];
 
     public List<PatientCareLogDto> CareLogs { get; set; } = [];
+
+    public List<PatientRelatedNoteDto> RelatedNotes { get; set; } = [];
 }
 public sealed class PatientCareLogDto { public Guid PatientCareLogId{get;set;} public string LogType{get;set;}=""; public string Item{get;set;}=""; public decimal? Quantity{get;set;} public string? Unit{get;set;} public DateTime RecordedAt{get;set;} public string? Notes{get;set;} public string RecordedBy{get;set;}="System"; }
+
+public sealed class PatientRelatedNoteDto
+{
+    public string Source { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string Content { get; set; } = string.Empty;
+    public string Author { get; set; } = string.Empty;
+    public DateTime? Date { get; set; }
+}

@@ -90,6 +90,8 @@ public sealed class ReferralIntakeModel
 
     public bool AuthorizationRequired { get; set; }
 
+    public string PreAuthStatus { get; set; } = string.Empty;
+
     // =========================
     // Physician
     // =========================

@@ -1,4 +1,4 @@
-﻿using CCAP.Application.Abstractions.Persistence;
+using CCAP.Application.Abstractions.Persistence;
 using CCAP.Application.Features.Patients.DTOs;
 using MediatR;
 
@@ -73,7 +73,6 @@ public sealed class GetPatientCareManagementQueryHandler
 
         var notes = callNotes
             .OrderByDescending(x => x.CallDate)
-            .Take(20)
             .Select(x => new PatientNoteResponseDto
             {
                 NoteId = x.CallNoteId,
@@ -234,6 +233,45 @@ public sealed class GetPatientCareManagementQueryHandler
 
 
         // ========================================================
+        // OTHER PATIENT-RELATED NOTES
+        // ========================================================
+        // Keep these as notes, not timeline/audit events. Calendar notes are
+        // read from the actual Visit record used by the scheduling calendar.
+        var relatedNotes = new List<PatientRelatedNoteResponseDto>();
+
+        foreach (var visit in patient.Visits)
+        {
+            var author = visit.Clinician is null
+                ? (visit.ClinicianName ?? string.Empty)
+                : $"{visit.Clinician.FirstName} {visit.Clinician.LastName}".Trim();
+
+            if (!string.IsNullOrWhiteSpace(visit.CallNotes))
+                relatedNotes.Add(new PatientRelatedNoteResponseDto { Source = "Calendar / Schedule", Title = $"{visit.VisitType} — Call Notes", Content = visit.CallNotes, Author = author, Date = visit.ScheduledDate });
+            if (!string.IsNullOrWhiteSpace(visit.NotesFlag))
+                relatedNotes.Add(new PatientRelatedNoteResponseDto { Source = "Calendar / Schedule", Title = $"{visit.VisitType} — Notes Flag", Content = visit.NotesFlag, Author = author, Date = visit.ScheduledDate });
+            if (!string.IsNullOrWhiteSpace(visit.Notes))
+                relatedNotes.Add(new PatientRelatedNoteResponseDto { Source = "Calendar / Schedule", Title = $"{visit.VisitType} — Schedule / Visit Notes", Content = visit.Notes, Author = author, Date = visit.CompletedDate ?? visit.ScheduledDate });
+        }
+
+        foreach (var assessment in patient.Assessments)
+        {
+            if (!string.IsNullOrWhiteSpace(assessment.Notes))
+                relatedNotes.Add(new PatientRelatedNoteResponseDto { Source = "Assessment", Title = $"Assessment ({assessment.Status})", Content = assessment.Notes!, Author = assessment.CompletedBy is null ? string.Empty : $"{assessment.CompletedBy.FirstName} {assessment.CompletedBy.LastName}".Trim(), Date = assessment.CompletedAt });
+        }
+
+        void AddPatientFieldNote(string source, string title, string? content, DateTime? date = null)
+        {
+            if (!string.IsNullOrWhiteSpace(content))
+                relatedNotes.Add(new PatientRelatedNoteResponseDto { Source = source, Title = title, Content = content.Trim(), Date = date });
+        }
+
+        AddPatientFieldNote("Referral", "Patient Referral Notes", patient.ReferralNotes, null);
+        AddPatientFieldNote("Compliance", "DME / Medical Supply Notes", patient.DmeMedSupplyNotes);
+        AddPatientFieldNote("Care", "SOC Feedback from Patient", patient.SocFeedbackFromPatient, patient.SocDate?.ToDateTime(TimeOnly.MinValue));
+        AddPatientFieldNote("Discharge", "Discharge Feedback", patient.DischargeFeedback, patient.DischargeDate?.ToDateTime(TimeOnly.MinValue));
+        AddPatientFieldNote("Transfer", "Transfer Reason", patient.TransferReason, patient.TransferDate?.ToDateTime(TimeOnly.MinValue));
+
+        // ========================================================
         // RETURN RESPONSE
         // ========================================================
 
@@ -287,7 +325,8 @@ public sealed class GetPatientCareManagementQueryHandler
             UpcomingVisits = upcomingVisits,
 
             Tasks = tasks,
-            CareLogs = mappedCareLogs
+            CareLogs = mappedCareLogs,
+            RelatedNotes = relatedNotes.OrderByDescending(x => x.Date ?? DateTime.MinValue).ToList()
         };
     }
 }

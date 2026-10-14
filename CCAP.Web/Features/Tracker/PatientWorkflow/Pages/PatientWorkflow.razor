@@ -184,15 +184,9 @@ else
     protected override async Task OnParametersSetAsync()
     {
         IsLoading = true;
-
         try
         {
-            Workflow = await WorkflowService.GetAsync(PatientId);
-
-            if (Workflow is not null)
-            {
-                Care = await CareService.GetAsync(PatientId);
-            }
+            await LoadPatientDataAsync();
         }
         finally
         {
@@ -200,30 +194,35 @@ else
         }
     }
 
+    // Workflow and care-management data are independent API requests. Start
+    // both together to avoid adding their response times sequentially.
+    private async Task LoadPatientDataAsync(CancellationToken cancellationToken = default)
+    {
+        var workflowTask = WorkflowService.GetAsync(PatientId, cancellationToken);
+        var careTask = CareService.GetAsync(PatientId, cancellationToken);
+        await Task.WhenAll(workflowTask, careTask);
+        Workflow = await workflowTask;
+        Care = await careTask;
+    }
+
     private async Task ReloadPatientData()
     {
-        Workflow = await WorkflowService.GetAsync(PatientId);
-        Care = await CareService.GetAsync(PatientId);
+        await LoadPatientDataAsync();
     }
 
     private async Task HandleComplianceCompleted()
     {
-        Workflow =
-            await WorkflowService.GetAsync(
-                PatientId);
+        Workflow = await WorkflowService.GetAsync(PatientId);
     }
 
     private async Task HandleSocCompleted()
     {
-        Workflow =
-            await WorkflowService.GetAsync(
-                PatientId);
+        Workflow = await WorkflowService.GetAsync(PatientId);
     }
 
     private async Task HandleDischargeCompleted()
     {
-        Workflow = await WorkflowService.GetAsync(PatientId);
-        Care = await CareService.GetAsync(PatientId);
+        await LoadPatientDataAsync();
     }
 
     private void OnTabChanged(string tabTitle)

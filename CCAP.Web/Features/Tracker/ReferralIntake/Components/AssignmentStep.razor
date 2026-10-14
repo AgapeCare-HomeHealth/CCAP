@@ -45,36 +45,28 @@
                 </select>
             </div>
 
-            <div class="col-12">
-                <label class="form-label">Ordered Services</label>
-                <div class="service-grid">
-                    @foreach (var service in ReferralServiceOptions.All)
-                    {
-                        <label class="service-item">
-                            <input type="checkbox" checked="@Model.OrderedServices.Contains(service)" disabled />
-                            @service
-                        </label>
-                    }
-                </div>
-                <div class="form-text">These selections come from Referral Information and are not edited here.</div>
-            </div>
 
-            <div class="col-12">
-                <label class="form-label">Discipline</label>
-                <div class="service-grid discipline-grid">
-                    @foreach (var discipline in SelectedAssignmentDisciplines)
-                    {
-                        <label class="service-item @(Model.DisciplineId == discipline.Id ? "selected" : string.Empty)">
-                            <input type="checkbox"
-                                   checked="@(Model.DisciplineId == discipline.Id)"
-                                   @onchange="e => ToggleDiscipline(discipline.Id, e.Value)" />
-                            @discipline.Name
-                        </label>
-                    }
-                </div>
-                <div class="form-text">Select the discipline assigned to the clinician. Only disciplines included in Ordered Services are shown.</div>
-            </div>
         </div>
+
+        <hr />
+
+        <h5 class="section-heading">Selected Services / Disciplines</h5>
+        <p class="text-muted">These are the services selected in the previous Referral Information step. Review them here; you do not need to select them again.</p>
+        @if (Model.OrderedServices is { Count: > 0 })
+        {
+            <div class="d-flex flex-wrap gap-2" aria-label="Selected referral services">
+                @foreach (var service in Model.OrderedServices.Distinct(StringComparer.OrdinalIgnoreCase))
+                {
+                    <span class="badge rounded-pill bg-light text-dark border px-3 py-2">@service</span>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-light border mb-0" role="status">
+                No services have been selected. Go back to Referral Information to select the ordered services.
+            </div>
+        }
 
         <hr />
 
@@ -127,35 +119,6 @@
 
     [Parameter]
     public List<LookupDto> Disciplines { get; set; } = [];
-
-    private IEnumerable<LookupDto> AssignmentDisciplines =>
-        Disciplines
-            .Where(d => ReferralServiceOptions.All.Contains(
-                d.Name,
-                StringComparer.OrdinalIgnoreCase))
-            .OrderBy(d => Array.FindIndex(
-                ReferralServiceOptions.All,
-                name => string.Equals(name, d.Name, StringComparison.OrdinalIgnoreCase)));
-
-    private IEnumerable<LookupDto> SelectedAssignmentDisciplines =>
-        AssignmentDisciplines.Where(d => Model.OrderedServices.Any(
-            service => string.Equals(service, d.Name, StringComparison.OrdinalIgnoreCase)));
-
-    private void ToggleDiscipline(Guid disciplineId, object? value)
-    {
-        var isChecked = value is bool selected && selected;
-
-        if (isChecked)
-        {
-            // The domain currently stores one assigned discipline, so the checkbox
-            // presentation behaves as a single-selection control.
-            Model.DisciplineId = disciplineId;
-        }
-        else if (Model.DisciplineId == disciplineId)
-        {
-            Model.DisciplineId = null;
-        }
-    }
 
     [Parameter]
     public bool IsLoading { get; set; }

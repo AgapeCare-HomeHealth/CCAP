@@ -38,7 +38,7 @@
         <SummaryItem Label="Referral Number" Value="@Model.ReferralNumber" />
         <SummaryItem Label="Initial Referral Date" Value="@Model.ReferralDate.ToString("MM/dd/yyyy")" />
         <SummaryItem Label="Type of Referral" Value="@Model.ReferralType" />
-        <SummaryItem Label="Channel" Value="@Model.ReferralChannel" />
+        <SummaryItem Label="Referral Source" Value="@Model.ReferralSource" />
         <SummaryItem Label="Target SOC Date" Value="@FormatDate(Model.SocDate)" />
     </div>
 
@@ -46,7 +46,7 @@
     <div class="summary-grid">
         <SummaryItem Label="Primary Insurance" Value="@Model.PrimaryInsurance" />
         <SummaryItem Label="Member ID" Value="@Model.InsuranceMemberId" />
-        <SummaryItem Label="Authorization Required" Value="@(Model.AuthorizationRequired ? "Yes" : "No")" />
+        <SummaryItem Label="PRE AUTH" Value="@Model.PreAuthStatus" />
         <SummaryItem Label="Authorization Date" Value="@FormatDate(Model.AuthorizationDate)" />
         <SummaryItem Label="Number of Approved Visits" Value="@Model.ApprovedVisits?.ToString()" />
     </div>

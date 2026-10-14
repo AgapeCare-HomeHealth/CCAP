@@ -248,6 +248,10 @@ namespace CCAP.Infrastructure.Migrations
                     b.Property<Guid?>("CompletedByUserId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("ComplianceStatus")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
                     b.Property<bool>("IsCompleted")
                         .HasColumnType("bit");
 
@@ -1063,11 +1067,11 @@ namespace CCAP.Infrastructure.Migrations
                     b.Property<Guid?>("AssignedUserId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("CareCoordinatorId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("CallNotes")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("CareCoordinatorId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid?>("ClinicianId")
                         .HasColumnType("uniqueidentifier");

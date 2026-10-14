@@ -1,44 +1,33 @@
 @using CCAP.Web.Features.Tracker.PatientWorkflow.Models
 
-<div class="border rounded p-3 h-100 compliance-requirement-card">
+<div class="border rounded p-3 h-100 compliance-requirement-card @StatusBorderClass">
     <div class="d-flex justify-content-between align-items-start gap-3">
         <div>
-            <div class="fw-semibold">@Item.RequirementName</div>
+            <div class="d-flex align-items-center flex-wrap gap-2">
+                <div class="fw-semibold">@Item.RequirementName</div>
+                <span class="badge rounded-pill @StatusBadgeClass"><i class="bi @StatusIcon me-1"></i>@StatusLabel</span>
+            </div>
             @if (!string.IsNullOrWhiteSpace(Item.Description))
             {
                 <div class="small text-muted mt-1">@Item.Description</div>
             }
         </div>
-
-        @if (Item.IsCompleted)
-        {
-            <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-success">Completed</span>
-                <button class="btn btn-sm btn-outline-secondary"
-                        @onclick="() => OnUnmark.InvokeAsync(Item.RequirementCode)"
-                        disabled="@IsUnmarking">
-                    @(IsUnmarking ? "Unmarking..." : "Unmark Complete")
-                </button>
-            </div>
-        }
-        else
-        {
-            <button class="btn btn-sm btn-primary"
-                    @onclick="() => OnComplete.InvokeAsync(Item.RequirementCode)"
-                    disabled="@IsSaving">
-                @(IsSaving ? "Saving..." : "Mark Complete")
-            </button>
-        }
+        <div style="min-width:120px">
+            <select class="form-select form-select-sm" aria-label="Compliance status for @Item.RequirementName"
+                    value="@(Item.ComplianceStatus ?? (Item.IsCompleted ? "Yes" : ""))" @onchange="HandleStatusChanged"
+                    disabled="@(IsSaving || IsUnmarking)">
+                <option value="">Select...</option>
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+                <option value="N/A">N/A</option>
+            </select>
+        </div>
     </div>
-
     @if (Item.IsCompleted && Item.CompletedAt.HasValue)
     {
         <div class="small text-muted border-top mt-3 pt-3">
-            Completed @Item.CompletedAt.Value.ToLocalTime().ToString("MM/dd/yyyy h:mm tt")
-            @if (!string.IsNullOrWhiteSpace(Item.CompletedByUserName))
-            {
-                <span>by @Item.CompletedByUserName</span>
-            }
+            Confirmed @Item.CompletedAt.Value.ToLocalTime().ToString("MM/dd/yyyy h:mm tt")
+            @if (!string.IsNullOrWhiteSpace(Item.CompletedByUserName)) { <span>by @Item.CompletedByUserName</span> }
         </div>
     }
 </div>
@@ -49,4 +38,17 @@
     [Parameter] public EventCallback<string> OnUnmark { get; set; }
     [Parameter] public bool IsSaving { get; set; }
     [Parameter] public bool IsUnmarking { get; set; }
+
+    private string CurrentStatus => Item.ComplianceStatus ?? (Item.IsCompleted ? "Yes" : string.Empty);
+    private string StatusLabel => CurrentStatus switch { "Yes" => "Complete", "N/A" => "Not Applicable · Complete", "No" => "Outstanding", _ => "Pending" };
+    private string StatusBadgeClass => CurrentStatus switch { "Yes" => "text-bg-success", "N/A" => "text-bg-info", "No" => "text-bg-danger", _ => "text-bg-secondary" };
+    private string StatusBorderClass => CurrentStatus switch { "Yes" => "border-success border-2", "N/A" => "border-info border-2", "No" => "border-danger border-2", _ => "border-secondary-subtle" };
+    private string StatusIcon => CurrentStatus switch { "Yes" => "bi-check-circle-fill", "N/A" => "bi-check-circle", "No" => "bi-exclamation-circle-fill", _ => "bi-hourglass-split" };
+
+    private async Task HandleStatusChanged(ChangeEventArgs e)
+    {
+        var status = e.Value?.ToString();
+        if (status is "Yes" or "No" or "N/A")
+            await OnComplete.InvokeAsync(Item.RequirementCode + "|STATUS|" + status);
+    }
 }

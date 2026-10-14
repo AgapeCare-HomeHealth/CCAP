@@ -17,10 +17,13 @@ using CCAP.Application.Features.Patients.Queries.GetPatientWorkflow;
 using CCAP.Application.Features.Patients.Queries.GetServiceTypes;
 using CCAP.Application.Features.Patients.Commands.CompleteCompliance;
 using CCAP.Application.Features.Patients.Commands.UnmarkCompliance;
+using CCAP.Application.Features.Patients.Commands.SetComplianceStatus;
 using CCAP.Application.Features.Patients.Commands.CompleteTask;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using CCAP.Infrastructure.Persistence;
 using System.Security.Claims;
 
 namespace CCAP.API.Controllers;
@@ -31,8 +34,36 @@ namespace CCAP.API.Controllers;
 public sealed class PatientsController : ControllerBase
 {
     private readonly ISender _sender;
+    private readonly AppDbContext _db;
 
-    public PatientsController(ISender sender) => _sender = sender;
+    public PatientsController(ISender sender, AppDbContext db)
+    {
+        _sender = sender;
+        _db = db;
+    }
+
+    // The JWT normally contains the database UserId. If the database was reseeded
+    // and the browser is holding an old token, resolve the current user by email
+    // instead of attempting to write an invalid audit-log foreign key.
+    private async Task<Guid?> ResolveCurrentUserIdAsync(CancellationToken cancellationToken)
+    {
+        var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (Guid.TryParse(idClaim, out var claimedId) &&
+            await _db.ApplicationUsers.AsNoTracking()
+                .AnyAsync(u => u.UserId == claimedId, cancellationToken))
+            return claimedId;
+
+        var email = User.FindFirstValue(ClaimTypes.Email)
+            ?? User.FindFirstValue(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Email);
+
+        if (string.IsNullOrWhiteSpace(email))
+            return null;
+
+        return await _db.ApplicationUsers.AsNoTracking()
+            .Where(u => u.Email == email.Trim().ToLower())
+            .Select(u => (Guid?)u.UserId)
+            .SingleOrDefaultAsync(cancellationToken);
+    }
 
     [HttpGet]
     public async Task<IActionResult> GetPatients(
@@ -295,34 +326,39 @@ public sealed class PatientsController : ControllerBase
     string requirementCode,
     CancellationToken cancellationToken)
     {
-        var userIdValue =
-            User.FindFirstValue(
-                ClaimTypes.NameIdentifier);
-
-        if (!Guid.TryParse(
-            userIdValue,
-            out var currentUserId))
-        {
-            return Unauthorized();
-        }
+        var resolvedUserId = await ResolveCurrentUserIdAsync(cancellationToken);
+        if (resolvedUserId is null)
+            return Unauthorized(new { message = "Your login is no longer linked to an active CCAP user. Please sign out and sign in again." });
 
         await _sender.Send(
             new CompleteComplianceCommand(
                 patientId,
                 requirementCode,
-                currentUserId),
+                resolvedUserId.Value),
             cancellationToken);
 
         return NoContent();
     }
 
+    [HttpPut("{patientId:guid}/compliance/{requirementCode}/status")]
+    [Authorize(Policy = PermissionPolicies.PatientsManage)]
+    public async Task<IActionResult> SetComplianceStatus(Guid patientId, string requirementCode, [FromBody] SetComplianceStatusRequest request, CancellationToken cancellationToken)
+    {
+        var resolvedUserId = await ResolveCurrentUserIdAsync(cancellationToken);
+        if (resolvedUserId is null) return Unauthorized(new { message = "Your login is no longer linked to an active CCAP user. Please sign out and sign in again." });
+        await _sender.Send(new SetComplianceStatusCommand(patientId, requirementCode, request.Status, resolvedUserId.Value), cancellationToken);
+        return NoContent();
+    }
+
+    public sealed record SetComplianceStatusRequest(string Status);
+
     [HttpPost("{patientId:guid}/compliance/{requirementCode}/unmark")]
     [Authorize(Policy = PermissionPolicies.PatientsManage)]
     public async Task<IActionResult> UnmarkCompliance(Guid patientId, string requirementCode, CancellationToken cancellationToken)
     {
-        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
-        await _sender.Send(new UnmarkComplianceCommand(patientId, requirementCode, currentUserId), cancellationToken);
+        var resolvedUserId = await ResolveCurrentUserIdAsync(cancellationToken);
+        if (resolvedUserId is null) return Unauthorized(new { message = "Your login is no longer linked to an active CCAP user. Please sign out and sign in again." });
+        await _sender.Send(new UnmarkComplianceCommand(patientId, requirementCode, resolvedUserId.Value), cancellationToken);
         return NoContent();
     }
 

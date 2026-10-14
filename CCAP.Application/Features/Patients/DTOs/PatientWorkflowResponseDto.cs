@@ -212,6 +212,8 @@ public sealed class ComplianceItemResponseDto
 
     public bool IsCompleted { get; set; }
 
+    public string? ComplianceStatus { get; set; }
+
     public DateTime? CompletedAt { get; set; }
 
     public Guid? CompletedByUserId { get; set; }

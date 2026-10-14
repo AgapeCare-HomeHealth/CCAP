@@ -169,7 +169,7 @@
         <div class="card-header bg-white d-flex justify-content-between align-items-center">
             <div>
                 <h5 class="mb-0">Patient Notes</h5>
-                <small class="text-muted">Notes from referral, communication, care, and compliance in one chronological view.</small>
+                <small class="text-muted">Actual patient notes from referrals, communication, calendar schedules, care, assessments, and discharge.</small>
             </div>
             <span class="badge bg-light text-dark">@NoteFeed.Count</span>
         </div>
@@ -191,7 +191,10 @@
                                         <div class="fw-semibold">@note.Title</div>
                                         <span class="patient-note-source">@note.Source</span>
                                     </div>
-                                    <time class="small text-muted">@note.Date.ToLocalTime().ToString("MM/dd/yyyy h:mm tt")</time>
+                                    @if (note.Date.HasValue)
+                                    {
+                                        <time class="small text-muted">@note.Date.Value.ToLocalTime().ToString("MM/dd/yyyy h:mm tt")</time>
+                                    }
                                 </div>
                                 <div class="patient-note-text">@note.Content</div>
                                 @if (!string.IsNullOrWhiteSpace(note.Author))
@@ -225,7 +228,7 @@
 
 
     private sealed record NoteFeedItem(
-        DateTime Date,
+        DateTime? Date,
         string Source,
         string Title,
         string Content,
@@ -239,10 +242,10 @@
             var items = new List<NoteFeedItem>();
 
             if (!string.IsNullOrWhiteSpace(Workflow?.ReferralNotes))
-                items.Add(new NoteFeedItem(Workflow.ReferralDate ?? DateTime.MinValue, "Referral", "Referral Notes", Workflow.ReferralNotes, "", "bi bi-file-earmark-text"));
+                items.Add(new NoteFeedItem(Workflow.ReferralDate, "Referral", "Referral Notes", Workflow.ReferralNotes, "", "bi bi-file-earmark-text"));
 
             if (!string.IsNullOrWhiteSpace(Workflow?.InternalNotes))
-                items.Add(new NoteFeedItem(Workflow.ReferralDate ?? DateTime.MinValue, "Referral / Internal", "Internal Referral Notes", Workflow.InternalNotes, "", "bi bi-shield-lock"));
+                items.Add(new NoteFeedItem(Workflow.ReferralDate, "Referral / Internal", "Internal Referral Notes", Workflow.InternalNotes, "", "bi bi-shield-lock"));
 
             foreach (var note in Care?.Notes ?? [])
             {
@@ -256,15 +259,25 @@
                     items.Add(new NoteFeedItem(log.RecordedAt, "Care", string.IsNullOrWhiteSpace(log.Item) ? "Care Log" : log.Item, log.Notes!, log.RecordedBy, "bi bi-clipboard2-pulse"));
             }
 
-            foreach (var item in Workflow?.ComplianceItems ?? [])
+            foreach (var note in Care?.RelatedNotes ?? [])
             {
-                if (!string.IsNullOrWhiteSpace(item.Description) && item.CompletedAt.HasValue)
-                    items.Add(new NoteFeedItem(item.CompletedAt.Value, "Compliance", item.RequirementName, item.Description, item.CompletedByUserName, "bi bi-clipboard-check"));
+                if (!string.IsNullOrWhiteSpace(note.Content))
+                    items.Add(new NoteFeedItem(note.Date, note.Source, note.Title, note.Content, note.Author, IconForSource(note.Source)));
             }
 
-            return items.Where(x => x.Date != DateTime.MinValue).OrderByDescending(x => x.Date).ToList();
+            return items.OrderByDescending(x => x.Date ?? DateTime.MinValue).ToList();
         }
     }
+
+    private static string IconForSource(string source) => source switch
+    {
+        "Calendar / Schedule" => "bi bi-calendar-event",
+        "Assessment" => "bi bi-clipboard2-pulse",
+        "Discharge" => "bi bi-box-arrow-right",
+        "Transfer" => "bi bi-arrow-left-right",
+        "Compliance" => "bi bi-clipboard-check",
+        _ => "bi bi-file-earmark-text"
+    };
 
     private bool HasNextAction =>
         Workflow?.NextAction is not null &&
