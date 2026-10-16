@@ -1,46 +1,92 @@
 @using CCAP.Web.Features.Dashboard.Models
+@using Microsoft.AspNetCore.Components
+@inject NavigationManager Navigation
 
 <div class="task-card">
     <div class="task-header">
-        <div>
-            <h5>My Tasks (@FilteredTasks.Count())</h5>
-        </div>
-        <button type="button" class="btn btn-outline-primary btn-sm" @onclick="ShowAll">
-            View All Tasks
-        </button>
+        <div><h5>Outstanding Compliance Tasks (@FilteredTasks.Count())</h5></div>
+        <button type="button" class="btn btn-outline-primary btn-sm" @onclick="ShowAll">View All Tasks</button>
     </div>
 
     <div class="task-filters">
-        <button type="button" class="filter-chip @(CurrentFilter == "All" ? "active" : "")" @onclick='() => SetFilter("All")'>
-            All (@Tasks.Count())
-        </button>
-        <button type="button" class="filter-chip high @(CurrentFilter == "High" ? "active" : "")" @onclick='() => SetFilter("High")'>
-            High (@Tasks.Count(x => x.Priority == "High"))
-        </button>
-        <button type="button" class="filter-chip due @(CurrentFilter == "Due" ? "active" : "")" @onclick='() => SetFilter("Due")'>
-            Due Today (@Tasks.Count(x => x.DueDate.Date == DateTime.Today))
-        </button>
-        <button type="button" class="filter-chip upcoming @(CurrentFilter == "Upcoming" ? "active" : "")" @onclick='() => SetFilter("Upcoming")'>
-            Upcoming (@Tasks.Count(x => x.DueDate.Date > DateTime.Today))
-        </button>
+        <button type="button" class="filter-chip @(CurrentFilter == "All" ? "active" : "")" @onclick='() => SetFilter("All")'>All (@Tasks.Count())</button>
+        <button type="button" class="filter-chip high @(CurrentFilter == "High" ? "active" : "")" @onclick='() => SetFilter("High")'>High (@Tasks.Count(x => x.Priority == "High"))</button>
+        <button type="button" class="filter-chip due @(CurrentFilter == "Due" ? "active" : "")" @onclick='() => SetFilter("Due")'>Due Today (@Tasks.Count(x => x.DueDate.Date == DateTime.Today))</button>
+        <button type="button" class="filter-chip upcoming @(CurrentFilter == "Upcoming" ? "active" : "")" @onclick='() => SetFilter("Upcoming")'>Upcoming (@Tasks.Count(x => x.DueDate.Date > DateTime.Today))</button>
     </div>
-
-    <TaskTable Tasks="FilteredTasks" />
+    <TaskTable Tasks="FilteredTasks.Take(5)" />
 </div>
+
+@if (ShowAllModal)
+{
+    <div class="ccap-task-modal-backdrop" @onclick="CloseAll">
+        <section class="ccap-task-modal" role="dialog" aria-modal="true" aria-label="All Pending Compliance Tasks" @onclick:stopPropagation="true">
+            <header class="ccap-task-modal-header">
+                <div><h4 class="mb-1">All Pending Compliance Tasks</h4><div class="text-muted small">@FilteredAllTasks.Count() outstanding checklist items</div></div>
+                <button type="button" class="btn-close" aria-label="Close" @onclick="CloseAll"></button>
+            </header>
+            <div class="ccap-task-modal-filters">
+                <input class="form-control" placeholder="Search patient or task..." @bind="SearchText" @bind:event="oninput" @bind:after="ResetPage" />
+                <select class="form-select" @bind="ClinicianFilter" @bind:after="ResetPage">
+                    <option value="">All assigned clinicians</option>
+                    @foreach (var clinician in Clinicians)
+                    {
+                        <option value="@clinician">@clinician</option>
+                    }
+                </select>
+                <select class="form-select" aria-label="Filter by priority" @bind="PriorityFilter" @bind:after="ResetPage">
+                    <option value="All">All priority levels</option>
+                    <option value="High">High priority</option>
+                    <option value="Medium">Medium priority</option>
+                    <option value="Low">Low priority</option>
+                </select>
+            </div>
+            <div class="ccap-task-modal-table-wrap">
+                <table class="table align-middle mb-0 ccap-task-modal-table">
+                    <thead><tr><th>Priority</th><th>Task</th><th>Patient</th><th>Due Date</th><th>Coordinator</th><th>Assigned Clinician</th><th>Action</th></tr></thead>
+                    <tbody>
+                    @foreach (var task in PagedTasks)
+                    {
+                        <tr>
+                            <td><span class="badge @(task.Priority == "High" ? "bg-danger" : task.Priority == "Medium" ? "bg-warning text-dark" : "bg-success")">@task.Priority</span></td>
+                            <td><strong>@task.TaskName</strong><div class="small text-muted">Compliance</div></td>
+                            <td>@task.PatientName</td><td>@task.DueDate.ToString("MMM dd, yyyy")</td><td>@task.AssignedTo</td><td>@task.AssignedClinician</td>
+                            <td><button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => OpenCompliance(task)">Open Compliance</button></td>
+                        </tr>
+                    }
+                    @if (!FilteredAllTasks.Any()) { <tr><td colspan="7" class="text-center py-4 text-muted">No outstanding compliance tasks match these filters.</td></tr> }
+                    </tbody>
+                </table>
+            </div>
+            <footer class="ccap-task-modal-footer">
+                <span class="small text-muted">Showing @(FilteredAllTasks.Any() ? (Page - 1) * PageSize + 1 : 0)–@Math.Min(Page * PageSize, FilteredAllTasks.Count()) of @FilteredAllTasks.Count()</span>
+                <div class="d-flex align-items-center gap-2"><label class="small">Rows</label><select class="form-select form-select-sm" style="width:80px" @bind="PageSize" @bind:after="ResetPage"><option value="10">10</option><option value="25">25</option><option value="50">50</option></select><button class="btn btn-sm btn-outline-secondary" disabled="@(Page <= 1)" @onclick="() => Page--">Previous</button><span class="small">Page @Page of @TotalPages</span><button class="btn btn-sm btn-outline-secondary" disabled="@(Page >= TotalPages)" @onclick="() => Page++">Next</button></div>
+            </footer>
+        </section>
+    </div>
+}
 
 @code {
     [Parameter] public IEnumerable<MyTaskDto> Tasks { get; set; } = Enumerable.Empty<MyTaskDto>();
-
     private string CurrentFilter { get; set; } = "All";
-
-    private IEnumerable<MyTaskDto> FilteredTasks => CurrentFilter switch
-    {
-        "High" => Tasks.Where(x => x.Priority == "High"),
-        "Due" => Tasks.Where(x => x.DueDate.Date == DateTime.Today),
-        "Upcoming" => Tasks.Where(x => x.DueDate.Date > DateTime.Today),
-        _ => Tasks
-    };
-
+    private bool ShowAllModal;
+    private string SearchText = string.Empty;
+    private string ClinicianFilter = string.Empty;
+    private string PriorityFilter = "All";
+    private int Page = 1;
+    private int PageSize = 10;
+    private IEnumerable<MyTaskDto> FilteredTasks => CurrentFilter switch { "High" => Tasks.Where(x => x.Priority == "High"), "Due" => Tasks.Where(x => x.DueDate.Date == DateTime.Today), "Upcoming" => Tasks.Where(x => x.DueDate.Date > DateTime.Today), _ => Tasks };
+    private List<string> Clinicians => Tasks.Select(x => x.AssignedClinician).Where(x => !string.IsNullOrWhiteSpace(x) && !string.Equals(x, "Unassigned", StringComparison.OrdinalIgnoreCase)).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
+    private IEnumerable<MyTaskDto> FilteredAllTasks => Tasks.Where(x =>
+        (string.IsNullOrWhiteSpace(SearchText) || (x.PatientName ?? string.Empty).Contains(SearchText, StringComparison.OrdinalIgnoreCase) || (x.TaskName ?? string.Empty).Contains(SearchText, StringComparison.OrdinalIgnoreCase)) &&
+        (string.IsNullOrWhiteSpace(ClinicianFilter) || string.Equals(x.AssignedClinician, ClinicianFilter, StringComparison.OrdinalIgnoreCase)) &&
+        (PriorityFilter == "All" || string.Equals(x.Priority, PriorityFilter, StringComparison.OrdinalIgnoreCase)))
+        .OrderBy(x => x.DueDate);
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(FilteredAllTasks.Count() / (double)PageSize));
+    private IEnumerable<MyTaskDto> PagedTasks => FilteredAllTasks.Skip((Math.Min(Page, TotalPages) - 1) * PageSize).Take(PageSize);
     private void SetFilter(string filter) => CurrentFilter = filter;
-    private void ShowAll() => CurrentFilter = "All";
+    private void ShowAll() { ShowAllModal = true; ResetPage(); }
+    private void CloseAll() => ShowAllModal = false;
+    private void ResetPage() { Page = 1; }
+    private void OpenCompliance(MyTaskDto task) { if (task.PatientId != Guid.Empty) Navigation.NavigateTo($"/tracker/patient/{task.PatientId}?tab=Compliance"); }
 }

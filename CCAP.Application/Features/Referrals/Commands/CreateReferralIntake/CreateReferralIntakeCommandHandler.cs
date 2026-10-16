@@ -303,28 +303,22 @@ public sealed class CreateReferralIntakeCommandHandler
             coordinator,
             cancellationToken);
 
-        await AddTask(
-            patient.PatientId,
-            "Verify Physician Orders",
-            "Review and verify the referring physician orders.",
-            baseDate.AddDays(1),
-            $"/tracker/patient/{patient.PatientId}",
-            coordinator,
-            cancellationToken);
+        // Physician orders are tracked only as a ComplianceRecord below.
+        // Do not create a separate PatientTask that cannot be completed from
+        // the Compliance tab.
 
         // =========================================================
         // NOTE:
-        // Physician Orders and SOC Scheduling are intentionally NOT
-        // created as ComplianceRecord items here because they are
-        // not columns in the Excel compliance checklist.
-        //
-        // SOC scheduling remains handled by the existing SOC command
-        // and visit workflow when that functionality is used.
+        // Physician orders are also exposed as a ComplianceRecord so the
+        // overdue workflow item has a matching, completable item in the
+        // patient's Compliance tab. SOC scheduling remains handled by the
+        // existing SOC command and visit workflow.
         // =========================================================
 
         // Insurance verification is represented once as a workflow confirmation;
         // the Insurance tab and Compliance tab operate on this same record.
         await AddCompliance(patient.PatientId, "INSURANCE_VERIFICATION", "Review the insurance document in the EMR and confirm the insurance name, member ID, and authorization details match. Mark this item complete only after everything has been verified.", cancellationToken);
+        await AddCompliance(patient.PatientId, "PHYSICIAN_ORDERS", "Review and verify the referring physician orders. Complete this item only after the physician orders have been checked.", cancellationToken);
 
         // =============================================================
         // COMPLIANCE REQUIREMENTS

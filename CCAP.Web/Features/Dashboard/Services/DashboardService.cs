@@ -25,8 +25,19 @@ public sealed class DashboardService
 
         // These endpoints are the intended API contract. Keep the UI dependent on this service,
         // so switching from mock data to API data does not require changing Dashboard.razor.
-        var data = await _api.GetFromJsonAsync<DashboardData>("api/dashboard", cancellationToken);
-        return data ?? new DashboardData();
+        // Bound the initial request so a stalled API/database call cannot leave
+        // the dashboard spinner visible forever. Caller cancellation is preserved.
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(25));
+        try
+        {
+            var data = await _api.GetFromJsonAsync<DashboardData>("api/dashboard", timeout.Token);
+            return data ?? new DashboardData();
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new TimeoutException("The dashboard API did not respond within 25 seconds. Check the API and database logs, then retry.");
+        }
     }
 
     private DashboardData BuildMock()

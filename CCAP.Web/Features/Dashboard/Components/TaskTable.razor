@@ -1,4 +1,4 @@
-﻿@using CCAP.Web.Features.Dashboard.Models
+@using CCAP.Web.Features.Dashboard.Models
 @inject NavigationManager Navigation
 
 <div class="table-responsive">
@@ -148,7 +148,7 @@
     private void OpenTask(MyTaskDto task)
     {
         if (task.PatientId != Guid.Empty)
-            Navigation.NavigateTo($"/tracker/patient/{task.PatientId}");
+            Navigation.NavigateTo($"/tracker/patient/{task.PatientId}?tab=Compliance");
     }
 
 }

@@ -11,7 +11,7 @@
             <div class="card shadow-sm border-0 h-100">
 
                 <div class="card-header bg-white">
-                    <h5 class="mb-0">Needs Attention</h5>
+                    <h5 class="mb-0">Outstanding Compliance Tasks (@NeedsAttention.Count())</h5>
                 </div>
 
                 <div class="card-body">
@@ -98,7 +98,7 @@
                         <div class="text-center py-4">
                             <i class="bi bi-exclamation-circle text-danger fs-2"></i>
                             <div class="mt-2 fw-semibold">Resolve the overdue item above</div>
-                            <div class="small text-muted">The overdue task is shown under Needs Attention.</div>
+                            <div class="small text-muted">Review outstanding compliance items in the list.</div>
                         </div>
                     }
                     else
@@ -288,22 +288,18 @@
     {
         get
         {
-            if (Workflow?.NextAction is null || Workflow.NextAction.TaskId == Guid.Empty)
-                return Array.Empty<(string, string, string)>();
-
-            // Needs Attention is reserved for overdue work. This keeps it
-            // distinct from the normal Next Action card.
-            if (!Workflow.NextAction.IsOverdue)
-                return Array.Empty<(string, string, string)>();
-
-            return new[]
-            {
-                (
-                    $"Overdue: {Workflow.NextAction.Title}",
-                    Workflow.NextAction.Description,
-                    TabFor(Workflow.NextAction.Title)
-                )
-            };
+            // The patient Overview must reflect the same outstanding items the
+            // Compliance tab can complete. Do not surface legacy PatientTask
+            // records here, since those can be disconnected from compliance.
+            return (Workflow?.ComplianceItems ?? [])
+                .Where(item => !item.IsCompleted
+                    && !string.Equals(item.ComplianceStatus, "N/A", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(item => item.Phase)
+                .ThenBy(item => item.RequirementName)
+                .Select(item => (
+                    item.RequirementName,
+                    string.IsNullOrWhiteSpace(item.Description) ? "Pending compliance confirmation." : item.Description,
+                    "Compliance"));
         }
     }
 
@@ -375,15 +371,11 @@
             return "Compliance";
         }
 
-        if (title.Contains(
-                "Order",
-                StringComparison.OrdinalIgnoreCase)
-            ||
-            title.Contains(
-                "POC",
-                StringComparison.OrdinalIgnoreCase))
+        if (title.Contains("Order", StringComparison.OrdinalIgnoreCase)
+            || title.Contains("POC", StringComparison.OrdinalIgnoreCase))
         {
-            return "Orders & Care";
+            // Outstanding physician-order confirmations are compliance items.
+            return "Compliance";
         }
 
         if (title.Contains(

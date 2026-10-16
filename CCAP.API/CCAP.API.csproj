@@ -3,7 +3,6 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <UserSecretsId>gu</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\CCAP.Application\CCAP.Application.csproj" />

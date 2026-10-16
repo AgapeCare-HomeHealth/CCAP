@@ -70,6 +70,7 @@ public sealed class GetPatientWorkflowQueryHandler
                 "AVS_RECEIVED",
                 "SIGNED_CONSENTS",
                 "INSURANCE_VERIFICATION",
+                "PHYSICIAN_ORDERS",
 
                 "SOC_COMPLIANT",
                 "DME_MED_SUPPLY",
@@ -509,7 +510,7 @@ public sealed class GetPatientWorkflowQueryHandler
         return requirementCode.Trim().ToUpperInvariant() switch
         {
             "PRE_AUTH_RECEIVED" or "PRO_RECEIVED" or "H_AND_P_RECEIVED" or "F2F_RECEIVED" or "PCP_CONFIRMED" or "AVS_RECEIVED" or "SIGNED_CONSENTS" or "INSURANCE_VERIFICATION" => 1,
-            "SOC_COMPLIANT" or "DME_MED_SUPPLY" or "NOA_FILED" or "OASIS_SOC_COMPLETE" or "QA_APPROVAL" or "ORDERS_SIGNED" or "DOCS_UPLOADED" or "CASE_MIX_IDENTIFIED" or "CASE_MIX_ORDERS_SIGNED" or "CASE_MIX_PLOTTED" => 2,
+            "PHYSICIAN_ORDERS" or "SOC_COMPLIANT" or "DME_MED_SUPPLY" or "NOA_FILED" or "OASIS_SOC_COMPLETE" or "QA_APPROVAL" or "ORDERS_SIGNED" or "DOCS_UPLOADED" or "CASE_MIX_IDENTIFIED" or "CASE_MIX_ORDERS_SIGNED" or "CASE_MIX_PLOTTED" => 2,
             "ROC" or "RECERTIFICATION" or "PCP_PT_NOTIFIED" or "DISCHARGE_SUMMARY_SIGNED" or "NOMNC_SIGNED" => 3,
             _ => 0
         };
@@ -737,6 +738,9 @@ public sealed class GetPatientWorkflowQueryHandler
             "ORDERS_SIGNED" =>
                 "Orders Signed by Physician",
 
+            "PHYSICIAN_ORDERS" =>
+                "Verify Physician Orders",
+
             "DOCS_UPLOADED" =>
                 "Docs Uploaded",
 
@@ -792,9 +796,6 @@ public sealed class GetPatientWorkflowQueryHandler
 
             "INSURANCE_VERIFICATION" =>
                 "Insurance Document Verification",
-
-            "PHYSICIAN_ORDERS" =>
-                "Physician Orders",
 
             "SOC_SCHEDULING" =>
                 "SOC Scheduling",

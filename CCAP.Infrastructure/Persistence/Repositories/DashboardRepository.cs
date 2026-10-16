@@ -1,4 +1,4 @@
-﻿using CCAP.Application.Abstractions.Persistence;
+using CCAP.Application.Abstractions.Persistence;
 using CCAP.Application.Features.Dashboard.DTOs;
 using CCAP.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -25,63 +25,51 @@ public sealed class DashboardRepository : IDashboardRepository
         var tomorrow = today.AddDays(1);
 
         // =========================================================
-        // TASKS
+        // TASKS — derive outstanding work from the same compliance records
+        // that the patient's Compliance tab edits. This prevents the dashboard
+        // from showing a separate task that cannot be completed in Compliance.
         // =========================================================
+        var activeComplianceRequirementCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "PRE_AUTH_RECEIVED", "PRO_RECEIVED", "H_AND_P_RECEIVED", "F2F_RECEIVED",
+            "PCP_CONFIRMED", "AVS_RECEIVED", "SIGNED_CONSENTS", "INSURANCE_VERIFICATION",
+            "PHYSICIAN_ORDERS", "SOC_COMPLIANT", "DME_MED_SUPPLY", "NOA_FILED", "OASIS_SOC_COMPLETE",
+            "QA_APPROVAL", "ORDERS_SIGNED", "DOCS_UPLOADED", "CASE_MIX_IDENTIFIED",
+            "CASE_MIX_ORDERS_SIGNED", "CASE_MIX_PLOTTED", "PCP_PT_NOTIFIED", "ROC",
+            "RECERTIFICATION", "DISCHARGE_SUMMARY_SIGNED", "NOMNC_SIGNED"
+        };
 
-        var tasks = await _db.PatientTasks
+        var complianceRecords = await _db.ComplianceRecords
             .AsNoTracking()
-            .Where(x =>
-                x.Status != PatientTaskStatus.Completed &&
-                x.Status != PatientTaskStatus.Cancelled &&
-                (x.AssignedUserId == null ||
-                 x.AssignedUserId == userId))
-            .OrderBy(x => x.DueDate)
-            .Take(20)
+            .Where(x => !x.IsCompleted && x.Patient.Status != PatientStatus.Archived
+                && x.Patient.Status != PatientStatus.Completed)
             .Select(x => new
             {
-                x.TaskId,
                 x.PatientId,
-                x.Title,
-                x.Description,
-                x.DueDate,
-                x.PageRoute,
-                PatientName =
-                    x.Patient.FirstName + " " +
-                    x.Patient.LastName,
-                AssignedTo =
-                    x.AssignedUser == null
-                        ? ""
-                        : x.AssignedUser.FirstName + " " +
-                          x.AssignedUser.LastName
+                x.RequirementCode,
+                x.Patient.FirstName,
+                x.Patient.LastName,
+                x.Patient.SocDate,
+                Clinician = x.Patient.Clinician == null ? "" : x.Patient.Clinician.FirstName + " " + x.Patient.Clinician.LastName,
+                Coordinator = x.Patient.Coordinator == null ? "" : x.Patient.Coordinator.FirstName + " " + x.Patient.Coordinator.LastName
             })
             .ToListAsync(cancellationToken);
 
-        var taskDtos = tasks
-            .Select(x =>
+        var taskDtos = complianceRecords
+            .Where(x => activeComplianceRequirementCodes.Contains(x.RequirementCode))
+            .Select(x => new MyTaskDto
             {
-                // PatientTask currently has no Priority column.
-                // Calculate a dashboard priority from due date.
-                var priority =
-                    x.DueDate < now
-                        ? "High"
-                        : x.DueDate < today.AddDays(1)
-                            ? "Medium"
-                            : "Low";
-
-                return new MyTaskDto
-                {
-                    TransactionId = x.TaskId,
-                    PatientId = x.PatientId,
-                    Priority = priority,
-                    TaskName = x.Title,
-                    PatientName = x.PatientName,
-                    DueDate = x.DueDate,
-                    AssignedTo = string.IsNullOrWhiteSpace(x.AssignedTo)
-                        ? "Unassigned"
-                        : x.AssignedTo,
-                    CurrentStage = "Patient Workflow"
-                };
+                TransactionId = Guid.Empty,
+                PatientId = x.PatientId,
+                Priority = x.SocDate.HasValue && x.SocDate.Value.ToDateTime(TimeOnly.MinValue) < now ? "High" : "Medium",
+                TaskName = ComplianceTaskName(x.RequirementCode),
+                PatientName = (x.FirstName + " " + x.LastName).Trim(),
+                DueDate = x.SocDate.HasValue ? x.SocDate.Value.ToDateTime(TimeOnly.MinValue) : tomorrow,
+                AssignedTo = string.IsNullOrWhiteSpace(x.Coordinator) ? "Unassigned" : x.Coordinator,
+                AssignedClinician = string.IsNullOrWhiteSpace(x.Clinician) ? "Unassigned" : x.Clinician,
+                CurrentStage = "Compliance"
             })
+            .OrderBy(x => x.DueDate)
             .ToList();
 
         // =========================================================
@@ -210,9 +198,9 @@ public sealed class DashboardRepository : IDashboardRepository
         {
             Statistics = new WorkStatisticsDto
             {
-                MyTasks = myTaskCount,
-                HighPriority = highPriorityCount,
-                DueToday = dueTodayCount,
+                MyTasks = taskDtos.Count,
+                HighPriority = taskDtos.Count(x => x.Priority == "High"),
+                DueToday = taskDtos.Count(x => x.DueDate.Date == today),
                 CompletedToday = completedTodayCount
             },
 
@@ -225,4 +213,33 @@ public sealed class DashboardRepository : IDashboardRepository
             Announcements = dashboardAnnouncements
         };
     }
+
+    private static string ComplianceTaskName(string code) => code switch
+    {
+        "PRE_AUTH_RECEIVED" => "Confirm Pre-Authorization Received",
+        "PRO_RECEIVED" => "Upload Required Documents",
+        "H_AND_P_RECEIVED" => "Confirm H&P Received",
+        "F2F_RECEIVED" => "Confirm Face-to-Face Documentation",
+        "PCP_CONFIRMED" => "Confirm PCP",
+        "AVS_RECEIVED" => "Confirm AVS Received",
+        "SIGNED_CONSENTS" => "Confirm Signed Consents",
+        "INSURANCE_VERIFICATION" => "Complete Insurance Verification",
+        "SOC_COMPLIANT" => "Complete SOC Compliance",
+        "DME_MED_SUPPLY" => "Confirm DME / Medical Supplies",
+        "NOA_FILED" => "Confirm NOA Filed",
+        "OASIS_SOC_COMPLETE" => "Complete OASIS / SOC",
+        "QA_APPROVAL" => "Confirm QA Approval",
+        "ORDERS_SIGNED" => "Confirm Orders Signed",
+        "PHYSICIAN_ORDERS" => "Verify Physician Orders",
+        "DOCS_UPLOADED" => "Upload Required Documents",
+        "CASE_MIX_IDENTIFIED" => "Identify Case Mix",
+        "CASE_MIX_ORDERS_SIGNED" => "Confirm Case Mix Orders Signed",
+        "CASE_MIX_PLOTTED" => "Confirm Case Mix Plotted",
+        "PCP_PT_NOTIFIED" => "Confirm PCP & PT Notified",
+        "ROC" => "Confirm ROC",
+        "RECERTIFICATION" => "Complete Recertification",
+        "DISCHARGE_SUMMARY_SIGNED" => "Complete Compliance: DISCHARGE SUMMARY SIGNED",
+        "NOMNC_SIGNED" => "Complete Compliance: NOMNC SIGNED",
+        _ => code.Replace('_', ' ')
+    };
 }
