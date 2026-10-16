@@ -10,5 +10,6 @@ public interface IVisitRepository
     Task<Visit?> FindDuplicateAsync(Guid userId, Guid patientId, DateTime scheduledDate, CancellationToken cancellationToken);
     Task<Visit?> FindImportedDuplicateAsync(Guid userId, string patientName, DateTime scheduledDate, CancellationToken cancellationToken);
     Task<Visit?> FindScheduleDuplicateAsync(Guid userId, string patientName, DateTime scheduledDate, string timeBlock, string visitType, CancellationToken cancellationToken);
+    void RemoveRange(IEnumerable<Visit> visits);
     Task AddAsync(Visit visit, CancellationToken cancellationToken);
 }

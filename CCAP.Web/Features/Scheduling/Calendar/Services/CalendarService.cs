@@ -43,6 +43,16 @@ public sealed class CalendarService
 
     private sealed class CareCoordinatorAssignmentResult { public int Assigned { get; set; } }
 
+    public async Task<int> DeleteVisitsAsync(IReadOnlyCollection<Guid> visitIds)
+    {
+        using var response = await _api.PostAsJsonAsync("api/scheduling/visits/bulk-delete", new { VisitIds = visitIds });
+        await _api.EnsureSuccessAsync(response, default);
+        var result = await response.Content.ReadFromJsonAsync<BulkDeleteVisitsResponse>();
+        return result?.Deleted ?? 0;
+    }
+
+    private sealed class BulkDeleteVisitsResponse { public int Deleted { get; set; } }
+
     public async Task UpdateVisitStatusAsync(Guid visitId, string status, CancellationToken cancellationToken = default)
     {
         using var response = await _api.PutAsJsonAsync(

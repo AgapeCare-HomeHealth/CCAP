@@ -73,6 +73,24 @@ public sealed class SchedulingController : ControllerBase
         catch (KeyNotFoundException) { return NotFound(new { message = "Selected visits were not found." }); }
     }
 
+    public sealed record DeleteScheduleVisitsRequest(List<Guid> VisitIds);
+
+    [HttpPost("visits/bulk-delete")]
+    [Authorize(Policy = PermissionPolicies.SchedulingManage)]
+    public async Task<IActionResult> DeleteVisits([FromBody] DeleteScheduleVisitsRequest request, CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var userId)) return Unauthorized();
+        if (request?.VisitIds is null) return BadRequest(new { message = "Select visits to delete." });
+        try
+        {
+            var deleted = await _sender.Send(new CCAP.Application.Features.Scheduling.Commands.DeleteScheduleVisits.DeleteScheduleVisitsCommand(
+                userId, request.VisitIds), cancellationToken);
+            return Ok(new { deleted });
+        }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (KeyNotFoundException) { return NotFound(new { message = "Selected visits were not found or are not accessible." }); }
+    }
+
     public sealed record UpdateVisitStatusRequest(string Status);
 
     [HttpPut("visits/{visitId:guid}/status")]

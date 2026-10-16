@@ -1,4 +1,4 @@
-@page "/scheduling/calendar"
+﻿@page "/scheduling/calendar"
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.JSInterop
@@ -71,11 +71,11 @@
             </div>
 
             <div class="filter-group patient-filter">
-                <label for="patientSearch">Patient Search</label>
+                <label for="patientSearch">Search Patient / Clinician / CC</label>
                 <input id="patientSearch"
                        class="filter-input"
                        type="text"
-                       placeholder="Search patient name"
+                       placeholder="Search patient, clinician, or CC"
                        @bind="PatientSearchTerm"
                        @bind:event="oninput" />
             </div>
@@ -191,8 +191,20 @@
                         </select>
                         <button type="button" class="toolbar-button" disabled="@(SelectedCcVisitIds.Count == 0 || string.IsNullOrEmpty(SelectedCareCoordinatorId) || IsAssigningCc)"
                                 @onclick="() => ShowCcConfirmation = true">Assign CC</button>
-                        <span>Existing assignments will be skipped.</span>
+                        <span>Existing CC assignments will be skipped.</span>
+                        <button type="button" class="toolbar-button tracker-delete-button tracker-delete-separated"
+                                disabled="@(SelectedCcVisitIds.Count == 0 || IsDeletingVisits || IsAssigningCc)"
+                                @onclick="() => ShowDeleteConfirmation = true">Delete Selected</button>
                     </div>
+                    @if (ShowDeleteConfirmation)
+                    {
+                        <div class="cc-confirmation" role="group" aria-label="Confirm permanent visit deletion">
+                            <strong>Delete @SelectedCcVisitIds.Count selected visit(s) permanently?</strong>
+                            <p>This cannot be undone. Only the selected scheduled visits will be deleted; patient and referral records will remain.</p>
+                            <button type="button" class="toolbar-button" disabled="@IsDeletingVisits" @onclick="() => ShowDeleteConfirmation = false">Cancel</button>
+                            <button type="button" class="toolbar-button tracker-delete-button" disabled="@IsDeletingVisits" @onclick="ConfirmDeleteVisitsAsync">Confirm Permanent Delete</button>
+                        </div>
+                    }
                     @if (ShowCcConfirmation)
                     {
                         <div class="cc-confirmation" role="group" aria-label="Confirm Care Coordinator assignment">
@@ -480,6 +492,33 @@
                 }
             </div>
 
+            @if (ImportPreview.Any(x => x.IsDuplicate || x.HasWarning))
+            {
+                <div class="import-review-notice" role="status">
+                    <strong>Notice</strong>
+                    @if (ImportPreview.Any(x => x.IsDuplicate))
+                    {
+                        <p>@ImportPreview.Count(x => x.IsDuplicate) duplicate visit(s) were detected. These will be skipped automatically and existing visits will not be changed.</p>
+                    }
+                    @if (ImportPreview.Any(x => x.HasWarning))
+                    {
+                        <p>@ImportPreview.Count(x => x.HasWarning) visit(s) have validation warnings. Review their details before importing.</p>
+                    }
+                </div>
+            }
+
+            @if (ShowDuplicateImportConfirmation)
+            {
+                <div class="import-duplicate-confirmation" role="group" aria-label="Confirm skipping duplicate visits">
+                    <strong>Confirm import with duplicates</strong>
+                    <p>@ImportPreview.Count(x => x.IsDuplicate) duplicate visit(s) will be skipped. Only @ImportPreview.Count(x => !x.IsDuplicate && x.CanImport) new eligible visit(s) will be submitted for import. Continue?</p>
+                    <div class="import-duplicate-confirmation-actions">
+                        <button type="button" class="btn btn-secondary" disabled="@IsImporting" @onclick="() => ShowDuplicateImportConfirmation = false">Back to Preview</button>
+                        <button type="button" class="btn btn-primary" disabled="@IsImporting" @onclick="ProceedWithImport">Confirm &amp; Import New Visits</button>
+                    </div>
+                </div>
+            }
+
             <div class="import-review-body">
                 <div class="table-responsive import-table">
                     <table class="table table-sm align-middle">
@@ -506,13 +545,7 @@
                                 <td>
                                     @if (item.IsDuplicate)
                                     {
-                                        <label class="overwrite-choice">
-                                            <input type="checkbox" @bind="item.OverwriteExisting" />
-                                            <span>
-                                                <strong>Overwrite</strong><br />
-                                                <small>Unchecked = Keep</small>
-                                            </span>
-                                        </label>
+                                        <span class="text-warning-emphasis fw-semibold">Skip Duplicate</span>
                                     }
                                     else if (item.CanImport)
                                     {
@@ -523,12 +556,6 @@
                                         <span class="text-danger-emphasis fw-semibold">Skip</span>
                                     }
 
-                                    @if (item.HasWarning && !string.IsNullOrWhiteSpace(item.ValidationMessage))
-                                    {
-                                        <div class="text-warning-emphasis mt-2">
-                                            <strong>Warning:</strong> @item.ValidationMessage
-                                        </div>
-                                    }
                                 </td>
                                 <td>@item.ScheduledDate.ToString("MMM d, yyyy")</td>
                                 <td>@item.ScheduledDate.ToString("dddd")</td>
@@ -568,14 +595,18 @@
 
                 <button type="button"
                         class="btn @(ImportPreview.Any(x => x.HasWarning) ? "btn-warning" : "btn-primary")"
-                        @onclick="ProceedWithImport"
+                        @onclick="RequestImportConfirmation"
                         @onclick:stopPropagation="true"
-                        disabled="@IsImporting">
+                        disabled="@(IsImporting || ShowDuplicateImportConfirmation)">
                     @(IsImporting
                         ? "Importing..."
-                        : ImportPreview.Any(x => x.HasWarning)
-                            ? "Proceed with Caution"
-                            : "Proceed with Import")
+                        : ShowDuplicateImportConfirmation
+                            ? "Awaiting Confirmation"
+                            : ImportPreview.Any(x => x.IsDuplicate)
+                                ? "Review Duplicate Confirmation"
+                                : ImportPreview.Any(x => x.HasWarning)
+                                    ? "Proceed with Caution"
+                                    : "Proceed with Import")
                 </button>
             </div>
         </div>
@@ -593,6 +624,8 @@
     private string SelectedCareCoordinatorId = string.Empty;
     private bool ShowCcConfirmation;
     private bool IsAssigningCc;
+    private bool ShowDeleteConfirmation;
+    private bool IsDeletingVisits;
 
     private void ToggleCcVisit(Guid visitId, bool selected)
     {
@@ -621,6 +654,23 @@
         }
         catch { StatusUpdateError = "Could not assign the Care Coordinator. Please try again."; }
         finally { IsAssigningCc = false; }
+    }
+
+    private async Task ConfirmDeleteVisitsAsync()
+    {
+        if (!CanManageScheduling || IsDeletingVisits || SelectedCcVisitIds.Count == 0) return;
+        IsDeletingVisits = true;
+        StatusUpdateError = null;
+        try
+        {
+            var count = await CalendarService.DeleteVisitsAsync(SelectedCcVisitIds.ToArray());
+            SelectedCcVisitIds.Clear();
+            ShowDeleteConfirmation = false;
+            await LoadSchedulesAsync();
+            StatusUpdateError = $"Permanently deleted {count} scheduled visit(s).";
+        }
+        catch { StatusUpdateError = "Could not delete the selected visits. No further deletion was requested."; }
+        finally { IsDeletingVisits = false; }
     }
 
     private async Task SaveTrackerFieldAsync(CalendarVisitDto visit, string? confirmation = null, string? callNotes = null,
@@ -692,6 +742,7 @@
     private string? CalendarLoadErrorMessage;
 
     private bool ShowImportReview;
+    private bool ShowDuplicateImportConfirmation;
     private bool IsImporting;
     private List<ScheduleImportPreviewItem> ImportPreview = [];
 
@@ -859,10 +910,13 @@
         var matchesPhysician = string.IsNullOrWhiteSpace(SelectedPhysician) ||
                                string.Equals(schedule.Clinician, SelectedPhysician, StringComparison.OrdinalIgnoreCase);
 
-        var matchesPatient = string.IsNullOrWhiteSpace(PatientSearchTerm) ||
-                             schedule.PatientName.Contains(PatientSearchTerm, StringComparison.OrdinalIgnoreCase);
+        var searchTerm = PatientSearchTerm.Trim();
+        var matchesSearch = string.IsNullOrEmpty(searchTerm) ||
+                            (schedule.PatientName?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                            (schedule.Clinician?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                            (schedule.CareCoordinatorName?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false);
 
-        return matchesPhysician && matchesPatient;
+        return matchesPhysician && matchesSearch;
     }
 
     private List<CalendarVisitDto> GetSchedulesForDate(DateTime date)
@@ -996,6 +1050,7 @@
 
         IsImporting = true;
         ShowImportReview = false;
+        ShowDuplicateImportConfirmation = false;
         ImportPreview.Clear();
 
         await ShowScheduleLoadingAsync(
@@ -1016,6 +1071,7 @@
                 return;
             }
 
+            ShowDuplicateImportConfirmation = false;
             ShowImportReview = true;
         }
         catch (HttpRequestException ex)
@@ -1043,6 +1099,17 @@
         {
             IsImporting = false;
         }
+    }
+
+    private async Task RequestImportConfirmation()
+    {
+        if (IsImporting || ImportPreview.Count == 0) return;
+        if (ImportPreview.Any(x => x.IsDuplicate))
+        {
+            ShowDuplicateImportConfirmation = true;
+            return;
+        }
+        await ProceedWithImport();
     }
 
     private async Task ProceedWithImport()
@@ -1159,6 +1226,7 @@
             return;
 
         ShowImportReview = false;
+        ShowDuplicateImportConfirmation = false;
         ImportPreview.Clear();
         StateHasChanged();
     }

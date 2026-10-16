@@ -63,6 +63,8 @@ public sealed class VisitRepository : IVisitRepository
         string.Join(" ", value.Trim().ToUpperInvariant()
             .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
+    public void RemoveRange(IEnumerable<Visit> visits) => _context.Visits.RemoveRange(visits);
+
     public async Task AddAsync(Visit visit, CancellationToken cancellationToken)
         => await _context.Visits.AddAsync(visit, cancellationToken);
 }
