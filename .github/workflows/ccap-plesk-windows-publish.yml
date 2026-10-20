@@ -1,0 +1,39 @@
+name: CCAP Windows Plesk publish
+on:
+  workflow_dispatch:
+  push:
+    branches: [development, dev-dave1]
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Prepare pinned Windows OCR runtime
+        shell: pwsh
+        run: ./tools/prepare-ocr-windows.ps1
+      - name: Restore and build
+        shell: pwsh
+        run: |
+          dotnet restore CCAP.sln
+          dotnet build CCAP.sln -c Release --no-restore
+      - name: Publish API and Web
+        shell: pwsh
+        run: |
+          dotnet publish CCAP.API/CCAP.API.csproj -c Release --no-restore -o publish/api
+          dotnet publish CCAP.Web/CCAP.Web.csproj -c Release --no-restore -o publish/web
+          if (!(Test-Path publish/api/tessdata/eng.traineddata)) { throw 'Missing English traineddata' }
+          if (!(Test-Path publish/api/Tools/poppler/windows/Library/bin/pdftoppm.exe)) { throw 'Missing Poppler' }
+          # Secrets must be supplied by Plesk; do not publish developer appsettings.
+          Remove-Item publish/api/appsettings*.json -ErrorAction SilentlyContinue
+          Remove-Item publish/web/appsettings*.json -ErrorAction SilentlyContinue
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ccap-windows-plesk-api
+          path: publish/api
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ccap-windows-plesk-web
+          path: publish/web

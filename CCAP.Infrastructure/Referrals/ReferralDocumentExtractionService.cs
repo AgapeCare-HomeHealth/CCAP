@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -40,74 +41,204 @@ public sealed class ReferralDocumentExtractionService : IReferralDocumentExtract
             throw new ArgumentException("The referral PDF is empty.", nameof(pdfStream));
 
         var digitalText = new StringBuilder();
-        var imagePayloads = new List<byte[]>();
+        var digitalPages = new List<string>();
+        var pageCount = 0;
 
         using (var document = PdfDocument.Open(bytes))
         {
             foreach (var page in document.GetPages())
             {
                 cancellationToken.ThrowIfCancellationRequested();
-
-                // Build text from word coordinates instead of relying on the
-                // PDF content-stream order. Clinic referral forms are usually
-                // tables/columns, so preserving the horizontal positions is
-                // critical for mapping a value to the correct label.
-                var layoutText = BuildPositionedPageText(page);
-                if (!string.IsNullOrWhiteSpace(layoutText))
-                    digitalText.AppendLine(layoutText);
-                else if (!string.IsNullOrWhiteSpace(page.Text))
+                pageCount++;
+                // Keep the text layer where available, but do not assume that
+                // scanned pages expose their images as standalone PNGs.
+                var positioned = BuildPositionedPageText(page);
+                if (!string.IsNullOrWhiteSpace(positioned))
+                    digitalText.AppendLine(positioned);
+                if (!string.IsNullOrWhiteSpace(page.Text))
                     digitalText.AppendLine(page.Text);
-
-                foreach (var image in page.GetImages())
-                {
-                    if (image.TryGetPng(out var png) && png is { Length: > 0 })
-                        imagePayloads.Add(png);
-                    else
-                    {
-                        var raw = image.RawBytes.ToArray();
-                        if (raw.Length > 0)
-                            imagePayloads.Add(raw);
-                    }
-                }
+                digitalPages.Add(string.Join(Environment.NewLine, new[] { positioned, page.Text }
+                    .Where(x => !string.IsNullOrWhiteSpace(x))));
             }
         }
 
-        var textValue = digitalText.ToString();
-        var ocrUsed = false;
-        double? confidence = null;
         var profiles = ReferralFormProfileLoader.Load(_configuration);
+        var digitalResult = ReferralDocumentFieldParser.Parse(digitalText.ToString(), false, null, profiles);
+        var missingIdentity = string.IsNullOrWhiteSpace(digitalResult.FirstName)
+            || string.IsNullOrWhiteSpace(digitalResult.LastName)
+            || !digitalResult.DateOfBirth.HasValue;
 
-        // First pass: use coordinate-aware PDF text. Do not trim leading
-        // whitespace here; the parser uses those positions for table columns.
-        var result = ReferralDocumentFieldParser.Parse(textValue, false, null, profiles);
+        // Full-page OCR works on image-only documents and pages whose extracted
+        // text does not preserve labels. External tools are injected via config,
+        // not tied to the developer's Windows installation.
+        if (!missingIdentity)
+            return ReferralExtractionSafety.Apply(digitalResult, digitalPages);
 
-        // Second pass: if the PDF contains images and the text pass did not
-        // recover useful referral values, run OCR as a fallback. Do not require
-        // the form to match a registered clinic profile before attempting OCR.
-        // This is important because scanned forms and new clinic versions are
-        // intentionally allowed to return a partially populated result.
-        if (imagePayloads.Count > 0 && ReferralDocumentFieldParser.CountDetectedValues(result) < 2)
+        var maxPages = Math.Clamp(_configuration.GetValue("ReferralDocumentOcr:MaxPages", 25), 1, 100);
+        var dpi = Math.Clamp(_configuration.GetValue("ReferralDocumentOcr:Dpi", 185), 100, 300);
+        (IReadOnlyList<string> Pages, double Confidence) ocr;
+        try
         {
-            try
+            ocr = await RunPageOcrAsync(bytes, Math.Min(pageCount, maxPages), dpi, cancellationToken);
+        }
+        catch (InvalidOperationException) when (!string.IsNullOrWhiteSpace(digitalText.ToString())
+            && ReferralDocumentFieldParser.CountDetectedValues(digitalResult) > 0)
+        {
+            // If an optional OCR fallback isn't installed for a digital PDF,
+            // preserve safely extracted values. An image-only PDF still returns
+            // a clear setup error rather than silently pretending to succeed.
+            return ReferralExtractionSafety.Apply(digitalResult, digitalPages);
+        }
+        var ocrText = string.Join(Environment.NewLine, ocr.Pages.Select((value, index) =>
+            $"\n[[PAGE {index + 1}]]\n{value}"));
+        var genericOcr = ReferralDocumentFieldParser.Parse(ocrText, true, ocr.Confidence, profiles);
+        var merged = ReferralDocumentFieldParser.MergeMissing(digitalResult, genericOcr);
+
+        // Resolve identity from the strongest *patient-labelled* evidence
+        // across pages. Never pick an unrelated provider / emergency phone.
+        var reconciled = ScannedReferralDemographics.Apply(merged, ocr.Pages, ocr.Confidence);
+        return ReferralExtractionSafety.Apply(reconciled, ocr.Pages);
+    }
+
+    private async Task<(IReadOnlyList<string> Pages, double Confidence)> RunPageOcrAsync(
+        byte[] pdf, int pageCount, int dpi, CancellationToken cancellationToken)
+    {
+        var tessdata = LocateTessdata();
+        var renderer = LocatePdfRenderer();
+
+        var directory = Path.Combine(Path.GetTempPath(), "ccap-pdf-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var input = Path.Combine(directory, "input.pdf");
+            await File.WriteAllBytesAsync(input, pdf, cancellationToken);
+            using var engine = new Engine(tessdata, Language.English, EngineMode.Default);
+            var pages = new List<string>();
+            var confidenceSum = 0.0;
+
+            for (var pageNo = 1; pageNo <= pageCount; pageNo++)
             {
-                var ocr = await RunOcrAsync(imagePayloads, cancellationToken);
-                if (!string.IsNullOrWhiteSpace(ocr.Text))
+                cancellationToken.ThrowIfCancellationRequested();
+                var prefix = Path.Combine(directory, "page");
+                var args = new[] { "-f", pageNo.ToString(CultureInfo.InvariantCulture),
+                    "-l", pageNo.ToString(CultureInfo.InvariantCulture),
+                    "-singlefile", "-r", dpi.ToString(CultureInfo.InvariantCulture),
+                    "-png", input, prefix };
+                await RunPdfRendererAsync(renderer, args, cancellationToken);
+                var png = prefix + ".png";
+                if (!File.Exists(png))
+                    throw new InvalidOperationException("PDF rendering did not produce a page image.");
+
+                // One page in memory at a time to limit memory usage for long
+                // referrals. Temporary PDF and images are deleted in finally.
+                using (var image = TesseractOCR.Pix.Image.LoadFromMemory(
+                    await File.ReadAllBytesAsync(png, cancellationToken)))
+                using (var recognized = engine.Process(image))
                 {
-                    var ocrResult = ReferralDocumentFieldParser.Parse(ocr.Text, true, ocr.Confidence, profiles);
-                    result = ReferralDocumentFieldParser.MergeMissing(result, ocrResult);
-                    ocrUsed = true;
-                    confidence = ocr.Confidence;
+                    pages.Add(recognized.Text ?? string.Empty);
+                    confidenceSum += recognized.MeanConfidence;
                 }
+                File.Delete(png);
             }
-            catch (InvalidOperationException)
-            {
-                // OCR is best-effort. If Tesseract is not configured, keep the
-                // digital-text result and allow manual entry instead of making
-                // PDF extraction a blocking requirement.
-            }
+            return (pages, pages.Count == 0 ? 0 : confidenceSum / pages.Count);
+        }
+        finally
+        {
+            try { Directory.Delete(directory, recursive: true); }
+            catch (IOException) { /* Native renderer may still be releasing handles. */ }
+            catch (UnauthorizedAccessException) { /* Best-effort cleanup. */ }
+        }
+    }
+
+    // Resolve packaged resources from the published API directory, never the
+    // developer workstation or the process working directory. Environment
+    // variables can override both values on Plesk or in Docker.
+    private string LocateTessdata()
+    {
+        var configured = _configuration["ReferralDocumentOcr:TessdataPath"];
+        var candidates = new[]
+        {
+            ResolveConfiguredPath(configured),
+            Path.Combine(AppContext.BaseDirectory, "tessdata"),
+            ResolveConfiguredPath(Environment.GetEnvironmentVariable("TESSDATA_PREFIX")),
+            "/usr/share/tesseract-ocr/5/tessdata",
+            "/usr/share/tessdata"
+        };
+
+        foreach (var candidate in candidates)
+            if (!string.IsNullOrWhiteSpace(candidate)
+                && File.Exists(Path.Combine(candidate, "eng.traineddata")))
+                return candidate;
+
+        throw new InvalidOperationException(
+            "English OCR data was not found in the published API's tessdata directory " +
+            "or ReferralDocumentOcr:TessdataPath. Publish eng.traineddata with CCAP.API.");
+    }
+
+    private string LocatePdfRenderer()
+    {
+        var configured = _configuration["ReferralDocumentOcr:PdfToPpmPath"];
+        var windowsRenderer = Path.Combine(AppContext.BaseDirectory,
+            "Tools", "poppler", "windows", "Library", "bin", "pdftoppm.exe");
+
+        // Explicit absolute/relative paths can be provided by the host.
+        // A simple executable name (pdftoppm) is a PATH fallback, not a
+        // reason to ignore a packaged Windows renderer.
+        if (!string.IsNullOrWhiteSpace(configured)
+            && (Path.IsPathRooted(configured)
+                || configured.Contains('/') || configured.Contains('\\')))
+        {
+            var path = ResolveConfiguredPath(configured);
+            if (!string.IsNullOrWhiteSpace(path) && File.Exists(path)) return path;
         }
 
-        return result;
+        if (OperatingSystem.IsWindows() && File.Exists(windowsRenderer))
+            return windowsRenderer;
+
+        return string.IsNullOrWhiteSpace(configured) ? "pdftoppm" : configured;
+    }
+
+    private static string? ResolveConfiguredPath(string? configured)
+    {
+        if (string.IsNullOrWhiteSpace(configured)) return null;
+        return Path.GetFullPath(Path.IsPathRooted(configured)
+            ? configured
+            : Path.Combine(AppContext.BaseDirectory, configured));
+    }
+
+    private static async Task RunPdfRendererAsync(
+        string executable, IEnumerable<string> arguments, CancellationToken cancellationToken)
+    {
+        var start = new ProcessStartInfo(executable)
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardError = false
+        };
+        foreach (var argument in arguments) start.ArgumentList.Add(argument);
+        try
+        {
+            using var process = Process.Start(start)
+                ?? throw new InvalidOperationException("PDF rendering is unavailable: renderer did not start.");
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(60));
+            try { await process.WaitForExitAsync(timeout.Token); }
+            catch (OperationCanceledException)
+            {
+                if (!process.HasExited) process.Kill(entireProcessTree: true);
+                cancellationToken.ThrowIfCancellationRequested();
+                throw new InvalidOperationException("PDF rendering timed out on a scanned page.");
+            }
+            if (process.ExitCode != 0)
+                throw new InvalidOperationException(
+                    "PDF rendering failed. Check ReferralDocumentOcr:PdfToPpmPath and Poppler installation.");
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            throw new InvalidOperationException(
+                "PDF rendering is unavailable. Install Poppler and configure " +
+                "ReferralDocumentOcr:PdfToPpmPath on the API server.");
+        }
     }
 
     private static string BuildPositionedPageText(UglyToad.PdfPig.Content.Page page)
@@ -168,44 +299,7 @@ public sealed class ReferralDocumentExtractionService : IReferralDocumentExtract
         return output.ToString();
     }
 
-    private async Task<(string Text, double Confidence)> RunOcrAsync(
-        IReadOnlyCollection<byte[]> images,
-        CancellationToken cancellationToken)
-    {
-        var tessdataPath = _configuration["ReferralDocumentOcr:TessdataPath"];
-        if (string.IsNullOrWhiteSpace(tessdataPath))
-            tessdataPath = Path.Combine(AppContext.BaseDirectory, "tessdata");
 
-        if (!File.Exists(Path.Combine(tessdataPath, "eng.traineddata")))
-        {
-            throw new InvalidOperationException(
-                "The uploaded referral appears to be a scanned PDF, but OCR is not configured. " +
-                "Place eng.traineddata in the configured ReferralDocumentOcr:TessdataPath folder.");
-        }
-
-        var text = new StringBuilder();
-        var confidenceTotal = 0d;
-        var confidenceCount = 0;
-
-        using var engine = new Engine(tessdataPath, Language.English, EngineMode.Default);
-
-        foreach (var imageBytes in images.Take(20))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            using var image = TesseractOCR.Pix.Image.LoadFromMemory(imageBytes);
-            using var page = engine.Process(image);
-
-            text.AppendLine(page.Text);
-            confidenceTotal += page.MeanConfidence;
-            confidenceCount++;
-            await Task.Yield();
-        }
-
-        return (
-            text.ToString(),
-            confidenceCount == 0 ? 0 : confidenceTotal / confidenceCount);
-    }
 }
 
 internal sealed class ReferralFormProfile
@@ -450,7 +544,14 @@ internal static class ReferralDocumentFieldParser
         if (!string.IsNullOrWhiteSpace(result.MRN)) count++;
         if (!string.IsNullOrWhiteSpace(result.FirstName)) count++;
         if (!string.IsNullOrWhiteSpace(result.LastName)) count++;
+        if (!string.IsNullOrWhiteSpace(result.MiddleName)) count++;
         if (result.DateOfBirth.HasValue) count++;
+        if (!string.IsNullOrWhiteSpace(result.Gender)) count++;
+        if (!string.IsNullOrWhiteSpace(result.PrimaryPhone)) count++;
+        if (!string.IsNullOrWhiteSpace(result.StreetAddress)) count++;
+        if (!string.IsNullOrWhiteSpace(result.City)) count++;
+        if (!string.IsNullOrWhiteSpace(result.State)) count++;
+        if (!string.IsNullOrWhiteSpace(result.ZipCode)) count++;
         if (!string.IsNullOrWhiteSpace(result.ReferralNumber)) count++;
         if (result.ReferralDate.HasValue) count++;
         if (!string.IsNullOrWhiteSpace(result.ReferralSource)) count++;

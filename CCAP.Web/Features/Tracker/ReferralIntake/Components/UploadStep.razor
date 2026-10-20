@@ -1,7 +1,10 @@
 @using CCAP.Web.Features.Tracker.ReferralIntake.Models
 @using CCAP.Web.Features.Tracker.ReferralIntake.Services
+@using CCAP.Web.Features.Admin.LookupOptions.Services
 @using Microsoft.AspNetCore.Components.Forms
 @inject ReferralIntakeService ReferralIntakeService
+@inject LookupOptionService LookupService
+@inject Microsoft.Extensions.Logging.ILogger<UploadStep> Logger
 
 <div class="step-card">
     <div class="step-title">
@@ -108,6 +111,47 @@
         </div>
     }
 
+    @if (Model.MrnReviewRequired)
+    {
+        <div class="alert @(Model.MrnReviewCompleted ? "alert-success" : "alert-warning") mt-4">
+            <div class="fw-semibold mb-2">
+                <i class="bi bi-person-vcard me-1"></i>
+                Multiple medical record numbers were found
+            </div>
+            <p class="small mb-2">
+                Different facilities may assign different MRNs. Review the original PDF
+                and confirm which identifier belongs to this referral. No MRN is selected automatically.
+            </p>
+            <div class="mb-2">
+                <label class="form-label" for="mrnCandidate">MRN from uploaded document</label>
+                <select id="mrnCandidate" class="form-select" @bind="Model.MrnReviewChoice"
+                        disabled="@Model.MrnReviewCompleted">
+                    <option value="">Select the correct MRN</option>
+                    @foreach (var candidate in Model.MrnCandidates)
+                    {
+                        <option value="@candidate.Value">@candidate.Value — page @candidate.PageNumber (@candidate.Source)</option>
+                    }
+                    <option value="__manual__">None of these — enter MRN manually in Referral Information</option>
+                </select>
+            </div>
+            @if (Model.MrnReviewCompleted)
+            {
+                <div class="small"><i class="bi bi-check-circle me-1"></i>
+                    MRN reviewed. You can correct it in Referral Information if needed.
+                    <button type="button" class="btn btn-link btn-sm" @onclick="ChangeMrnChoice">Change choice</button>
+                </div>
+            }
+            else
+            {
+                <button type="button" class="btn btn-outline-success btn-sm"
+                        disabled="@(string.IsNullOrWhiteSpace(Model.MrnReviewChoice))"
+                        @onclick="ConfirmMrnChoice">
+                    Confirm MRN review
+                </button>
+            }
+        </div>
+    }
+
     @if (!string.IsNullOrWhiteSpace(ErrorMessage))
     {
         <div class="alert alert-warning mt-4">
@@ -146,6 +190,10 @@
         ErrorMessage = null;
         ExtractionCompleted = false;
         LastExtractionConfidence = null;
+        Model.MrnReviewChoice = string.Empty;
+        Model.MrnCandidates = [];
+        Model.MrnReviewRequired = false;
+        Model.MrnReviewCompleted = false;
 
         if (file is null)
             return;
@@ -199,6 +247,7 @@
             return;
 
         IsExtracting = true;
+        Model.ReferralExtractionInProgress = true;
         ErrorMessage = null;
         StateHasChanged();
 
@@ -208,7 +257,7 @@
                 Model.ReferralPdfBytes,
                 Model.ReferralPdfFileName ?? "referral.pdf");
 
-            ApplyExtractedValues(result);
+            await ApplyExtractedValuesAsync(result);
             LastExtractionUsedOcr = result.OcrUsed;
             LastExtractionConfidence = result.Confidence;
             DetectedForm = result.DetectedForm;
@@ -225,16 +274,26 @@
         finally
         {
             IsExtracting = false;
+            Model.ReferralExtractionInProgress = false;
         }
     }
 
-    private void ApplyExtractedValues(ReferralDocumentExtractionDto result)
+    private async Task ApplyExtractedValuesAsync(ReferralDocumentExtractionDto result)
     {
-        Model.MRN = SetIfPresent(Model.MRN, result.MRN);
+        Model.MrnCandidates = result.MrnCandidates ?? [];
+        Model.MrnReviewRequired = result.MrnRequiresReview || Model.MrnCandidates.Count > 1;
+        Model.MrnReviewCompleted = false;
+        Model.MrnReviewChoice = string.Empty;
+
+        // Only a single explicitly labelled, structurally validated MRN can populate
+        // automatically. Conflicting MRNs require an explicit human choice.
+        if (!Model.MrnReviewRequired)
+            Model.MRN = SetIfPresent(Model.MRN, result.MRN);
+
         Model.FirstName = SetIfPresent(Model.FirstName, result.FirstName);
         Model.MiddleName = SetIfPresent(Model.MiddleName, result.MiddleName);
         Model.LastName = SetIfPresent(Model.LastName, result.LastName);
-        if (result.DateOfBirth.HasValue) Model.DateOfBirth = result.DateOfBirth;
+        if (!Model.DateOfBirth.HasValue && result.DateOfBirth.HasValue) Model.DateOfBirth = result.DateOfBirth;
         Model.Gender = SetIfPresent(Model.Gender, result.Gender);
         Model.PrimaryPhone = SetIfPresent(Model.PrimaryPhone, result.PrimaryPhone);
         Model.AlternatePhone = SetIfPresent(Model.AlternatePhone, result.AlternatePhone);
@@ -249,23 +308,67 @@
         if (result.ReferralDate.HasValue) Model.ReferralDate = result.ReferralDate.Value;
         Model.ReferralSource = SetIfPresent(Model.ReferralSource, result.ReferralSource);
         Model.Priority = SetIfPresent(Model.Priority, result.Priority);
-        Model.PrimaryInsurance = SetIfPresent(Model.PrimaryInsurance, result.PrimaryInsurance);
+        // Only select an insurance name that is already present in the active dropdown.
+        // Never insert an unrecognized OCR value into a select-bound model field.
+        if (string.IsNullOrWhiteSpace(Model.PrimaryInsurance) &&
+            !string.IsNullOrWhiteSpace(result.PrimaryInsurance))
+        {
+            try
+            {
+                var activeInsurances = await LookupService.GetAsync("Insurance", activeOnly: true);
+                var extractedName = result.PrimaryInsurance.Trim();
+                var matchedInsurance = activeInsurances.FirstOrDefault(option =>
+                    string.Equals(option.DisplayName?.Trim(), extractedName,
+                        StringComparison.OrdinalIgnoreCase));
+
+                if (matchedInsurance is not null)
+                    Model.PrimaryInsurance = matchedInsurance.DisplayName;
+            }
+            catch (Exception ex)
+            {
+                // Fail closed. A lookup outage must not produce an invalid insurance selection
+                // or stop auto-population of independent patient fields.
+                Logger.LogWarning(ex, "Insurance dropdown lookup failed during referral PDF extraction.");
+            }
+        }
         Model.InsuranceMemberId = SetIfPresent(Model.InsuranceMemberId, result.InsuranceMemberId);
-        if (result.AuthorizationDate.HasValue) Model.AuthorizationDate = result.AuthorizationDate;
-        if (result.ApprovedVisits.HasValue) Model.ApprovedVisits = result.ApprovedVisits;
+        if (!Model.AuthorizationDate.HasValue && result.AuthorizationDate.HasValue) Model.AuthorizationDate = result.AuthorizationDate;
+        if (!Model.ApprovedVisits.HasValue && result.ApprovedVisits.HasValue) Model.ApprovedVisits = result.ApprovedVisits;
         Model.ReferringPhysician = SetIfPresent(Model.ReferringPhysician, result.ReferringPhysician);
         Model.PhysicianPhone = SetIfPresent(Model.PhysicianPhone, result.PhysicianPhone);
         Model.PrimaryDiagnosis = SetIfPresent(Model.PrimaryDiagnosis, result.PrimaryDiagnosis);
         Model.SecondaryDiagnosis = SetIfPresent(Model.SecondaryDiagnosis, result.SecondaryDiagnosis);
         Model.ReferralNotes = SetIfPresent(Model.ReferralNotes, result.ReferralNotes);
 
-        if (result.OrderedServices.Count > 0)
-            Model.OrderedServices = result.OrderedServices;
+        // Ordered services are selected manually by the Care Coordinator.
+        // Extraction never adds, removes, or replaces these choices.
     }
+
+    private void ConfirmMrnChoice()
+    {
+        if (string.IsNullOrWhiteSpace(Model.MrnReviewChoice)) return;
+
+        if (Model.MrnReviewChoice == "__manual__")
+        {
+            // Never guess which facility's MRN applies. The Referral Information
+            // step provides an editable MRN field for manual verification.
+            Model.MRN = string.Empty;
+        }
+        else
+        {
+            var selected = Model.MrnCandidates.FirstOrDefault(candidate =>
+                string.Equals(candidate.Value, Model.MrnReviewChoice, StringComparison.Ordinal));
+            if (selected is null) return;
+            Model.MRN = selected.Value;
+        }
+        Model.MrnReviewCompleted = true;
+    }
+
+    private void ChangeMrnChoice() => Model.MrnReviewCompleted = false;
 
     private static string SetIfPresent(string target, string? value)
     {
-        return string.IsNullOrWhiteSpace(value)
+        return !string.IsNullOrWhiteSpace(target) || string.IsNullOrWhiteSpace(value)
             ? target
             : value.Trim();
     }
@@ -281,6 +384,11 @@
         DetectedForm = null;
         DetectedFormVersion = null;
         DetectedFieldCount = 0;
+        Model.MrnReviewChoice = string.Empty;
+        Model.MrnCandidates = [];
+        Model.MrnReviewRequired = false;
+        Model.MrnReviewCompleted = false;
+        Model.ReferralExtractionInProgress = false;
     }
 
     private void RemoveFile() => ClearFile();

@@ -371,8 +371,18 @@
         switch (CurrentStep)
         {
             case 1:
-                // Uploading a PDF is optional. If supplied, Step 1 extracts
-                // whatever fields it can and the user can review/edit them.
+                if (Model.ReferralExtractionInProgress)
+                {
+                    ErrorMessage = "Wait for PDF extraction to finish before continuing.";
+                    return false;
+                }
+                // Do not silently choose an MRN when records from different
+                // facilities disagree. Human confirmation is required.
+                if (Model.MrnReviewRequired && !Model.MrnReviewCompleted)
+                {
+                    ErrorMessage = "Review the MRN candidates from the PDF and confirm your choice before continuing.";
+                    return false;
+                }
                 return true;
 
             case 2:

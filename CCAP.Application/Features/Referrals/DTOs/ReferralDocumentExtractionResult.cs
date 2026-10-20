@@ -9,7 +9,9 @@ public sealed class ReferralDocumentExtractionResult
     public string? DetectedForm { get; init; }
     public string? DetectedFormVersion { get; init; }
 
-    public string? MRN { get; init; }
+    public string? MRN { get; set; }
+    public bool MrnRequiresReview { get; set; }
+    public List<ReferralMrnCandidate> MrnCandidates { get; set; } = [];
     public string? FirstName { get; init; }
     public string? MiddleName { get; init; }
     public string? LastName { get; init; }
@@ -28,14 +30,22 @@ public sealed class ReferralDocumentExtractionResult
     public DateTime? ReferralDate { get; init; }
     public string? ReferralSource { get; init; }
     public string? Priority { get; init; }
-    public string? PrimaryInsurance { get; init; }
+    public string? PrimaryInsurance { get; set; }
     public string? InsuranceMemberId { get; init; }
     public DateOnly? AuthorizationDate { get; init; }
     public int? ApprovedVisits { get; init; }
-    public string? ReferringPhysician { get; init; }
+    public string? ReferringPhysician { get; set; }
     public string? PhysicianPhone { get; init; }
     public string? PrimaryDiagnosis { get; init; }
     public string? SecondaryDiagnosis { get; init; }
     public List<string> OrderedServices { get; init; } = [];
     public string? ReferralNotes { get; init; }
+}
+
+/// <summary>MRN candidates are backed by an explicit label in the PDF, not guessed from a nearby number.</summary>
+public sealed class ReferralMrnCandidate
+{
+    public string Value { get; init; } = string.Empty;
+    public int PageNumber { get; init; }
+    public string Source { get; init; } = string.Empty;
 }

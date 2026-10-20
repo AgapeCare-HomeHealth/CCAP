@@ -8,6 +8,7 @@ namespace CCAP.Web.Features.Authentication.Services;
 public sealed class CcapApiClient
 {
     private readonly HttpClient _client;
+    private readonly HttpClient _ocrClient;
     private readonly TokenStore _tokenStore;
     private readonly SessionExpirationService _sessionExpirationService;
 
@@ -26,6 +27,7 @@ public sealed class CcapApiClient
     {
         _client =
             httpClientFactory.CreateClient("CCAP.Api");
+        _ocrClient = httpClientFactory.CreateClient("CCAP.Api.Ocr");
 
         _tokenStore = tokenStore;
 
@@ -202,9 +204,13 @@ public sealed class CcapApiClient
         Debug.WriteLine(
             $"CCAP API REQUEST: POST {fullUrl}");
 
+        // Multi-page scanned OCR can take longer than a normal API call.
+        // Only this endpoint uses the extended timeout client.
         return await SendAsync(
             request,
-            cancellationToken);
+            cancellationToken,
+            requestUri.Equals("api/referrals/extract", StringComparison.OrdinalIgnoreCase)
+                ? _ocrClient : _client);
     }
 
     public async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken = default)
@@ -244,10 +250,11 @@ public sealed class CcapApiClient
     private async Task<HttpResponseMessage>
     SendAsync(
         HttpRequestMessage request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        HttpClient? client = null)
     {
         var response =
-            await _client.SendAsync(
+            await (client ?? _client).SendAsync(
                 request,
                 cancellationToken);
 

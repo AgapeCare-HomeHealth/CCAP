@@ -18,6 +18,9 @@
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="tessdata\eng.traineddata" Condition="Exists('tessdata\eng.traineddata')" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="tessdata\eng.traineddata" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="tessdata\LICENSE-Apache-2.0.txt" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="tessdata\SOURCE.txt" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Tools\poppler\windows\Library\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
