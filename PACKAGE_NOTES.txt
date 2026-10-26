@@ -1,6 +1,0 @@
-CCAP complete source solution (October 12, 2026)
-Includes Tracker pagination (10 per page) and editable visit statuses.
-The original .git metadata and compiled bin/obj outputs were excluded.
-Sensitive appsettings configuration values were replaced with REPLACE_WITH_SECURE_CONFIGURATION.
-Configure secrets from a safe provider before building/running.
-No .NET compilation was performed in this environment.
