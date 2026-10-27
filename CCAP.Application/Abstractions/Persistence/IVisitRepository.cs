@@ -4,7 +4,7 @@ namespace CCAP.Application.Abstractions.Persistence;
 
 public interface IVisitRepository
 {
-    Task<IReadOnlyList<Visit>> GetCalendarVisitsAsync(Guid userId, DateTime startDate, DateTime endDate, CancellationToken cancellationToken);
+    Task<IReadOnlyList<Visit>> GetCalendarVisitsAsync(Guid userId, DateTime startDate, DateTime endDate, bool canViewAllSchedules, bool isCareCoordinator, CancellationToken cancellationToken);
     Task<Visit?> GetByIdForUpdateAsync(Guid visitId, CancellationToken cancellationToken);
     Task<List<Visit>> GetForAssignmentAsync(Guid userId, IReadOnlyCollection<Guid> visitIds, CancellationToken cancellationToken);
     Task<Visit?> FindDuplicateAsync(Guid userId, Guid patientId, DateTime scheduledDate, CancellationToken cancellationToken);

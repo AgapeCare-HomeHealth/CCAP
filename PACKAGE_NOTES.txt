@@ -1,0 +1,33 @@
+CCAP Complete Source Solution — Calendar Redesign
+Prepared: 2026-10-27
+
+CONTENTS
+- Complete CCAP source solution and solution files (.sln and .slnx).
+- CCAP.Domain, CCAP.Application, CCAP.Infrastructure, CCAP.API, and CCAP.Web projects.
+- Calendar-first scheduling changes: day-level add buttons, screenshot-based scheduling modal, multi-date recurrence grouping, persisted drag-and-drop rescheduling, and role-scoped calendar queries.
+- Follow-up compile-error fix: Visit Start Time now uses explicit string value/change handling rather than inferred time input binding.
+- EF Core migration for new calendar scheduling fields.
+- Existing documentation, OCR setup helper, and static assets needed by the source solution.
+
+PACKAGE HYGIENE
+- Git history, Visual Studio local state, bin/obj build outputs, and per-user files are not included.
+- Production database and JWT configuration values are placeholders or blank. The archive does not contain the previous repository history or the exposed production database credential.
+- Configure secrets with environment variables or an approved secrets manager. Do not commit real connection strings, signing keys, or storage credentials.
+
+CONFIGURATION BEFORE RUNNING
+- ConnectionStrings__DefaultConnection
+- Jwt__Key (strong secret, at least 32 characters), Jwt__Issuer, Jwt__Audience
+- Configure FileStorage__Provider and the relevant storage configuration before storing referral documents.
+- Production is intentionally not configured with database seeding enabled.
+- Production appsettings uses MetadataOnly file storage by default; this does NOT persist PDF bytes. Configure a real supported storage provider before relying on referral PDF persistence.
+- Install OCR data using setup-referral-ocr.ps1 if OCR extraction is required. The OCR data file itself is not bundled.
+
+DATABASE
+- Review the new migration before applying it.
+- Apply and test migrations against a development/staging database backup first; do not apply to production without sign-off.
+
+VERIFICATION STATUS
+- The solution files and project source are included in this ZIP.
+- The user-reported `CS1503` and `CS0029` errors were traced to the Visit Start Time binding and the source was adjusted; this is a targeted source fix, not a successful build result.
+- A .NET SDK/compiler was unavailable in the packaging environment. No successful dotnet build, automated test run, database migration, or live deployment test is claimed.
+- Run `dotnet restore CCAP.sln` and `dotnet build CCAP.sln --no-restore` in a .NET 10 environment, then run the team's regression/integration tests before merging or deploying.

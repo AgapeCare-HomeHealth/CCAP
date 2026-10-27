@@ -64,15 +64,27 @@ public sealed class ReferralDocumentExtractionService : IReferralDocumentExtract
 
         var profiles = ReferralFormProfileLoader.Load(_configuration);
         var digitalResult = ReferralDocumentFieldParser.Parse(digitalText.ToString(), false, null, profiles);
-        var missingIdentity = string.IsNullOrWhiteSpace(digitalResult.FirstName)
-            || string.IsNullOrWhiteSpace(digitalResult.LastName)
-            || !digitalResult.DateOfBirth.HasValue;
+        var safeDigitalResult = ReferralExtractionSafety.Apply(digitalResult, digitalPages);
+        var missingIdentity = string.IsNullOrWhiteSpace(safeDigitalResult.FirstName)
+            || string.IsNullOrWhiteSpace(safeDigitalResult.LastName)
+            || !safeDigitalResult.DateOfBirth.HasValue;
+
+        // OCR is also required when safety-critical values are missing, or any
+        // page has little/no text-layer content. A PDF may mix searchable pages
+        // with scanned pages, and skipping OCR just because identity was found
+        // can hide a second facility MRN on a scanned page.
+        var hasWeakTextPage = digitalPages.Any(page =>
+            string.IsNullOrWhiteSpace(page) || page.Trim().Length < 80);
+        var missingSafetyCriticalValues =
+            safeDigitalResult.MrnCandidates.Count <= 1
+            || string.IsNullOrWhiteSpace(safeDigitalResult.ReferringPhysician)
+            || string.IsNullOrWhiteSpace(safeDigitalResult.PrimaryInsurance);
 
         // Full-page OCR works on image-only documents and pages whose extracted
-        // text does not preserve labels. External tools are injected via config,
-        // not tied to the developer's Windows installation.
-        if (!missingIdentity)
-            return ReferralExtractionSafety.Apply(digitalResult, digitalPages);
+        // text does not preserve labels. External tools are resolved from the
+        // published API directory or host configuration, not a workstation path.
+        if (!missingIdentity && !hasWeakTextPage && !missingSafetyCriticalValues)
+            return safeDigitalResult;
 
         var maxPages = Math.Clamp(_configuration.GetValue("ReferralDocumentOcr:MaxPages", 25), 1, 100);
         var dpi = Math.Clamp(_configuration.GetValue("ReferralDocumentOcr:Dpi", 185), 100, 300);
@@ -87,17 +99,27 @@ public sealed class ReferralDocumentExtractionService : IReferralDocumentExtract
             // If an optional OCR fallback isn't installed for a digital PDF,
             // preserve safely extracted values. An image-only PDF still returns
             // a clear setup error rather than silently pretending to succeed.
-            return ReferralExtractionSafety.Apply(digitalResult, digitalPages);
+            return safeDigitalResult;
         }
         var ocrText = string.Join(Environment.NewLine, ocr.Pages.Select((value, index) =>
             $"\n[[PAGE {index + 1}]]\n{value}"));
         var genericOcr = ReferralDocumentFieldParser.Parse(ocrText, true, ocr.Confidence, profiles);
-        var merged = ReferralDocumentFieldParser.MergeMissing(digitalResult, genericOcr);
+        var merged = ReferralDocumentFieldParser.MergeMissing(safeDigitalResult, genericOcr);
 
         // Resolve identity from the strongest *patient-labelled* evidence
         // across pages. Never pick an unrelated provider / emergency phone.
         var reconciled = ScannedReferralDemographics.Apply(merged, ocr.Pages, ocr.Confidence);
-        return ReferralExtractionSafety.Apply(reconciled, ocr.Pages);
+
+        // Combine page-level text-layer and OCR evidence so the safety pass sees
+        // conflicting MRNs even if OCR misses a value that the PDF text layer found.
+        var allPageEvidence = digitalPages
+            .Select((text, index) => string.Join(Environment.NewLine, new[]
+            {
+                text,
+                index < ocr.Pages.Count ? ocr.Pages[index] : string.Empty
+            }.Where(value => !string.IsNullOrWhiteSpace(value))))
+            .ToList();
+        return ReferralExtractionSafety.Apply(reconciled, allPageEvidence);
     }
 
     private async Task<(IReadOnlyList<string> Pages, double Confidence)> RunPageOcrAsync(
@@ -541,7 +563,7 @@ internal static class ReferralDocumentFieldParser
     public static int CountDetectedValues(ReferralDocumentExtractionResult result)
     {
         var count = 0;
-        if (!string.IsNullOrWhiteSpace(result.MRN)) count++;
+        if (!string.IsNullOrWhiteSpace(result.MRN) || result.MrnCandidates.Count > 0) count++;
         if (!string.IsNullOrWhiteSpace(result.FirstName)) count++;
         if (!string.IsNullOrWhiteSpace(result.LastName)) count++;
         if (!string.IsNullOrWhiteSpace(result.MiddleName)) count++;

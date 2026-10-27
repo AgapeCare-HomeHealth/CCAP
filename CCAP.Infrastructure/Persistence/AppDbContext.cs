@@ -420,6 +420,15 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.CallNotes);
             e.Property(x => x.NotesFlag);
             e.Property(x => x.Location).HasMaxLength(500);
+            e.Property(x => x.Skills).HasMaxLength(300);
+            e.Property(x => x.TreatmentAuthorizationCode).HasMaxLength(100);
+            e.Property(x => x.AttachmentsNeeded).HasMaxLength(1000);
+            e.Property(x => x.BillingRateCode).HasMaxLength(100);
+            e.Property(x => x.BillingRevenueCode).HasMaxLength(100);
+            e.Property(x => x.BillingAmount).HasPrecision(18, 2);
+            e.Property(x => x.BillingOvertimeAmount).HasPrecision(18, 2);
+            e.Property(x => x.VisitsEachDay).HasDefaultValue(1);
+            e.HasIndex(x => x.RecurrenceGroupId);
             e.HasOne(x => x.Patient).WithMany(x => x.Visits)
                 .HasForeignKey(x => x.PatientId)
                 .OnDelete(DeleteBehavior.Cascade)

@@ -1,5 +1,12 @@
-# Convenience entry point for Windows local development / Windows Plesk publish.
-# English tessdata is bundled in CCAP.API/tessdata, no download required.
 $ErrorActionPreference = 'Stop'
-& (Join-Path $PSScriptRoot 'tools/prepare-ocr-windows.ps1')
-if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+$root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$tessdata = Join-Path $root 'CCAP\CCAP.API\tessdata'
+New-Item -ItemType Directory -Force -Path $tessdata | Out-Null
+
+$url = 'https://github.com/tesseract-ocr/tessdata_fast/raw/main/eng.traineddata'
+$destination = Join-Path $tessdata 'eng.traineddata'
+
+Write-Host 'Downloading Tesseract English OCR data...'
+Invoke-WebRequest -Uri $url -OutFile $destination
+Write-Host "OCR data installed at $destination"

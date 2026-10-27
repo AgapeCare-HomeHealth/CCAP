@@ -36,6 +36,14 @@ public sealed class AddSchedulesCommandHandler : IRequestHandler<AddSchedulesCom
         var clinicians = await _users.GetByIdsAsync(clinicianIds, cancellationToken);
         var clinicianById = clinicians.ToDictionary(x => x.UserId);
 
+        var coordinatorIds = request.Schedules
+            .Where(x => x.CareCoordinatorId.HasValue)
+            .Select(x => x.CareCoordinatorId!.Value)
+            .Distinct()
+            .ToList();
+        var coordinators = await _users.GetByIdsAsync(coordinatorIds, cancellationToken);
+        var coordinatorById = coordinators.ToDictionary(x => x.UserId);
+
         foreach (var row in request.Schedules)
         {
             var clinicianId = row.AssignedClinicianId!.Value;
@@ -49,6 +57,15 @@ public sealed class AddSchedulesCommandHandler : IRequestHandler<AddSchedulesCom
             {
                 throw new InvalidOperationException(
                     $"{clinician.FirstName} {clinician.LastName} is not an active clinician.");
+            }
+
+            if (row.CareCoordinatorId.HasValue)
+            {
+                if (!coordinatorById.TryGetValue(row.CareCoordinatorId.Value, out var coordinator))
+                    throw new KeyNotFoundException($"Care Coordinator {row.CareCoordinatorId.Value} was not found.");
+                if (!coordinator.IsActive || coordinator.Role is null ||
+                    !string.Equals(coordinator.Role.RoleName, "Care Coordinator", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException($"{coordinator.FirstName} {coordinator.LastName} is not an active Care Coordinator.");
             }
         }
 
@@ -72,8 +89,9 @@ public sealed class AddSchedulesCommandHandler : IRequestHandler<AddSchedulesCom
                 continue;
             }
 
+            var duplicateOwnerId = row.CareCoordinatorId ?? request.ScheduledByUserId;
             var existing = await _visits.FindScheduleDuplicateAsync(
-                request.ScheduledByUserId,
+                duplicateOwnerId,
                 row.PatientName,
                 scheduledDate,
                 row.TimeBlock,
@@ -96,7 +114,19 @@ public sealed class AddSchedulesCommandHandler : IRequestHandler<AddSchedulesCom
                 row.VisitType,
                 row.VisitStatus,
                 row.NotesFlag,
-                request.ScheduledByUserId);
+                request.ScheduledByUserId,
+                row.CareCoordinatorId,
+                row.RecurrenceGroupId,
+                row.VisitsEachDay,
+                row.Skills,
+                row.TreatmentAuthorizationCode,
+                row.FlexibleVisit,
+                row.OutsourcedVisit,
+                row.AttachmentsNeeded,
+                row.BillingRateCode,
+                row.BillingRevenueCode,
+                row.BillingAmount,
+                row.BillingOvertimeAmount);
 
             await _visits.AddAsync(visit, cancellationToken);
             visitIds.Add(visit.VisitId);
@@ -124,9 +154,11 @@ public sealed class AddSchedulesCommandHandler : IRequestHandler<AddSchedulesCom
 
         var confirmationNames = confirmationStatuses
             .Select(x => x.DisplayName)
+            .Concat(new[] { "Confirmed", "Left VM", "Sent SMS", "No Answer", "Rescheduled", "Transferred/TIF", "Cancelled Visit", "Non-Visit Discharge", "Missed Visit", "Refused Visit", "labs" })
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var visitTypeNames = visitTypes
             .Select(x => x.DisplayName)
+            .Concat(new[] { "SOC", "ROC", "LVN", "PT EVAL", "BATH", "RE-EVAL", "RECERT", "OT", "ST", "MSW", "DC", "PTA", "PT RE-EVAL", "SN VISIT", "SN RE-EVAL", "SUPERVISORY", "PRN", "PICC LINE CHANGE", "BLOOD DRAW", "WOUND VAC", "SN", "INR", "LAB DRAW", "URINALYSIS", "SN DC", "FOLEY/CATHETER CHANGE", "PRN VISIT" })
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var visitStatusNames = visitStatuses
             .Select(x => x.DisplayName)
@@ -138,9 +170,12 @@ public sealed class AddSchedulesCommandHandler : IRequestHandler<AddSchedulesCom
                 throw new InvalidOperationException(
                     $"Invalid confirmation status: '{row.ConfirmationStatus}'.");
 
-            if (!visitTypeNames.Contains(row.VisitType.Trim()))
+            if (!visitTypeNames.Contains(row.VisitType.Trim()) &&
+                !string.Equals(row.VisitType.Trim(), "Visit", StringComparison.OrdinalIgnoreCase))
+            {
                 throw new InvalidOperationException(
                     $"Invalid visit type: '{row.VisitType}'.");
+            }
 
             // "Scheduled" is the system/default status for a newly-created
             // calendar visit. It is intentionally allowed even when the
@@ -160,11 +195,7 @@ public sealed class AddSchedulesCommandHandler : IRequestHandler<AddSchedulesCom
     {
         var normalized = timeBlock.Trim().Replace('–', '-');
         var separator = normalized.IndexOf('-');
-
-        if (separator < 0)
-            throw new ArgumentException($"Invalid time block: '{timeBlock}'.", nameof(timeBlock));
-
-        var startText = normalized[..separator].Trim();
+        var startText = separator < 0 ? normalized : normalized[..separator].Trim();
 
         if (!DateTime.TryParse(
                 startText,

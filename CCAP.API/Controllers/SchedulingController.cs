@@ -3,6 +3,7 @@ using CCAP.Application.Abstractions.Scheduling;
 using CCAP.Application.Features.Scheduling.Import;
 using CCAP.Application.Features.Scheduling.Commands.AddSchedules;
 using CCAP.Application.Features.Scheduling.Commands.UpdateVisitStatus;
+using CCAP.Application.Features.Scheduling.Commands.UpdateCalendarVisitDetails;
 using CCAP.Application.Features.Scheduling.Queries.GetCalendarVisits;
 using CCAP.Application.Features.Scheduling.Queries.GetSchedulingOptions;
 using MediatR;
@@ -36,12 +37,53 @@ public sealed class SchedulingController : ControllerBase
             return Unauthorized();
 
         return Ok(await _sender.Send(
-            new GetCalendarVisitsQuery(userId, startDate, endDate),
+            new GetCalendarVisitsQuery(
+                userId,
+                startDate,
+                endDate,
+                CanViewAllSchedules(),
+                User.IsInRole("Care Coordinator")),
             cancellationToken));
     }
 
     public sealed record UpdateTrackerDetailsRequest(string ConfirmationStatus, string? CallNotes, Guid? ClinicianId);
+    public sealed record UpdateCalendarVisitDetailsRequest(
+        string TimeBlock,
+        string ConfirmationStatus,
+        string? CallNotes,
+        Guid? ClinicianId,
+        string? NotesFlag,
+        string Status);
     public sealed record AssignCareCoordinatorRequest(Guid CareCoordinatorId, List<Guid> VisitIds);
+
+    [HttpPut("visits/{visitId:guid}/details")]
+    [Authorize]
+    public async Task<IActionResult> UpdateCalendarVisitDetails(
+        Guid visitId,
+        [FromBody] UpdateCalendarVisitDetailsRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!CanManageSchedulingOrCareCoordinator()) return Forbid();
+        if (!TryGetCurrentUserId(out var userId)) return Unauthorized();
+        try
+        {
+            await _sender.Send(new UpdateCalendarVisitDetailsCommand(
+                userId,
+                visitId,
+                request.TimeBlock,
+                request.ConfirmationStatus,
+                request.CallNotes,
+                request.ClinicianId,
+                request.NotesFlag,
+                request.Status,
+                CanViewAllSchedules(),
+                User.IsInRole("Care Coordinator"),
+                User.IsInRole("Administrator") || User.IsInRole("Admin")), cancellationToken);
+            return NoContent();
+        }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (KeyNotFoundException) { return NotFound(new { message = "Visit not found or not accessible." }); }
+    }
 
     [HttpPut("visits/{visitId:guid}/tracker-details")]
     [Authorize(Policy = PermissionPolicies.SchedulingManage)]
@@ -51,7 +93,8 @@ public sealed class SchedulingController : ControllerBase
         try
         {
             await _sender.Send(new CCAP.Application.Features.Scheduling.Commands.UpdateTrackerDetails.UpdateTrackerDetailsCommand(
-                userId, visitId, request.ConfirmationStatus, request.CallNotes, request.ClinicianId), cancellationToken);
+                userId, visitId, request.ConfirmationStatus, request.CallNotes, request.ClinicianId,
+                User.IsInRole("Administrator") || User.IsInRole("Admin")), cancellationToken);
             return NoContent();
         }
         catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
@@ -76,15 +119,16 @@ public sealed class SchedulingController : ControllerBase
     public sealed record DeleteScheduleVisitsRequest(List<Guid> VisitIds);
 
     [HttpPost("visits/bulk-delete")]
-    [Authorize(Policy = PermissionPolicies.SchedulingManage)]
+    [Authorize]
     public async Task<IActionResult> DeleteVisits([FromBody] DeleteScheduleVisitsRequest request, CancellationToken cancellationToken)
     {
+        if (!CanManageSchedulingOrCareCoordinator()) return Forbid();
         if (!TryGetCurrentUserId(out var userId)) return Unauthorized();
         if (request?.VisitIds is null) return BadRequest(new { message = "Select visits to delete." });
         try
         {
             var deleted = await _sender.Send(new CCAP.Application.Features.Scheduling.Commands.DeleteScheduleVisits.DeleteScheduleVisitsCommand(
-                userId, request.VisitIds), cancellationToken);
+                userId, request.VisitIds, User.IsInRole("Administrator") || User.IsInRole("Admin")), cancellationToken);
             return Ok(new { deleted });
         }
         catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
@@ -92,6 +136,24 @@ public sealed class SchedulingController : ControllerBase
     }
 
     public sealed record UpdateVisitStatusRequest(string Status);
+    public sealed record RescheduleVisitRequest(DateTime Date);
+
+    [HttpPut("visits/{visitId:guid}/reschedule")]
+    [Authorize(Policy = PermissionPolicies.SchedulingManage)]
+    public async Task<IActionResult> RescheduleVisit(Guid visitId, [FromBody] RescheduleVisitRequest request, CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var userId)) return Unauthorized();
+        try
+        {
+            await _sender.Send(new CCAP.Application.Features.Scheduling.Commands.RescheduleVisit.RescheduleVisitCommand(
+                userId, visitId, request.Date, CanViewAllSchedules(), User.IsInRole("Care Coordinator"),
+                User.IsInRole("Administrator") || User.IsInRole("Admin")), cancellationToken);
+            return NoContent();
+        }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (KeyNotFoundException) { return NotFound(new { message = "Visit not found or not accessible." }); }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+    }
 
     [HttpPut("visits/{visitId:guid}/status")]
     [Authorize(Policy = PermissionPolicies.SchedulingManage)]
@@ -100,7 +162,8 @@ public sealed class SchedulingController : ControllerBase
         if (!TryGetCurrentUserId(out var userId)) return Unauthorized();
         try
         {
-            await _sender.Send(new UpdateVisitStatusCommand(userId, visitId, request.Status), cancellationToken);
+            await _sender.Send(new UpdateVisitStatusCommand(
+                userId, visitId, request.Status, User.IsInRole("Administrator") || User.IsInRole("Admin")), cancellationToken);
             return NoContent();
         }
         catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
@@ -120,6 +183,14 @@ public sealed class SchedulingController : ControllerBase
     {
         if (!TryGetCurrentUserId(out var userId))
             return Unauthorized();
+
+        if (schedules is null || schedules.Count == 0)
+            return BadRequest(new { message = "Select at least one schedule date." });
+
+        // A Care Coordinator can only schedule for themselves. Do not trust a
+        // client-supplied CC id to grant access to another coordinator's data.
+        if (User.IsInRole("Care Coordinator"))
+            schedules = schedules.Select(x => x with { CareCoordinatorId = userId }).ToList();
 
         try
         {
@@ -213,6 +284,12 @@ public sealed class SchedulingController : ControllerBase
 
         return Ok(await _importService.CommitAsync(userId, items, cancellationToken));
     }
+
+    private bool CanViewAllSchedules() =>
+        User.IsInRole("Administrator") || User.IsInRole("Admin") || User.IsInRole("Scheduler");
+
+    private bool CanManageSchedulingOrCareCoordinator() =>
+        User.HasClaim("permission", PermissionPolicies.SchedulingManage) || User.IsInRole("Care Coordinator");
 
     private bool TryGetCurrentUserId(out Guid userId)
     {

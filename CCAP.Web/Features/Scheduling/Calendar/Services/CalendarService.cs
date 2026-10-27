@@ -32,6 +32,31 @@ public sealed class CalendarService
         await _api.EnsureSuccessAsync(response, default);
     }
 
+    public async Task UpdateCalendarVisitDetailsAsync(
+        Guid visitId,
+        string timeBlock,
+        string confirmationStatus,
+        string? callNotes,
+        Guid? clinicianId,
+        string? notesFlag,
+        string status,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await _api.PutAsJsonAsync(
+            $"api/scheduling/visits/{visitId}/details",
+            new
+            {
+                TimeBlock = timeBlock,
+                ConfirmationStatus = confirmationStatus,
+                CallNotes = callNotes,
+                ClinicianId = clinicianId,
+                NotesFlag = notesFlag,
+                Status = status
+            },
+            cancellationToken);
+        await _api.EnsureSuccessAsync(response, cancellationToken);
+    }
+
     public async Task<int> AssignCareCoordinatorAsync(Guid coordinatorId, IReadOnlyList<Guid> visitIds)
     {
         using var response = await _api.PostAsJsonAsync("api/scheduling/care-coordinators/assign",
@@ -52,6 +77,15 @@ public sealed class CalendarService
     }
 
     private sealed class BulkDeleteVisitsResponse { public int Deleted { get; set; } }
+
+    public async Task RescheduleVisitAsync(Guid visitId, DateTime targetDate, CancellationToken cancellationToken = default)
+    {
+        using var response = await _api.PutAsJsonAsync(
+            $"api/scheduling/visits/{visitId}/reschedule",
+            new { Date = targetDate.Date },
+            cancellationToken);
+        await _api.EnsureSuccessAsync(response, cancellationToken);
+    }
 
     public async Task UpdateVisitStatusAsync(Guid visitId, string status, CancellationToken cancellationToken = default)
     {

@@ -9,10 +9,30 @@ public sealed class VisitRepository : IVisitRepository
     private readonly AppDbContext _context;
     public VisitRepository(AppDbContext context) => _context = context;
 
-    public async Task<IReadOnlyList<Visit>> GetCalendarVisitsAsync(Guid userId, DateTime startDate, DateTime endDate, CancellationToken cancellationToken)
-        => await _context.Visits.AsNoTracking().Include(x => x.Patient).Include(x => x.Clinician).Include(x => x.CareCoordinator)
-            .Where(x => x.AssignedUserId == userId && x.ScheduledDate >= startDate && x.ScheduledDate < endDate)
-            .OrderBy(x => x.ScheduledDate).ToListAsync(cancellationToken);
+    public async Task<IReadOnlyList<Visit>> GetCalendarVisitsAsync(
+        Guid userId,
+        DateTime startDate,
+        DateTime endDate,
+        bool canViewAllSchedules,
+        bool isCareCoordinator,
+        CancellationToken cancellationToken)
+    {
+        var query = _context.Visits.AsNoTracking()
+            .Include(x => x.Patient)
+            .Include(x => x.Clinician)
+            .Include(x => x.CareCoordinator)
+            .Where(x => x.ScheduledDate >= startDate && x.ScheduledDate < endDate);
+
+        if (!canViewAllSchedules)
+        {
+            query = isCareCoordinator
+                ? query.Where(x => x.CareCoordinatorId == userId ||
+                    (!x.CareCoordinatorId.HasValue && x.AssignedUserId == userId))
+                : query.Where(x => x.AssignedUserId == userId);
+        }
+
+        return await query.OrderBy(x => x.ScheduledDate).ToListAsync(cancellationToken);
+    }
 
     public Task<List<Visit>> GetForAssignmentAsync(Guid userId, IReadOnlyCollection<Guid> visitIds, CancellationToken cancellationToken)
         => _context.Visits.Where(x => x.AssignedUserId == userId && visitIds.Contains(x.VisitId)).ToListAsync(cancellationToken);
@@ -50,7 +70,7 @@ public sealed class VisitRepository : IVisitRepository
         var normalizedVisitType = visitType.Trim().ToUpperInvariant();
 
         return _context.Visits.FirstOrDefaultAsync(
-            x => x.AssignedUserId == userId &&
+            x => (x.AssignedUserId == userId || x.CareCoordinatorId == userId) &&
                  x.ScheduledDate.Date == scheduledDate.Date &&
                  x.PatientName.ToUpper() == normalizedName &&
                  x.TimeBlock != null &&

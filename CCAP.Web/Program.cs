@@ -72,15 +72,6 @@ builder.Services.AddHttpClient("CCAP.Api", client =>
     client.BaseAddress = new Uri(apiBaseUrl);
 });
 
-// Separate timeout for long scanned-referral OCR requests. General CCAP API
-// calls retain the default timeout. Replace synchronous OCR with a background
-// worker before scaling to high-volume production traffic.
-builder.Services.AddHttpClient("CCAP.Api.Ocr", client =>
-{
-    client.BaseAddress = new Uri(apiBaseUrl);
-    client.Timeout = TimeSpan.FromMinutes(5);
-});
-
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())

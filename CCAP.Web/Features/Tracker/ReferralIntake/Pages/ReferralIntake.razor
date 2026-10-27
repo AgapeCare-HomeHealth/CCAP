@@ -376,13 +376,14 @@
                     ErrorMessage = "Wait for PDF extraction to finish before continuing.";
                     return false;
                 }
-                // Do not silently choose an MRN when records from different
-                // facilities disagree. Human confirmation is required.
+
+                // Conflicting facility MRNs must be explicitly reviewed by the Care Coordinator.
                 if (Model.MrnReviewRequired && !Model.MrnReviewCompleted)
                 {
                     ErrorMessage = "Review the MRN candidates from the PDF and confirm your choice before continuing.";
                     return false;
                 }
+
                 return true;
 
             case 2:

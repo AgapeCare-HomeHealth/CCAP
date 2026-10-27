@@ -586,6 +586,35 @@
     color: #64748b;
 }
 
+.selected-schedule-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    max-width: 100%;
+    margin-top: 2px;
+    font-size: 12px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.selected-schedule-note-label {
+    flex: 0 0 auto;
+    min-width: 66px;
+    color: #475569 !important;
+    font-weight: 700;
+}
+
+.selected-schedule-note-value {
+    min-width: 0;
+    color: #334155 !important;
+}
+
+.selected-schedule-flag .selected-schedule-note-value {
+    color: #9a3412 !important;
+    font-weight: 600;
+}
+
 .schedule-details-content {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -898,3 +927,63 @@
 .import-duplicate-confirmation { margin: 12px 22px; padding: 14px 16px; border: 1px solid #d6a54a; border-radius: 8px; background: #fffaf0; }
 .import-duplicate-confirmation p { margin: 8px 0 12px; }
 .import-duplicate-confirmation-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+
+/* Calendar-first schedule creation and drag/drop */
+.calendar-month-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    color: #64748b;
+    font-size: .82rem;
+    font-weight: 600;
+}
+.calendar-day-header { align-items: center; }
+.calendar-day-actions { display: inline-flex; align-items: center; gap: .35rem; }
+.calendar-add-day-button {
+    display: inline-grid;
+    place-items: center;
+    width: 1.65rem;
+    height: 1.65rem;
+    padding: 0;
+    border: 1px solid #b8e2e9;
+    border-radius: 7px;
+    color: #087f95;
+    background: #f0fcfd;
+    opacity: .82;
+    cursor: pointer;
+    transition: background .12s ease, transform .12s ease, opacity .12s ease;
+}
+.calendar-day:hover .calendar-add-day-button { opacity: 1; }
+.calendar-add-day-button:hover { transform: translateY(-1px); color: #fff; background: #118da4; border-color: #118da4; }
+.calendar-day.drop-target-ready { outline: 2px dashed #47adbd; outline-offset: -5px; }
+.calendar-day.drop-target-ready:hover { background: #effcff; }
+.schedule-event[draggable="true"] { cursor: grab; }
+.schedule-event[draggable="true"]:active, .schedule-event.is-dragging { cursor: grabbing; opacity: .6; }
+.event-visit-count { display: inline-block; margin-top: .22rem; color: #0c7185; font-size: .67rem; font-weight: 750; }
+.calendar-legend { display: flex; align-items: center; gap: 1.1rem; flex-wrap: wrap; padding: .85rem .1rem .1rem; color: #718096; font-size: .78rem; }
+.calendar-legend span { display: inline-flex; align-items: center; gap: .35rem; }
+.calendar-feedback { display: inline-flex; align-items: center; padding: .45rem .75rem; border-radius: 8px; font-size: .8rem; font-weight: 650; }
+.calendar-feedback.success { border: 1px solid #b9e5d2; color: #166534; background: #f0fdf4; }
+.calendar-feedback.error { border: 1px solid #fecaca; color: #991b1b; background: #fff1f2; }
+.selected-day-add-button, .selected-day-empty-action { display: inline-flex; align-items: center; gap: .4rem; padding: .55rem .8rem; border: 1px solid #b8e2e9; border-radius: 8px; color: #087f95; background: #f0fcfd; font-size: .82rem; font-weight: 700; cursor: pointer; }
+.selected-day-add-button:hover, .selected-day-empty-action:hover { color: #fff; border-color: #118da4; background: #118da4; }
+.selected-day-empty { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+
+@media (max-width: 768px) {
+    .calendar-toolbar { align-items: flex-start; flex-direction: column; }
+    .calendar-month-hint { align-self: flex-start; }
+    .calendar-add-day-button { width: 1.5rem; height: 1.5rem; }
+    .selected-day-empty { align-items: flex-start; flex-direction: column; }
+}
+
+.calendar-hint-plus { display: inline-grid; place-items: center; width: 1.35rem; height: 1.35rem; border: 1px solid #b8e2e9; border-radius: 6px; color: #087f95; background: #f0fcfd; font-size: 1.1rem; font-weight: 750; line-height: 1; }
+
+
+/* Calendar patient cards with creator-only delete action. */
+.schedule-event-wrapper { position: relative; display: flex; align-items: stretch; gap: 3px; min-width: 0; }
+.schedule-event-wrapper .schedule-event { flex: 1 1 auto; min-width: 0; width: auto; }
+.schedule-card-delete { flex: 0 0 25px; align-self: stretch; border: 1px solid #fecaca; border-radius: 7px; color: #b91c1c; background: #fff; font-size: 19px; font-weight: 700; line-height: 1; cursor: pointer; }
+.schedule-card-delete:hover { background: #fff1f2; border-color: #f87171; }
+.selected-schedule-row { display: flex; gap: 6px; align-items: stretch; }
+.selected-schedule-row .selected-schedule-item { flex: 1 1 auto; min-width: 0; }
+.selected-day-delete { flex: 0 0 34px; align-self: center; min-height: 34px; }

@@ -15,4 +15,16 @@ public sealed record AddScheduleItem(
     Guid? AssignedClinicianId,
     string VisitType,
     string? VisitStatus,
-    string? NotesFlag);
+    string? NotesFlag,
+    Guid? CareCoordinatorId = null,
+    Guid? RecurrenceGroupId = null,
+    int VisitsEachDay = 1,
+    string? Skills = null,
+    string? TreatmentAuthorizationCode = null,
+    bool FlexibleVisit = false,
+    bool OutsourcedVisit = false,
+    string? AttachmentsNeeded = null,
+    string? BillingRateCode = null,
+    string? BillingRevenueCode = null,
+    decimal? BillingAmount = null,
+    decimal? BillingOvertimeAmount = null);

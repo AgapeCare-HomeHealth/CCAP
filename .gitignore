@@ -21,6 +21,3 @@ logs/
 # OS files
 .DS_Store
 Thumbs.db
-
-# Generated Windows Poppler runtime (download via tools/prepare-ocr-windows.ps1)
-CCAP.API/Tools/poppler/windows/
