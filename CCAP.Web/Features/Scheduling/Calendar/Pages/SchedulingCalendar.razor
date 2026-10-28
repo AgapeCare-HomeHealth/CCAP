@@ -1,60 +1,28 @@
-﻿@page "/scheduling/calendar"
+@page "/scheduling/calendar"
+@using System.Security.Claims
 @using Microsoft.AspNetCore.Components.Authorization
-@using Microsoft.AspNetCore.Components.Forms
-@using Microsoft.JSInterop
+@using CCAP.Web.Features.Scheduling.Calendar.Components
 @using CCAP.Web.Features.Scheduling.Calendar.Models
 @using CCAP.Web.Features.Scheduling.Calendar.Services
 @inject CalendarService CalendarService
-@inject IJSRuntime JS
+@inject Microsoft.JSInterop.IJSRuntime JSRuntime
 @attribute [CcapAuthorize(Policy = "scheduling.view")]
 
 <div class="scheduling-calendar-page">
     <div class="calendar-page-header">
         <div>
             <h1>Scheduling Calendar</h1>
-            <p>Review scheduled patient visits by month or use the tracker for a detailed list.</p>
+            <p>View and manage patient schedules by day.</p>
         </div>
-
-        @if (CanManageScheduling)
-        {
-            <div class="calendar-page-actions">
-                <label class="btn-upload-csv" style="cursor:pointer;">
-                    <span>↑</span>
-                    Import Schedule
-                    <InputFile OnChange="HandleScheduleFileSelected" accept=".xlsx,.csv" style="display:none;" />
-                </label>
-
-                <a class="btn-download-template"
-                   href="/templates/CC_Sched_Import_Template.xlsx"
-                   download="CC_Sched_Import_Template.xlsx">
-                    <span>↓</span>
-                    Download Template
-                </a>
-            </div>
-        }
     </div>
 
     <div class="calendar-card">
         <div class="calendar-toolbar">
             <div class="calendar-navigation">
-                <button class="toolbar-button" @onclick="GoToToday">Today</button>
-                <button class="toolbar-button navigation-button" @onclick="PreviousPeriod">‹</button>
-                <button class="toolbar-button navigation-button" @onclick="NextPeriod">›</button>
-
-                <h2 class="month-title">@GetPeriodTitle()</h2>
-            </div>
-
-            <div class="toolbar-right">
-                <div class="tab-switcher">
-                    <button class="tab-button @(CurrentTab == CalendarTab.Month ? "active" : "")"
-                            @onclick="() => ChangeTab(CalendarTab.Month)">
-                        Month
-                    </button>
-                    <button class="tab-button @(CurrentTab == CalendarTab.Tracker ? "active" : "")"
-                            @onclick="() => ChangeTab(CalendarTab.Tracker)">
-                        Tracker
-                    </button>
-                </div>
+                <button type="button" class="toolbar-button" @onclick="GoToToday">Today</button>
+                <button type="button" class="toolbar-button navigation-button" aria-label="Previous month" @onclick="PreviousMonth">‹</button>
+                <button type="button" class="toolbar-button navigation-button" aria-label="Next month" @onclick="NextMonth">›</button>
+                <h2 class="month-title">@CurrentMonth.ToString("MMMM yyyy")</h2>
             </div>
         </div>
 
@@ -69,37 +37,32 @@
                     }
                 </select>
             </div>
-
             <div class="filter-group patient-filter">
                 <label for="patientSearch">Search Patient / Clinician / CC</label>
-                <input id="patientSearch"
-                       class="filter-input"
-                       type="text"
+                <input id="patientSearch" class="filter-input" type="text"
                        placeholder="Search patient, clinician, or CC"
-                       @bind="PatientSearchTerm"
-                       @bind:event="oninput" />
+                       @bind="PatientSearchTerm" @bind:event="oninput" />
             </div>
-
             <div class="filter-group filter-action-group">
                 <label>&nbsp;</label>
-                <button type="button" class="btn-clear-filters" @onclick="ClearFilters">
-                    Clear Filters
-                </button>
+                <button type="button" class="btn-clear-filters" @onclick="ClearFilters">Clear Filters</button>
             </div>
         </div>
 
         <div class="toolbar-summary">
-            <div class="summary-pill">
-                <strong>@FilteredSchedules.Count</strong> visit(s) shown
-            </div>
-            <div class="summary-pill muted">
-                <strong>@GetSchedulesForDate(DateTime.Today).Count</strong> visit(s) today
-            </div>
+            <div class="summary-pill"><strong>@FilteredSchedules.Count</strong> visit(s) shown</div>
+            <div class="summary-pill muted"><strong>@GetSchedulesForDate(DateTime.Today).Count</strong> visit(s) today</div>
             @if (!string.IsNullOrWhiteSpace(SelectedPhysician))
             {
-                <div class="summary-pill accent">
-                    Filtered by: @SelectedPhysician
-                </div>
+                <div class="summary-pill accent">Filtered by: @SelectedPhysician</div>
+            }
+            @if (!string.IsNullOrWhiteSpace(StatusMessage))
+            {
+                <div class="calendar-feedback success" role="status">@StatusMessage</div>
+            }
+            @if (!string.IsNullOrWhiteSpace(StatusError))
+            {
+                <div class="calendar-feedback error" role="alert">@StatusError</div>
             }
         </div>
 
@@ -111,49 +74,71 @@
         {
             <div class="alert alert-danger m-3 mb-0">@CalendarLoadErrorMessage</div>
         }
-        else if (CurrentTab == CalendarTab.Month)
+        else
         {
             <div class="calendar-grid">
                 @foreach (var weekday in Weekdays)
                 {
-                    <div class="calendar-weekday">@weekday</div>
+                    <div class="calendar-weekday" @key="weekday">@weekday</div>
                 }
 
                 @foreach (var day in CalendarDays)
                 {
                     var daySchedules = GetSchedulesForDate(day);
-
-                    <div class="calendar-day
-                        @(day.Month != CurrentMonth.Month ? "other-month" : "")
-                        @(SelectedDate.Date == day.Date ? "selected-day" : "")"
-                         @onclick="() => SelectDate(day)">
-
+                    <div @key="day"
+                         class="calendar-day @(day.Month != CurrentMonth.Month ? "other-month" : "") @(SelectedDate.Date == day.Date ? "selected-day" : "") @(DraggingVisitId.HasValue ? "drop-target-ready" : "")"
+                         @onclick="() => SelectDate(day)"
+                         @ondragover:preventDefault="true"
+                         @ondrop:preventDefault="true"
+                         @ondrop="() => HandleScheduleDropAsync(day)">
                         <div class="calendar-day-header">
                             <div class="day-number">@day.Day</div>
-                            @if (daySchedules.Any())
-                            {
-                                <div class="day-count">@daySchedules.Count</div>
-                            }
+                            <div class="calendar-day-actions">
+                                @if (daySchedules.Count > 0)
+                                {
+                                    <div class="day-count">@daySchedules.Count</div>
+                                }
+                                @if (CanManageScheduling)
+                                {
+                                    <button type="button" class="calendar-add-day-button"
+                                            title="Add schedule for @day.ToString("MMMM d, yyyy")"
+                                            aria-label="Add schedule for @day.ToString("MMMM d, yyyy")"
+                                            @onclick:stopPropagation="true"
+                                            @onclick="() => OpenAddScheduleModal(day)">
+                                        <span aria-hidden="true">+</span>
+                                    </button>
+                                }
+                            </div>
                         </div>
 
                         <div class="day-events">
                             @foreach (var schedule in daySchedules.Take(4))
                             {
-                                <button type="button"
-                                        class="schedule-event"
-                                        @onclick:stopPropagation="true"
-                                        @onclick="() => SelectSchedule(schedule)">
-                                    <div class="event-title">@schedule.PatientName</div>
-                                    <div class="event-meta">
-                                        @GetTimeDisplay(schedule)
-                                        @if (!string.IsNullOrWhiteSpace(schedule.Clinician))
-                                        {
-                                            <span>• @schedule.Clinician</span>
-                                        }
-                                    </div>
-                                </button>
+                                <div @key="schedule.VisitId" class="schedule-event-wrapper">
+                                    <button type="button"
+                                            class="schedule-event @(DraggingVisitId == schedule.VisitId ? "is-dragging" : "")"
+                                            draggable="@(CanModifySchedule(schedule) && !string.Equals(schedule.Status, "Completed", StringComparison.OrdinalIgnoreCase) ? "true" : "false")"
+                                            title="Drag to reschedule; click to view or edit this schedule"
+                                            @ondragstart="() => BeginDragging(schedule)"
+                                            @ondragend="EndDragging"
+                                            @onclick:stopPropagation="true"
+                                            @onclick="() => SelectSchedule(schedule)">
+                                        <div class="event-title">@schedule.PatientName</div>
+                                        <div class="event-meta">
+                                            @GetTimeDisplay(schedule)
+                                            @if (!string.IsNullOrWhiteSpace(schedule.Clinician) && !string.Equals(schedule.Clinician, "Unassigned", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                <span>• @schedule.Clinician</span>
+                                            }
+                                        </div>
+                                    </button>
+                                    @if (CanDeleteSchedule(schedule))
+                                    {
+                                        <button type="button" class="schedule-card-delete" title="Delete this schedule" aria-label="Delete schedule for @schedule.PatientName"
+                                                @onclick:stopPropagation="true" @onclick="() => DeleteScheduleFromCardAsync(schedule)">×</button>
+                                    }
+                                </div>
                             }
-
                             @if (daySchedules.Count > 4)
                             {
                                 <div class="more-events">+@(daySchedules.Count - 4) more</div>
@@ -162,187 +147,12 @@
                     </div>
                 }
             </div>
-        }
-        else
-        {
-            <div class="tracker-view">
-                <div class="tracker-header">
-                    <div>
-                        <h3>Scheduling Tracker</h3>
-                        <p>Detailed view of visits for @GetPeriodTitle().</p>
-                    </div>
-                </div>
-
-                @if (!string.IsNullOrWhiteSpace(StatusUpdateError))
-                {
-                    <div class="tracker-status-error" role="alert">@StatusUpdateError</div>
-                }
-
+            <div class="calendar-legend">
                 @if (CanManageScheduling)
                 {
-                    <div class="cc-assignment-toolbar">
-                        <strong>@SelectedCcVisitIds.Count selected</strong>
-                        <select class="filter-select" aria-label="Care Coordinator" @bind="SelectedCareCoordinatorId">
-                            <option value="">Select Care Coordinator</option>
-                            @foreach (var person in CareCoordinators)
-                            {
-                                <option value="@person.UserId.ToString()">@person.FullName</option>
-                            }
-                        </select>
-                        <button type="button" class="toolbar-button" disabled="@(SelectedCcVisitIds.Count == 0 || string.IsNullOrEmpty(SelectedCareCoordinatorId) || IsAssigningCc)"
-                                @onclick="() => ShowCcConfirmation = true">Assign CC</button>
-                        <span>Existing CC assignments will be skipped.</span>
-                        <button type="button" class="toolbar-button tracker-delete-button tracker-delete-separated"
-                                disabled="@(SelectedCcVisitIds.Count == 0 || IsDeletingVisits || IsAssigningCc)"
-                                @onclick="() => ShowDeleteConfirmation = true">Delete Selected</button>
-                    </div>
-                    @if (ShowDeleteConfirmation)
-                    {
-                        <div class="cc-confirmation" role="group" aria-label="Confirm permanent visit deletion">
-                            <strong>Delete @SelectedCcVisitIds.Count selected visit(s) permanently?</strong>
-                            <p>This cannot be undone. Only the selected scheduled visits will be deleted; patient and referral records will remain.</p>
-                            <button type="button" class="toolbar-button" disabled="@IsDeletingVisits" @onclick="() => ShowDeleteConfirmation = false">Cancel</button>
-                            <button type="button" class="toolbar-button tracker-delete-button" disabled="@IsDeletingVisits" @onclick="ConfirmDeleteVisitsAsync">Confirm Permanent Delete</button>
-                        </div>
-                    }
-                    @if (ShowCcConfirmation)
-                    {
-                        <div class="cc-confirmation" role="group" aria-label="Confirm Care Coordinator assignment">
-                            <strong>Confirm assignment</strong>
-                            <p>Assign @SelectedCcVisitIds.Count selected visit(s) to @GetSelectedCcName()? Already assigned visits will be skipped.</p>
-                            <button type="button" class="toolbar-button" @onclick="() => ShowCcConfirmation = false">Cancel</button>
-                            <button type="button" class="toolbar-button" disabled="@IsAssigningCc" @onclick="ConfirmCcAssignmentAsync">Confirm Assignment</button>
-                        </div>
-                    }
+                    <span><span aria-hidden="true">↕</span> Drag a visit to another day to reschedule it.</span>
                 }
-
-                @if (FilteredSchedules.Count == 0)
-                {
-                    <div class="tracker-empty-state">
-                        <strong>No schedules found</strong>
-                        <span>Try changing the month or clearing the filters.</span>
-                    </div>
-                }
-                else
-                {
-                    <div class="tracker-table-wrapper">
-                        <table class="tracker-table">
-                            <thead>
-                                <tr>
-                                    @if (CanManageScheduling) { <th><input type="checkbox" aria-label="Select page visits" checked="@(PagedTrackerSchedules.All(s => SelectedCcVisitIds.Contains(s.VisitId)))" @onchange="ToggleCurrentPage" /></th> }
-                                    <th>Date</th>
-                                    <th>Day</th>
-                                    <th>Time Block</th>
-                                    <th>Patient Name</th>
-                                    <th>Confirmation</th>
-                                    <th>Call Notes</th>
-                                    <th>Assigned Clinician</th>
-                                    <th>CC</th>
-                                    <th>Type of Visit</th>
-                                    <th>Visit Status</th>
-                                    <th>Notes / Flag</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var schedule in PagedTrackerSchedules)
-                                {
-                                    <tr class="tracker-row @(SelectedSchedule?.VisitId == schedule.VisitId ? "selected" : "")"
-                                        @onclick="() => SelectSchedule(schedule)">
-                                        @if (CanManageScheduling)
-                                        {
-                                            <td><input type="checkbox" aria-label="Select @schedule.PatientName" checked="@(SelectedCcVisitIds.Contains(schedule.VisitId))"
-                                                       @onchange="e => ToggleCcVisit(schedule.VisitId, e.Value is true)" @onclick:stopPropagation="true" /></td>
-                                        }
-                                        <td>@schedule.ScheduledDate.ToString("MM/dd/yyyy")</td>
-                                        <td>@schedule.ScheduledDate.ToString("ddd")</td>
-                                        <td>@(string.IsNullOrWhiteSpace(schedule.TimeBlock) ? GetTimeDisplay(schedule) : schedule.TimeBlock)</td>
-                                        <td>
-                                            <strong>@schedule.PatientName</strong>
-                                        </td>
-                                        <td>
-                                            @if (CanManageScheduling)
-                                            {
-                                                <select class="tracker-status-select" aria-label="Confirmation for @schedule.PatientName"
-                                                        value="@schedule.ConfirmationStatus" disabled="@SavingVisitIds.Contains(schedule.VisitId)"
-                                                        @onchange="e => SaveTrackerFieldAsync(schedule, confirmation: e.Value?.ToString())" @onclick:stopPropagation="true">
-                                                    <option value="">Select status</option>
-                                                    @foreach (var opt in ConfirmationOptions)
-                                                    {
-                                                        <option value="@opt.DisplayName">@opt.DisplayName</option>
-                                                    }
-                                                </select>
-                                            }
-                                            else { @DisplayOrPlaceholder(schedule.ConfirmationStatus) }
-                                        </td>
-                                        <td>
-                                            @if (CanManageScheduling)
-                                            {
-                                                <input class="tracker-inline-input" value="@schedule.CallNotes" maxlength="4000" aria-label="Call notes for @schedule.PatientName"
-                                                       disabled="@SavingVisitIds.Contains(schedule.VisitId)"
-                                                       @onchange="e => SaveTrackerFieldAsync(schedule, callNotes: e.Value?.ToString(), updateNotes: true)" @onclick:stopPropagation="true" />
-                                            }
-                                            else { @DisplayOrPlaceholder(schedule.CallNotes) }
-                                        </td>
-                                        <td>
-                                            @if (CanManageScheduling)
-                                            {
-                                                <select class="tracker-status-select" aria-label="Clinician for @schedule.PatientName"
-                                                        value="@(schedule.ClinicianId?.ToString() ?? string.Empty)" disabled="@SavingVisitIds.Contains(schedule.VisitId)"
-                                                        @onchange="e => SaveTrackerFieldAsync(schedule, clinicianValue: e.Value?.ToString(), updateClinician: true)" @onclick:stopPropagation="true">
-                                                    <option value="">Unassigned</option>
-                                                    @foreach (var clinician in Clinicians)
-                                                    {
-                                                        <option value="@clinician.UserId.ToString()">@clinician.FullName</option>
-                                                    }
-                                                </select>
-                                            }
-                                            else { @DisplayOrPlaceholder(schedule.Clinician) }
-                                        </td>
-                                        <td>@(string.IsNullOrWhiteSpace(schedule.CareCoordinatorName) ? "Unassigned" : schedule.CareCoordinatorName)</td>
-                                        <td>@DisplayOrPlaceholder(schedule.VisitType)</td>
-                                        <td>
-                                            @if (CanManageScheduling)
-                                            {
-                                                <select class="tracker-status-select @GetVisitStatusClass(schedule.Status)"
-                                                        aria-label="Visit status for @schedule.PatientName"
-                                                        value="@schedule.Status"
-                                                        disabled="@SavingVisitIds.Contains(schedule.VisitId)"
-                                                        @onchange="async e => await ChangeVisitStatusAsync(schedule, e.Value?.ToString())"
-                                                        @onclick:stopPropagation="true">
-                                                    @if (string.IsNullOrWhiteSpace(schedule.Status))
-                                                    {
-                                                        <option value="">Not set</option>
-                                                    }
-                                                    @foreach (var status in EditableVisitStatuses)
-                                                    {
-                                                        <option value="@status">@status</option>
-                                                    }
-                                                </select>
-                                            }
-                                            else
-                                            {
-                                                <span class="status-badge @GetVisitStatusClass(schedule.Status)">@DisplayOrPlaceholder(schedule.Status)</span>
-                                            }
-                                        </td>
-                                        <td>@DisplayOrPlaceholder(schedule.NotesFlag)</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                    <nav class="tracker-pagination" aria-label="Scheduling tracker pages">
-                        <span class="tracker-pagination-info">
-                            Showing @TrackerFirstItem–@TrackerLastItem of @FilteredSchedules.Count visits
-                        </span>
-                        <div class="tracker-pagination-actions">
-                            <button type="button" disabled="@(TrackerPage <= 1)"
-                                    @onclick="() => ChangeTrackerPage(TrackerPage - 1)">Previous</button>
-                            <span class="tracker-page-label">Page @TrackerPage of @TrackerTotalPages</span>
-                            <button type="button" disabled="@(TrackerPage >= TrackerTotalPages)"
-                                    @onclick="() => ChangeTrackerPage(TrackerPage + 1)">Next</button>
-                        </div>
-                    </nav>
-                }
+                <span><span aria-hidden="true">▦</span> Multi-date schedules share a recurring group.</span>
             </div>
         }
     </div>
@@ -355,396 +165,113 @@
                     <span>Selected Day</span>
                     <h3>@SelectedDate.ToString("dddd, MMMM d, yyyy")</h3>
                 </div>
-
-                <button class="close-panel-button" @onclick="ClearSelectedDate">×</button>
+                <button type="button" class="close-panel-button" aria-label="Close selected day" @onclick="ClearSelectedDate">×</button>
             </div>
 
             @{
                 var selectedSchedules = GetSchedulesForDate(SelectedDate);
             }
-
             @if (selectedSchedules.Any())
             {
                 <div class="selected-schedule-list">
                     @foreach (var schedule in selectedSchedules)
                     {
-                        <button type="button"
-                                class="selected-schedule-item"
-                                @onclick="() => SelectSchedule(schedule)">
-                            <div class="selected-schedule-time">@GetTimeDisplay(schedule)</div>
-                            <div class="selected-schedule-info">
-                                <strong>@schedule.PatientName</strong>
-                                <span>@DisplayOrPlaceholder(schedule.Clinician) • @DisplayOrPlaceholder(schedule.Status)</span>
-                            </div>
-                        </button>
+                        <div class="selected-schedule-row" @key="schedule.VisitId">
+                            <button type="button" class="selected-schedule-item" @onclick="() => SelectSchedule(schedule)">
+                                <div class="selected-schedule-time">@GetTimeDisplay(schedule)</div>
+                                <div class="selected-schedule-info">
+                                    <strong>@schedule.PatientName</strong>
+                                    <span>@DisplayOrPlaceholder(schedule.Clinician) • @DisplayOrPlaceholder(schedule.Status) • CC: @DisplayOrPlaceholder(schedule.CareCoordinatorName)</span>
+                                    @if (!string.IsNullOrWhiteSpace(schedule.NotesFlag))
+                                    {
+                                        <div class="selected-schedule-note selected-schedule-flag" title="@schedule.NotesFlag">
+                                            <span class="selected-schedule-note-label">Flag</span>
+                                            <span class="selected-schedule-note-value">@schedule.NotesFlag</span>
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(schedule.CallNotes))
+                                    {
+                                        <div class="selected-schedule-note selected-schedule-call-notes" title="@schedule.CallNotes">
+                                            <span class="selected-schedule-note-label">Call notes</span>
+                                            <span class="selected-schedule-note-value">@schedule.CallNotes</span>
+                                        </div>
+                                    }
+                                </div>
+                            </button>
+                            @if (CanDeleteSchedule(schedule))
+                            {
+                                <button type="button" class="schedule-card-delete selected-day-delete" title="Delete this schedule" aria-label="Delete schedule for @schedule.PatientName" @onclick="() => DeleteScheduleFromCardAsync(schedule)">×</button>
+                            }
+                        </div>
                     }
                 </div>
             }
             else
             {
                 <div class="selected-day-empty">
-                    No schedules for this day with the current filters.
+                    <span>No visits scheduled for this day with the current filters.</span>
                 </div>
             }
         </div>
     }
 
-    @if (SelectedSchedule is not null)
-    {
-        <div class="schedule-details-panel">
-            <div class="schedule-details-header">
-                <div>
-                    <span>Schedule Details</span>
-                    <h3>@SelectedSchedule.PatientName</h3>
-                </div>
-
-                <button class="close-panel-button" @onclick="ClearSelectedSchedule">×</button>
-            </div>
-
-            <div class="schedule-details-content">
-                <div class="detail-row">
-                    <span>Date</span>
-                    <strong>@SelectedSchedule.ScheduledDate.ToString("MMMM d, yyyy")</strong>
-                </div>
-
-                <div class="detail-row">
-                    <span>Time</span>
-                    <strong>@GetTimeDisplay(SelectedSchedule)</strong>
-                </div>
-
-                <div class="detail-row">
-                    <span>Assigned Clinician</span>
-                    <strong>@DisplayOrPlaceholder(SelectedSchedule.Clinician)</strong>
-                </div>
-
-                <div class="detail-row">
-                    <span>Type of Visit</span>
-                    <strong>@DisplayOrPlaceholder(SelectedSchedule.VisitType)</strong>
-                </div>
-
-                <div class="detail-row">
-                    <span>Visit Status</span>
-                    <span class="status-badge @GetVisitStatusClass(SelectedSchedule.Status)">@DisplayOrPlaceholder(SelectedSchedule.Status)</span>
-                </div>
-
-                <div class="detail-row">
-                    <span>Confirmation Status</span>
-                    <strong>@DisplayOrPlaceholder(SelectedSchedule.ConfirmationStatus)</strong>
-                </div>
-
-                <div class="detail-row detail-row-wide">
-                    <span>Call Notes</span>
-                    <strong>@DisplayOrPlaceholder(SelectedSchedule.CallNotes)</strong>
-                </div>
-
-                <div class="detail-row detail-row-wide">
-                    <span>Notes / Flag</span>
-                    <strong>@DisplayOrPlaceholder(SelectedSchedule.NotesFlag)</strong>
-                </div>
-
-                @if (SelectedSchedule.CompletedDate.HasValue)
-                {
-                    <div class="detail-row detail-row-wide">
-                        <span>Completed</span>
-                        <strong>@SelectedSchedule.CompletedDate.Value.ToString("MMMM d, yyyy h:mm tt")</strong>
-                    </div>
-                }
-            </div>
-        </div>
-    }
 </div>
 
-@if (ShowImportReview)
+@if (ShowAddScheduleModal)
 {
-    <div class="import-review-overlay" @onclick:stopPropagation="true">
-        <div class="import-review-modal" role="dialog" aria-modal="true" aria-labelledby="schedule-import-title">
-            <div class="import-review-header">
-                <div>
-                    <h3 id="schedule-import-title">Review Schedule Import</h3>
-                    <p>
-                        Schedules are imported independently of the CCAP Patient record.
-                        A patient match is used when available, but it is <strong>not required to save the schedule</strong>.
-                    </p>
-                </div>
+    <AddScheduleModal InitialDate="ModalInitialDate"
+                      Clinicians="Clinicians"
+                      CareCoordinators="CareCoordinators"
+                      ConfirmationOptions="ConfirmationOptions"
+                      VisitStatusOptions="VisitStatusOptions"
+                      CurrentUserId="CurrentUserId"
+                      IsCareCoordinator="IsCareCoordinator"
+                      CanAssignCareCoordinator="CanAssignCareCoordinator"
+                      OnClose="CloseAddScheduleModal"
+                      OnSaved="HandleScheduleCreatedAsync" />
+}
 
-                <button type="button"
-                        class="import-review-close"
-                        title="Close review"
-                        aria-label="Close review"
-                        @onclick="CloseImportReview"
-                        @onclick:stopPropagation="true"
-                        disabled="@IsImporting">
-                    ×
-                </button>
-            </div>
-
-            <div class="import-summary">
-                <strong>@ImportPreview.Count schedule(s) found.</strong>
-                <span>@ImportPreview.Count(x => x.IsDuplicate) duplicate(s).</span>
-                <span>@ImportPreview.Count(x => !x.IsDuplicate) new schedule(s).</span>
-
-                @if (ImportPreview.Any(x => x.HasWarning))
-                {
-                    <span class="text-warning-emphasis">
-                        <strong>@ImportPreview.Count(x => x.HasWarning) warning(s).</strong>
-                        These schedules can still be saved.
-                    </span>
-                }
-            </div>
-
-            @if (ImportPreview.Any(x => x.IsDuplicate || x.HasWarning))
-            {
-                <div class="import-review-notice" role="status">
-                    <strong>Notice</strong>
-                    @if (ImportPreview.Any(x => x.IsDuplicate))
-                    {
-                        <p>@ImportPreview.Count(x => x.IsDuplicate) duplicate visit(s) were detected. These will be skipped automatically and existing visits will not be changed.</p>
-                    }
-                    @if (ImportPreview.Any(x => x.HasWarning))
-                    {
-                        <p>@ImportPreview.Count(x => x.HasWarning) visit(s) have validation warnings. Review their details before importing.</p>
-                    }
-                </div>
-            }
-
-            @if (ShowDuplicateImportConfirmation)
-            {
-                <div class="import-duplicate-confirmation" role="group" aria-label="Confirm skipping duplicate visits">
-                    <strong>Confirm import with duplicates</strong>
-                    <p>@ImportPreview.Count(x => x.IsDuplicate) duplicate visit(s) will be skipped. Only @ImportPreview.Count(x => !x.IsDuplicate && x.CanImport) new eligible visit(s) will be submitted for import. Continue?</p>
-                    <div class="import-duplicate-confirmation-actions">
-                        <button type="button" class="btn btn-secondary" disabled="@IsImporting" @onclick="() => ShowDuplicateImportConfirmation = false">Back to Preview</button>
-                        <button type="button" class="btn btn-primary" disabled="@IsImporting" @onclick="ProceedWithImport">Confirm &amp; Import New Visits</button>
-                    </div>
-                </div>
-            }
-
-            <div class="import-review-body">
-                <div class="table-responsive import-table">
-                    <table class="table table-sm align-middle">
-                        <thead>
-                            <tr>
-                                <th>Action</th>
-                                <th>Date</th>
-                                <th>Day</th>
-                                <th>Time Block</th>
-                                <th>Patient Name</th>
-                                <th>Confirmation Status</th>
-                                <th>Call Notes</th>
-                                <th>Assigned Clinician</th>
-                                <th>Type of Visit</th>
-                                <th>Visit Status</th>
-                                <th>Notes / Flag</th>
-                                <th>Existing Schedule</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        @foreach (var item in ImportPreview)
-                        {
-                            <tr>
-                                <td>
-                                    @if (item.IsDuplicate)
-                                    {
-                                        <span class="text-warning-emphasis fw-semibold">Skip Duplicate</span>
-                                    }
-                                    else if (item.CanImport)
-                                    {
-                                        <span class="text-success-emphasis fw-semibold">Add</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-danger-emphasis fw-semibold">Skip</span>
-                                    }
-
-                                </td>
-                                <td>@item.ScheduledDate.ToString("MMM d, yyyy")</td>
-                                <td>@item.ScheduledDate.ToString("dddd")</td>
-                                <td>@item.TimeBlock</td>
-                                <td><strong>@item.PatientName</strong></td>
-                                <td>@item.ConfirmationStatus</td>
-                                <td>
-                                    @if (!string.IsNullOrWhiteSpace(item.CallNotes))
-                                    {
-                                        <span>@item.CallNotes</span>
-                                    }
-                                </td>
-                                <td>@item.ClinicianName</td>
-                                <td>@item.VisitType</td>
-                                <td><span class="status-badge @GetVisitStatusClass(item.VisitStatus)">@DisplayOrPlaceholder(item.VisitStatus)</span></td>
-                                <td>@item.NotesFlag</td>
-                                <td>
-                                    @(item.IsDuplicate
-                                        ? $"{item.ExistingClinicianName} — {item.ExistingStatus}"
-                                        : "None")
-                                </td>
-                            </tr>
-                        }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="import-review-footer">
-                <button type="button"
-                        class="btn btn-secondary"
-                        @onclick="CloseImportReview"
-                        @onclick:stopPropagation="true"
-                        disabled="@IsImporting">
-                    Cancel
-                </button>
-
-                <button type="button"
-                        class="btn @(ImportPreview.Any(x => x.HasWarning) ? "btn-warning" : "btn-primary")"
-                        @onclick="RequestImportConfirmation"
-                        @onclick:stopPropagation="true"
-                        disabled="@(IsImporting || ShowDuplicateImportConfirmation)">
-                    @(IsImporting
-                        ? "Importing..."
-                        : ShowDuplicateImportConfirmation
-                            ? "Awaiting Confirmation"
-                            : ImportPreview.Any(x => x.IsDuplicate)
-                                ? "Review Duplicate Confirmation"
-                                : ImportPreview.Any(x => x.HasWarning)
-                                    ? "Proceed with Caution"
-                                    : "Proceed with Import")
-                </button>
-            </div>
-        </div>
-    </div>
+@if (ShowEditScheduleModal && SelectedSchedule is not null)
+{
+    <EditScheduleModal Visit="SelectedSchedule"
+                       Clinicians="Clinicians"
+                       ConfirmationOptions="ConfirmationOptions"
+                       VisitStatusOptions="VisitStatusOptions"
+                       CanEdit="@(SelectedSchedule is not null && CanModifySchedule(SelectedSchedule))"
+                       CurrentUserId="CurrentUserId"
+                       OnClose="CloseEditScheduleModal"
+                       OnSaved="HandleScheduleDetailsSavedAsync"
+                       OnDeleted="HandleScheduleDeletedAsync" />
 }
 
 @code {
-    [CascadingParameter]
-    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
     private bool CanManageScheduling;
+    private bool IsCareCoordinator;
+    private bool IsAdministrator;
+    private bool CanAssignCareCoordinator;
+    private Guid CurrentUserId;
+    private List<SchedulingClinicianDto> Clinicians = [];
     private List<SchedulingClinicianDto> CareCoordinators = [];
     private List<SchedulingLookupOptionDto> ConfirmationOptions = [];
-    private readonly HashSet<Guid> SelectedCcVisitIds = [];
-    private string SelectedCareCoordinatorId = string.Empty;
-    private bool ShowCcConfirmation;
-    private bool IsAssigningCc;
-    private bool ShowDeleteConfirmation;
-    private bool IsDeletingVisits;
-
-    private void ToggleCcVisit(Guid visitId, bool selected)
-    {
-        if (selected) SelectedCcVisitIds.Add(visitId);
-        else SelectedCcVisitIds.Remove(visitId);
-    }
-    private void ToggleCurrentPage(ChangeEventArgs e)
-    {
-        var selected = e.Value is true;
-        foreach (var visit in PagedTrackerSchedules) ToggleCcVisit(visit.VisitId, selected);
-    }
-    private string GetSelectedCcName() => CareCoordinators.FirstOrDefault(c => c.UserId.ToString() == SelectedCareCoordinatorId)?.FullName ?? "selected Care Coordinator";
-
-    private async Task ConfirmCcAssignmentAsync()
-    {
-        if (!CanManageScheduling || IsAssigningCc || !Guid.TryParse(SelectedCareCoordinatorId, out var ccId)) return;
-        IsAssigningCc = true;
-        StatusUpdateError = null;
-        try
-        {
-            var count = await CalendarService.AssignCareCoordinatorAsync(ccId, SelectedCcVisitIds.ToArray());
-            SelectedCcVisitIds.Clear();
-            ShowCcConfirmation = false;
-            await LoadSchedulesAsync();
-            StatusUpdateError = $"Assigned Care Coordinator to {count} visit(s). Existing assignments were skipped.";
-        }
-        catch { StatusUpdateError = "Could not assign the Care Coordinator. Please try again."; }
-        finally { IsAssigningCc = false; }
-    }
-
-    private async Task ConfirmDeleteVisitsAsync()
-    {
-        if (!CanManageScheduling || IsDeletingVisits || SelectedCcVisitIds.Count == 0) return;
-        IsDeletingVisits = true;
-        StatusUpdateError = null;
-        try
-        {
-            var count = await CalendarService.DeleteVisitsAsync(SelectedCcVisitIds.ToArray());
-            SelectedCcVisitIds.Clear();
-            ShowDeleteConfirmation = false;
-            await LoadSchedulesAsync();
-            StatusUpdateError = $"Permanently deleted {count} scheduled visit(s).";
-        }
-        catch { StatusUpdateError = "Could not delete the selected visits. No further deletion was requested."; }
-        finally { IsDeletingVisits = false; }
-    }
-
-    private async Task SaveTrackerFieldAsync(CalendarVisitDto visit, string? confirmation = null, string? callNotes = null,
-        bool updateNotes = false, string? clinicianValue = null, bool updateClinician = false)
-    {
-        if (!CanManageScheduling || !SavingVisitIds.Add(visit.VisitId)) return;
-        StatusUpdateError = null;
-        var newConfirmation = confirmation ?? visit.ConfirmationStatus ?? string.Empty;
-        var newNotes = updateNotes ? callNotes : visit.CallNotes;
-        Guid? newClinician = updateClinician && Guid.TryParse(clinicianValue, out var parsed) ? parsed : (updateClinician ? null : visit.ClinicianId);
-        try
-        {
-            await CalendarService.UpdateTrackerDetailsAsync(visit.VisitId, newConfirmation, newNotes, newClinician);
-            visit.ConfirmationStatus = newConfirmation;
-            visit.CallNotes = newNotes;
-            visit.ClinicianId = newClinician;
-            if (updateClinician) visit.Clinician = Clinicians.FirstOrDefault(c => c.UserId == newClinician)?.FullName ?? "Unassigned";
-        }
-        catch { StatusUpdateError = $"Could not save changes for {visit.PatientName}. Please refresh and try again."; }
-        finally { SavingVisitIds.Remove(visit.VisitId); }
-    }
-
-    private static readonly string[] EditableVisitStatuses = ["Scheduled", "Completed", "Missed", "Rescheduled", "Cancelled"];
-    private readonly HashSet<Guid> SavingVisitIds = [];
-    private string? StatusUpdateError;
-
-    private async Task ChangeVisitStatusAsync(CalendarVisitDto schedule, string? status)
-    {
-        if (!CanManageScheduling || status is null || !EditableVisitStatuses.Contains(status) ||
-            status == schedule.Status || !SavingVisitIds.Add(schedule.VisitId))
-            return;
-
-        StatusUpdateError = null;
-        try
-        {
-            await CalendarService.UpdateVisitStatusAsync(schedule.VisitId, status);
-            schedule.Status = status;
-        }
-        catch
-        {
-            StatusUpdateError = $"Could not save the status for {schedule.PatientName}. Please try again.";
-        }
-        finally
-        {
-            SavingVisitIds.Remove(schedule.VisitId);
-        }
-    }
-
-
-
-    private enum CalendarTab
-    {
-        Month,
-        Tracker
-    }
-
-    private CalendarTab CurrentTab = CalendarTab.Month;
+    private List<SchedulingLookupOptionDto> VisitStatusOptions = [];
 
     private DateTime CurrentMonth = new(DateTime.Today.Year, DateTime.Today.Month, 1);
     private DateTime SelectedDate = DateTime.Today;
+    private DateTime ModalInitialDate = DateTime.Today;
     private CalendarVisitDto? SelectedSchedule;
-
     private readonly string[] Weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     private List<DateTime> CalendarDays = [];
     private List<CalendarVisitDto> Schedules = [];
-    private List<SchedulingClinicianDto> Clinicians = [];
-
     private bool IsLoading;
     private string? CalendarLoadErrorMessage;
-
-    private bool ShowImportReview;
-    private bool ShowDuplicateImportConfirmation;
-    private bool IsImporting;
-    private List<ScheduleImportPreviewItem> ImportPreview = [];
+    private string? StatusMessage;
+    private string? StatusError;
+    private bool ShowAddScheduleModal;
+    private bool ShowEditScheduleModal;
+    private Guid? DraggingVisitId;
+    private readonly HashSet<Guid> ReschedulingVisitIds = [];
 
     private string _selectedPhysician = string.Empty;
     private string SelectedPhysician
@@ -752,11 +279,8 @@
         get => _selectedPhysician;
         set
         {
-            if (_selectedPhysician == value)
-                return;
-
+            if (_selectedPhysician == value) return;
             _selectedPhysician = value;
-            TrackerPage = 1;
             SyncSelectionWithFilters();
         }
     }
@@ -767,69 +291,31 @@
         get => _patientSearchTerm;
         set
         {
-            if (_patientSearchTerm == value)
-                return;
-
+            if (_patientSearchTerm == value) return;
             _patientSearchTerm = value;
-            TrackerPage = 1;
             SyncSelectionWithFilters();
         }
     }
 
-    private List<string> PhysicianOptions => Clinicians
-        .Select(x => x.FullName)
+    private List<string> PhysicianOptions => Clinicians.Select(x => x.FullName)
         .Concat(Schedules.Select(x => x.Clinician))
-        .Where(x => !string.IsNullOrWhiteSpace(x))
-        .Distinct(StringComparer.OrdinalIgnoreCase)
-        .OrderBy(x => x)
-        .ToList();
+        .Where(x => !string.IsNullOrWhiteSpace(x) && !string.Equals(x, "Unassigned", StringComparison.OrdinalIgnoreCase))
+        .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
 
-    private List<CalendarVisitDto> FilteredSchedules => Schedules
-        .Where(MatchesCurrentFilters)
-        .OrderBy(x => x.ScheduledDate)
-        .ThenBy(x => x.PatientName)
-        .ToList();
-
-    // Tracker pagination is presentation-only; the Month view still uses all matching visits.
-    private const int TrackerPageSize = 10;
-    private int TrackerPage = 1;
-    private int TrackerTotalPages => Math.Max(1, (FilteredSchedules.Count + TrackerPageSize - 1) / TrackerPageSize);
-    private int TrackerFirstItem => (TrackerPage - 1) * TrackerPageSize + 1;
-    private int TrackerLastItem => Math.Min(TrackerPage * TrackerPageSize, FilteredSchedules.Count);
-    private IEnumerable<CalendarVisitDto> PagedTrackerSchedules => FilteredSchedules
-        .Skip((TrackerPage - 1) * TrackerPageSize)
-        .Take(TrackerPageSize);
-
-    private void ChangeTrackerPage(int page)
-    {
-        TrackerPage = Math.Clamp(page, 1, TrackerTotalPages);
-    }
-
-    //         _patientSearchTerm = value;
-    //         SyncSelectionWithFilters();
-    //     }
-    // }
-
-    // private List<string> PhysicianOptions => Clinicians
-    //     .Select(x => x.FullName)
-    //     .Concat(Schedules.Select(x => x.Clinician))
-    //     .Where(x => !string.IsNullOrWhiteSpace(x))
-    //     .Distinct(StringComparer.OrdinalIgnoreCase)
-    //     .OrderBy(x => x)
-    //     .ToList();
-
-    // private List<CalendarVisitDto> FilteredSchedules => Schedules
-    //     .Where(MatchesCurrentFilters)
-    //     .OrderBy(x => x.ScheduledDate)
-    //     .ThenBy(x => x.PatientName)
-    //     .ToList();
+    private List<CalendarVisitDto> FilteredSchedules => Schedules.Where(MatchesCurrentFilters)
+        .OrderBy(x => x.ScheduledDate).ThenBy(x => x.PatientName).ToList();
 
     protected override async Task OnInitializedAsync()
     {
         if (AuthenticationStateTask is not null)
         {
             var authState = await AuthenticationStateTask;
-            CanManageScheduling = authState.User.HasClaim("permission", "scheduling.manage");
+            var user = authState.User;
+            CanManageScheduling = user.HasClaim("permission", "scheduling.manage");
+            IsCareCoordinator = user.IsInRole("Care Coordinator");
+            IsAdministrator = user.IsInRole("Administrator") || user.IsInRole("Admin");
+            CanAssignCareCoordinator = user.IsInRole("Administrator") || user.IsInRole("Admin") || user.IsInRole("Scheduler");
+            Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out CurrentUserId);
         }
 
         GenerateCalendarDays();
@@ -845,12 +331,14 @@
             Clinicians = options.Clinicians;
             CareCoordinators = options.CareCoordinators;
             ConfirmationOptions = options.ConfirmationStatuses;
+            VisitStatusOptions = options.VisitStatuses;
         }
         catch
         {
             Clinicians = [];
             CareCoordinators = [];
             ConfirmationOptions = [];
+            VisitStatusOptions = [];
         }
     }
 
@@ -858,20 +346,15 @@
     {
         IsLoading = true;
         CalendarLoadErrorMessage = null;
-
         try
         {
             var (start, end) = GetVisibleDateRange();
             Schedules = await CalendarService.GetVisitsAsync(start, end);
-            SelectedCcVisitIds.Clear();
-            ShowCcConfirmation = false;
-            TrackerPage = 1;
             SyncSelectionWithFilters();
         }
         catch
         {
             Schedules = [];
-            TrackerPage = 1;
             CalendarLoadErrorMessage = "Unable to load schedules right now. Please try again.";
         }
         finally
@@ -880,75 +363,62 @@
         }
     }
 
-    private (DateTime Start, DateTime End) GetVisibleDateRange()
-    {
-        return (CalendarDays.First().Date, CalendarDays.Last().Date.AddDays(1));
-    }
+    private (DateTime Start, DateTime End) GetVisibleDateRange() =>
+        (CalendarDays.First().Date, CalendarDays.Last().Date.AddDays(1));
 
     private void GenerateCalendarDays()
     {
         CalendarDays.Clear();
-
-        var firstDayOfMonth = CurrentMonth;
-        var calendarStart = firstDayOfMonth.AddDays(-(int)firstDayOfMonth.DayOfWeek);
+        var calendarStart = CurrentMonth.AddDays(-(int)CurrentMonth.DayOfWeek);
         var lastDayOfMonth = CurrentMonth.AddMonths(1).AddDays(-1);
         var calendarEnd = lastDayOfMonth.AddDays(6 - (int)lastDayOfMonth.DayOfWeek);
-
         for (var date = calendarStart; date <= calendarEnd; date = date.AddDays(1))
             CalendarDays.Add(date);
-    }
-
-    private void ChangeTab(CalendarTab tab)
-    {
-        CurrentTab = tab;
-        TrackerPage = 1;
-        SelectedSchedule = null;
     }
 
     private bool MatchesCurrentFilters(CalendarVisitDto schedule)
     {
         var matchesPhysician = string.IsNullOrWhiteSpace(SelectedPhysician) ||
-                               string.Equals(schedule.Clinician, SelectedPhysician, StringComparison.OrdinalIgnoreCase);
-
-        var searchTerm = PatientSearchTerm.Trim();
-        var matchesSearch = string.IsNullOrEmpty(searchTerm) ||
-                            (schedule.PatientName?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                            (schedule.Clinician?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                            (schedule.CareCoordinatorName?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false);
-
+            string.Equals(schedule.Clinician, SelectedPhysician, StringComparison.OrdinalIgnoreCase);
+        var search = PatientSearchTerm.Trim();
+        var matchesSearch = string.IsNullOrEmpty(search) ||
+            (schedule.PatientName?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (schedule.Clinician?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (schedule.CareCoordinatorName?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false);
         return matchesPhysician && matchesSearch;
     }
 
-    private List<CalendarVisitDto> GetSchedulesForDate(DateTime date)
-    {
-        return FilteredSchedules
-            .Where(x => x.ScheduledDate.Date == date.Date)
-            .OrderBy(x => x.ScheduledDate)
-            .ThenBy(x => x.PatientName)
-            .ToList();
-    }
+    private List<CalendarVisitDto> GetSchedulesForDate(DateTime date) => FilteredSchedules
+        .Where(x => x.ScheduledDate.Date == date.Date)
+        .OrderBy(x => x.ScheduledDate).ThenBy(x => x.PatientName).ToList();
 
     private void SelectDate(DateTime date)
     {
-        SelectedDate = date;
+        SelectedDate = date.Date;
         SelectedSchedule = null;
+        ShowEditScheduleModal = false;
+        StatusMessage = null;
+        StatusError = null;
     }
 
     private void SelectSchedule(CalendarVisitDto schedule)
     {
         SelectedSchedule = schedule;
         SelectedDate = schedule.ScheduledDate.Date;
+        ShowEditScheduleModal = true;
     }
 
     private void ClearSelectedDate()
     {
         SelectedDate = DateTime.MinValue;
         SelectedSchedule = null;
+        ShowEditScheduleModal = false;
     }
 
-    private void ClearSelectedSchedule()
+    private Task CloseEditScheduleModal()
     {
-        SelectedSchedule = null;
+        ShowEditScheduleModal = false;
+        return Task.CompletedTask;
     }
 
     private async Task GoToToday()
@@ -957,277 +427,215 @@
         CurrentMonth = new DateTime(today.Year, today.Month, 1);
         SelectedDate = today;
         SelectedSchedule = null;
-
+        ShowEditScheduleModal = false;
         GenerateCalendarDays();
         await LoadSchedulesAsync();
     }
 
-    private async Task PreviousPeriod()
+    private async Task PreviousMonth()
     {
         CurrentMonth = CurrentMonth.AddMonths(-1);
         SelectedDate = CurrentMonth;
         SelectedSchedule = null;
-
+        ShowEditScheduleModal = false;
         GenerateCalendarDays();
         await LoadSchedulesAsync();
     }
 
-    private async Task NextPeriod()
+    private async Task NextMonth()
     {
         CurrentMonth = CurrentMonth.AddMonths(1);
         SelectedDate = CurrentMonth;
         SelectedSchedule = null;
-
+        ShowEditScheduleModal = false;
         GenerateCalendarDays();
         await LoadSchedulesAsync();
     }
-
-    private string GetPeriodTitle() => CurrentMonth.ToString("MMMM yyyy");
 
     private void ClearFilters()
     {
         _selectedPhysician = string.Empty;
         _patientSearchTerm = string.Empty;
-        TrackerPage = 1;
         SyncSelectionWithFilters();
     }
 
     private void SyncSelectionWithFilters()
     {
-        var visibleSchedules = FilteredSchedules;
-
-        if (SelectedSchedule is not null && visibleSchedules.All(x => x.VisitId != SelectedSchedule.VisitId))
+        var visible = FilteredSchedules;
+        if (SelectedSchedule is not null && visible.All(x => x.VisitId != SelectedSchedule.VisitId))
+        {
             SelectedSchedule = null;
-
+            ShowEditScheduleModal = false;
+        }
         if (SelectedDate != DateTime.MinValue && GetSchedulesForDate(SelectedDate).Count == 0)
             SelectedDate = DateTime.Today.Month == CurrentMonth.Month && DateTime.Today.Year == CurrentMonth.Year
                 ? DateTime.Today
                 : CurrentMonth;
     }
 
-    private static string GetTimeDisplay(CalendarVisitDto schedule)
+    private void OpenAddScheduleModal(DateTime date)
     {
-        if (!string.IsNullOrWhiteSpace(schedule.TimeBlock))
-            return schedule.TimeBlock;
-
-        return schedule.ScheduledDate.ToString("h:mm tt");
+        if (!CanManageScheduling) return;
+        ModalInitialDate = date.Date;
+        ShowAddScheduleModal = true;
+        StatusMessage = null;
+        StatusError = null;
     }
 
-    private static string DisplayOrPlaceholder(string? value)
+    private Task CloseAddScheduleModal()
     {
-        return string.IsNullOrWhiteSpace(value)
-            ? "—"
-            : value;
+        ShowAddScheduleModal = false;
+        return Task.CompletedTask;
     }
 
-    private static string GetVisitStatusClass(string? status)
+    private async Task HandleScheduleCreatedAsync(string message)
     {
-        return status?.Trim().ToLowerInvariant() switch
-        {
-            "completed" => "status-completed",
-            "missed" => "status-missed",
-            "rescheduled" => "status-rescheduled",
-            "cancelled" => "status-cancelled",
-            _ => "status-empty"
-        };
+        StatusMessage = message;
+        StatusError = null;
+        await LoadSchedulesAsync();
+        SelectedDate = ModalInitialDate.Date;
     }
 
-    private async Task HandleScheduleFileSelected(InputFileChangeEventArgs e)
+    private async Task HandleScheduleDetailsSavedAsync(string message)
     {
-        var file = e.File;
-        if (file is null)
+        StatusMessage = message;
+        StatusError = null;
+        var visitId = SelectedSchedule?.VisitId;
+        await LoadSchedulesAsync();
+        if (visitId.HasValue)
+            SelectedSchedule = Schedules.FirstOrDefault(x => x.VisitId == visitId.Value);
+        ShowEditScheduleModal = false;
+    }
+
+    private async Task DeleteScheduleFromCardAsync(CalendarVisitDto schedule)
+    {
+        if (schedule.AssignedUserId != CurrentUserId || !(CanManageScheduling || IsCareCoordinator))
             return;
 
-        var extension = Path.GetExtension(file.Name);
-        if (!string.Equals(extension, ".xlsx", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(extension, ".csv", StringComparison.OrdinalIgnoreCase))
-        {
-            await ShowScheduleErrorAsync(
-                "Invalid File",
-                "Please select an Excel (.xlsx) or CSV schedule file.");
-            return;
-        }
-
-        IsImporting = true;
-        ShowImportReview = false;
-        ShowDuplicateImportConfirmation = false;
-        ImportPreview.Clear();
-
-        await ShowScheduleLoadingAsync(
-            "Validating Schedule",
-            "Reading the uploaded schedule and checking its format...");
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Delete the schedule for {schedule.PatientName} on {schedule.ScheduledDate:MMMM d, yyyy}? This cannot be undone.");
+        if (!confirmed) return;
 
         try
         {
-            ImportPreview = await CalendarService.PreviewImportAsync(file);
-
-            await CloseScheduleAlertAsync();
-
-            if (ImportPreview.Count == 0)
+            await CalendarService.DeleteVisitsAsync([schedule.VisitId]);
+            if (SelectedSchedule?.VisitId == schedule.VisitId)
             {
-                await ShowScheduleErrorAsync(
-                    "No Schedule Found",
-                    "The uploaded file does not contain any valid scheduled visits.");
-                return;
+                SelectedSchedule = null;
+                ShowEditScheduleModal = false;
             }
+            StatusMessage = $"Deleted the schedule for {schedule.PatientName}.";
+            StatusError = null;
+            await LoadSchedulesAsync();
+        }
+        catch
+        {
+            StatusError = "Could not delete this schedule. Only the user who created this calendar entry can delete it.";
+            StatusMessage = null;
+        }
+    }
 
-            ShowDuplicateImportConfirmation = false;
-            ShowImportReview = true;
-        }
-        catch (HttpRequestException ex)
+    private async Task HandleScheduleDeletedAsync(string message)
+    {
+        StatusMessage = message;
+        StatusError = null;
+        ShowEditScheduleModal = false;
+        SelectedSchedule = null;
+        await LoadSchedulesAsync();
+    }
+
+    private bool IsAssignedToCurrentCoordinator(CalendarVisitDto schedule) =>
+        schedule.CareCoordinatorId == CurrentUserId ||
+        (!schedule.CareCoordinatorId.HasValue && schedule.AssignedUserId == CurrentUserId);
+
+    private bool CanModifySchedule(CalendarVisitDto schedule)
+    {
+        if (CurrentUserId == Guid.Empty)
+            return false;
+
+        // Administrators may view all CC schedules, but may only modify entries
+        // assigned to themselves (or their own legacy, unassigned entries).
+        if (IsAdministrator)
+            return IsAssignedToCurrentCoordinator(schedule);
+
+        // Care Coordinators stay inside their own assignment scope.
+        if (IsCareCoordinator)
+            return IsAssignedToCurrentCoordinator(schedule);
+
+        // Scheduler / other scheduling-manage roles retain their existing scope.
+        return CanManageScheduling;
+    }
+
+    private bool CanDeleteSchedule(CalendarVisitDto schedule)
+    {
+        if ((!CanManageScheduling && !IsCareCoordinator) || CurrentUserId == Guid.Empty || schedule.AssignedUserId != CurrentUserId)
+            return false;
+
+        // Do not let Admin delete a visit belonging to another Care Coordinator.
+        if (IsAdministrator && schedule.CareCoordinatorId.HasValue && schedule.CareCoordinatorId != CurrentUserId)
+            return false;
+
+        return true;
+    }
+
+    private void BeginDragging(CalendarVisitDto schedule)
+    {
+        if (!CanModifySchedule(schedule) || string.Equals(schedule.Status, "Completed", StringComparison.OrdinalIgnoreCase))
         {
-            await CloseScheduleAlertAsync();
-            await ShowScheduleErrorAsync(
-                "Schedule Validation Failed",
-                GetScheduleErrorMessage(ex));
+            DraggingVisitId = null;
+            return;
         }
-        catch (InvalidOperationException ex)
+        DraggingVisitId = schedule.VisitId;
+        StatusMessage = null;
+        StatusError = null;
+    }
+
+    private void EndDragging() => DraggingVisitId = null;
+
+    private async Task HandleScheduleDropAsync(DateTime targetDay)
+    {
+        if (!DraggingVisitId.HasValue) return;
+        var visitId = DraggingVisitId.Value;
+        DraggingVisitId = null;
+        var schedule = Schedules.FirstOrDefault(x => x.VisitId == visitId);
+        if (schedule is null || schedule.ScheduledDate.Date == targetDay.Date) return;
+        if (!CanModifySchedule(schedule))
         {
-            await CloseScheduleAlertAsync();
-            await ShowScheduleErrorAsync(
-                "Invalid Schedule File",
-                GetScheduleErrorMessage(ex));
+            StatusError = "You cannot reschedule a visit assigned to another Care Coordinator.";
+            return;
         }
-        catch (Exception)
+        if (string.Equals(schedule.Status, "Completed", StringComparison.OrdinalIgnoreCase))
         {
-            await CloseScheduleAlertAsync();
-            await ShowScheduleErrorAsync(
-                "Unable to Read Schedule",
-                "The uploaded file could not be processed. Please verify that it is a valid weekly schedule file.");
+            StatusError = "Completed visits cannot be rescheduled.";
+            return;
+        }
+        if (!ReschedulingVisitIds.Add(visitId)) return;
+
+        StatusError = null;
+        StatusMessage = null;
+        var originalTime = schedule.ScheduledDate.TimeOfDay;
+        try
+        {
+            await CalendarService.RescheduleVisitAsync(visitId, targetDay.Date);
+            schedule.ScheduledDate = targetDay.Date.Add(originalTime);
+            schedule.Status = "Scheduled";
+            SelectedDate = targetDay.Date;
+            SelectedSchedule = schedule;
+            await LoadSchedulesAsync();
+            SelectedSchedule = Schedules.FirstOrDefault(x => x.VisitId == visitId);
+            StatusMessage = $"Rescheduled {schedule.PatientName} to {targetDay:MMMM d, yyyy}.";
+        }
+        catch
+        {
+            StatusError = "Could not reschedule this visit. Verify your permissions and try again.";
         }
         finally
         {
-            IsImporting = false;
+            ReschedulingVisitIds.Remove(visitId);
         }
     }
 
-    private async Task RequestImportConfirmation()
-    {
-        if (IsImporting || ImportPreview.Count == 0) return;
-        if (ImportPreview.Any(x => x.IsDuplicate))
-        {
-            ShowDuplicateImportConfirmation = true;
-            return;
-        }
-        await ProceedWithImport();
-    }
+    private static string GetTimeDisplay(CalendarVisitDto schedule) =>
+        !string.IsNullOrWhiteSpace(schedule.TimeBlock) ? schedule.TimeBlock : schedule.ScheduledDate.ToString("h:mm tt");
 
-    private async Task ProceedWithImport()
-    {
-        if (IsImporting || ImportPreview.Count == 0)
-            return;
-
-        IsImporting = true;
-
-        ShowImportReview = false;
-        await InvokeAsync(StateHasChanged);
-        await Task.Yield();
-
-        await ShowScheduleLoadingAsync(
-            "Importing Schedule",
-            "Saving the selected schedules to CCAP...");
-
-        ScheduleImportResult result;
-
-        try
-        {
-            result = await CalendarService.CommitImportAsync(ImportPreview);
-        }
-        catch (HttpRequestException ex)
-        {
-            await CloseScheduleAlertAsync();
-            await ShowScheduleErrorAsync("Import Failed", GetScheduleErrorMessage(ex));
-            IsImporting = false;
-            await InvokeAsync(StateHasChanged);
-            return;
-        }
-        catch (InvalidOperationException ex)
-        {
-            await CloseScheduleAlertAsync();
-            await ShowScheduleErrorAsync("Import Validation Failed", GetScheduleErrorMessage(ex));
-            IsImporting = false;
-            await InvokeAsync(StateHasChanged);
-            return;
-        }
-        catch (Exception)
-        {
-            await CloseScheduleAlertAsync();
-            await ShowScheduleErrorAsync("Import Failed", "The schedules could not be imported. Please try again.");
-            IsImporting = false;
-            await InvokeAsync(StateHasChanged);
-            return;
-        }
-
-        ImportPreview.Clear();
-
-        await CloseScheduleAlertAsync();
-        await LoadSchedulesAsync();
-
-        var resultMessage =
-            $"{result.Added} added, {result.Overwritten} overwritten, {result.Kept} kept" +
-            (result.Skipped > 0 ? $", {result.Skipped} skipped" : "") + ".";
-
-        if (result.Warnings > 0 || result.Skipped > 0)
-        {
-            var warningMessage = resultMessage;
-
-            if (result.Warnings > 0)
-                warningMessage += $" {result.Warnings} schedule(s) were saved with mapping warnings.";
-
-            if (result.Skipped > 0)
-                warningMessage += " Rows that could not be imported were skipped.";
-
-            await ShowScheduleWarningAsync("Import Completed with Warnings", warningMessage);
-        }
-        else
-        {
-            await ShowScheduleSuccessAsync("Schedule Imported", resultMessage);
-        }
-
-        IsImporting = false;
-        await InvokeAsync(StateHasChanged);
-    }
-
-    private async Task ShowScheduleLoadingAsync(string title, string text)
-    {
-        await JS.InvokeVoidAsync("ccapScheduleAlert.loading", title, text);
-    }
-
-    private async Task CloseScheduleAlertAsync()
-    {
-        await JS.InvokeVoidAsync("ccapScheduleAlert.close");
-    }
-
-    private async Task ShowScheduleErrorAsync(string title, string text)
-    {
-        await JS.InvokeVoidAsync("ccapScheduleAlert.error", title, text);
-    }
-
-    private async Task ShowScheduleSuccessAsync(string title, string text)
-    {
-        await JS.InvokeVoidAsync("ccapScheduleAlert.success", title, text);
-    }
-
-    private async Task ShowScheduleWarningAsync(string title, string text)
-    {
-        await JS.InvokeVoidAsync("ccapScheduleAlert.warning", title, text);
-    }
-
-    private static string GetScheduleErrorMessage(Exception ex)
-    {
-        return string.IsNullOrWhiteSpace(ex.Message)
-            ? "The schedule file could not be validated."
-            : ex.Message;
-    }
-
-    private void CloseImportReview()
-    {
-        if (IsImporting)
-            return;
-
-        ShowImportReview = false;
-        ShowDuplicateImportConfirmation = false;
-        ImportPreview.Clear();
-        StateHasChanged();
-    }
+    private static string DisplayOrPlaceholder(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
 }

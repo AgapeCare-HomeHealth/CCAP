@@ -8,6 +8,7 @@ public sealed class PatientServiceOrder
     public Guid PatientId { get; private set; }
     public Guid ServiceTypeId { get; private set; }
     public string Status { get; private set; } = "Ordered";
+    public DateTime OrderDate { get; private set; } = DateTime.UtcNow;
     public string? Frequency { get; private set; }
     public string? Duration { get; private set; }
     public bool IsPrimaryDiscipline { get; private set; }

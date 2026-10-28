@@ -252,15 +252,23 @@ public sealed class CreateReferralIntakeCommandHandler
                 .Distinct(
                     StringComparer.OrdinalIgnoreCase))
         {
-            var service =
-                activeServices.FirstOrDefault(
-                    x => string.Equals(
-                        x.Name,
-                        requestedService,
-                        StringComparison.OrdinalIgnoreCase));
+            // Referral intake labels are not always identical to the normalized
+            // service type names (e.g. "Medical Social Work (MSW)" vs
+            // "Medical Social Worker (MSW)"). Resolve by normalized label/code.
+            var normalizedRequested = requestedService
+                .Replace("Medical Social Work", "Medical Social Worker", StringComparison.OrdinalIgnoreCase)
+                .Trim();
+
+            var service = activeServices.FirstOrDefault(x =>
+                string.Equals(x.Name, requestedService, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(x.Name, normalizedRequested, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(x.Code, requestedService, StringComparison.OrdinalIgnoreCase) ||
+                (string.Equals(x.Code, "MSW", StringComparison.OrdinalIgnoreCase) &&
+                 requestedService.Contains("MSW", StringComparison.OrdinalIgnoreCase)));
 
             if (service is null)
                 continue;
+
 
             var order =
                 new PatientServiceOrder(

@@ -7,7 +7,7 @@
     <div class="row g-4">
 
         <!-- Needs Attention -->
-        <div class="col-xl-5">
+        <div class="col-12">
             <div class="card shadow-sm border-0 h-100">
 
                 <div class="card-header bg-white">
@@ -59,110 +59,69 @@
         </div>
 
 
-        <!-- Next Action -->
-        <div class="col-xl-4">
-
-            <div class="card shadow-sm border-0 h-100">
-
-                <div class="card-header bg-white">
-                    <h5 class="mb-0">Next Action</h5>
-                </div>
-
-                <div class="card-body">
-
-                    @if (HasNextAction && !Workflow!.NextAction!.IsOverdue)
-                    {
-                        <h5 class="mb-2">
-                            @Workflow.NextAction.Title
-                        </h5>
-
-                        @if (!string.IsNullOrWhiteSpace(Workflow.NextAction.Description))
-                        {
-                            <p class="text-muted mb-3">
-                                @Workflow.NextAction.Description
-                            </p>
-                        }
-
-                        <div class="small text-muted mb-3">
-                            Due: @Workflow.NextAction.DueDate.ToLocalTime().ToString("MM/dd/yyyy h:mm tt")
-                        </div>
-
-                        <button type="button"
-                                class="btn btn-primary"
-                                @onclick="OpenNextAction">
-                            Open
-                        </button>
-                    }
-                    else if (HasNextAction && Workflow!.NextAction!.IsOverdue)
-                    {
-                        <div class="text-center py-4">
-                            <i class="bi bi-exclamation-circle text-danger fs-2"></i>
-                            <div class="mt-2 fw-semibold">Resolve the overdue item above</div>
-                            <div class="small text-muted">Review outstanding compliance items in the list.</div>
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="text-center text-success py-4">
-                            <i class="bi bi-check-circle fs-2"></i>
-                            <div class="mt-2">No upcoming action.</div>
-                        </div>
-                    }
-
-                </div>
-            </div>
-
-        </div>
-
-
-        <!-- Current Stage -->
-        <div class="col-xl-3">
-
-            <div class="card shadow-sm border-0 h-100">
-
-                <div class="card-header bg-white">
-                    <h5 class="mb-0">Current Workflow</h5>
-                </div>
-
-                <div class="card-body">
-
-                    @if (!string.IsNullOrWhiteSpace(CurrentStageText))
-                    {
-                        <div class="mb-3">
-
-                            <div class="small text-muted">
-                                Current Stage
-                            </div>
-
-                            <div class="fw-semibold">
-                                @CurrentStageText
-                            </div>
-
-                        </div>
-                    }
-
-                    @if (!string.IsNullOrWhiteSpace(WorkflowStatusText))
-                    {
-                        <div>
-
-                            <div class="small text-muted">
-                                Status
-                            </div>
-
-                            <span class="badge @WorkflowStatusClass">
-                                @WorkflowStatusText
-                            </span>
-
-                        </div>
-                    }
-
-                </div>
-            </div>
-
-        </div>
-
     </div>
 
+
+    <!-- Physician and referral information -->
+    <div class="card shadow-sm border-0 mt-4">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">Physician &amp; Referral Information</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-4">
+                <div class="col-12 col-lg-6">
+                    <h6 class="text-muted text-uppercase small mb-3">Physician Information</h6>
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <div class="small text-muted">Referring / Primary Care Physician</div>
+                            <div class="fw-semibold">@DisplayValue(Workflow?.KeyInformation?.PrimaryCarePhysician)</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="small text-muted">Physician Fax</div>
+                            <div class="fw-semibold">@DisplayValue(Workflow?.KeyInformation?.PhysicianFax)</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="small text-muted">Physician NPI</div>
+                            <div class="fw-semibold">@DisplayValue(Workflow?.KeyInformation?.PhysicianNpi)</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="small text-muted">PCOS Registered</div>
+                            <div class="fw-semibold">@DisplayValue(Workflow?.KeyInformation?.PcosRegistered)</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-lg-6">
+                    <h6 class="text-muted text-uppercase small mb-3">Diagnosis &amp; Referral</h6>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <div class="small text-muted">Primary Diagnosis</div>
+                            <div class="fw-semibold">@DisplayValue(Workflow?.Summary?.PrimaryDiagnosis)</div>
+                        </div>
+                        <div class="col-12">
+                            <div class="small text-muted">Secondary Diagnosis</div>
+                            <div class="fw-semibold">@DisplayValue(Workflow?.Summary?.SecondaryDiagnosis)</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="small text-muted">Payor / Insurance</div>
+                            <div class="fw-semibold">@DisplayValue(Workflow?.KeyInformation?.Payor)</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="small text-muted">Priority</div>
+                            <div class="fw-semibold">@DisplayValue(Workflow?.KeyInformation?.Priority)</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="small text-muted">Discipline</div>
+                            <div class="fw-semibold">@DisplayValue(Workflow?.KeyInformation?.Discipline)</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="small text-muted">Referral Date</div>
+                            <div class="fw-semibold">@(Workflow?.ReferralDate?.ToLocalTime().ToString("MM/dd/yyyy") ?? "Not provided")</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Unified Patient Notes -->
     <div class="card shadow-sm border-0 mt-4">
@@ -213,6 +172,9 @@
 
 
 @code {
+
+    private static string DisplayValue(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "Not provided" : value.Trim();
 
     [Parameter]
     public Guid PatientId { get; set; }

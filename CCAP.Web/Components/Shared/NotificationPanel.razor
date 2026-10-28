@@ -11,6 +11,12 @@
                     <span class="notification-header-count">@UnreadCount unread</span>
                 }
             </div>
+            <a class="notification-view-all"
+               href="/notifications/activity"
+               target="_blank"
+               rel="noopener noreferrer">
+                View all activity <i class="bi bi-box-arrow-up-right"></i>
+            </a>
         </div>
 
         @if (Notifications.Count == 0)
@@ -36,6 +42,7 @@
                             <span class="notification-title">@notification.Title</span>
                             <span class="notification-patient">@notification.PatientName</span>
                             <span class="notification-message">@notification.Message</span>
+                            <span class="notification-timestamp">@FormatTimestamp(notification.CreatedAt)</span>
                             @if (notification.DueDate.HasValue)
                             {
                                 <span class="notification-due">
@@ -60,6 +67,12 @@
     [Parameter] public EventCallback<UserNotificationDto> NotificationSelected { get; set; }
 
     private int UnreadCount => Notifications.Count(x => !x.IsRead);
+
+    private static string FormatTimestamp(DateTime timestamp)
+    {
+        var local = timestamp.Kind == DateTimeKind.Utc ? timestamp.ToLocalTime() : timestamp;
+        return local.ToString("MMM d, yyyy \\u2022 h:mm tt");
+    }
 
     private static string GetSeverityClass(string severity) => severity switch
     {

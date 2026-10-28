@@ -33,6 +33,19 @@ public sealed class Visit
     public string? NotesFlag { get; private set; }
     public string? Location { get; private set; }
 
+    // Scheduling-form fields. One Visit row represents one selected calendar date.
+    public Guid? RecurrenceGroupId { get; private set; }
+    public int VisitsEachDay { get; private set; } = 1;
+    public string? Skills { get; private set; }
+    public string? TreatmentAuthorizationCode { get; private set; }
+    public bool FlexibleVisit { get; private set; }
+    public bool OutsourcedVisit { get; private set; }
+    public string? AttachmentsNeeded { get; private set; }
+    public string? BillingRateCode { get; private set; }
+    public string? BillingRevenueCode { get; private set; }
+    public decimal? BillingAmount { get; private set; }
+    public decimal? BillingOvertimeAmount { get; private set; }
+
     public DateTime ScheduledDate { get; private set; }
 
     public DateTime? CompletedDate { get; private set; }
@@ -80,7 +93,19 @@ public sealed class Visit
         string visitType,
         string? visitStatus,
         string? notesFlag,
-        Guid assignedUserId)
+        Guid assignedUserId,
+        Guid? careCoordinatorId = null,
+        Guid? recurrenceGroupId = null,
+        int visitsEachDay = 1,
+        string? skills = null,
+        string? treatmentAuthorizationCode = null,
+        bool flexibleVisit = false,
+        bool outsourcedVisit = false,
+        string? attachmentsNeeded = null,
+        string? billingRateCode = null,
+        string? billingRevenueCode = null,
+        decimal? billingAmount = null,
+        decimal? billingOvertimeAmount = null)
     {
         if (string.IsNullOrWhiteSpace(patientName))
             throw new ArgumentException("Patient name is required.", nameof(patientName));
@@ -94,6 +119,10 @@ public sealed class Visit
             throw new ArgumentException("Visit type is required.", nameof(visitType));
         if (assignedUserId == Guid.Empty)
             throw new ArgumentException("Assigned user ID is required.", nameof(assignedUserId));
+        if (visitsEachDay < 1 || visitsEachDay > 24)
+            throw new ArgumentOutOfRangeException(nameof(visitsEachDay), "Visits each day must be between 1 and 24.");
+        if ((billingAmount.HasValue && billingAmount.Value < 0) || (billingOvertimeAmount.HasValue && billingOvertimeAmount.Value < 0))
+            throw new ArgumentOutOfRangeException(nameof(billingAmount), "Billing amounts cannot be negative.");
 
         return new Visit
         {
@@ -101,6 +130,18 @@ public sealed class Visit
             PatientName = patientName.Trim(),
             ClinicianId = clinicianId,
             AssignedUserId = assignedUserId,
+            CareCoordinatorId = careCoordinatorId,
+            RecurrenceGroupId = recurrenceGroupId,
+            VisitsEachDay = visitsEachDay,
+            Skills = NormalizeOptional(skills),
+            TreatmentAuthorizationCode = NormalizeOptional(treatmentAuthorizationCode),
+            FlexibleVisit = flexibleVisit,
+            OutsourcedVisit = outsourcedVisit,
+            AttachmentsNeeded = NormalizeOptional(attachmentsNeeded),
+            BillingRateCode = NormalizeOptional(billingRateCode),
+            BillingRevenueCode = NormalizeOptional(billingRevenueCode),
+            BillingAmount = billingAmount,
+            BillingOvertimeAmount = billingOvertimeAmount,
             ScheduledDate = scheduledDate.Date.Add(ParseStartTime(timeBlock)),
             TimeBlock = timeBlock.Trim(),
             ConfirmationStatus = confirmationStatus.Trim(),
@@ -200,15 +241,14 @@ public sealed class Visit
         NotesFlag = string.IsNullOrWhiteSpace(notesFlag) ? null : notesFlag.Trim();
     }
 
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
     private static TimeSpan ParseStartTime(string timeBlock)
     {
         var normalized = timeBlock.Trim().Replace('–', '-');
         var separator = normalized.IndexOf('-');
-
-        if (separator < 0)
-            throw new ArgumentException("Time block must contain a start and end time.", nameof(timeBlock));
-
-        var startText = normalized[..separator].Trim();
+        var startText = separator < 0 ? normalized : normalized[..separator].Trim();
 
         if (!DateTime.TryParse(
                 startText,
@@ -232,6 +272,51 @@ public sealed class Visit
         CallNotes = string.IsNullOrWhiteSpace(callNotes) ? null : callNotes.Trim();
         ClinicianId = clinicianId;
         ClinicianName = string.IsNullOrWhiteSpace(clinicianName) ? null : clinicianName.Trim();
+    }
+
+    public void UpdateCalendarDetails(
+        string timeBlock,
+        string confirmationStatus,
+        string? callNotes,
+        Guid? clinicianId,
+        string? clinicianName,
+        string? notesFlag,
+        string status)
+    {
+        if (string.IsNullOrWhiteSpace(timeBlock))
+            throw new ArgumentException("Time block is required.", nameof(timeBlock));
+        if (timeBlock.Trim().Length > 100)
+            throw new ArgumentException("Time block cannot exceed 100 characters.", nameof(timeBlock));
+        if (string.IsNullOrWhiteSpace(confirmationStatus))
+            throw new ArgumentException("Confirmation status is required.", nameof(confirmationStatus));
+        if (callNotes?.Length > 4000)
+            throw new ArgumentException("Call notes cannot exceed 4000 characters.", nameof(callNotes));
+        if (notesFlag?.Length > 4000)
+            throw new ArgumentException("Notes / flag cannot exceed 4000 characters.", nameof(notesFlag));
+
+        // Parse before mutating the entity so an invalid time block cannot leave partial state behind.
+        var normalizedTimeBlock = timeBlock.Trim().Replace('–', '-');
+        var timeParts = normalizedTimeBlock.Split('-', 2, StringSplitOptions.TrimEntries);
+        if (timeParts.Length == 2 && !DateTime.TryParse(
+                timeParts[1],
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AllowWhiteSpaces,
+                out _))
+            throw new ArgumentException("Enter a valid end time in the time block.", nameof(timeBlock));
+        var startTime = ParseStartTime(normalizedTimeBlock);
+        var normalizedStatus = new[] { "Scheduled", "Completed", "Missed", "Rescheduled", "Cancelled" }
+            .FirstOrDefault(x => string.Equals(x, status?.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (normalizedStatus is null)
+            throw new ArgumentException("Invalid visit status.", nameof(status));
+
+        TimeBlock = timeBlock.Trim();
+        ScheduledDate = ScheduledDate.Date.Add(startTime);
+        ConfirmationStatus = confirmationStatus.Trim();
+        CallNotes = string.IsNullOrWhiteSpace(callNotes) ? null : callNotes.Trim();
+        ClinicianId = clinicianId;
+        ClinicianName = string.IsNullOrWhiteSpace(clinicianName) ? null : clinicianName.Trim();
+        NotesFlag = string.IsNullOrWhiteSpace(notesFlag) ? null : notesFlag.Trim();
+        ChangeVisitStatus(normalizedStatus);
     }
 
     public void AssignCareCoordinator(Guid careCoordinatorId)

@@ -325,7 +325,7 @@ public sealed class AppDbContext : DbContext
         {
             e.ToTable("PatientCareLogs"); e.HasKey(x=>x.PatientCareLogId);
             e.Property(x=>x.LogType).HasMaxLength(50).IsRequired(); e.Property(x=>x.Item).HasMaxLength(200).IsRequired();
-            e.Property(x=>x.Quantity).HasColumnType("decimal(18,2)"); e.Property(x=>x.Unit).HasMaxLength(50); e.Property(x=>x.Notes).HasMaxLength(2000);
+            e.Property(x=>x.Quantity).HasColumnType("decimal(18,2)"); e.Property(x=>x.Unit).HasMaxLength(50); e.Property(x=>x.Notes).HasMaxLength(2000); e.Property(x=>x.Status).HasMaxLength(50);
             e.HasOne(x=>x.Patient).WithMany().HasForeignKey(x=>x.PatientId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x=>x.RecordedByUser).WithMany().HasForeignKey(x=>x.RecordedByUserId).OnDelete(DeleteBehavior.Restrict); e.HasIndex(x=>new{x.PatientId,x.LogType,x.RecordedAt});
         });
@@ -395,6 +395,7 @@ public sealed class AppDbContext : DbContext
             e.ToTable("PatientServiceOrders");
             e.HasKey(x => x.PatientServiceOrderId);
             e.Property(x => x.Status).HasMaxLength(30).IsRequired();
+            e.Property(x => x.OrderDate).HasDefaultValueSql("GETUTCDATE()").IsRequired();
             e.Property(x => x.Frequency).HasMaxLength(100);
             e.Property(x => x.Duration).HasMaxLength(100);
             e.HasOne(x => x.Patient).WithMany().HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Cascade);
@@ -420,6 +421,16 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.CallNotes);
             e.Property(x => x.NotesFlag);
             e.Property(x => x.Location).HasMaxLength(500);
+            // Additional calendar scheduling fields used by the merged calendar feature.
+            e.Property(x => x.Skills).HasMaxLength(300);
+            e.Property(x => x.TreatmentAuthorizationCode).HasMaxLength(100);
+            e.Property(x => x.AttachmentsNeeded).HasMaxLength(1000);
+            e.Property(x => x.BillingRateCode).HasMaxLength(100);
+            e.Property(x => x.BillingRevenueCode).HasMaxLength(100);
+            e.Property(x => x.BillingAmount).HasPrecision(18, 2);
+            e.Property(x => x.BillingOvertimeAmount).HasPrecision(18, 2);
+            e.Property(x => x.VisitsEachDay).HasDefaultValue(1);
+            e.HasIndex(x => x.RecurrenceGroupId);
             e.HasOne(x => x.Patient).WithMany(x => x.Visits)
                 .HasForeignKey(x => x.PatientId)
                 .OnDelete(DeleteBehavior.Cascade)

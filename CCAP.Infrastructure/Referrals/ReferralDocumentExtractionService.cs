@@ -5,6 +5,10 @@ using System.Text.RegularExpressions;
 using CCAP.Application.Abstractions.Referrals;
 using CCAP.Application.Features.Referrals.DTOs;
 using Microsoft.Extensions.Configuration;
+using Docnet.Core;
+using Docnet.Core.Models;
+using SkiaSharp;
+using System.Runtime.InteropServices;
 using TesseractOCR;
 using TesseractOCR.Enums;
 using UglyToad.PdfPig;
@@ -72,6 +76,34 @@ public sealed class ReferralDocumentExtractionService : IReferralDocumentExtract
             }
         }
 
+        // Always render whole PDF pages for OCR. Scanned PDFs often contain a
+        // full-page image that PdfPig's GetImages() does not expose as OCR-ready PNG.
+        // Docnet/PDFium renders pages without requiring Poppler on the server.
+        string? renderingFailure = null;
+        try
+        {
+            var renderedPages = RenderPdfPagesToPng(bytes, cancellationToken);
+            if (renderedPages.Count > 0)
+            {
+                // Always prefer full-page renders: Tesseract needs a complete,
+                // consistently sized page, not arbitrary image fragments.
+                imagePayloads.Clear();
+                imagePayloads.AddRange(renderedPages);
+            }
+            else
+            {
+                renderingFailure = "The PDF renderer returned no page images.";
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            renderingFailure = $"PDF page rendering failed ({ex.GetType().Name}): {ex.Message}";
+        }
+
         var textValue = digitalText.ToString();
         var ocrUsed = false;
         double? confidence = null;
@@ -81,30 +113,35 @@ public sealed class ReferralDocumentExtractionService : IReferralDocumentExtract
         // whitespace here; the parser uses those positions for table columns.
         var result = ReferralDocumentFieldParser.Parse(textValue, false, null, profiles);
 
-        // Second pass: if the PDF contains images and the text pass did not
-        // recover useful referral values, run OCR as a fallback. Do not require
-        // the form to match a registered clinic profile before attempting OCR.
-        // This is important because scanned forms and new clinic versions are
-        // intentionally allowed to return a partially populated result.
-        if (imagePayloads.Count > 0 && ReferralDocumentFieldParser.CountDetectedValues(result) < 2)
+        // Second pass: when embedded page images exist, run OCR even if the
+        // PDF text layer returned some values. Scanned referrals can contain a
+        // small amount of selectable text alongside image-only sections, so
+        // using a "fewer than two fields" threshold silently misses those fields.
+        // MergeMissing preserves the text-layer values and fills only gaps from OCR.
+        if (imagePayloads.Count > 0)
         {
-            try
+            // Do not silently report "text layer read directly" when OCR failed.
+            // The upload UI catches this exception and can show a useful message.
+            var ocr = await RunOcrAsync(imagePayloads, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(ocr.Text))
             {
-                var ocr = await RunOcrAsync(imagePayloads, cancellationToken);
-                if (!string.IsNullOrWhiteSpace(ocr.Text))
-                {
-                    var ocrResult = ReferralDocumentFieldParser.Parse(ocr.Text, true, ocr.Confidence, profiles);
-                    result = ReferralDocumentFieldParser.MergeMissing(result, ocrResult);
-                    ocrUsed = true;
-                    confidence = ocr.Confidence;
-                }
+                var ocrResult = ReferralDocumentFieldParser.Parse(ocr.Text, true, ocr.Confidence, profiles);
+                result = ReferralDocumentFieldParser.MergeMissing(result, ocrResult);
+                ocrUsed = true;
+                confidence = ocr.Confidence;
             }
-            catch (InvalidOperationException)
+            else if (ReferralDocumentFieldParser.CountDetectedValues(result) == 0)
             {
-                // OCR is best-effort. If Tesseract is not configured, keep the
-                // digital-text result and allow manual entry instead of making
-                // PDF extraction a blocking requirement.
+                throw new InvalidOperationException(
+                    "Tesseract ran but did not recognize readable text in the PDF pages. " +
+                    "Check image quality, page rotation, and the deployed eng.traineddata file.");
             }
+        }
+        else if (ReferralDocumentFieldParser.CountDetectedValues(result) == 0)
+        {
+            throw new InvalidOperationException(
+                $"CCAP could not extract referral values. {renderingFailure ?? "No OCR-ready page images were produced."} " +
+                "Verify the PDFium/Docnet native runtime files and the tessdata/eng.traineddata file in the published API.");
         }
 
         return result;
@@ -168,6 +205,33 @@ public sealed class ReferralDocumentExtractionService : IReferralDocumentExtract
         return output.ToString();
     }
 
+    private static List<byte[]> RenderPdfPagesToPng(byte[] pdfBytes, CancellationToken cancellationToken)
+    {
+        var rendered = new List<byte[]>();
+        using var document = DocLib.Instance.GetDocReader(pdfBytes, new PageDimensions(2200, 3000));
+        var pageCount = document.GetPageCount();
+
+        for (var pageIndex = 0; pageIndex < pageCount; pageIndex++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            using var page = document.GetPageReader(pageIndex);
+            var width = page.GetPageWidth();
+            var height = page.GetPageHeight();
+            var pixels = page.GetImage();
+            if (width <= 0 || height <= 0 || pixels.Length < width * height * 4)
+                continue;
+
+            var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
+            using var bitmap = new SKBitmap(info);
+            Marshal.Copy(pixels, 0, bitmap.GetPixels(), Math.Min(pixels.Length, height * bitmap.RowBytes));
+            using var image = SKImage.FromBitmap(bitmap);
+            using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+            rendered.Add(data.ToArray());
+        }
+
+        return rendered;
+    }
+
     private async Task<(string Text, double Confidence)> RunOcrAsync(
         IReadOnlyCollection<byte[]> images,
         CancellationToken cancellationToken)
@@ -189,7 +253,7 @@ public sealed class ReferralDocumentExtractionService : IReferralDocumentExtract
 
         using var engine = new Engine(tessdataPath, Language.English, EngineMode.Default);
 
-        foreach (var imageBytes in images.Take(20))
+        foreach (var imageBytes in images)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -269,7 +333,7 @@ internal static class ReferralFormProfileDefaults
         new(StringComparer.OrdinalIgnoreCase)
         {
             ["MRN"] = ["MRN", "Medical Record Number", "Medical Record #", "Patient ID"],
-            ["PatientName"] = ["Patient Name", "Patient Full Name", "Client Name", "Name of Patient", "Member Name"],
+            ["PatientName"] = ["Patient Name", "Patient Full Name", "Client Name", "Name of Patient", "Member Name", "Resident Name", "Resident", "Patient", "Name"],
             ["FirstName"] = ["First Name", "Given Name", "Forename"],
             ["MiddleName"] = ["Middle Name", "Middle Initial"],
             ["LastName"] = ["Last Name", "Surname", "Family Name"],
@@ -286,7 +350,7 @@ internal static class ReferralFormProfileDefaults
             ["EmergencyContactPhone"] = ["Emergency Contact Phone", "Emergency Phone", "Next of Kin Phone"],
             ["ReferralNumber"] = ["Referral Number", "Referral #", "Referral ID", "Referral No", "Referral Number/ID", "Referral ID/No"],
             ["ReferralDate"] = ["Referral Date", "Date Referred", "Date of Referral"],
-            ["ReferralSource"] = ["Referral Source", "Referred By", "Referral From", "Referring Facility", "Facility"],
+            ["ReferralSource"] = ["Referral Source", "Referred By", "Referral From", "Referring Facility", "Facility", "Home Health", "Home Health Agency"],
             ["Priority"] = ["Priority", "Referral Priority", "Urgency"],
             ["PrimaryInsurance"] = ["Primary Insurance", "Insurance", "Payer", "Primary Payer", "Primary Payor"],
             ["InsuranceMemberId"] = ["Member ID", "Member Number", "Policy Number", "Insurance ID", "Member / Policy ID"],
@@ -318,12 +382,29 @@ internal static class ReferralDocumentFieldParser
         var aliases = MergeAliases(profile.FieldAliases, ReferralFormProfileDefaults.CreateAliases());
         var parser = new ReferralFieldReader(lines, aliases);
 
-        var fullName = parser.Find("PatientName");
-        var firstName = parser.Find("FirstName") ?? GetNamePart(fullName, 0) ?? parser.FindFullNamePart(0);
-        var middleName = parser.Find("MiddleName") ?? GetNamePart(fullName, 1) ?? parser.FindFullNamePart(1);
-        var lastName = parser.Find("LastName") ?? GetLastName(fullName) ?? parser.FindFullNamePart(-1);
+        // Prefer a patient-name value from the specific NAME ... DOB row when present.
+        // Multi-page packets often repeat generic "Name" labels for other people or records.
+        var fullName = FindPatientNameFromTable(rawText) ?? parser.Find("PatientName");
+        // Strip adjacent table labels/values before splitting the patient name.
+        if (!string.IsNullOrWhiteSpace(fullName))
+        {
+            fullName = Regex.Replace(fullName, @"\s+\b(?:DOB|DATE OF BIRTH)\b.*$", "", RegexOptions.IgnoreCase).Trim(' ', '|', ':', ';');
+            fullName = Regex.Replace(fullName, @"\s+\b(?:MRN|MEDICAL RECORD(?: NUMBER| #)?)\b.*$", "", RegexOptions.IgnoreCase).Trim(' ', '|', ':', ';');
+        }
+        // Prefer the surname parsed from the patient's full-name field over a standalone
+        // Last Name label found elsewhere in a multi-page packet. In scanned packets,
+        // unrelated pages can contain a date or other value beside a similar label.
+        // A parsed full name such as "STARK, JANICE A" is a stronger source for all
+        // three name parts than a loose label match elsewhere in the document.
+        var firstFromFullName = GetNamePart(fullName, 0);
+        var middleFromFullName = GetNamePart(fullName, 1);
+        var lastFromFullName = GetNamePart(fullName, -1);
+        var firstName = IsPlausibleName(firstFromFullName) ? firstFromFullName : parser.Find("FirstName") ?? parser.FindFullNamePart(0);
+        var middleName = IsPlausibleName(middleFromFullName) ? middleFromFullName : parser.Find("MiddleName") ?? parser.FindFullNamePart(1);
+        var explicitLastName = parser.Find("LastName");
+        var lastName = IsPlausibleName(lastFromFullName) ? lastFromFullName : IsPlausibleName(explicitLastName) ? explicitLastName : parser.FindFullNamePart(-1);
         var dateOfBirth = ParseDate(parser.FindDate("DateOfBirth"));
-        var streetAddress = parser.FindMultiline("StreetAddress", "City", "State", "ZipCode");
+        var streetAddress = CleanAddress(parser.FindMultiline("StreetAddress", "City", "State", "ZipCode"));
         var city = parser.Find("City");
         var state = parser.Find("State");
         var zipCode = parser.Find("ZipCode");
@@ -358,7 +439,7 @@ internal static class ReferralDocumentFieldParser
             State = state,
             ZipCode = zipCode,
             EmergencyContactName = parser.Find("EmergencyContactName"),
-            EmergencyContactRelationship = parser.Find("EmergencyContactRelationship"),
+            EmergencyContactRelationship = NormalizeRelationship(parser.Find("EmergencyContactRelationship")),
             EmergencyContactPhone = emergencyPhone,
             ReferralNumber = parser.Find("ReferralNumber"),
             ReferralDate = referralDate,
@@ -383,6 +464,21 @@ internal static class ReferralDocumentFieldParser
     private static string? GetNamePart(string? fullName, int index)
     {
         if (string.IsNullOrWhiteSpace(fullName)) return null;
+
+        // Many facility documents print names as "LAST, FIRST MIDDLE".
+        // Normalize that common scanned-form layout before splitting the name.
+        var commaParts = fullName.Split(',', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (commaParts.Length == 2)
+        {
+            var givenParts = commaParts[1].Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return index switch
+            {
+                0 => givenParts.ElementAtOrDefault(0),
+                1 => givenParts.Length >= 2 ? givenParts[1] : null,
+                _ => commaParts[0].Trim()
+            };
+        }
+
         var parts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length < 2) return index == 0 ? parts.FirstOrDefault() : null;
         if (index == 0) return parts[0];
@@ -390,18 +486,61 @@ internal static class ReferralDocumentFieldParser
         return null;
     }
 
-    private static string? GetLastName(string? fullName)
+    private static bool IsPlausibleName(string? value)
     {
-        if (string.IsNullOrWhiteSpace(fullName)) return null;
-        var parts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        return parts.Length >= 2 ? parts[^1] : null;
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        var cleaned = value.Trim().Trim(',', '.', ':', ';', '|');
+        if (cleaned.Length < 1 || cleaned.Length > 60) return false;
+        if (Regex.IsMatch(cleaned, @"\d")) return false;
+        if (!Regex.IsMatch(cleaned, @"^[A-Za-z][A-Za-z'’\-]*(?:\s+[A-Za-z][A-Za-z'’\-]*)*$")) return false;
+        var invalidLabels = new[] { "date", "dob", "address", "name", "last name", "first name", "middle name", "phone", "patient", "physician", "office" };
+        return !invalidLabels.Contains(cleaned, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string? FindPatientNameFromTable(string rawText)
+    {
+        if (string.IsNullOrWhiteSpace(rawText)) return null;
+        foreach (var line in rawText.Replace("\r", "").Split('\n', StringSplitOptions.RemoveEmptyEntries))
+        {
+            // Typical cover-sheet row: NAME STARK, JANICE A DOB 2/28/49.
+            var match = Regex.Match(line,
+                @"\bNAME\s*[:#|]?\s*(?<name>[A-Z][A-Z'’\-]+\s*,\s*[A-Z][A-Z'’\-]+(?:\s+[A-Z])?)\s+\b(?:DOB|DATE OF BIRTH)\b",
+                RegexOptions.IgnoreCase);
+            if (match.Success) return Regex.Replace(match.Groups["name"].Value, @"\s+", " ").Trim();
+        }
+        return null;
     }
 
     private static string? NormalizePhone(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
-        var digits = Regex.Replace(value, @"\D", "");
-        return digits.Length >= 7 && digits.Length <= 15 ? value.Trim() : null;
+        // Remove surrounding OCR labels and keep a phone-shaped sequence only.
+        var match = Regex.Match(value, @"(?<!\d)(?:\+?1[ .-]?)?(?:\(?\d{3}\)?[ .-]?)\d{3}[ .-]?\d{4}(?!\d)");
+        if (match.Success)
+        {
+            var digits = Regex.Replace(match.Value, @"\D", "");
+            if (digits.Length >= 10 && digits.Length <= 11) return match.Value.Trim();
+        }
+        var allDigits = Regex.Replace(value, @"\D", "");
+        return allDigits.Length >= 7 && allDigits.Length <= 15 && !Regex.IsMatch(value, @"[A-Za-z]{3,}")
+            ? value.Trim() : null;
+    }
+
+    private static string? CleanAddress(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var cleaned = value.Trim().Trim(':', '-', '|');
+        if (Regex.IsMatch(cleaned, @"^(?:address|street address|home address|patient address)$", RegexOptions.IgnoreCase)) return null;
+        if (!Regex.IsMatch(cleaned, @"\d") && cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length < 2) return null;
+        return cleaned;
+    }
+
+    private static string? NormalizeRelationship(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var cleaned = value.Trim().Trim(':', '-', '|');
+        var allowed = new[] { "spouse", "wife", "husband", "daughter", "son", "mother", "father", "sister", "brother", "relative", "friend", "caregiver", "guardian", "other", "self", "niece", "nephew", "granddaughter", "grandson" };
+        return allowed.Contains(cleaned, StringComparer.OrdinalIgnoreCase) ? cleaned : null;
     }
 
     private static string? NormalizeGender(string? value)

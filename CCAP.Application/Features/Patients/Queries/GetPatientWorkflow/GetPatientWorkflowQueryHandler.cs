@@ -333,9 +333,34 @@ public sealed class GetPatientWorkflowQueryHandler
                 SocDate = patient.SocDate,
 
                 Coordinator = coordinator,
-
+                DateOfBirth = patient.DateOfBirth,
+                Gender = patient.Gender ?? string.Empty,
+                PrimaryPhone = patient.PhoneNumber ?? string.Empty,
+                AlternatePhone = patient.AlternatePhone ?? string.Empty,
+                StreetAddress = patient.Address ?? string.Empty,
+                City = patient.City ?? string.Empty,
+                State = patient.State ?? string.Empty,
+                ZipCode = patient.ZipCode ?? string.Empty,
+                EmergencyContactName = patient.EmergencyContactName ?? string.Empty,
+                EmergencyContactRelationship = patient.EmergencyContactRelationship ?? string.Empty,
+                EmergencyContactPhone = patient.EmergencyContactPhone ?? string.Empty,
+                ReferralDate = referral?.ReferralDate,
+                ReferralType = referral?.ReferralType ?? string.Empty,
+                ReferralSource = referral?.Source ?? string.Empty,
+                ReferralChannel = referral?.ReferralChannel ?? string.Empty,
+                Priority = referral?.Priority ?? string.Empty,
+                ReferringPhysician = referral?.ReferringPhysician ?? patient.ReferringPhysician ?? string.Empty,
+                PhysicianPhone = referral?.PhysicianPhone ?? patient.PhysicianPhone ?? string.Empty,
+                PhysicianFax = referral?.PhysicianFax ?? string.Empty,
+                PhysicianNpi = referral?.PhysicianNpi ?? string.Empty,
+                PcosRegistered = referral?.PcosRegistered ?? string.Empty,
+                PrimaryDiagnosis = patient.PrimaryDiagnosis ?? string.Empty,
+                SecondaryDiagnosis = referral?.SecondaryDiagnosis ?? patient.SecondaryDiagnosis ?? string.Empty,
+                ReferralNotes = referral?.ReferralNotes ?? patient.ReferralNotes ?? string.Empty,
+                VisitPriority = referral?.VisitPriority ?? string.Empty,
+                CaseStatus = referral?.CaseStatus ?? string.Empty,
+                InternalNotes = referral?.InternalNotes ?? string.Empty,
                 Branch = referral?.Location?.Name ?? string.Empty,
-
                 EpisodeNumber = 1
 
             },
@@ -393,6 +418,9 @@ public sealed class GetPatientWorkflowQueryHandler
             {
                 PrimaryDiagnosis =
                     patient.PrimaryDiagnosis ?? string.Empty,
+
+                SecondaryDiagnosis =
+                    patient.SecondaryDiagnosis ?? string.Empty,
 
                 Insurance =
                     patient.PrimaryInsurance ??

@@ -4,6 +4,8 @@
 @attribute [CcapAuthorize(Policy = "referrals.view")]
 
 @using Microsoft.JSInterop
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
 @using CCAP.Web.Features.Admin.Users.Services
 @using CCAP.Web.Features.Admin.Users.Models
 @using CCAP.Web.Features.Tracker.ReferralIntake.Components
@@ -11,6 +13,7 @@
 @using CCAP.Web.Features.Tracker.ReferralIntake.Services
 
 @inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ReferralIntakeService ReferralIntakeService
 @inject NavigationManager Navigation
 @inject UserServices UserService
@@ -49,6 +52,7 @@
 
             case 4:
                 <AssignmentStep Model="@Model"
+                                IsAdministrator="@IsAdministrator"
                                 Coordinators="@Coordinators"
                                 Clinicians="@Clinicians"
                                 Disciplines="@Disciplines"
@@ -116,30 +120,24 @@
         <!-- RIGHT SIDE ACTIONS -->
         <div class="wizard-footer-actions">
 
-            @if (CurrentStep == 1)
-            {
-                <!-- SAVE DRAFT: Step 1 only -->
-                <button type="button"
-                        class="btn btn-outline-primary save-draft-btn"
-                        @onclick="SaveDraft"
-                        disabled="@(IsSubmitting || IsSavingDraft)">
+            <button type="button"
+                    class="btn btn-outline-primary save-draft-btn"
+                    @onclick="SaveDraft"
+                    disabled="@(IsSubmitting || IsSavingDraft)">
 
-                    @if (IsSavingDraft)
-                    {
-                        <span class="spinner-border spinner-border-sm me-2"
-                              role="status">
-                        </span>
+                @if (IsSavingDraft)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"
+                          role="status" aria-hidden="true"></span>
+                    <span>Saving...</span>
+                }
+                else
+                {
+                    <i class="bi bi-save me-1"></i>
+                    <span>Save Draft</span>
+                }
 
-                        <span>Saving...</span>
-                    }
-                    else
-                    {
-                        <i class="bi bi-save me-1"></i>
-                        <span>Save Draft</span>
-                    }
-
-                </button>
-            }
+            </button>
 
 
             <!-- NEXT -->
@@ -199,6 +197,8 @@
 
     private bool AssignmentOptionsLoaded;
     private bool AssignmentOptionsLoading;
+    private bool IsAdministrator;
+    private Guid? CurrentUserId;
     private string? AssignmentOptionsError;
 
     private int CurrentStep = 1;
@@ -285,6 +285,14 @@
         if (AssignmentOptionsLoaded)
             return;
 
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var principal = authState.User;
+        IsAdministrator = principal.IsInRole("Administrator");
+        var idValue = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? principal.FindFirst("sub")?.Value
+            ?? principal.FindFirst("userId")?.Value;
+        CurrentUserId = Guid.TryParse(idValue, out var currentUserId) ? currentUserId : null;
+
         AssignmentOptionsLoading = true;
         AssignmentOptionsError = null;
 
@@ -314,6 +322,15 @@
                             StringComparison.OrdinalIgnoreCase)
                     ))
                 .ToList();
+
+            if (!IsAdministrator)
+            {
+                if (!CurrentUserId.HasValue)
+                    throw new InvalidOperationException("Unable to identify the signed-in user. Please sign in again.");
+
+                // Non-admins must always be assigned to themselves, including when reopening a draft.
+                Model.CoordinatorId = CurrentUserId.Value;
+            }
 
             Clinicians = users
                 .Where(x =>
@@ -415,6 +432,17 @@
 
         try
         {
+            if (!IsAdministrator)
+            {
+                var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+                var idValue = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    ?? authState.User.FindFirst("sub")?.Value
+                    ?? authState.User.FindFirst("userId")?.Value;
+                if (!Guid.TryParse(idValue, out var signedInUserId))
+                    throw new InvalidOperationException("Unable to identify the signed-in user. Please sign in again.");
+                Model.CoordinatorId = signedInUserId;
+            }
+
             var result =
                 await ReferralIntakeService.CreateAsync(
                     Model);
@@ -496,36 +524,46 @@
     {
         ErrorMessage = null;
 
-        if (!ValidateCurrentStep())
-            return;
-
-        if (IsSavingDraft)
+        // Drafts must be saveable even when the current step is incomplete.
+        // Required-field validation is enforced when moving through the wizard
+        // and submitting the referral, not when preserving work in progress.
+        if (IsSavingDraft || IsSubmitting)
             return;
 
         try
         {
             IsSavingDraft = true;
 
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var principal = authState.User;
+            IsAdministrator = principal.IsInRole("Administrator");
+            if (!IsAdministrator)
+            {
+                var idValue = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    ?? principal.FindFirst("sub")?.Value
+                    ?? principal.FindFirst("userId")?.Value;
+                if (!Guid.TryParse(idValue, out var signedInUserId))
+                    throw new InvalidOperationException("Unable to identify the signed-in user. Please sign in again.");
+                CurrentUserId = signedInUserId;
+                Model.CoordinatorId = signedInUserId;
+            }
+
             await ReferralIntakeService.SaveDraftAsync(
                 Model);
 
             await ShowSuccessAlert(
-                "The referral draft has been saved successfully.");
+                "The referral draft has been saved successfully. You can continue editing and save again at any step.");
 
-            // ==========================================
-            // RESET FORM AFTER SUCCESSFUL SAVE
-            // ==========================================
-
-            ResetForm();
-
-            // ==========================================
-            // RETURN TO NEW REFERRAL
-            // Removes /drafts/{id} from the URL
-            // ==========================================
-
-            Navigation.NavigateTo(
-                "/referrals",
-                replace: true);
+            // Keep the entered data and current wizard step. Once the API
+            // returns a draft ID, subsequent saves update that same draft.
+            if (Model.ReferralDraftId.HasValue &&
+                DraftId != Model.ReferralDraftId)
+            {
+                _loadedDraftId = Model.ReferralDraftId;
+                Navigation.NavigateTo(
+                    $"/referrals/drafts/{Model.ReferralDraftId.Value}",
+                    replace: true);
+            }
         }
         catch (Exception ex)
         {

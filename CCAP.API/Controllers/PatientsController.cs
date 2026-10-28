@@ -136,8 +136,41 @@ public sealed class PatientsController : ControllerBase
         if (patientId != command.PatientId) return BadRequest("Route ID and command PatientId do not match.");
         var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
-        var id = await _sender.Send(new AddCareLogCommand(command.PatientId, command.LogType, command.Item, command.Quantity, command.Unit, command.Notes, currentUserId), cancellationToken);
+        var id = await _sender.Send(new AddCareLogCommand(command.PatientId, command.LogType, command.Item, command.Quantity, command.Unit, command.Notes, command.Status, currentUserId), cancellationToken);
         return Ok(new { PatientCareLogId = id });
+    }
+
+    [HttpPut("{patientId:guid}/care-logs/{logId:guid}")]
+    [Authorize(Policy = PermissionPolicies.PatientsManage)]
+    public async Task<IActionResult> UpdateCareLog(Guid patientId, Guid logId, UpdatePatientCareLogRequest request, CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
+        if (string.IsNullOrWhiteSpace(request.Item)) return BadRequest("Item / Description is required.");
+        var log = await _db.PatientCareLogs.FirstOrDefaultAsync(x => x.PatientId == patientId && x.PatientCareLogId == logId, cancellationToken);
+        if (log is null) return NotFound();
+        if (log.LogType == "Wound Supply" && string.IsNullOrWhiteSpace(request.Status)) return BadRequest("Supply status is required.");
+        var before = System.Text.Json.JsonSerializer.Serialize(new { log.Item, log.Quantity, log.Unit, log.Notes, log.Status });
+        log.Update(request.Item, request.Quantity, request.Unit, request.Notes, request.Status);
+        _db.PatientAuditLogs.Add(new CCAP.Domain.Entities.PatientAuditLog(patientId, currentUserId, "PatientCareLog", logId.ToString(), "UPDATE", before,
+            System.Text.Json.JsonSerializer.Serialize(new { request.Item, request.Quantity, request.Unit, request.Notes, request.Status }), "Care log updated."));
+        await _db.SaveChangesAsync(cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{patientId:guid}/care-logs/{logId:guid}")]
+    [Authorize(Policy = PermissionPolicies.PatientsManage)]
+    public async Task<IActionResult> DeleteCareLog(Guid patientId, Guid logId, CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
+        var log = await _db.PatientCareLogs.FirstOrDefaultAsync(x => x.PatientId == patientId && x.PatientCareLogId == logId, cancellationToken);
+        if (log is null) return NotFound();
+        _db.PatientAuditLogs.Add(new CCAP.Domain.Entities.PatientAuditLog(patientId, currentUserId, "PatientCareLog", logId.ToString(), "DELETE",
+            System.Text.Json.JsonSerializer.Serialize(new { log.LogType, log.Item, log.Quantity, log.Status }), null, "Care log deleted."));
+        _db.PatientCareLogs.Remove(log);
+        await _db.SaveChangesAsync(cancellationToken);
+        return NoContent();
     }
 
     [HttpPost("{patientId:guid}/service-orders")]
@@ -149,6 +182,28 @@ public sealed class PatientsController : ControllerBase
         if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
         var id = await _sender.Send(new AddServiceOrderCommand(command.PatientId, command.ServiceTypeId, command.Frequency, command.Duration, command.IsPrimaryDiscipline, currentUserId), cancellationToken);
         return Ok(new { PatientServiceOrderId = id });
+    }
+
+    [HttpDelete("{patientId:guid}/service-orders/{orderId:guid}")]
+    [Authorize(Policy = PermissionPolicies.PatientsManage)]
+    public async Task<IActionResult> DeleteServiceOrder(Guid patientId, Guid orderId, CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
+
+        var order = await _db.PatientServiceOrders
+            .Include(x => x.Patient)
+            .Include(x => x.ServiceType)
+            .FirstOrDefaultAsync(x => x.PatientId == patientId && x.PatientServiceOrderId == orderId, cancellationToken);
+        if (order is null) return NotFound();
+
+        _db.PatientAuditLogs.Add(new CCAP.Domain.Entities.PatientAuditLog(
+            patientId, currentUserId, "PatientServiceOrder", orderId.ToString(), "DELETE",
+            System.Text.Json.JsonSerializer.Serialize(new { order.ServiceType.Name, order.Status, order.Frequency }),
+            null, "Service order deleted."));
+        _db.PatientServiceOrders.Remove(order);
+        await _db.SaveChangesAsync(cancellationToken);
+        return NoContent();
     }
 
     [HttpPost("{patientId:guid}/complete-care")]
@@ -189,7 +244,14 @@ public sealed class PatientsController : ControllerBase
         var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
         await _sender.Send(
-            new UpdatePatientCommand(patientId, request.MRN, request.FirstName, request.MiddleName, request.LastName, request.SocDate, currentUserId), cancellationToken);
+            new UpdatePatientCommand(patientId, request.MRN, request.FirstName, request.MiddleName, request.LastName, request.SocDate,
+                request.DateOfBirth, request.Gender, request.PrimaryPhone, request.AlternatePhone, request.StreetAddress,
+                request.City, request.State, request.ZipCode, request.EmergencyContactName, request.EmergencyContactRelationship,
+                request.EmergencyContactPhone, request.ReferralDate, request.ReferralType, request.ReferralSource,
+                request.ReferralChannel, request.Priority, request.ReferringPhysician, request.PhysicianPhone,
+                request.PhysicianFax, request.PhysicianNpi, request.PcosRegistered, request.PrimaryDiagnosis,
+                request.SecondaryDiagnosis, request.ReferralNotes, request.VisitPriority, request.CaseStatus,
+                request.InternalNotes, currentUserId), cancellationToken);
         return NoContent();
     }
 
@@ -373,3 +435,4 @@ public sealed class PatientsController : ControllerBase
     }
 
 }
+public sealed class UpdatePatientCareLogRequest { public string Item { get; set; } = ""; public decimal? Quantity { get; set; } public string? Unit { get; set; } public string? Notes { get; set; } public string? Status { get; set; } }

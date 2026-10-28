@@ -2,18 +2,18 @@
 
 @if (Visible)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);" @onclick="Close">
-        <div class="modal-dialog modal-lg modal-dialog-centered" @onclick:stopPropagation="true">
-            <div class="modal-content">
-                <EditForm Model="Model" OnValidSubmit="Save">
+    <div class="modal fade show d-block patient-edit-modal-backdrop" tabindex="-1" style="background:rgba(0,0,0,.45); overflow-y:auto;" @onclick="Close">
+        <div class="modal-dialog modal-xl modal-dialog-centered patient-edit-modal-dialog" @onclick:stopPropagation="true">
+            <div class="modal-content patient-edit-modal-content">
+                <EditForm Model="Model" OnValidSubmit="Save" class="patient-edit-form">
                     <DataAnnotationsValidator />
                     <ValidationSummary />
-                    <div class="modal-header">
+                    <div class="modal-header patient-edit-modal-header">
                         <h5 class="modal-title">Edit Patient</h5>
                         <button type="button" class="btn-close" @onclick="Close"></button>
                     </div>
 
-                    <div class="modal-body">
+                    <div class="modal-body patient-edit-modal-body">
                         @if (!string.IsNullOrWhiteSpace(ErrorMessage))
                         {
                             <div class="alert alert-danger">@ErrorMessage</div>
@@ -37,27 +37,52 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">MRN</label>
-                                <InputText class="form-control" @bind-Value="Model.MRN" />
-                                <ValidationMessage For="() => Model.MRN" />
+                                <input class="form-control" value="@Model.MRN" readonly />
+                                <div class="form-text">System-generated patient identifier.</div>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Status</label>
-                                <input class="form-control" value="@Model.Status" readonly />
-                                <div class="form-text">Patient status is managed by the workflow.</div>
+                                <label class="form-label">Referral Number</label>
+                                <input class="form-control" value="@Model.ReferralNumber" readonly />
+                                <div class="form-text">System-generated referral identifier.</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">SOC Date</label>
                                 <InputDate class="form-control" @bind-Value="Model.SocDate" />
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Coordinator</label>
-                                <input class="form-control" value="@Model.Coordinator" readonly />
-                                <div class="form-text">Coordinator assignment is managed separately.</div>
-                            </div>
+                            <div class="col-12"><hr/><h6>Patient Contact Information</h6></div>
+                            <div class="col-md-4"><label class="form-label">Date of Birth</label><InputDate class="form-control" @bind-Value="Model.DateOfBirth" /></div>
+                            <div class="col-md-4"><label class="form-label">Gender</label><InputText class="form-control" @bind-Value="Model.Gender" /></div>
+                            <div class="col-md-4"><label class="form-label">Primary Phone</label><InputText class="form-control" @bind-Value="Model.PrimaryPhone" /></div>
+                            <div class="col-md-4"><label class="form-label">Alternate Phone</label><InputText class="form-control" @bind-Value="Model.AlternatePhone" /></div>
+                            <div class="col-md-8"><label class="form-label">Street Address</label><InputText class="form-control" @bind-Value="Model.StreetAddress" /></div>
+                            <div class="col-md-4"><label class="form-label">City</label><InputText class="form-control" @bind-Value="Model.City" /></div>
+                            <div class="col-md-4"><label class="form-label">State</label><InputText class="form-control" @bind-Value="Model.State" /></div>
+                            <div class="col-md-4"><label class="form-label">ZIP Code</label><InputText class="form-control" @bind-Value="Model.ZipCode" /></div>
+                            <div class="col-md-4"><label class="form-label">Emergency Contact</label><InputText class="form-control" @bind-Value="Model.EmergencyContactName" /></div>
+                            <div class="col-md-4"><label class="form-label">Relationship</label><InputText class="form-control" @bind-Value="Model.EmergencyContactRelationship" /></div>
+                            <div class="col-md-4"><label class="form-label">Emergency Phone</label><InputText class="form-control" @bind-Value="Model.EmergencyContactPhone" /></div>
+                            <div class="col-12"><hr/><h6>Referral Details (insurance is managed in Compliance)</h6></div>
+                            <div class="col-md-4"><label class="form-label">Referral Date</label><InputDate class="form-control" @bind-Value="Model.ReferralDate" /></div>
+                            <div class="col-md-4"><label class="form-label">Referral Type</label><InputText class="form-control" @bind-Value="Model.ReferralType" /></div>
+                            <div class="col-md-4"><label class="form-label">Referral Source</label><InputText class="form-control" @bind-Value="Model.ReferralSource" /></div>
+                            <div class="col-md-4"><label class="form-label">Referral Channel</label><InputText class="form-control" @bind-Value="Model.ReferralChannel" /></div>
+                            <div class="col-md-4"><label class="form-label">Priority</label><InputText class="form-control" @bind-Value="Model.Priority" /></div>
+                            <div class="col-12"><hr/><h6>Physician Information</h6></div>
+                            <div class="col-md-6"><label class="form-label">Primary Care Physician</label><InputText class="form-control" @bind-Value="Model.ReferringPhysician" /></div>
+                            <div class="col-md-6"><label class="form-label">Physician Phone</label><InputText class="form-control" @bind-Value="Model.PhysicianPhone" /></div>
+                            <div class="col-md-4"><label class="form-label">Physician Fax</label><InputText class="form-control" @bind-Value="Model.PhysicianFax" /></div>
+                            <div class="col-md-4"><label class="form-label">Physician NPI</label><InputText class="form-control" @bind-Value="Model.PhysicianNpi" /></div>
+                            <div class="col-md-4"><label class="form-label">PCOS Registered</label><InputText class="form-control" @bind-Value="Model.PcosRegistered" /></div>
+                            <div class="col-12"><hr/><h6>Clinical Information</h6></div>
+                            <div class="col-md-6"><label class="form-label">Primary Diagnosis</label><InputText class="form-control" @bind-Value="Model.PrimaryDiagnosis" /></div>
+                            <div class="col-md-6"><label class="form-label">Secondary Diagnosis</label><InputText class="form-control" @bind-Value="Model.SecondaryDiagnosis" /></div>
+                            <div class="col-md-4"><label class="form-label">Visit Priority</label><InputText class="form-control" @bind-Value="Model.VisitPriority" /></div>
+                            <div class="col-12"><label class="form-label">Referral Notes</label><InputTextArea class="form-control" @bind-Value="Model.ReferralNotes" /></div>
+                            <div class="col-12"><label class="form-label">Internal Notes</label><InputTextArea class="form-control" @bind-Value="Model.InternalNotes" /></div>
                         </div>
                     </div>
 
-                    <div class="modal-footer">
+                    <div class="modal-footer patient-edit-modal-footer">
                         <button type="button" class="btn btn-light" @onclick="Close">Cancel</button>
                         <button type="submit" class="btn btn-success" disabled="@Saving">
                             @(Saving ? "Saving..." : "Save Changes")
@@ -80,3 +105,73 @@
     private Task Save() => OnSave.InvokeAsync();
     private Task Close() => OnClose.InvokeAsync();
 }
+
+<style>
+    /* Keep the edit dialog within the viewport and scroll only its form body. */
+    .patient-edit-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 1060;
+        display: block;
+        padding: 1rem 0;
+    }
+
+    .patient-edit-modal-dialog {
+        width: calc(100% - 2rem);
+        max-width: 1140px;
+        margin: 0 auto;
+        min-height: calc(100% - 2rem);
+        display: flex;
+        align-items: center;
+    }
+
+    .patient-edit-modal-content {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: calc(100vh - 2rem);
+        max-height: calc(100vh - 2rem);
+        overflow: hidden;
+    }
+
+    /* EditForm is the direct child of modal-content, so it must own the flex
+       layout for the header/footer to stay fixed while the body scrolls. */
+    .patient-edit-form {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+        height: 100%;
+        max-height: calc(100vh - 2rem);
+        overflow: hidden;
+    }
+
+    .patient-edit-modal-header,
+    .patient-edit-modal-footer {
+        flex: 0 0 auto;
+        background: #fff;
+        position: relative;
+        z-index: 1;
+    }
+
+    .patient-edit-modal-body {
+        display: block;
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: 100%;
+        overflow-y: auto !important;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    @@media (max-width: 767.98px) {
+        .patient-edit-modal-backdrop { padding: .5rem 0; }
+        .patient-edit-modal-dialog {
+            width: calc(100% - 1rem);
+            min-height: calc(100% - 1rem);
+        }
+        .patient-edit-modal-content,
+        .patient-edit-form { height: calc(100vh - 1rem); max-height: calc(100vh - 1rem); }
+    }
+</style>
+

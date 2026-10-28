@@ -1,4 +1,4 @@
-@using CCAP.Web.Features.Tracker.ReferralIntake.Models
+﻿@using CCAP.Web.Features.Tracker.ReferralIntake.Models
 @using CCAP.Web.Features.Tracker.ReferralIntake.Services
 @using Microsoft.AspNetCore.Components.Forms
 @inject ReferralIntakeService ReferralIntakeService
@@ -230,7 +230,6 @@
 
     private void ApplyExtractedValues(ReferralDocumentExtractionDto result)
     {
-        Model.MRN = SetIfPresent(Model.MRN, result.MRN);
         Model.FirstName = SetIfPresent(Model.FirstName, result.FirstName);
         Model.MiddleName = SetIfPresent(Model.MiddleName, result.MiddleName);
         Model.LastName = SetIfPresent(Model.LastName, result.LastName);
@@ -245,7 +244,6 @@
         Model.EmergencyContactName = SetIfPresent(Model.EmergencyContactName, result.EmergencyContactName);
         Model.EmergencyContactRelationship = SetIfPresent(Model.EmergencyContactRelationship, result.EmergencyContactRelationship);
         Model.EmergencyContactPhone = SetIfPresent(Model.EmergencyContactPhone, result.EmergencyContactPhone);
-        Model.ReferralNumber = SetIfPresent(Model.ReferralNumber, result.ReferralNumber);
         if (result.ReferralDate.HasValue) Model.ReferralDate = result.ReferralDate.Value;
         Model.ReferralSource = SetIfPresent(Model.ReferralSource, result.ReferralSource);
         Model.Priority = SetIfPresent(Model.Priority, result.Priority);
@@ -259,8 +257,8 @@
         Model.SecondaryDiagnosis = SetIfPresent(Model.SecondaryDiagnosis, result.SecondaryDiagnosis);
         Model.ReferralNotes = SetIfPresent(Model.ReferralNotes, result.ReferralNotes);
 
-        if (result.OrderedServices.Count > 0)
-            Model.OrderedServices = result.OrderedServices;
+        // Ordered Services must only reflect the user's checkbox selections in
+        // Referral Information (Step 3). Never overwrite them from PDF/OCR data.
     }
 
     private static string SetIfPresent(string target, string? value)

@@ -275,6 +275,30 @@ public sealed class Referral
             Normalize(internalNotes);
     }
 
+    public void UpdateEditableDetails(
+        DateTime? referralDate, string? source, string? referralType, string? referralChannel,
+        string? priority, string? visitPriority, string? caseStatus, string? referringPhysician,
+        string? physicianPhone, string? physicianFax, string? physicianNpi, string? pcosRegistered,
+        string? secondaryDiagnosis, string? referralNotes, string? internalNotes)
+    {
+        if (referralDate.HasValue && referralDate.Value != default)
+            ReferralDate = referralDate.Value;
+        Source = Normalize(source);
+        ReferralType = Normalize(referralType);
+        ReferralChannel = Normalize(referralChannel);
+        Priority = Normalize(priority);
+        VisitPriority = Normalize(visitPriority);
+        CaseStatus = Normalize(caseStatus);
+        ReferringPhysician = Normalize(referringPhysician);
+        PhysicianPhone = Normalize(physicianPhone);
+        PhysicianFax = Normalize(physicianFax);
+        PhysicianNpi = Normalize(physicianNpi);
+        PcosRegistered = Normalize(pcosRegistered);
+        SecondaryDiagnosis = Normalize(secondaryDiagnosis);
+        ReferralNotes = Normalize(referralNotes);
+        InternalNotes = Normalize(internalNotes);
+    }
+
     public void MarkAsDraft()
     {
         Status = ReferralStatus.Draft;

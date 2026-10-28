@@ -151,7 +151,13 @@ public sealed class Patient
 
         LastName = lastName.Trim();
 
-        Status = PatientStatus.Active;
+        Status = PatientStatus.Pending;
+    }
+
+    public void ActivateAfterAdmission()
+    {
+        if (Status == PatientStatus.Pending)
+            Status = PatientStatus.Active;
     }
 
     public void ApplyReferralIntake(
@@ -241,6 +247,32 @@ public sealed class Patient
         ClinicianId = clinicianId;
 
         SocDate = socDate;
+    }
+
+    public void UpdateEditableProfile(
+        string mrn, string firstName, string? middleName, string lastName, DateOnly? socDate,
+        DateOnly? dateOfBirth, string? gender, string? primaryDiagnosis, string? secondaryDiagnosis,
+        string? address, string? city, string? state, string? zipCode, string? phoneNumber,
+        string? alternatePhone, string? emergencyContactName, string? emergencyContactRelationship,
+        string? emergencyContactPhone, string? referringPhysician, string? physicianPhone, string? referralNotes)
+    {
+        UpdateBasicInformation(mrn, firstName, middleName, lastName, socDate);
+        DateOfBirth = dateOfBirth;
+        Gender = Normalize(gender);
+        PrimaryDiagnosis = Normalize(primaryDiagnosis);
+        SecondaryDiagnosis = Normalize(secondaryDiagnosis);
+        Address = Normalize(address);
+        City = Normalize(city);
+        State = Normalize(state);
+        ZipCode = Normalize(zipCode);
+        PhoneNumber = Normalize(phoneNumber);
+        AlternatePhone = Normalize(alternatePhone);
+        EmergencyContactName = Normalize(emergencyContactName);
+        EmergencyContactRelationship = Normalize(emergencyContactRelationship);
+        EmergencyContactPhone = Normalize(emergencyContactPhone);
+        ReferringPhysician = Normalize(referringPhysician);
+        PhysicianPhone = Normalize(physicianPhone);
+        ReferralNotes = Normalize(referralNotes);
     }
 
     public void UpdateBasicInformation(

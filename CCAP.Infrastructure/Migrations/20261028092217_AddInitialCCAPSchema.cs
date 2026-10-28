@@ -488,7 +488,8 @@ namespace CCAP.Infrastructure.Migrations
                     Quantity = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
                     Unit = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                     RecordedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Notes = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true)
+                    Notes = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
+                    Status = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -518,6 +519,7 @@ namespace CCAP.Infrastructure.Migrations
                     PatientId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     ServiceTypeId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Status = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
+                    OrderDate = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
                     Frequency = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     Duration = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     IsPrimaryDiscipline = table.Column<bool>(type: "bit", nullable: false)

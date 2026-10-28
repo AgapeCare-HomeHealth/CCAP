@@ -1,0 +1,289 @@
+@using System.Net.Http
+@using CCAP.Web.Features.Scheduling.Calendar.Models
+@using CCAP.Web.Features.Scheduling.Calendar.Services
+@inject CalendarService CalendarService
+
+<div class="visit-edit-backdrop" @onclick="CloseAsync">
+    <section class="visit-edit-modal" role="dialog" aria-modal="true" aria-labelledby="visit-edit-title" @onclick:stopPropagation="true">
+        <header class="visit-edit-header">
+            <div>
+                <span class="visit-edit-kicker">CCAP SCHEDULING</span>
+                <h2 id="visit-edit-title">Patient Schedule</h2>
+                <p>@Visit.PatientName · @Visit.ScheduledDate.ToString("dddd, MMMM d, yyyy")</p>
+            </div>
+            <button type="button" class="visit-edit-close" aria-label="Close patient schedule" @onclick="CloseAsync">×</button>
+        </header>
+
+        <form class="visit-edit-form" @onsubmit="SaveAsync" @onsubmit:preventDefault="true">
+            @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+            {
+                <div class="visit-edit-alert" role="alert">@ErrorMessage</div>
+            }
+
+            @if (!CanEdit)
+            {
+                <div class="visit-edit-readonly-note">You can view this schedule, but you do not have permission to modify it.</div>
+            }
+
+            <div class="visit-edit-summary">
+                <div><span>Patient</span><strong>@Visit.PatientName</strong></div>
+                <div><span>Assigned CC</span><strong>@(string.IsNullOrWhiteSpace(Visit.CareCoordinatorName) ? "Unassigned" : Visit.CareCoordinatorName)</strong></div>
+            </div>
+
+            <fieldset class="visit-edit-fields" disabled="@(!CanEdit || IsSaving || IsDeleting)">
+                <label class="visit-edit-field visit-edit-field-wide">
+                    <span>Time Block <b>*</b></span>
+                    <select required @bind="Form.TimeBlock">
+                        @foreach (var timeBlock in TimeBlockOptions)
+                        {
+                            <option value="@timeBlock">@timeBlock</option>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(Form.TimeBlock) && !TimeBlockOptions.Contains(Form.TimeBlock))
+                        {
+                            <option value="@Form.TimeBlock">@Form.TimeBlock</option>
+                        }
+                    </select>
+                </label>
+
+                <label class="visit-edit-field">
+                    <span>Confirmation <b>*</b></span>
+                    <select required @bind="Form.ConfirmationStatus">
+                        <option value="">Select confirmation status</option>
+                        @if (!string.IsNullOrWhiteSpace(Form.ConfirmationStatus) && !ConfirmationStatusChoices.Contains(Form.ConfirmationStatus, StringComparer.OrdinalIgnoreCase))
+                        {
+                            <option value="@Form.ConfirmationStatus">@Form.ConfirmationStatus</option>
+                        }
+                        @foreach (var status in ConfirmationStatusChoices)
+                        {
+                            <option value="@status">@status</option>
+                        }
+                    </select>
+                </label>
+
+                <label class="visit-edit-field">
+                    <span>Assigned Clinician</span>
+                    <select @bind="Form.AssignedClinicianId">
+                        <option value="">Unassigned</option>
+                        @if (Visit.ClinicianId.HasValue && !Clinicians.Any(x => x.UserId == Visit.ClinicianId.Value))
+                        {
+                            <option value="@Visit.ClinicianId.Value">@Visit.Clinician</option>
+                        }
+                        @foreach (var clinician in Clinicians)
+                        {
+                            <option value="@clinician.UserId">@clinician.FullName</option>
+                        }
+                    </select>
+                </label>
+
+                <label class="visit-edit-field">
+                    <span>Visit Status <b>*</b></span>
+                    <select required @bind="Form.Status">
+                        @if (!string.Equals(Form.Status, "Scheduled", StringComparison.OrdinalIgnoreCase) && !VisitStatusOptions.Any(x => string.Equals(x.DisplayName, Form.Status, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            <option value="@Form.Status">@Form.Status</option>
+                        }
+                        <option value="Scheduled">Scheduled</option>
+                        @foreach (var option in VisitStatusOptions.Where(x => !string.Equals(x.DisplayName, "Scheduled", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            <option value="@option.DisplayName">@option.DisplayName</option>
+                        }
+                    </select>
+                </label>
+
+                <label class="visit-edit-field visit-edit-field-wide">
+                    <span>Notes / Flag</span>
+                    <textarea rows="3" maxlength="4000" @bind="Form.NotesFlag" placeholder="Add a scheduling note or flag" data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false"></textarea>
+                </label>
+
+                <label class="visit-edit-field visit-edit-field-wide">
+                    <span>Call Notes</span>
+                    <textarea rows="4" maxlength="4000" @bind="Form.CallNotes" placeholder="Record call notes" data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false"></textarea>
+                </label>
+            </fieldset>
+
+            @if (ShowDeleteConfirmation)
+            {
+                <div class="visit-edit-delete-confirmation" role="alertdialog" aria-label="Confirm delete schedule">
+                    <div>
+                        <strong>Delete this scheduled visit?</strong>
+                        <span>This removes the calendar entry for @Visit.PatientName. This action cannot be undone.</span>
+                    </div>
+                    <div class="visit-edit-delete-actions">
+                        <button type="button" class="visit-edit-button secondary" disabled="@IsDeleting" @onclick="CancelDelete">Keep Schedule</button>
+                        <button type="button" class="visit-edit-button danger" disabled="@IsDeleting" @onclick="DeleteAsync">@(IsDeleting ? "Deleting..." : "Confirm Delete")</button>
+                    </div>
+                </div>
+            }
+
+            <footer class="visit-edit-footer">
+                <div class="visit-edit-footer-left">
+                    @if (CanDelete)
+                    {
+                        <button type="button" class="visit-edit-button danger-outline" disabled="@(IsSaving || IsDeleting)" @onclick="PromptDelete">Delete Schedule</button>
+                    }
+                    else
+                    {
+                        <span class="visit-edit-footnote">Only the schedule fields shown here can be modified.</span>
+                    }
+                </div>
+                <div>
+                    <button type="button" class="visit-edit-button secondary" disabled="@(IsSaving || IsDeleting)" @onclick="CloseAsync">@(CanEdit ? "Cancel" : "Close")</button>
+                    @if (CanEdit)
+                    {
+                        <button type="submit" class="visit-edit-button primary" disabled="@(IsSaving || IsDeleting)">@(IsSaving ? "Saving..." : "Save Changes")</button>
+                    }
+                </div>
+            </footer>
+        </form>
+    </section>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public CalendarVisitDto Visit { get; set; } = new();
+    [Parameter] public IReadOnlyList<SchedulingClinicianDto> Clinicians { get; set; } = [];
+    [Parameter] public IReadOnlyList<SchedulingLookupOptionDto> ConfirmationOptions { get; set; } = [];
+    [Parameter] public IReadOnlyList<SchedulingLookupOptionDto> VisitStatusOptions { get; set; } = [];
+    [Parameter] public bool CanEdit { get; set; }
+    [Parameter] public Guid CurrentUserId { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<string> OnSaved { get; set; }
+    [Parameter] public EventCallback<string> OnDeleted { get; set; }
+
+    private static readonly string[] TimeBlockOptions = ["09:00AM–11:00AM", "10:00AM–12:00PM", "11:00AM–01:00PM", "12:00PM–02:00PM", "01:00PM–03:00PM", "02:00PM–04:00PM", "03:00PM–05:00PM"];
+    private static readonly string[] ConfirmationStatusChoices = ["Confirmed", "Left VM", "Sent SMS", "No Answer", "Rescheduled", "Transferred/TIF", "Cancelled Visit", "Non-Visit Discharge", "Missed Visit", "Refused Visit", "labs"];
+    private Guid? InitializedVisitId;
+    private readonly EditVisitForm Form = new();
+    private string? ErrorMessage;
+    private bool IsSaving;
+    private bool IsDeleting;
+    private bool ShowDeleteConfirmation;
+    private bool CanDelete => CanEdit && CurrentUserId != Guid.Empty && Visit.AssignedUserId == CurrentUserId;
+
+    protected override void OnParametersSet()
+    {
+        if (InitializedVisitId == Visit.VisitId)
+            return;
+
+        InitializedVisitId = Visit.VisitId;
+        Form.TimeBlock = string.IsNullOrWhiteSpace(Visit.TimeBlock)
+            ? TimeBlockOptions[0]
+            : Visit.TimeBlock.Replace(" - ", "–").Replace("-", "–").Trim();
+        Form.ConfirmationStatus = Visit.ConfirmationStatus ?? string.Empty;
+        Form.CallNotes = Visit.CallNotes;
+        Form.AssignedClinicianId = Visit.ClinicianId?.ToString() ?? string.Empty;
+        Form.NotesFlag = Visit.NotesFlag;
+        Form.Status = string.IsNullOrWhiteSpace(Visit.Status) ? "Scheduled" : Visit.Status;
+        ErrorMessage = null;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!CanEdit || IsSaving)
+            return;
+
+        ErrorMessage = null;
+        if (string.IsNullOrWhiteSpace(Form.TimeBlock) || string.IsNullOrWhiteSpace(Form.ConfirmationStatus) || string.IsNullOrWhiteSpace(Form.Status))
+        {
+            ErrorMessage = "Enter a time block, confirmation status, and visit status.";
+            return;
+        }
+
+        Guid? clinicianId = null;
+        if (!string.IsNullOrWhiteSpace(Form.AssignedClinicianId))
+        {
+            if (!Guid.TryParse(Form.AssignedClinicianId, out var parsedClinicianId))
+            {
+                ErrorMessage = "Select a valid clinician.";
+                return;
+            }
+            clinicianId = parsedClinicianId;
+        }
+
+        IsSaving = true;
+        try
+        {
+            await CalendarService.UpdateCalendarVisitDetailsAsync(
+                Visit.VisitId,
+                Form.TimeBlock.Trim(),
+                Form.ConfirmationStatus,
+                Form.CallNotes,
+                clinicianId,
+                Form.NotesFlag,
+                Form.Status);
+
+            await OnSaved.InvokeAsync($"Updated the schedule for {Visit.PatientName}.");
+        }
+        catch (HttpRequestException ex)
+        {
+            ErrorMessage = string.IsNullOrWhiteSpace(ex.Message)
+                ? "Could not update this schedule. Verify your permissions and the entered values, then try again."
+                : $"Could not update this schedule: {ex.Message}";
+        }
+        catch
+        {
+            ErrorMessage = "Could not update this schedule. Verify your permissions and the entered values, then try again.";
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    private void PromptDelete()
+    {
+        if (!CanDelete || IsSaving || IsDeleting)
+            return;
+
+        ErrorMessage = null;
+        ShowDeleteConfirmation = true;
+    }
+
+    private void CancelDelete()
+    {
+        if (!IsDeleting)
+            ShowDeleteConfirmation = false;
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (!CanDelete || !ShowDeleteConfirmation || IsSaving || IsDeleting)
+            return;
+
+        ErrorMessage = null;
+        IsDeleting = true;
+        try
+        {
+            // The API/CQRS handler verifies AssignedUserId ownership before removing the visit.
+            await CalendarService.DeleteVisitsAsync([Visit.VisitId]);
+            await OnDeleted.InvokeAsync($"Deleted the calendar schedule for {Visit.PatientName}.");
+        }
+        catch (HttpRequestException ex)
+        {
+            ErrorMessage = string.IsNullOrWhiteSpace(ex.Message)
+                ? "Could not delete this schedule. Only the user who created this calendar entry can delete it."
+                : $"Could not delete this schedule: {ex.Message}";
+            ShowDeleteConfirmation = false;
+        }
+        catch
+        {
+            ErrorMessage = "Could not delete this schedule. Only the user who created this calendar entry can delete it.";
+            ShowDeleteConfirmation = false;
+        }
+        finally
+        {
+            IsDeleting = false;
+        }
+    }
+
+    private Task CloseAsync() => IsSaving || IsDeleting ? Task.CompletedTask : OnClose.InvokeAsync();
+
+    private sealed class EditVisitForm
+    {
+        public string TimeBlock { get; set; } = string.Empty;
+        public string ConfirmationStatus { get; set; } = string.Empty;
+        public string? CallNotes { get; set; }
+        public string AssignedClinicianId { get; set; } = string.Empty;
+        public string? NotesFlag { get; set; }
+        public string Status { get; set; } = "Scheduled";
+    }
+}

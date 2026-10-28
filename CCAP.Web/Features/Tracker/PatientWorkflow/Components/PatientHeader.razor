@@ -1,4 +1,4 @@
-﻿@using CCAP.Web.Features.Tracker.PatientWorkflow.Models
+@using CCAP.Web.Features.Tracker.PatientWorkflow.Models
 @inject NavigationManager Navigation
 
 <div class="patient-header-wrapper">
@@ -176,7 +176,7 @@
 <PatientEditModal Visible="ShowEditModal"
                   Model="Editor"
                   Saving="Saving"
-                  ErrorMessage="EditError"
+                  ErrorMessage="@EditError"
                   OnSave="SaveEdit"
                   OnClose="CloseEdit" />
 
@@ -213,9 +213,37 @@
             MiddleName = Patient.MiddleName,
             LastName = Patient.LastName,
             MRN = Patient.MRN,
+            ReferralNumber = Patient.ReferralNumber,
             Status = Patient.Status,
             SocDate = Patient.SocDate,
-            Coordinator = Patient.Coordinator
+            Coordinator = Patient.Coordinator,
+            DateOfBirth = Patient.DateOfBirth,
+            Gender = Patient.Gender,
+            PrimaryPhone = Patient.PrimaryPhone,
+            AlternatePhone = Patient.AlternatePhone,
+            StreetAddress = Patient.StreetAddress,
+            City = Patient.City,
+            State = Patient.State,
+            ZipCode = Patient.ZipCode,
+            EmergencyContactName = Patient.EmergencyContactName,
+            EmergencyContactRelationship = Patient.EmergencyContactRelationship,
+            EmergencyContactPhone = Patient.EmergencyContactPhone,
+            ReferralDate = Patient.ReferralDate,
+            ReferralType = Patient.ReferralType,
+            ReferralSource = Patient.ReferralSource,
+            ReferralChannel = Patient.ReferralChannel,
+            Priority = Patient.Priority,
+            ReferringPhysician = Patient.ReferringPhysician,
+            PhysicianPhone = Patient.PhysicianPhone,
+            PhysicianFax = Patient.PhysicianFax,
+            PhysicianNpi = Patient.PhysicianNpi,
+            PcosRegistered = Patient.PcosRegistered,
+            PrimaryDiagnosis = Patient.PrimaryDiagnosis,
+            SecondaryDiagnosis = Patient.SecondaryDiagnosis,
+            ReferralNotes = Patient.ReferralNotes,
+            VisitPriority = Patient.VisitPriority,
+            CaseStatus = Patient.CaseStatus,
+            InternalNotes = Patient.InternalNotes
         };
         ShowEditModal = true;
     }

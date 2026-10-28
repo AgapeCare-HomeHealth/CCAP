@@ -168,7 +168,8 @@ public static class DatabaseSeeder
             ("PT", "Physical Therapy", "bi bi-person-walking", "text-primary"),
             ("OT", "Occupational Therapy", "bi bi-universal-access", "text-success"),
             ("ST", "Speech Therapy", "bi bi-chat-dots", "text-info"),
-            ("HHA", "Home Health Aide", "bi bi-person-heart", "text-warning")
+            ("HHA", "Home Health Aide", "bi bi-person-heart", "text-warning"),
+            ("MSW", "Medical Social Worker (MSW)", "bi bi-people", "text-info")
         };
 
         // Remove any accidental empty additions from the first pass and use

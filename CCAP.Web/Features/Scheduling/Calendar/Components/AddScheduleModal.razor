@@ -1,0 +1,351 @@
+@using CCAP.Web.Features.Scheduling.Calendar.Models
+@using CCAP.Web.Features.Scheduling.Calendar.Services
+@inject CalendarService CalendarService
+
+<div class="schedule-modal-backdrop" @onclick="CloseAsync">
+    <section class="schedule-modal" role="dialog" aria-modal="true" aria-labelledby="add-schedule-title" @onclick:stopPropagation="true">
+        <header class="schedule-modal-header">
+            <div>
+                <span class="schedule-modal-kicker">CCAP SCHEDULING</span>
+                <h2 id="add-schedule-title">Add Patient Schedule</h2>
+                <p>Select one or more visit dates. Selected dates will share the same recurring-schedule group.</p>
+            </div>
+            <button type="button" class="schedule-modal-close" aria-label="Close scheduling form" @onclick="CloseAsync">×</button>
+        </header>
+
+        <form class="schedule-modal-form" @onsubmit="SaveAsync" @onsubmit:preventDefault="true">
+            @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+            {
+                <div class="schedule-form-alert" role="alert">@ErrorMessage</div>
+            }
+            @if (!string.IsNullOrWhiteSpace(ResultMessage))
+            {
+                <div class="schedule-form-alert success" role="status">@ResultMessage</div>
+            }
+
+            <section class="schedule-section date-selection-section">
+                <div class="schedule-section-heading">
+                    <div>
+                        <h3>Schedule Dates</h3>
+                        <p>Choose the dates when this patient should appear on the calendar.</p>
+                    </div>
+                    <div class="selected-date-count">@SelectedDates.Count date(s) selected</div>
+                </div>
+
+                <div class="three-month-toolbar">
+                    <button type="button" class="schedule-icon-button" aria-label="Previous month" @onclick="() => ShiftVisibleMonths(-1)">‹</button>
+                    <span>Recurring schedule calendar</span>
+                    <button type="button" class="schedule-icon-button" aria-label="Next month" @onclick="() => ShiftVisibleMonths(1)">›</button>
+                </div>
+
+                <div class="three-month-grid">
+                    @foreach (var month in VisibleMonths)
+                    {
+                        <div class="recurrence-month" @key="month">
+                            <div class="recurrence-month-title">@month.ToString("MMMM yyyy")</div>
+                            <div class="recurrence-weekdays">
+                                @foreach (var weekday in Weekdays)
+                                {
+                                    <span @key="weekday">@weekday</span>
+                                }
+                            </div>
+                            <div class="recurrence-days">
+                                @foreach (var date in GetMonthDays(month))
+                                {
+                                    var isSelected = SelectedDates.Contains(date.Date);
+                                    <button type="button"
+                                            @key="date"
+                                            class="recurrence-day @(date.Month != month.Month ? "outside-month" : "") @(isSelected ? "is-selected" : "")"
+                                            aria-pressed="@isSelected"
+                                            disabled="@(date.Month != month.Month || IsSaving)"
+                                            title="@date.ToString("dddd, MMMM d, yyyy")"
+                                            @onclick="() => ToggleDate(date)">
+                                        @date.Day
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </section>
+
+            <section class="schedule-section">
+                <div class="schedule-section-heading">
+                    <div>
+                        <h3>Details</h3>
+                        <p>Enter the patient and scheduling details for the selected date(s).</p>
+                    </div>
+                </div>
+
+                <div class="schedule-form-grid">
+                    <label class="schedule-field field-span-2">
+                        <span>Patient Name <b>*</b></span>
+                        <input type="text" maxlength="300" autocomplete="off" required @bind="Form.PatientName" placeholder="Enter patient name" />
+                    </label>
+                    <label class="schedule-field field-span-2">
+                        <span>Time Block <b>*</b></span>
+                        <select required @bind="Form.TimeBlock">
+                            <option value="">Select time block</option>
+                            @foreach (var timeBlock in TimeBlockOptions)
+                            {
+                                <option value="@timeBlock">@timeBlock</option>
+                            }
+                        </select>
+                    </label>
+                    <label class="schedule-field">
+                        <span>Confirmation <b>*</b></span>
+                        <select required @bind="Form.ConfirmationStatus">
+                            <option value="">Select confirmation status</option>
+                            @foreach (var status in ConfirmationStatusChoices)
+                            {
+                                <option value="@status">@status</option>
+                            }
+                        </select>
+                    </label>
+                    <label class="schedule-field">
+                        <span>Assigned Clinician <b>*</b></span>
+                        <select required @bind="Form.AssignedClinicianId">
+                            <option value="">Select clinician</option>
+                            @foreach (var clinician in Clinicians)
+                            {
+                                <option value="@clinician.UserId">@clinician.FullName</option>
+                            }
+                        </select>
+                    </label>
+                    @if (CanAssignCareCoordinator)
+                    {
+                        <label class="schedule-field field-span-2">
+                            <span>Assigned Care Coordinator (CC)</span>
+                            <select @bind="Form.CareCoordinatorId">
+                                <option value="">Unassigned</option>
+                                @foreach (var coordinator in CareCoordinators)
+                                {
+                                    <option value="@coordinator.UserId">@coordinator.FullName</option>
+                                }
+                            </select>
+                        </label>
+                    }
+                    else if (IsCareCoordinator)
+                    {
+                        <div class="schedule-field field-span-2 assigned-cc-note">
+                            <span>Assigned Care Coordinator (CC)</span>
+                            <strong>You — your assigned schedule</strong>
+                        </div>
+                    }
+                    <label class="schedule-field">
+                        <span>Type of Visit <b>*</b></span>
+                        <select required @bind="Form.VisitType">
+                            <option value="">Select visit type</option>
+                            @foreach (var visitType in VisitTypeOptions)
+                            {
+                                <option value="@visitType">@visitType</option>
+                            }
+                        </select>
+                    </label>
+                    <label class="schedule-field">
+                        <span>Visit Status</span>
+                        <select @bind="Form.VisitStatus">
+                            <option value="Scheduled">Scheduled</option>
+                            @foreach (var option in VisitStatusOptions.Where(x => !string.Equals(x.DisplayName, "Scheduled", StringComparison.OrdinalIgnoreCase)))
+                            {
+                                <option value="@option.DisplayName">@option.DisplayName</option>
+                            }
+                        </select>
+                    </label>
+                    <label class="schedule-field field-span-2">
+                        <span>Notes / Flag</span>
+                        <textarea rows="2" maxlength="4000" @bind="Form.NotesFlag" placeholder="Add a scheduling note or flag"></textarea>
+                    </label>
+                    <label class="schedule-field field-span-2">
+                        <span>Call Notes</span>
+                        <textarea rows="3" maxlength="4000" @bind="Form.CallNotes" placeholder="Record call notes"></textarea>
+                    </label>
+                </div>
+            </section>
+
+            <footer class="schedule-modal-footer">
+                <div>
+                    <button type="button" class="schedule-button secondary" disabled="@IsSaving" @onclick="CloseAsync">Cancel</button>
+                    <button type="submit" class="schedule-button primary" disabled="@IsSaving">@(IsSaving ? "Saving..." : $"Save {SelectedDates.Count} Date(s)")</button>
+                </div>
+            </footer>
+        </form>
+    </section>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DateTime InitialDate { get; set; }
+    [Parameter] public IReadOnlyList<SchedulingClinicianDto> Clinicians { get; set; } = [];
+    [Parameter] public IReadOnlyList<SchedulingClinicianDto> CareCoordinators { get; set; } = [];
+    [Parameter] public IReadOnlyList<SchedulingLookupOptionDto> ConfirmationOptions { get; set; } = [];
+    [Parameter] public IReadOnlyList<SchedulingLookupOptionDto> VisitStatusOptions { get; set; } = [];
+    [Parameter] public Guid CurrentUserId { get; set; }
+    [Parameter] public bool IsCareCoordinator { get; set; }
+    [Parameter] public bool CanAssignCareCoordinator { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<string> OnSaved { get; set; }
+
+    private static readonly string[] Weekdays = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+    private static readonly string[] TimeBlockOptions = ["09:00AM–11:00AM", "10:00AM–12:00PM", "11:00AM–01:00PM", "12:00PM–02:00PM", "01:00PM–03:00PM", "02:00PM–04:00PM", "03:00PM–05:00PM"];
+    private static readonly string[] ConfirmationStatusChoices = ["Confirmed", "Left VM", "Sent SMS", "No Answer", "Rescheduled", "Transferred/TIF", "Cancelled Visit", "Non-Visit Discharge", "Missed Visit", "Refused Visit", "labs"];
+    private static readonly string[] VisitTypeOptions = ["SOC", "ROC", "LVN", "PT EVAL", "BATH", "RE-EVAL", "RECERT", "OT", "ST", "MSW", "DC", "PTA", "PT RE-EVAL", "SN VISIT", "SN RE-EVAL", "SUPERVISORY", "PRN", "PICC LINE CHANGE", "BLOOD DRAW", "WOUND VAC", "SN", "INR", "LAB DRAW", "URINALYSIS", "SN DC", "FOLEY/CATHETER CHANGE", "PRN VISIT"];
+    private DateTime FirstVisibleMonth = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime? InitializedForDate;
+    private readonly HashSet<DateTime> SelectedDates = [];
+    private readonly ScheduleFormModel Form = new();
+    private string? ErrorMessage;
+    private string? ResultMessage;
+    private bool IsSaving;
+
+    private IEnumerable<DateTime> VisibleMonths => Enumerable.Range(0, 3).Select(offset => FirstVisibleMonth.AddMonths(offset));
+
+    protected override void OnParametersSet()
+    {
+        var initial = InitialDate == default ? DateTime.Today : InitialDate.Date;
+        if (InitializedForDate == initial)
+            return;
+
+        InitializedForDate = initial;
+        FirstVisibleMonth = new DateTime(initial.Year, initial.Month, 1);
+        SelectedDates.Clear();
+        SelectedDates.Add(initial);
+        Form.TimeBlock = TimeBlockOptions[0];
+        Form.VisitStatus = "Scheduled";
+        Form.VisitType = string.Empty;
+        Form.ConfirmationStatus = string.Empty;
+        Form.AssignedClinicianId = string.Empty;
+        Form.CareCoordinatorId = IsCareCoordinator ? CurrentUserId.ToString() : string.Empty;
+        Form.CallNotes = null;
+        Form.NotesFlag = null;
+        ErrorMessage = null;
+        ResultMessage = null;
+    }
+
+    private IEnumerable<DateTime> GetMonthDays(DateTime month)
+    {
+        var firstDay = new DateTime(month.Year, month.Month, 1);
+        var start = firstDay.AddDays(-(int)firstDay.DayOfWeek);
+        return Enumerable.Range(0, 42).Select(offset => start.AddDays(offset));
+    }
+
+    private void ToggleDate(DateTime date)
+    {
+        var normalized = date.Date;
+        if (!SelectedDates.Add(normalized))
+            SelectedDates.Remove(normalized);
+        ErrorMessage = null;
+    }
+
+    private void ShiftVisibleMonths(int offset) => FirstVisibleMonth = FirstVisibleMonth.AddMonths(offset);
+    private async Task SaveAsync()
+    {
+        if (IsSaving) return;
+        ErrorMessage = null;
+        ResultMessage = null;
+
+        if (SelectedDates.Count == 0)
+        {
+            ErrorMessage = "Select at least one calendar date.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(Form.PatientName) ||
+            string.IsNullOrWhiteSpace(Form.TimeBlock) ||
+            string.IsNullOrWhiteSpace(Form.ConfirmationStatus) ||
+            string.IsNullOrWhiteSpace(Form.VisitType) ||
+            !Guid.TryParse(Form.AssignedClinicianId, out var clinicianId))
+        {
+            ErrorMessage = "Complete the patient name, time block, confirmation status, and assigned clinician fields.";
+            return;
+        }
+
+        var normalizedTimeBlock = Form.TimeBlock.Trim();
+        if (!IsValidTimeBlock(normalizedTimeBlock))
+        {
+            ErrorMessage = "Enter a valid time block, for example 9:00 AM - 10:00 AM.";
+            return;
+        }
+
+        Guid? coordinatorId = null;
+        if (IsCareCoordinator)
+            coordinatorId = CurrentUserId == Guid.Empty ? null : CurrentUserId;
+        else if (CanAssignCareCoordinator && Guid.TryParse(Form.CareCoordinatorId, out var parsedCoordinator))
+            coordinatorId = parsedCoordinator;
+
+        var recurrenceGroupId = SelectedDates.Count > 1 ? Guid.NewGuid() : (Guid?)null;
+        var schedules = SelectedDates.OrderBy(x => x).Select(date => new AddScheduleItem
+        {
+            Date = date,
+            TimeBlock = normalizedTimeBlock,
+            PatientName = Form.PatientName.Trim(),
+            ConfirmationStatus = Form.ConfirmationStatus,
+            CallNotes = Form.CallNotes,
+            AssignedClinicianId = clinicianId,
+            VisitType = Form.VisitType,
+            VisitStatus = string.IsNullOrWhiteSpace(Form.VisitStatus) ? "Scheduled" : Form.VisitStatus,
+            NotesFlag = Form.NotesFlag,
+            CareCoordinatorId = coordinatorId,
+            RecurrenceGroupId = recurrenceGroupId,
+            VisitsEachDay = 1
+        }).ToList();
+
+        IsSaving = true;
+        try
+        {
+            var result = await CalendarService.AddSchedulesAsync(schedules);
+            if (result.Added == 0)
+            {
+                ResultMessage = "No new visits were added. The selected schedules already exist or were skipped as duplicates.";
+                return;
+            }
+
+            var message = $"Added {result.Added} visit(s).";
+            if (result.SkippedDuplicates > 0)
+                message += $" Skipped {result.SkippedDuplicates} duplicate visit(s).";
+            await OnSaved.InvokeAsync(message);
+            await OnClose.InvokeAsync();
+        }
+        catch (Exception)
+        {
+            ErrorMessage = "Could not save the schedule. Verify the fields and try again.";
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    private Task CloseAsync() => IsSaving ? Task.CompletedTask : OnClose.InvokeAsync();
+
+    private static bool IsValidTimeBlock(string value)
+    {
+        var normalized = value.Replace('–', '-');
+        var parts = normalized.Split('-', 2, StringSplitOptions.TrimEntries);
+        var startIsValid = parts.Length > 0 && DateTime.TryParse(
+            parts[0],
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.AllowWhiteSpaces,
+            out _);
+
+        if (!startIsValid)
+            return false;
+
+        return parts.Length == 1 || (parts.Length == 2 && DateTime.TryParse(
+            parts[1],
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.AllowWhiteSpaces,
+            out _));
+    }
+
+    private sealed class ScheduleFormModel
+    {
+        public string PatientName { get; set; } = string.Empty;
+        public string TimeBlock { get; set; } = string.Empty;
+        public string VisitType { get; set; } = string.Empty;
+        public string ConfirmationStatus { get; set; } = string.Empty;
+        public string AssignedClinicianId { get; set; } = string.Empty;
+        public string CareCoordinatorId { get; set; } = string.Empty;
+        public string VisitStatus { get; set; } = "Scheduled";
+        public string? NotesFlag { get; set; }
+        public string? CallNotes { get; set; }
+    }
+}

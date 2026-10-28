@@ -24,11 +24,14 @@ public sealed class GetCalendarVisitsQueryHandler
             request.UserId,
             request.StartDate,
             request.EndDate,
+            request.CanViewAllSchedules,
+            request.IsCareCoordinator,
             cancellationToken);
 
         return visits.Select(x => new CalendarVisitDto
         {
             VisitId = x.VisitId,
+            AssignedUserId = x.AssignedUserId,
             PatientId = x.PatientId,
             CareCoordinatorId = x.CareCoordinatorId,
             CareCoordinatorName = x.CareCoordinator is null ? null : (x.CareCoordinator.FirstName + " " + x.CareCoordinator.LastName).Trim(),
@@ -47,7 +50,18 @@ public sealed class GetCalendarVisitsQueryHandler
                 : $"{x.Clinician.FirstName} {x.Clinician.LastName}".Trim(),
             VisitType = x.VisitType,
             NotesFlag = x.NotesFlag,
-            Notes = x.Notes
+            Notes = x.Notes,
+            RecurrenceGroupId = x.RecurrenceGroupId,
+            VisitsEachDay = x.VisitsEachDay,
+            Skills = x.Skills,
+            TreatmentAuthorizationCode = x.TreatmentAuthorizationCode,
+            FlexibleVisit = x.FlexibleVisit,
+            OutsourcedVisit = x.OutsourcedVisit,
+            AttachmentsNeeded = x.AttachmentsNeeded,
+            BillingRateCode = x.BillingRateCode,
+            BillingRevenueCode = x.BillingRevenueCode,
+            BillingAmount = x.BillingAmount,
+            BillingOvertimeAmount = x.BillingOvertimeAmount
         }).ToList();
     }
 }

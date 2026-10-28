@@ -63,7 +63,11 @@ public sealed class PatientRepository : IPatientRepository
         Guid patientId,
         CancellationToken cancellationToken)
     {
+        // Physician and referral fields (fax, NPI, PCOS registration, referral
+        // dates/type/source/priority, and referral notes) are stored on Referral.
+        // Load the related referrals before the update handler edits the latest one.
         return await _context.Patients
+            .Include(x => x.Referrals)
             .FirstOrDefaultAsync(
                 x => x.PatientId == patientId,
                 cancellationToken);

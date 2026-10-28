@@ -212,6 +212,23 @@ public sealed class ReferralController : ControllerBase
     [FromForm] CreateReferralIntakeRequest request,
     CancellationToken cancellationToken)
     {
+        // Non-administrators must not be able to assign referral work to
+        // another coordinator by changing the client-submitted CoordinatorId.
+        // Administrators retain the ability to choose a coordinator.
+        if (!User.IsInRole("Administrator"))
+        {
+            var currentUserIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(currentUserIdValue, out var currentUserId))
+            {
+                return Unauthorized(new
+                {
+                    message = "Unable to determine the authenticated user."
+                });
+            }
+
+            request.CoordinatorId = currentUserId;
+        }
+
         // =========================================================
         // OPTIONAL PDF VALIDATION
         // =========================================================

@@ -42,7 +42,16 @@
             OnManagePermissions="OpenPermissions"
             OnEdit="OpenEdit"
             OnDelete="OpenDelete" />
-        <TablePager CurrentPage="@CurrentPage" PageSize="@PageSize" TotalItems="@FilteredRoles.Count" OnPageChanged="GoToPage" OnPageSizeChanged="ChangePageSize" />
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
+            <div class="small text-muted">Showing @(FilteredRoles.Count == 0 ? 0 : ((CurrentPage - 1) * PageSize) + 1)–@Math.Min(CurrentPage * PageSize, FilteredRoles.Count) of @FilteredRoles.Count roles</div>
+            <div class="d-flex align-items-center gap-2">
+                <label class="small" for="rolesPageSize">Rows</label>
+                <select id="rolesPageSize" class="form-select form-select-sm" style="width:auto" value="@PageSize" @onchange="OnLocalPageSizeChanged"><option value="10">10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option></select>
+                <button type="button" class="btn btn-sm btn-outline-secondary" disabled="@(CurrentPage <= 1)" @onclick="() => GoToPage(CurrentPage - 1)">Previous</button>
+                <span class="small">Page @CurrentPage of @Math.Max(1, TotalPages)</span>
+                <button type="button" class="btn btn-sm btn-outline-secondary" disabled="@(CurrentPage >= TotalPages)" @onclick="() => GoToPage(CurrentPage + 1)">Next</button>
+            </div>
+        </div>
 
         <AddEditRoleModal Visible="@ShowRoleModal"
                            IsNew="@IsNewRole"
@@ -365,5 +374,11 @@
     {
         ShowPermissionModal = false;
         PermissionError = null;
+    }
+
+    private void OnLocalPageSizeChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var size))
+            ChangePageSize(size);
     }
 }

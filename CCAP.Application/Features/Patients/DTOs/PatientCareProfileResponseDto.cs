@@ -132,6 +132,7 @@ public sealed class PatientServiceOrderResponseDto
     public string Duration { get; set; } = string.Empty;
 
     public bool IsPrimaryDiscipline { get; set; }
+    public DateTime OrderDate { get; set; }
 }
 
 
@@ -181,7 +182,7 @@ public sealed class PatientTaskResponseDto
 
     public bool IsOverdue { get; set; }
 }
-public sealed class PatientCareLogResponseDto { public Guid PatientCareLogId {get;set;} public string LogType {get;set;}=""; public string Item {get;set;}=""; public decimal? Quantity {get;set;} public string? Unit {get;set;} public DateTime RecordedAt {get;set;} public string? Notes {get;set;} public string RecordedBy {get;set;}="System"; }
+public sealed class PatientCareLogResponseDto { public Guid PatientCareLogId {get;set;} public string LogType {get;set;}=""; public string Item {get;set;}=""; public decimal? Quantity {get;set;} public string? Unit {get;set;} public DateTime RecordedAt {get;set;} public string? Notes {get;set;} public string? Status {get;set;} public string RecordedBy {get;set;}="System"; }
 
 
 public sealed class PatientRelatedNoteResponseDto
