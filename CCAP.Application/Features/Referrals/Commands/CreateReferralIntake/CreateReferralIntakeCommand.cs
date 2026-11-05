@@ -50,4 +50,12 @@ public sealed record CreateReferralIntakeCommand(
     Stream? PdfStream,
     string? PdfFileName,
     string? PdfContentType,
-    long? PdfSize) : IRequest<CreateReferralIntakeResult>;
+    long? PdfSize,
+    string? PostedOn = null,
+    string? TrackerStatus = null,
+    DateOnly? EstimatedDischargeDate = null,
+    string? TrackerCoordinatorName = null,
+    string? FirstMarketingCall = null,
+    string? SecondCoordinatorCall = null,
+    string? ThirdCoordinatorCall = null,
+    string? Resolution = null) : IRequest<CreateReferralIntakeResult>;

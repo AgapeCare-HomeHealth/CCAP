@@ -3,6 +3,7 @@ using CCAP.Web.Features.Authentication.Services;
 using CCAP.Web.Features.MockData;
 using CCAP.Web.Features.Patients.Models;
 using CCAP.Web.Features.Tracker.ReferralDrafts.Models;
+using CCAP.Web.Features.Tracker.ReferralList.Models;
 using CCAP.Web.Features.Tracker.ReferralIntake.Models;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -218,6 +219,15 @@ public sealed class ReferralIntakeService
             form,
             "ReferralChannel",
             model.ReferralChannel);
+
+        Add(form, "PostedOn", model.PostedOn);
+        Add(form, "TrackerStatus", model.TrackerStatus);
+        Add(form, "EstimatedDischargeDate", model.EstimatedDischargeDate?.ToString("yyyy-MM-dd"));
+        Add(form, "TrackerCoordinatorName", model.TrackerCoordinatorName);
+        Add(form, "FirstMarketingCall", model.FirstMarketingCall);
+        Add(form, "SecondCoordinatorCall", model.SecondCoordinatorCall);
+        Add(form, "ThirdCoordinatorCall", model.ThirdCoordinatorCall);
+        Add(form, "Resolution", model.Resolution);
 
         Add(
             form,
@@ -740,6 +750,53 @@ public sealed class ReferralIntakeService
             url,
             cancellationToken)
             ?? new PagedResult<ReferralDraftListItem>();
+    }
+
+    public async Task<PagedResult<ReferralListItem>> GetReferralListAsync(
+        int pageNumber, int pageSize, string? search = null, string? status = null,
+        string? source = null, string? insurance = null, CancellationToken cancellationToken = default)
+    {
+        var query = $"api/referrals?pageNumber={pageNumber}&pageSize={pageSize}";
+        if (!string.IsNullOrWhiteSpace(search)) query += $"&search={Uri.EscapeDataString(search.Trim())}";
+        if (!string.IsNullOrWhiteSpace(status)) query += $"&status={Uri.EscapeDataString(status)}";
+        if (!string.IsNullOrWhiteSpace(source)) query += $"&source={Uri.EscapeDataString(source)}";
+        if (!string.IsNullOrWhiteSpace(insurance)) query += $"&insurance={Uri.EscapeDataString(insurance)}";
+        return await _api.GetFromJsonAsync<PagedResult<ReferralListItem>>(query, cancellationToken)
+            ?? new PagedResult<ReferralListItem>();
+    }
+
+
+    public async Task<List<CCAP.Web.Features.Admin.Users.Models.UserDto>> GetReferralAssignmentUsersAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await _api.GetFromJsonAsync<List<CCAP.Web.Features.Admin.Users.Models.UserDto>>(
+            "api/referrals/assignment-users",
+            cancellationToken) ?? [];
+    }
+
+    public async Task UpdateReferralTrackerDetailsAsync(
+        ReferralListItem item,
+        CancellationToken cancellationToken = default)
+    {
+        var request = new
+        {
+            item.ReferralId,
+            item.PostedOn,
+            TrackerStatus = item.Status,
+            item.EstimatedDischargeDate,
+            PrimaryInsurance = item.Insurance,
+            Source = item.Source,
+            SecondCoordinatorCall = item.SecondCoordinatorCall,
+            ThirdCoordinatorCall = item.ThirdCoordinatorCall,
+            item.Resolution
+        };
+
+        using var response = await _api.PutAsJsonAsync(
+            $"api/referrals/{item.ReferralId}/tracker",
+            request,
+            cancellationToken);
+
+        await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async Task<ReferralIntakeModel> LoadDraftAsync(

@@ -821,6 +821,37 @@ namespace CCAP.Infrastructure.Migrations
                     b.Property<string>("InternalNotes")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("TrackerCoordinatorName")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("PostedOn")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("TrackerStatus")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateOnly?>("EstimatedDischargeDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("FirstMarketingCall")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("SecondCoordinatorCall")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("ThirdCoordinatorCall")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("Resolution")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<Guid>("LocationId")
                         .HasColumnType("uniqueidentifier");
 

@@ -226,6 +226,16 @@ public sealed class CreateReferralIntakeCommandHandler
         referral.ConvertToPatient(
             patient.PatientId);
 
+        referral.SetInitialTrackerDetails(
+            request.PostedOn,
+            request.TrackerStatus,
+            request.EstimatedDischargeDate,
+            request.TrackerCoordinatorName,
+            request.FirstMarketingCall,
+            request.SecondCoordinatorCall,
+            request.ThirdCoordinatorCall,
+            request.Resolution);
+
         if (request.CoordinatorId.HasValue)
         {
             referral.Assign(

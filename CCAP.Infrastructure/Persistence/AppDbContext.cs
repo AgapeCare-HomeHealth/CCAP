@@ -268,6 +268,15 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.InsuranceMemberId)
                 .HasMaxLength(100);
 
+            e.Property(x => x.PostedOn).HasMaxLength(50);
+            e.Property(x => x.TrackerCoordinatorName).HasMaxLength(150);
+            e.Property(x => x.TrackerStatus).HasMaxLength(100);
+            e.Property(x => x.EstimatedDischargeDate).HasColumnType("date");
+            e.Property(x => x.FirstMarketingCall).HasMaxLength(2000);
+            e.Property(x => x.SecondCoordinatorCall).HasMaxLength(2000);
+            e.Property(x => x.ThirdCoordinatorCall).HasMaxLength(2000);
+            e.Property(x => x.Resolution).HasMaxLength(500);
+
             e.Property(x => x.AuthorizationDate)
                 .HasColumnType("date");
 

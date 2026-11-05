@@ -73,6 +73,14 @@ public sealed class ReferralIntakeModel
     public string ReferralType { get; set; } = string.Empty;
 
     public string ReferralChannel { get; set; } = string.Empty;
+    public string PostedOn { get; set; } = "Referral/Intake";
+    public string TrackerStatus { get; set; } = string.Empty;
+    public DateOnly? EstimatedDischargeDate { get; set; }
+    public string TrackerCoordinatorName { get; set; } = string.Empty;
+    public string FirstMarketingCall { get; set; } = string.Empty;
+    public string SecondCoordinatorCall { get; set; } = string.Empty;
+    public string ThirdCoordinatorCall { get; set; } = string.Empty;
+    public string Resolution { get; set; } = string.Empty;
 
     public string Priority { get; set; } = "Routine";
 

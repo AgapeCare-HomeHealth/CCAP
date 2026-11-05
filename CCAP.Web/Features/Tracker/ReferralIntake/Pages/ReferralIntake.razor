@@ -6,8 +6,8 @@
 @using Microsoft.JSInterop
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Security.Claims
-@using CCAP.Web.Features.Admin.Users.Services
 @using CCAP.Web.Features.Admin.Users.Models
+@using CCAP.Web.Features.Admin.Users.Services
 @using CCAP.Web.Features.Tracker.ReferralIntake.Components
 @using CCAP.Web.Features.Tracker.ReferralIntake.Models
 @using CCAP.Web.Features.Tracker.ReferralIntake.Services
@@ -15,8 +15,8 @@
 @inject IJSRuntime JS
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ReferralIntakeService ReferralIntakeService
-@inject NavigationManager Navigation
 @inject UserServices UserService
+@inject NavigationManager Navigation
 @inject AdminLookupService LookupService
 
 <PageTitle>Referral Intake</PageTitle>
@@ -298,30 +298,13 @@
 
         try
         {
-            var usersTask =
-                UserService.GetUsersAsync();
-
-            var disciplinesTask =
-                LookupService.GetDisciplinesAsync();
+            var usersTask = UserService.GetUsersAsync();
+            var coordinatorsTask = ReferralIntakeService.GetReferralAssignmentUsersAsync();
+            var disciplinesTask = LookupService.GetDisciplinesAsync();
 
             var users = await usersTask;
-
-            Disciplines =
-                await disciplinesTask;
-
-            Coordinators = users
-                .Where(x =>
-                    x.IsActive &&
-                    (
-                        x.Role.Contains(
-                            "Coordinator",
-                            StringComparison.OrdinalIgnoreCase)
-                        ||
-                        x.Role.Contains(
-                            "Administrator",
-                            StringComparison.OrdinalIgnoreCase)
-                    ))
-                .ToList();
+            Coordinators = await coordinatorsTask;
+            Disciplines = await disciplinesTask;
 
             if (!IsAdministrator)
             {
