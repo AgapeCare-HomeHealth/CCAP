@@ -18,6 +18,7 @@
                 <th>Due Date</th>
 
                 <th>Assigned To</th>
+                <th>CC Role</th>
 
                 <th class="text-center">
                     Action
@@ -101,9 +102,12 @@
                         </td>
 
                         <td>
-
                             @task.AssignedTo
-
+                        </td>
+                        <td>
+                            <span class="badge @(task.PatientCoordinatorRole == "Primary CC" ? "bg-success" : task.PatientCoordinatorRole == "Secondary CC" ? "bg-info text-dark" : task.PatientCoordinatorRole == "Backup CC" ? "bg-warning text-dark" : "bg-secondary")">
+                                @task.PatientCoordinatorRole
+                            </span>
                         </td>
 
                         <td class="text-center">
@@ -122,7 +126,7 @@
             {
                 <tr>
 
-                    <td colspan="6"
+                    <td colspan="7"
                         class="text-center py-5">
 
                         No tasks assigned.

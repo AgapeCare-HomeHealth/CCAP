@@ -23,6 +23,7 @@ public sealed class UpdatePatientCommandHandler : IRequestHandler<UpdatePatientC
 
         var oldValues = System.Text.Json.JsonSerializer.Serialize(new {
             patient.MRN, patient.FirstName, patient.MiddleName, patient.LastName, patient.SocDate,
+            patient.CoordinatorId, patient.SecondaryCoordinatorId, patient.BackupCoordinatorId,
             patient.DateOfBirth, patient.Gender, patient.PhoneNumber, patient.AlternatePhone,
             patient.Address, patient.City, patient.State, patient.ZipCode, patient.PrimaryDiagnosis,
             patient.SecondaryDiagnosis
@@ -33,6 +34,9 @@ public sealed class UpdatePatientCommandHandler : IRequestHandler<UpdatePatientC
             request.StreetAddress, request.City, request.State, request.ZipCode, request.PrimaryPhone,
             request.AlternatePhone, request.EmergencyContactName, request.EmergencyContactRelationship,
             request.EmergencyContactPhone, request.ReferringPhysician, request.PhysicianPhone, request.ReferralNotes);
+        patient.SetEmergencyContactsJson(request.EmergencyContactsJson);
+        if (request.CanManageBackupCoordinator)
+            patient.SetBackupCoordinator(request.BackupCoordinatorId);
 
         var referral = patient.Referrals.OrderByDescending(x => x.ReferralDate).FirstOrDefault();
         referral?.UpdateEditableDetails(request.ReferralDate, request.ReferralSource, request.ReferralType,
@@ -42,6 +46,7 @@ public sealed class UpdatePatientCommandHandler : IRequestHandler<UpdatePatientC
 
         var newValues = System.Text.Json.JsonSerializer.Serialize(new {
             patient.MRN, patient.FirstName, patient.MiddleName, patient.LastName, patient.SocDate,
+            patient.CoordinatorId, patient.SecondaryCoordinatorId, patient.BackupCoordinatorId,
             patient.DateOfBirth, patient.Gender, patient.PhoneNumber, patient.AlternatePhone,
             patient.Address, patient.City, patient.State, patient.ZipCode, patient.PrimaryDiagnosis,
             patient.SecondaryDiagnosis
@@ -49,7 +54,7 @@ public sealed class UpdatePatientCommandHandler : IRequestHandler<UpdatePatientC
         patient.Activities.Add(new CCAP.Domain.Entities.Activity(patient.PatientId, request.UpdatedByUserId,
             "Patient", "Patient information updated", "Patient demographic and referral information was updated."));
         await _auditLogs.AddAsync(new CCAP.Domain.Entities.PatientAuditLog(patient.PatientId, request.UpdatedByUserId,
-            "Patient", patient.PatientId.ToString(), "UPDATE", oldValues, newValues, "Patient information updated."), cancellationToken);
+            "Patient", patient.PatientId.ToString(), "UPDATE", oldValues, newValues, "Patient information and coordinator assignments updated."), cancellationToken);
         _patients.Update(patient);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
     }

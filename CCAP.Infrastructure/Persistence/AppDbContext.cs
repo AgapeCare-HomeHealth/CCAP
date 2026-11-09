@@ -165,6 +165,7 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<Patient>(e =>
         {
             e.ToTable("Patients");
+            e.Property(x => x.EmergencyContactsJson).HasColumnType("nvarchar(max)");
 
             e.HasKey(x => x.PatientId);
 
@@ -224,6 +225,16 @@ public sealed class AppDbContext : DbContext
                 .HasForeignKey(x => x.CoordinatorId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            e.HasOne(x => x.SecondaryCoordinator)
+                .WithMany()
+                .HasForeignKey(x => x.SecondaryCoordinatorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(x => x.BackupCoordinator)
+                .WithMany()
+                .HasForeignKey(x => x.BackupCoordinatorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             e.HasOne(x => x.Clinician)
                 .WithMany()
                 .HasForeignKey(x => x.ClinicianId)
@@ -235,6 +246,16 @@ public sealed class AppDbContext : DbContext
             e.ToTable("Referrals");
 
             e.HasKey(x => x.ReferralId);
+
+            // Referral Tracker fields belong to Referrals, not Patients.
+            e.Property(x => x.PostedOn).HasMaxLength(50);
+            e.Property(x => x.TrackerCoordinatorName).HasMaxLength(150);
+            e.Property(x => x.TrackerStatus).HasMaxLength(100);
+            e.Property(x => x.EstimatedDischargeDate).HasColumnType("date");
+            e.Property(x => x.FirstMarketingCall).HasMaxLength(2000);
+            e.Property(x => x.SecondCoordinatorCall).HasMaxLength(2000);
+            e.Property(x => x.ThirdCoordinatorCall).HasMaxLength(2000);
+            e.Property(x => x.Resolution).HasMaxLength(500);
 
             e.Property(x => x.ReferralNumber)
                 .HasMaxLength(50)

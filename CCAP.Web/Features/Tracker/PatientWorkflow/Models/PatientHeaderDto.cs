@@ -23,6 +23,11 @@ public class PatientHeaderDto
     public DateOnly? SocDate { get; set; }
 
     public string Coordinator { get; set; } = "";
+    public Guid? CoordinatorId { get; set; }
+    public Guid? SecondaryCoordinatorId { get; set; }
+    public Guid? BackupCoordinatorId { get; set; }
+    public string SecondaryCoordinator { get; set; } = "";
+    public string BackupCoordinator { get; set; } = "";
     public DateOnly? DateOfBirth { get; set; }
     public string Gender { get; set; } = "";
     public string PrimaryPhone { get; set; } = "";
@@ -34,6 +39,7 @@ public class PatientHeaderDto
     public string EmergencyContactName { get; set; } = "";
     public string EmergencyContactRelationship { get; set; } = "";
     public string EmergencyContactPhone { get; set; } = "";
+    public string EmergencyContactsJson { get; set; } = "";
     public DateTime? ReferralDate { get; set; }
     public string ReferralType { get; set; } = "";
     public string ReferralSource { get; set; } = "";

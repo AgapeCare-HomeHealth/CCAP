@@ -44,6 +44,8 @@ public sealed class CreateReferralIntakeRequest
 
     public string? EmergencyContactPhone { get; set; }
 
+    public string? EmergencyContactsJson { get; set; }
+
     // =========================================================
     // REFERRAL
     // =========================================================
@@ -57,6 +59,14 @@ public sealed class CreateReferralIntakeRequest
     public string? ReferralType { get; set; }
 
     public string? ReferralChannel { get; set; }
+    public string? PostedOn { get; set; }
+    public string? TrackerStatus { get; set; }
+    public DateOnly? EstimatedDischargeDate { get; set; }
+    public string? TrackerCoordinatorName { get; set; }
+    public string? FirstMarketingCall { get; set; }
+    public string? SecondCoordinatorCall { get; set; }
+    public string? ThirdCoordinatorCall { get; set; }
+    public string? Resolution { get; set; }
 
     public string? Priority { get; set; }
 
@@ -105,6 +115,8 @@ public sealed class CreateReferralIntakeRequest
     // =========================================================
 
     public Guid? CoordinatorId { get; set; }
+
+    public Guid? SecondaryCoordinatorId { get; set; }
 
     public Guid? ClinicianId { get; set; }
 

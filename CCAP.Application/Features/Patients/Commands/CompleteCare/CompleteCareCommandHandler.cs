@@ -7,10 +7,12 @@ public sealed class CompleteCareCommandHandler : IRequestHandler<CompleteCareCom
 {
     private static readonly string[] AdmissionRequirements =
     [
-        "SOC_COMPLIANT", "DME_MED_SUPPLY", "NOA_FILED", "OASIS_SOC_COMPLETE",
+        "PHYSICIAN_ORDERS", "DME_MED_SUPPLY", "NOA_FILED",
         "QA_APPROVAL", "ORDERS_SIGNED", "DOCS_UPLOADED",
         "CASE_MIX_IDENTIFIED", "CASE_MIX_ORDERS_SIGNED", "CASE_MIX_PLOTTED"
     ];
+
+    private static readonly string[] SocRequirements = ["SOC_COMPLIANT", "OASIS_SOC_COMPLETE"];
 
     private readonly IPatientRepository _patients;
     private readonly IUnitOfWork _unitOfWork;
@@ -27,9 +29,11 @@ public sealed class CompleteCareCommandHandler : IRequestHandler<CompleteCareCom
         var complianceRecords = await _compliance.GetByPatientAsync(request.PatientId, cancellationToken);
         var admissionComplete = AdmissionRequirements.All(code =>
             complianceRecords.Any(x => string.Equals(x.RequirementCode, code, StringComparison.OrdinalIgnoreCase) && x.IsCompleted));
+        var socComplete = SocRequirements.All(code =>
+            complianceRecords.Any(x => string.Equals(x.RequirementCode, code, StringComparison.OrdinalIgnoreCase) && x.IsCompleted));
 
-        if (!admissionComplete)
-            throw new InvalidOperationException("All admission compliance requirements must be completed before discharge.");
+        if (!admissionComplete || !socComplete)
+            throw new InvalidOperationException("Admission and SOC compliance must each be completed before discharge.");
 
         var isTransfer = string.Equals(request.FinalStatus, "Transferred", StringComparison.OrdinalIgnoreCase);
 

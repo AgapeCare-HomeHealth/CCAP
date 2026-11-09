@@ -1,0 +1,42 @@
+.supply-status-select {
+    background-color: #fff;
+    font-weight: 600;
+    transition: color .15s ease, border-color .15s ease;
+}
+
+.supply-status-select.supply-status-empty {
+    background-color: #fff;
+    color: #212529;
+}
+
+.supply-status-select.supply-status-faxed {
+    background-color: #fff;
+    color: #dc3545;
+}
+
+.supply-status-select.supply-status-qa {
+    background-color: #fff;
+    color: #6c757d;
+}
+
+.supply-status-select.supply-status-signed {
+    background-color: #fff;
+    color: #198754;
+}
+
+.supply-status-select option {
+    background-color: #fff;
+    font-weight: 600;
+}
+
+.supply-status-select option[value="FAXED"] {
+    color: #dc3545;
+}
+
+.supply-status-select option[value="QA Approval"] {
+    color: #6c757d;
+}
+
+.supply-status-select option[value="Signed"] {
+    color: #198754;
+}

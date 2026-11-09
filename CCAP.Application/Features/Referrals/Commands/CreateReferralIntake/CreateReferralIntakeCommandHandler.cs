@@ -18,6 +18,7 @@ public sealed class CreateReferralIntakeCommandHandler
     private readonly IPatientTaskRepository _tasks;
     private readonly IComplianceRepository _compliance;
     private readonly IReferralDraftRepository _drafts;
+    private readonly IUserRepository _users;
 
     // =========================================================
     // FILE STORAGE
@@ -40,6 +41,7 @@ public sealed class CreateReferralIntakeCommandHandler
     IReferralDraftRepository drafts,
     IReferralDocumentRepository documentRepository,
     IFileStorage fileStorage,
+    IUserRepository users,
     IUnitOfWork unitOfWork)
     {
         _patients = patients;
@@ -49,6 +51,7 @@ public sealed class CreateReferralIntakeCommandHandler
         _tasks = tasks;
         _compliance = compliance;
         _drafts = drafts;
+        _users = users;
 
         _documentRepository = documentRepository;
         _fileStorage = fileStorage;
@@ -80,6 +83,26 @@ public sealed class CreateReferralIntakeCommandHandler
                 throw new InvalidOperationException(
                     "This referral draft has already been completed.");
             }
+        }
+
+        if (!request.CoordinatorId.HasValue)
+            throw new InvalidOperationException("A Primary CC must be assigned before submitting the referral.");
+
+        var coordinatorIds = new[] { request.CoordinatorId, request.SecondaryCoordinatorId }
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .Distinct()
+            .ToList();
+        if (request.CoordinatorId.HasValue && request.CoordinatorId == request.SecondaryCoordinatorId)
+            throw new InvalidOperationException("Primary and Secondary CC must be different users.");
+
+        if (coordinatorIds.Count > 0)
+        {
+            var selectedCoordinators = await _users.GetByIdsAsync(coordinatorIds, cancellationToken);
+            if (selectedCoordinators.Count != coordinatorIds.Count ||
+                selectedCoordinators.Any(u => !u.IsActive ||
+                    !string.Equals(u.Role?.RoleName, "Care Coordinator", StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException("Primary and Secondary CC must be active Care Coordinator users.");
         }
 
         // =========================================================
@@ -183,8 +206,11 @@ public sealed class CreateReferralIntakeCommandHandler
             request.PhysicianPhone,
             request.ReferralNotes,
             request.CoordinatorId,
+            request.SecondaryCoordinatorId,
             request.ClinicianId,
             request.SocDate);
+
+        patient.SetEmergencyContactsJson(request.EmergencyContactsJson);
 
         await _patients.AddAsync(
             patient,
@@ -225,6 +251,16 @@ public sealed class CreateReferralIntakeCommandHandler
 
         referral.ConvertToPatient(
             patient.PatientId);
+
+        referral.SetInitialTrackerDetails(
+            request.PostedOn,
+            request.TrackerStatus,
+            request.EstimatedDischargeDate,
+            request.TrackerCoordinatorName,
+            request.FirstMarketingCall,
+            request.SecondCoordinatorCall,
+            request.ThirdCoordinatorCall,
+            request.Resolution);
 
         if (request.CoordinatorId.HasValue)
         {

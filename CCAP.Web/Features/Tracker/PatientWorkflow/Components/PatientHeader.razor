@@ -1,5 +1,10 @@
 @using CCAP.Web.Features.Tracker.PatientWorkflow.Models
+@using CCAP.Web.Features.Admin.Users.Models
+@using CCAP.Web.Features.Admin.Users.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @inject NavigationManager Navigation
+@inject UserServices UserService
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <div class="patient-header-wrapper">
 
@@ -121,22 +126,27 @@
 
                 </div>
 
-                <!-- Coordinator -->
                 <div class="col-xl-auto col-md-6">
-
                     <div class="info-block">
-
-                        <label>Coordinator</label>
-
-                        <strong>
-
-                            @Patient.Coordinator
-
-                        </strong>
-
+                        <label>Primary CC</label>
+                        <strong>@Patient.Coordinator</strong>
                     </div>
-
                 </div>
+                <div class="col-xl-auto col-md-6">
+                    <div class="info-block">
+                        <label>Secondary CC</label>
+                        <strong>@(string.IsNullOrWhiteSpace(Patient.SecondaryCoordinator) ? "Not assigned" : Patient.SecondaryCoordinator)</strong>
+                    </div>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(Patient.BackupCoordinator))
+                {
+                    <div class="col-xl-auto col-md-6">
+                        <div class="info-block">
+                            <label>Backup CC</label>
+                            <strong>@Patient.BackupCoordinator</strong>
+                        </div>
+                    </div>
+                }
 
                 <!-- Episode -->
                 @* <div class="col-xl-auto col-md-6">
@@ -176,11 +186,75 @@
 <PatientEditModal Visible="ShowEditModal"
                   Model="Editor"
                   Saving="Saving"
+                  IsAdministrator="IsAdministrator"
+                  Coordinators="Coordinators"
                   ErrorMessage="@EditError"
                   OnSave="SaveEdit"
                   OnClose="CloseEdit" />
 
 @code {
+    private static List<EmergencyContactEditModel> LoadEmergencyContacts(
+        string? json,
+        string? legacyName,
+        string? legacyRelationship,
+        string? legacyPhone)
+    {
+        if (!string.IsNullOrWhiteSpace(json))
+        {
+            try
+            {
+                // The value is stored as JSON text inside the API response.
+                // Use web defaults and case-insensitive matching so records
+                // written with either PascalCase or camelCase property names load.
+                var options = new System.Text.Json.JsonSerializerOptions(
+                    System.Text.Json.JsonSerializerDefaults.Web)
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+
+                var jsonToRead = json.Trim();
+
+                // Be tolerant of older records where the JSON array was itself
+                // serialized as a JSON string.
+                if (jsonToRead.StartsWith("\""))
+                {
+                    var unwrapped = System.Text.Json.JsonSerializer.Deserialize<string>(jsonToRead);
+                    if (!string.IsNullOrWhiteSpace(unwrapped))
+                        jsonToRead = unwrapped;
+                }
+
+                var contacts = System.Text.Json.JsonSerializer.Deserialize<List<EmergencyContactEditModel>>(
+                    jsonToRead, options);
+
+                if (contacts is { Count: > 0 })
+                {
+                    return contacts.Where(c => c is not null).ToList();
+                }
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                // Fall back to the legacy single-contact columns below.
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(legacyName)
+            || !string.IsNullOrWhiteSpace(legacyRelationship)
+            || !string.IsNullOrWhiteSpace(legacyPhone))
+        {
+            return new()
+            {
+                new EmergencyContactEditModel
+                {
+                    Name = legacyName ?? string.Empty,
+                    Relationship = legacyRelationship ?? string.Empty,
+                    Phone = legacyPhone ?? string.Empty
+                }
+            };
+        }
+
+        return new();
+    }
+
 
     [Parameter]
     public PatientHeaderDto Patient { get; set; } = new();
@@ -202,6 +276,20 @@
     private bool Saving;
     private string? EditError;
     private PatientEditModel Editor = new();
+    private bool IsAdministrator;
+    private List<UserDto> Coordinators = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        IsAdministrator = state.User.IsInRole("Administrator");
+        if (IsAdministrator)
+        {
+            var users = await UserService.GetUsersAsync();
+            Coordinators = users.Where(x => x.IsActive &&
+                string.Equals(x.Role?.Trim(), "Care Coordinator", StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+    }
 
     private void OpenEdit()
     {
@@ -217,6 +305,10 @@
             Status = Patient.Status,
             SocDate = Patient.SocDate,
             Coordinator = Patient.Coordinator,
+            CoordinatorId = Patient.CoordinatorId,
+            SecondaryCoordinatorId = Patient.SecondaryCoordinatorId,
+            BackupCoordinatorId = Patient.BackupCoordinatorId,
+            BackupCoordinator = Patient.BackupCoordinator,
             DateOfBirth = Patient.DateOfBirth,
             Gender = Patient.Gender,
             PrimaryPhone = Patient.PrimaryPhone,
@@ -228,6 +320,8 @@
             EmergencyContactName = Patient.EmergencyContactName,
             EmergencyContactRelationship = Patient.EmergencyContactRelationship,
             EmergencyContactPhone = Patient.EmergencyContactPhone,
+            EmergencyContactsJson = Patient.EmergencyContactsJson,
+            EmergencyContacts = LoadEmergencyContacts(Patient.EmergencyContactsJson, Patient.EmergencyContactName, Patient.EmergencyContactRelationship, Patient.EmergencyContactPhone),
             ReferralDate = Patient.ReferralDate,
             ReferralType = Patient.ReferralType,
             ReferralSource = Patient.ReferralSource,

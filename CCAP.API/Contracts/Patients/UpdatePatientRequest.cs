@@ -18,6 +18,7 @@ public sealed class UpdatePatientRequest
     public string? EmergencyContactName { get; set; }
     public string? EmergencyContactRelationship { get; set; }
     public string? EmergencyContactPhone { get; set; }
+    public string? EmergencyContactsJson { get; set; }
     public DateTime? ReferralDate { get; set; }
     public string? ReferralType { get; set; }
     public string? ReferralSource { get; set; }
@@ -34,4 +35,5 @@ public sealed class UpdatePatientRequest
     public string? VisitPriority { get; set; }
     public string? CaseStatus { get; set; }
     public string? InternalNotes { get; set; }
+    public Guid? BackupCoordinatorId { get; set; }
 }

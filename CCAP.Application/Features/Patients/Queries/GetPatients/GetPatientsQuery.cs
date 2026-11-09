@@ -10,5 +10,6 @@ public sealed record GetPatientsQuery(
     string? Search = null,
     string? Status = null,
     Guid? ClinicianId = null,
+    Guid? AssignedUserId = null,
     string SortBy = "Name",
     bool SortDescending = false) : IRequest<PagedResult<PatientListItemDto>>;

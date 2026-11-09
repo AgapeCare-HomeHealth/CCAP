@@ -19,5 +19,6 @@ namespace CCAP.Web.Features.Dashboard.Models
         public string AssignedClinician { get; set; } = "Unassigned";
 
         public string CurrentStage { get; set; } = "";
+    public string PatientCoordinatorRole { get; set; } = "Not Assigned";
     }
 }

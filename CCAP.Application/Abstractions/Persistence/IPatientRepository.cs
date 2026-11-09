@@ -29,6 +29,7 @@ public interface IPatientRepository
         string? search,
         string? status,
         Guid? clinicianId,
+        Guid? assignedUserId,
         string sortBy,
         bool sortDescending,
         CancellationToken cancellationToken);

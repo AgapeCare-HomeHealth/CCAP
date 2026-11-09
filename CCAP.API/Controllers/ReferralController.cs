@@ -3,7 +3,10 @@ using CCAP.API.Authorization;
 using CCAP.Application.Features.ReferralDrafts.Queries;
 using CCAP.Application.Features.Referrals.Commands.CreateReferralIntake;
 using CCAP.Application.Features.Referrals.Commands.SaveReferralDraft;
+using CCAP.Application.Features.Referrals.Commands.UpdateReferralTrackerDetails;
+using CCAP.Application.Features.Referrals.Queries.GetReferralList;
 using CCAP.Application.Abstractions.Referrals;
+using CCAP.Application.Abstractions.Persistence;
 using CCAP.Application.Features.ReferralDrafts.Queries.GetReferralDraftById;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -20,16 +23,78 @@ public sealed class ReferralController : ControllerBase
 {
     private readonly ISender _sender;
     private readonly IReferralDocumentExtractionService _documentExtraction;
+    private readonly IUserRepository _users;
 
     private const long MaxFileSize =
         10 * 1024 * 1024; // 10 MB
 
     public ReferralController(
         ISender sender,
-        IReferralDocumentExtractionService documentExtraction)
+        IReferralDocumentExtractionService documentExtraction,
+        IUserRepository users)
     {
         _sender = sender;
         _documentExtraction = documentExtraction;
+        _users = users;
+    }
+
+    [HttpGet]
+    [Authorize(Policy = PermissionPolicies.ReferralsView)]
+    public async Task<IActionResult> GetReferralList(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null,
+        [FromQuery] string? status = null,
+        [FromQuery] string? source = null,
+        [FromQuery] string? insurance = null,
+        [FromQuery] Guid? coordinatorId = null,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _sender.Send(new GetReferralListQuery(pageNumber, pageSize, search,
+            status, source, insurance, coordinatorId, fromDate, toDate), cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpGet("assignment-users")]
+    [Authorize(Policy = PermissionPolicies.ReferralsView)]
+    public async Task<IActionResult> GetReferralAssignmentUsers(CancellationToken cancellationToken)
+    {
+        var users = await _users.GetAllAsync(cancellationToken);
+        var coordinators = users
+            .Where(user => user.IsActive &&
+                !string.IsNullOrWhiteSpace(user.Email) &&
+                !string.IsNullOrWhiteSpace(user.PasswordHash) &&
+                user.Role is not null && user.Role.IsActive &&
+                user.Role.RoleName.Contains("Coordinator", StringComparison.OrdinalIgnoreCase))
+            .Select(user => new
+            {
+                user.UserId, user.EmployeeNo, user.FirstName, user.LastName, user.Email,
+                user.RoleId, Role = user.Role.RoleName, user.IsActive
+            })
+            .OrderBy(user => user.LastName).ThenBy(user => user.FirstName).ToList();
+        return Ok(coordinators);
+    }
+
+    [HttpPut("{referralId:guid}/tracker")]
+    [Authorize(Policy = PermissionPolicies.ReferralsManage)]
+    public async Task<IActionResult> UpdateTrackerDetails(
+        Guid referralId,
+        [FromBody] UpdateReferralTrackerDetailsCommand request,
+        CancellationToken cancellationToken)
+    {
+        if (referralId != request.ReferralId)
+            return BadRequest(new { message = "Referral identifier does not match the request." });
+        try
+        {
+            await _sender.Send(request, cancellationToken);
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
     }
 
     // =========================================================
@@ -212,23 +277,19 @@ public sealed class ReferralController : ControllerBase
     [FromForm] CreateReferralIntakeRequest request,
     CancellationToken cancellationToken)
     {
-        // Non-administrators must not be able to assign referral work to
-        // another coordinator by changing the client-submitted CoordinatorId.
-        // Administrators retain the ability to choose a coordinator.
-        if (!User.IsInRole("Administrator"))
+        // Primary CC defaults to the signed-in user when the client has not
+        // supplied a selection. An explicit selection is preserved so the creator
+        // can change the Primary CC in the Assignment step.
+        if (!request.CoordinatorId.HasValue)
         {
-            var currentUserIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!Guid.TryParse(currentUserIdValue, out var currentUserId))
-            {
-                return Unauthorized(new
-                {
-                    message = "Unable to determine the authenticated user."
-                });
-            }
-
-            request.CoordinatorId = currentUserId;
+            var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? User.FindFirstValue("sub")
+                ?? User.FindFirstValue("userId");
+            if (Guid.TryParse(userIdValue, out var signedInUserId))
+                request.CoordinatorId = signedInUserId;
         }
 
+        // Validate both selected coordinators in the application handler.
         // =========================================================
         // OPTIONAL PDF VALIDATION
         // =========================================================
@@ -327,6 +388,7 @@ public sealed class ReferralController : ControllerBase
                     request.EmergencyContactName,
                     request.EmergencyContactRelationship,
                     request.EmergencyContactPhone,
+                    request.EmergencyContactsJson,
 
                     request.ReferralNumber ?? string.Empty,
                     request.ReferralDate,
@@ -355,6 +417,7 @@ public sealed class ReferralController : ControllerBase
                     request.ReferralNotes,
 
                     request.CoordinatorId,
+                    request.SecondaryCoordinatorId,
                     request.ClinicianId,
                     request.DisciplineId,
 
@@ -374,7 +437,15 @@ public sealed class ReferralController : ControllerBase
 
                     request.Pdf?.ContentType ?? request.PdfContentType,
 
-                    request.Pdf?.Length ?? request.PdfSize
+                    request.Pdf?.Length ?? request.PdfSize,
+                    request.PostedOn,
+                    request.TrackerStatus,
+                    request.EstimatedDischargeDate,
+                    request.TrackerCoordinatorName,
+                    request.FirstMarketingCall,
+                    request.SecondCoordinatorCall,
+                    request.ThirdCoordinatorCall,
+                    request.Resolution
                 ),
                 cancellationToken);
 

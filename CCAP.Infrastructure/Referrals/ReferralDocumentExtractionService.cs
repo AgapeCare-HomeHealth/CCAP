@@ -9,8 +9,7 @@ using Docnet.Core;
 using Docnet.Core.Models;
 using SkiaSharp;
 using System.Runtime.InteropServices;
-using TesseractOCR;
-using TesseractOCR.Enums;
+using RapidOcrNet;
 using UglyToad.PdfPig;
 
 namespace CCAP.Infrastructure.Referrals;
@@ -105,7 +104,6 @@ public sealed class ReferralDocumentExtractionService : IReferralDocumentExtract
         }
 
         var textValue = digitalText.ToString();
-        var ocrUsed = false;
         double? confidence = null;
         var profiles = ReferralFormProfileLoader.Load(_configuration);
 
@@ -127,21 +125,20 @@ public sealed class ReferralDocumentExtractionService : IReferralDocumentExtract
             {
                 var ocrResult = ReferralDocumentFieldParser.Parse(ocr.Text, true, ocr.Confidence, profiles);
                 result = ReferralDocumentFieldParser.MergeMissing(result, ocrResult);
-                ocrUsed = true;
                 confidence = ocr.Confidence;
             }
             else if (ReferralDocumentFieldParser.CountDetectedValues(result) == 0)
             {
                 throw new InvalidOperationException(
-                    "Tesseract ran but did not recognize readable text in the PDF pages. " +
-                    "Check image quality, page rotation, and the deployed eng.traineddata file.");
+                    "RapidOCR did not recognize readable text in the PDF pages. " +
+                    "Check image quality, page rotation, and the published OCR model files.");
             }
         }
         else if (ReferralDocumentFieldParser.CountDetectedValues(result) == 0)
         {
             throw new InvalidOperationException(
                 $"CCAP could not extract referral values. {renderingFailure ?? "No OCR-ready page images were produced."} " +
-                "Verify the PDFium/Docnet native runtime files and the tessdata/eng.traineddata file in the published API.");
+                "Verify the PDFium/Docnet native runtime files and the RapidOCR model files in the published API.");
         }
 
         return result;
@@ -208,7 +205,7 @@ public sealed class ReferralDocumentExtractionService : IReferralDocumentExtract
     private static List<byte[]> RenderPdfPagesToPng(byte[] pdfBytes, CancellationToken cancellationToken)
     {
         var rendered = new List<byte[]>();
-        using var document = DocLib.Instance.GetDocReader(pdfBytes, new PageDimensions(2200, 3000));
+        using var document = DocLib.Instance.GetDocReader(pdfBytes, new PageDimensions(1700, 2300));
         var pageCount = document.GetPageCount();
 
         for (var pageIndex = 0; pageIndex < pageCount; pageIndex++)
@@ -225,51 +222,75 @@ public sealed class ReferralDocumentExtractionService : IReferralDocumentExtract
             using var bitmap = new SKBitmap(info);
             Marshal.Copy(pixels, 0, bitmap.GetPixels(), Math.Min(pixels.Length, height * bitmap.RowBytes));
             using var image = SKImage.FromBitmap(bitmap);
-            using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+            using var data = image.Encode(SKEncodedImageFormat.Jpeg, 88);
             rendered.Add(data.ToArray());
         }
 
         return rendered;
     }
 
-    private async Task<(string Text, double Confidence)> RunOcrAsync(
+    private Task<(string Text, double Confidence)> RunOcrAsync(
         IReadOnlyCollection<byte[]> images,
         CancellationToken cancellationToken)
     {
-        var tessdataPath = _configuration["ReferralDocumentOcr:TessdataPath"];
-        if (string.IsNullOrWhiteSpace(tessdataPath))
-            tessdataPath = Path.Combine(AppContext.BaseDirectory, "tessdata");
-
-        if (!File.Exists(Path.Combine(tessdataPath, "eng.traineddata")))
-        {
-            throw new InvalidOperationException(
-                "The uploaded referral appears to be a scanned PDF, but OCR is not configured. " +
-                "Place eng.traineddata in the configured ReferralDocumentOcr:TessdataPath folder.");
-        }
-
         var text = new StringBuilder();
         var confidenceTotal = 0d;
         var confidenceCount = 0;
 
-        using var engine = new Engine(tessdataPath, Language.English, EngineMode.Default);
+        // Resolve model files from the API application's base directory explicitly.
+        // RapidOcr.InitModels() uses relative paths (models\v5\...), which depend
+        // on the process working directory and can fail under Visual Studio/IIS/Plesk
+        // even when the model folder exists beside the application binaries.
+        var modelDirectory = Path.Combine(AppContext.BaseDirectory, "models", "v5");
+        var detectorModel = Path.Combine(modelDirectory, "ch_PP-OCRv5_mobile_det.onnx");
+        var classifierModel = Path.Combine(modelDirectory, "ch_PP-LCNet_x0_25_textline_ori_cls_mobile.onnx");
+        var recognizerModel = Path.Combine(modelDirectory, "latin_PP-OCRv5_rec_mobile_infer.onnx");
+        var dictionaryFile = Path.Combine(modelDirectory, "ppocrv5_latin_dict.txt");
+
+        var missingModels = new[] { detectorModel, classifierModel, recognizerModel, dictionaryFile }
+            .Where(path => !File.Exists(path))
+            .ToArray();
+        if (missingModels.Length > 0)
+        {
+            throw new FileNotFoundException(
+                $"RapidOCR model files were not found under '{modelDirectory}'. Missing: " +
+                string.Join(", ", missingModels.Select(Path.GetFileName)) +
+                $". AppContext.BaseDirectory is '{AppContext.BaseDirectory}'. Ensure the complete API output, including models\v5, is present.");
+        }
+
+        using var engine = new RapidOcr();
+        engine.InitModels(detectorModel, classifierModel, recognizerModel, dictionaryFile);
 
         foreach (var imageBytes in images)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            using var image = TesseractOCR.Pix.Image.LoadFromMemory(imageBytes);
-            using var page = engine.Process(image);
+            using var bitmap = SKBitmap.Decode(imageBytes);
+            if (bitmap is null || bitmap.Width <= 0 || bitmap.Height <= 0)
+                continue;
 
-            text.AppendLine(page.Text);
-            confidenceTotal += page.MeanConfidence;
-            confidenceCount++;
-            await Task.Yield();
+            var pageResult = engine.Detect(bitmap, RapidOcrOptions.Default);
+            if (pageResult is null)
+                continue;
+
+            if (!string.IsNullOrWhiteSpace(pageResult.StrRes))
+                text.AppendLine(pageResult.StrRes);
+
+            foreach (var block in pageResult.TextBlocks)
+            {
+                if (block.CharScores is not null && block.CharScores.Any())
+                {
+                    confidenceTotal += block.CharScores.Average();
+                    confidenceCount++;
+                }
+            }
         }
 
-        return (
+        return Task.FromResult((
             text.ToString(),
-            confidenceCount == 0 ? 0 : confidenceTotal / confidenceCount);
+            confidenceCount == 0 ? 0 : confidenceTotal / confidenceCount));
     }
+
 }
 
 internal sealed class ReferralFormProfile
@@ -345,19 +366,19 @@ internal static class ReferralFormProfileDefaults
             ["City"] = ["City", "Town"],
             ["State"] = ["State", "Province", "State/Province"],
             ["ZipCode"] = ["ZIP", "Zip Code", "Postal Code", "ZIP Code"],
-            ["EmergencyContactName"] = ["Emergency Contact", "Emergency Contact Name", "Next of Kin"],
-            ["EmergencyContactRelationship"] = ["Emergency Contact Relationship", "Relationship", "Relation"],
-            ["EmergencyContactPhone"] = ["Emergency Contact Phone", "Emergency Phone", "Next of Kin Phone"],
+            ["EmergencyContactName"] = ["Emergency Contact Name", "Contact Person", "Next of Kin Name", "Emergency Contact", "Next of Kin"],
+            ["EmergencyContactRelationship"] = ["Emergency Contact Relationship", "Contact Relationship", "Relationship to Patient", "Relationship", "Relation"],
+            ["EmergencyContactPhone"] = ["Emergency Contact Phone", "Emergency Contact Number", "Contact Phone", "Emergency Phone", "Next of Kin Phone"],
             ["ReferralNumber"] = ["Referral Number", "Referral #", "Referral ID", "Referral No", "Referral Number/ID", "Referral ID/No"],
-            ["ReferralDate"] = ["Referral Date", "Date Referred", "Date of Referral"],
-            ["ReferralSource"] = ["Referral Source", "Referred By", "Referral From", "Referring Facility", "Facility", "Home Health", "Home Health Agency"],
+            ["ReferralDate"] = ["Referral Date", "Date Referred", "Date of Referral", "Date Received", "Order Date"],
+            ["ReferralSource"] = ["Referral Source", "Referred By", "Referral From", "Referral Facility", "Referring Facility", "Referral Agency", "Facility", "Home Health Agency"],
             ["Priority"] = ["Priority", "Referral Priority", "Urgency"],
-            ["PrimaryInsurance"] = ["Primary Insurance", "Insurance", "Payer", "Primary Payer", "Primary Payor"],
-            ["InsuranceMemberId"] = ["Member ID", "Member Number", "Policy Number", "Insurance ID", "Member / Policy ID"],
+            ["PrimaryInsurance"] = ["Primary Insurance", "Insurance Company", "Insurance Provider", "Payer", "Payor", "Primary Payer", "Primary Payor", "Primary Insurance Plan"],
+            ["InsuranceMemberId"] = ["Insurance Member ID", "Member ID", "Member Number", "Subscriber ID", "Policy Number", "Policy ID", "Insurance ID", "Member / Policy ID"],
             ["AuthorizationDate"] = ["Authorization Date", "Auth Date"],
             ["ApprovedVisits"] = ["Approved Visits", "Visits Approved", "Authorized Visits"],
-            ["ReferringPhysician"] = ["Referring Physician", "Referring Provider", "Physician", "Doctor", "Ordering Provider", "Ordering MD", "Attending Physician"],
-            ["PhysicianPhone"] = ["Physician Phone", "Provider Phone", "Doctor Phone"],
+            ["ReferringPhysician"] = ["Referring Physician", "Referring Provider", "Ordering Physician", "Ordering Provider", "Ordering MD", "Physician Ordering", "Provider Name", "Ordered By"],
+            ["PhysicianPhone"] = ["Referring Physician Phone", "Physician Phone", "Provider Phone", "Doctor Phone", "Ordering Provider Phone", "Provider Telephone"],
             ["PrimaryDiagnosis"] = ["Primary Diagnosis", "Diagnosis", "Dx", "Primary Dx"],
             ["SecondaryDiagnosis"] = ["Secondary Diagnosis", "Secondary Dx"],
             ["ReferralNotes"] = ["Referral Notes", "Clinical Notes", "Notes", "Reason for Referral", "Clinical Summary"]
@@ -404,7 +425,8 @@ internal static class ReferralDocumentFieldParser
         var explicitLastName = parser.Find("LastName");
         var lastName = IsPlausibleName(lastFromFullName) ? lastFromFullName : IsPlausibleName(explicitLastName) ? explicitLastName : parser.FindFullNamePart(-1);
         var dateOfBirth = ParseDate(parser.FindDate("DateOfBirth"));
-        var streetAddress = CleanAddress(parser.FindMultiline("StreetAddress", "City", "State", "ZipCode"));
+        var streetAddress = CleanAddress(parser.FindMultiline("StreetAddress", "City", "State", "ZipCode"))
+            ?? FindStreetAddressFromDocument(rawText);
         var city = parser.Find("City");
         var state = parser.Find("State");
         var zipCode = parser.Find("ZipCode");
@@ -418,6 +440,13 @@ internal static class ReferralDocumentFieldParser
         var authorizationDate = ParseDate(parser.Find("AuthorizationDate"));
         var approvedVisits = ParseInt(parser.Find("ApprovedVisits"));
         var orderedServices = parser.FindServices(profile.ServiceLabels);
+
+        // Emergency contacts must be read from their own local section rather than
+        // from generic "Name", "Relationship", or "Phone" labels elsewhere in a packet.
+        var emergencyContact = FindEmergencyContact(rawText);
+        var emergencyContactName = emergencyContact.Name ?? NormalizePersonName(parser.Find("EmergencyContactName"));
+        var emergencyContactRelationship = emergencyContact.Relationship ?? NormalizeRelationship(parser.Find("EmergencyContactRelationship"));
+        var emergencyContactPhone = NormalizePhone(emergencyContact.Phone) ?? emergencyPhone;
 
         var result = new ReferralDocumentExtractionResult
         {
@@ -438,9 +467,9 @@ internal static class ReferralDocumentFieldParser
             City = city,
             State = state,
             ZipCode = zipCode,
-            EmergencyContactName = parser.Find("EmergencyContactName"),
-            EmergencyContactRelationship = NormalizeRelationship(parser.Find("EmergencyContactRelationship")),
-            EmergencyContactPhone = emergencyPhone,
+            EmergencyContactName = IsPlausibleName(emergencyContactName) ? emergencyContactName : null,
+            EmergencyContactRelationship = emergencyContactRelationship,
+            EmergencyContactPhone = emergencyContactPhone,
             ReferralNumber = parser.Find("ReferralNumber"),
             ReferralDate = referralDate,
             ReferralSource = parser.Find("ReferralSource"),
@@ -449,7 +478,7 @@ internal static class ReferralDocumentFieldParser
             InsuranceMemberId = parser.Find("InsuranceMemberId"),
             AuthorizationDate = authorizationDate,
             ApprovedVisits = approvedVisits,
-            ReferringPhysician = parser.Find("ReferringPhysician"),
+            ReferringPhysician = FindPrimaryPhysician(rawText, parser),
             PhysicianPhone = NormalizePhone(parser.Find("PhysicianPhone")),
             PrimaryDiagnosis = parser.Find("PrimaryDiagnosis"),
             SecondaryDiagnosis = parser.Find("SecondaryDiagnosis"),
@@ -459,6 +488,169 @@ internal static class ReferralDocumentFieldParser
 
         result.DetectedFieldCount = CountDetectedValues(result);
         return result;
+    }
+
+    private static (string? Name, string? Relationship, string? Phone) FindEmergencyContact(string rawText)
+    {
+        if (string.IsNullOrWhiteSpace(rawText)) return (null, null, null);
+
+        var lines = rawText.Replace("\r", "")
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => Regex.Replace(x, @"\s+", " ").Trim().Trim('|'))
+            .Where(x => x.Length > 0)
+            .ToArray();
+
+        // RapidOCR can return the same table row as one line, separate columns,
+        // or several adjacent lines. Search locally around the emergency-contact
+        // marker instead of requiring literal pipe characters.
+        for (var i = 0; i < lines.Length; i++)
+        {
+            if (!Regex.IsMatch(lines[i], @"\bEmergency\s+Contact\s*#?\s*\d*\b", RegexOptions.IgnoreCase))
+                continue;
+
+            var windowStart = Math.Max(0, i - 2);
+            var windowEnd = Math.Min(lines.Length - 1, i + 4);
+            var window = string.Join(" | ", lines.Skip(windowStart).Take(windowEnd - windowStart + 1));
+
+            // Most common scanned table layout: "Last, First | Emergency Contact #1 | Son | Home: phone".
+            var commaName = Regex.Match(window,
+                @"(?<name>[A-Z][A-Za-z'’.-]{1,30},\s*[A-Z][A-Za-z'’.-]{1,30}(?:\s+[A-Z])?)\s*(?:\||\s)+(?=Emergency\s+Contact\s*#?\s*\d*)",
+                RegexOptions.IgnoreCase);
+            string? name = commaName.Success ? NormalizePersonName(commaName.Groups["name"].Value) : null;
+
+            // OCR sometimes removes punctuation/columns: capture a name immediately before the label.
+            if (name is null)
+            {
+                var beforeLabel = Regex.Match(window,
+                    @"(?<name>[A-Z][A-Za-z'’.-]{1,30}(?:\s+[A-Z][A-Za-z'’.-]{1,30}){1,2})\s+Emergency\s+Contact\s*#?\s*\d*",
+                    RegexOptions.IgnoreCase);
+                if (beforeLabel.Success && !Regex.IsMatch(beforeLabel.Groups["name"].Value,
+                    @"\b(?:patient|contact|emergency|name|phone|home|work)\b", RegexOptions.IgnoreCase))
+                    name = NormalizePersonName(beforeLabel.Groups["name"].Value);
+            }
+
+            // If OCR split the person's name onto the line immediately before the marker,
+            // accept only a plausible name (never the numeric contact label).
+            if (name is null && i > 0)
+            {
+                var previous = lines[i - 1].Trim('|', ':', '-', ' ');
+                if (previous.Contains(',') && IsPlausibleName(NormalizePersonName(previous)))
+                    name = NormalizePersonName(previous);
+            }
+
+            var relationshipMatch = Regex.Match(window,
+                @"\b(Spouse|Wife|Husband|Daughter|Son|Mother|Father|Sister|Brother|Relative|Friend|Caregiver|Guardian|Other)\b",
+                RegexOptions.IgnoreCase);
+            var relationship = relationshipMatch.Success ? NormalizeRelationship(relationshipMatch.Value) : null;
+            var phoneMatch = Regex.Match(window,
+                @"(?:\+?1[ .-]?)?(?:\(?\d{3}\)?[ .-]?)\d{3}[ .-]?\d{4}");
+            var phone = phoneMatch.Success ? NormalizePhone(phoneMatch.Value) : null;
+
+            if (IsPlausibleName(name) || relationship is not null || phone is not null)
+                return (IsPlausibleName(name) ? name : null, relationship, phone);
+        }
+
+        // Label/value forms such as "Emergency Contact Name: Jane Doe".
+        for (var i = 0; i < lines.Length; i++)
+        {
+            if (!Regex.IsMatch(lines[i], @"\b(?:emergency contact|next of kin)\b", RegexOptions.IgnoreCase))
+                continue;
+            var windowLines = lines.Skip(i).Take(8).ToArray();
+            var name = FindContactValue(windowLines, @"(?:emergency contact name|contact person|next of kin name)");
+            var relationship = NormalizeRelationship(FindContactValue(windowLines,
+                @"(?:emergency contact relationship|contact relationship|relationship to patient|relationship|relation)"));
+            var phone = NormalizePhone(FindContactValue(windowLines,
+                @"(?:emergency contact phone|emergency contact number|contact phone|emergency phone|next of kin phone|phone|telephone|mobile)"));
+            if (IsPlausibleName(name) || relationship is not null || phone is not null)
+                return (IsPlausibleName(name) ? NormalizePersonName(name) : null, relationship, phone);
+        }
+
+        return (null, null, null);
+    }
+
+    private static string? NormalizePersonName(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var cleaned = Regex.Replace(value.Trim().Trim('|', ':', ';'), @"\s+", " ");
+        // Convert "Last, First Middle" into the conventional "First Middle Last".
+        var comma = cleaned.Split(',', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (comma.Length == 2 && IsPlausibleName(comma[0]) && IsPlausibleName(comma[1]))
+            return comma[1] + " " + comma[0];
+        return cleaned;
+    }
+
+    private static string? FindPrimaryPhysician(string rawText, ReferralFieldReader parser)
+    {
+        // Prefer explicitly labelled ordering/referring-provider fields, not arbitrary
+        // mentions of physicians or names appearing in clinical notes.
+        var lines = rawText.Replace("\r", "")
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => Regex.Replace(x, @"\s+", " ").Trim())
+            .Where(x => x.Length > 0).ToArray();
+
+        var labels = new[]
+        {
+            @"referring physician", @"referring provider", @"ordering physician",
+            @"ordering provider", @"physician ordering", @"provider name", @"ordered by"
+        };
+        foreach (var line in lines)
+        {
+            foreach (var label in labels)
+            {
+                var match = Regex.Match(line,
+                    @"\b" + label + @"\b\s*[:#|\-]?\s*(?<value>[A-Za-z][A-Za-z .,'’\-]{2,80})",
+                    RegexOptions.IgnoreCase);
+                if (!match.Success) continue;
+                var value = Regex.Replace(match.Groups["value"].Value,
+                    @"\s+(?:NPI|PHONE|FAX|TEL|TELEPHONE|ADDRESS|DATE|DOB)\b.*$", "", RegexOptions.IgnoreCase).Trim(' ', ',', '|', ':', ';', '-');
+                if (LooksLikeProviderName(value)) return NormalizePersonName(value);
+            }
+        }
+
+        // Fall back only to the explicitly referring/ordering aliases. Avoid the
+        // broad generic "Physician", "Doctor", and "Attending Physician" aliases.
+        return CleanOptional(parser.Find("ReferringPhysician"));
+    }
+
+    private static bool LooksLikeProviderName(string? value) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        value.Length <= 80 &&
+        Regex.IsMatch(value, @"^[A-Za-z][A-Za-z'’.,\-]*(?:\s+[A-Za-z][A-Za-z'’.,\-]*){1,5}$") &&
+        !Regex.IsMatch(value, @"\b(?:office|phone|fax|address|npi|date|patient|home health|agency|clinic|facility)\b", RegexOptions.IgnoreCase);
+
+    private static string? FindContactValue(string[] lines, string labelPattern)
+    {
+        var label = new Regex(@"^\s*(?:" + labelPattern + @")\s*(?:\([^)]*\))?\s*[:#\-]\s*(?<value>.+?)\s*$",
+            RegexOptions.IgnoreCase);
+
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var match = label.Match(lines[i]);
+            if (match.Success)
+            {
+                var value = CleanContactValue(match.Groups["value"].Value);
+                if (!string.IsNullOrWhiteSpace(value)) return value;
+            }
+
+            // For label-only lines, accept the next line only when it doesn't
+            // look like another field label or section heading.
+            if (Regex.IsMatch(lines[i], @"^\s*(?:" + labelPattern + @")\s*(?:\([^)]*\))?\s*$", RegexOptions.IgnoreCase)
+                && i + 1 < lines.Length
+                && !Regex.IsMatch(lines[i + 1], @"^(?:name|relationship|relation|phone|telephone|mobile|emergency contact|next of kin|patient|physician|insurance|referral|diagnosis)\b", RegexOptions.IgnoreCase))
+            {
+                var value = CleanContactValue(lines[i + 1]);
+                if (!string.IsNullOrWhiteSpace(value)) return value;
+            }
+        }
+
+        return null;
+    }
+
+    private static string? CleanContactValue(string value)
+    {
+        var cleaned = value.Trim().Trim(':', '-', '|', ';');
+        cleaned = Regex.Replace(cleaned, @"\s+(?:Relationship|Relation|Phone|Telephone|Mobile)\s*[:#-]?.*$", "", RegexOptions.IgnoreCase).Trim();
+        return string.IsNullOrWhiteSpace(cleaned) ? null : cleaned;
     }
 
     private static string? GetNamePart(string? fullName, int index)
@@ -526,11 +718,67 @@ internal static class ReferralDocumentFieldParser
             ? value.Trim() : null;
     }
 
+    private static string? FindStreetAddressFromDocument(string rawText)
+    {
+        if (string.IsNullOrWhiteSpace(rawText)) return null;
+
+        // OCR and selectable text often separate the street and city/state/ZIP
+        // onto adjacent lines. Search the complete document for address-shaped
+        // lines instead of relying only on a generic "Address" label match.
+        var lines = rawText.Replace("\r", "")
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => Regex.Replace(x, @"\s+", " ").Trim().Trim('|', ':', ';'))
+            .Where(x => x.Length > 0)
+            .ToArray();
+
+        var streetSuffix = @"(?:street|st\.?|avenue|ave\.?|road|rd\.?|boulevard|blvd\.?|drive|dr\.?|lane|ln\.?|court|ct\.?|circle|cir\.?|highway|hwy\.?|parkway|pkwy\.?|way|terrace|ter\.?|place|pl\.?|trail|trl\.?|apt\.?|apartment|unit|suite|ste\.?)";
+        var candidates = new List<(string Value, int Score)>();
+
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var line = lines[i];
+            // Exclude identifiers and other administrative content that can be
+            // mistakenly captured by broad aliases (e.g. "UPIN NPI").
+            if (Regex.IsMatch(line, @"\b(?:UPIN|NPI|MRN|TIN|FAX|PHONE|TELEPHONE|INSURANCE|MEMBER ID|POLICY|DIAGNOSIS)\b", RegexOptions.IgnoreCase))
+                continue;
+
+            var hasStreetNumber = Regex.IsMatch(line, @"^\d{1,6}\s+[A-Za-z]", RegexOptions.IgnoreCase);
+            var hasStreetType = Regex.IsMatch(line, @"\b" + streetSuffix + @"\b", RegexOptions.IgnoreCase);
+            var hasZip = Regex.IsMatch(line, @"\b\d{5}(?:-\d{4})?\b");
+            var hasCityStateZip = Regex.IsMatch(line, @"\b[A-Z]{2}\s+\d{5}(?:-\d{4})?\b", RegexOptions.IgnoreCase);
+
+            string candidate = line;
+            var score = 0;
+            if (hasStreetNumber) score += 3;
+            if (hasStreetType) score += 3;
+            if (hasZip) score += 2;
+            if (hasCityStateZip) score += 2;
+
+            // Combine a street line with the following city/state/ZIP line.
+            if (i + 1 < lines.Length && hasStreetNumber && !hasZip &&
+                (Regex.IsMatch(lines[i + 1], @"\b[A-Z]{2}\s+\d{5}(?:-\d{4})?\b", RegexOptions.IgnoreCase) ||
+                 Regex.IsMatch(lines[i + 1], @"\b\d{5}(?:-\d{4})?\b")))
+            {
+                candidate = line + ", " + lines[i + 1];
+                score += 3;
+            }
+
+            // Require multiple address characteristics to avoid populating an
+            // address from unrelated numbers or labels.
+            if (hasStreetNumber && (hasStreetType || hasZip))
+                candidates.Add((candidate, score));
+        }
+
+        var best = candidates.OrderByDescending(x => x.Score).FirstOrDefault();
+        return string.IsNullOrWhiteSpace(best.Value) ? null : CleanAddress(best.Value);
+    }
+
     private static string? CleanAddress(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
         var cleaned = value.Trim().Trim(':', '-', '|');
         if (Regex.IsMatch(cleaned, @"^(?:address|street address|home address|patient address)$", RegexOptions.IgnoreCase)) return null;
+        if (Regex.IsMatch(cleaned, @"\b(?:UPIN|NPI|MRN|TIN|FAX|PHONE|TELEPHONE|MEMBER ID|POLICY NUMBER)\b", RegexOptions.IgnoreCase)) return null;
         if (!Regex.IsMatch(cleaned, @"\d") && cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length < 2) return null;
         return cleaned;
     }

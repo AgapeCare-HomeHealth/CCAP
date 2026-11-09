@@ -51,11 +51,11 @@ public sealed class CompleteComplianceCommandHandler
         patient.Activities.Add(new CCAP.Domain.Entities.Activity(patient.PatientId, request.CompletedByUserId, "Compliance", "Compliance completed", $"{requirementCode} marked completed."));
         await _auditLogs.AddAsync(new CCAP.Domain.Entities.PatientAuditLog(patient.PatientId, request.CompletedByUserId, "Compliance", compliance.ComplianceRecordId.ToString(), "UPDATE", "Pending", "Completed", $"{requirementCode} completed."), cancellationToken);
 
-        // A newly referred patient remains Pending until all admission
-        // compliance requirements are complete. Only then activate the patient.
+        // Admission readiness is independent from SOC. SOC-specific requirements
+        // (SOC_COMPLIANT and OASIS_SOC_COMPLETE) must not block Admission completion.
         var admissionRequirements = new[]
         {
-            "SOC_COMPLIANT", "DME_MED_SUPPLY", "NOA_FILED", "OASIS_SOC_COMPLETE",
+            "DME_MED_SUPPLY", "NOA_FILED",
             "QA_APPROVAL", "ORDERS_SIGNED", "DOCS_UPLOADED",
             "CASE_MIX_IDENTIFIED", "CASE_MIX_ORDERS_SIGNED", "CASE_MIX_PLOTTED"
         };

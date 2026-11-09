@@ -1,5 +1,7 @@
 @using CCAP.Web.Features.Tracker.PatientWorkflow.Models
 
+@if (Items.Any())
+{
 <div class="card shadow-sm border-0 mb-4">
     <div class="card-header bg-white d-flex justify-content-between align-items-start gap-3 flex-wrap">
         <div>
@@ -36,6 +38,13 @@
                                     <option value="No">No — Outstanding</option>
                                     <option value="N/A">N/A — Complete</option>
                                 </select>
+                                @if ((IsSaving && SavingCode == item.RequirementCode) || (IsUnmarking && UnmarkingCode == item.RequirementCode))
+                                {
+                                    <div class="small text-primary mt-2 d-flex align-items-center gap-2" role="status" aria-live="polite">
+                                        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                        <span>Saving status...</span>
+                                    </div>
+                                }
                             </div>
                         </div>
                         @if (item.IsCompleted && item.CompletedAt.HasValue)
@@ -51,6 +60,7 @@
         </div>
     </div>
 </div>
+}
 
 @code {
     [Parameter] public string Title { get; set; } = "";

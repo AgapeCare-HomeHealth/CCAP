@@ -164,7 +164,11 @@
     private bool IsTransfer => string.Equals(FinalStatus, "Transferred", StringComparison.OrdinalIgnoreCase);
     private bool JourneyCompleted => Workflow?.WorkflowStages.FirstOrDefault(x => x.StageCode == "FINAL_OUTCOME")?.Status == WorkflowStatus.Completed;
     private bool JourneyArchived => string.Equals(Workflow?.Header.Status, "Archived", StringComparison.OrdinalIgnoreCase);
-    private bool CanCloseEpisode => Workflow?.WorkflowStages.FirstOrDefault(x => x.StageCode == "ADMISSION")?.Status == WorkflowStatus.Completed;
+    // Admission and SOC are tracked as separate workflow stages.
+    // There is no separate ADMISSION stage in BuildWorkflowStages, so checking
+    // ADMISSION here permanently disables discharge even when SOC is complete.
+    private bool CanCloseEpisode => Workflow?.WorkflowStages.FirstOrDefault(x =>
+        string.Equals(x.StageCode, "SOC", StringComparison.OrdinalIgnoreCase))?.Status == WorkflowStatus.Completed;
     private bool DischargeSummaryComplete => Workflow?.ComplianceItems.Any(x => string.Equals(x.RequirementCode, "DISCHARGE_SUMMARY_SIGNED", StringComparison.OrdinalIgnoreCase) && x.IsCompleted) == true;
     private bool CanSubmitOutcome => OutcomeDate.HasValue && (IsTransfer ? !string.IsNullOrWhiteSpace(TransferDestination) : DischargeSummaryComplete);
     private List<ComplianceItemDto> DischargeRequirements => Workflow?.ComplianceItems.Where(x => string.Equals(x.RequirementCode, "DISCHARGE_SUMMARY_SIGNED", StringComparison.OrdinalIgnoreCase) || string.Equals(x.RequirementCode, "NOMNC_SIGNED", StringComparison.OrdinalIgnoreCase)).OrderBy(x => x.RequirementCode).ToList() ?? [];

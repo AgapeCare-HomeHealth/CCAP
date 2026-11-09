@@ -65,6 +65,22 @@ public sealed class PatientsController : ControllerBase
             .SingleOrDefaultAsync(cancellationToken);
     }
 
+    private async Task<bool> CanAccessPatientAsync(Guid patientId, CancellationToken cancellationToken)
+    {
+        if (User.IsInRole("Administrator"))
+            return true;
+
+        var userId = await ResolveCurrentUserIdAsync(cancellationToken);
+        if (!userId.HasValue)
+            return false;
+
+        return await _db.Patients.AsNoTracking().AnyAsync(p =>
+            p.PatientId == patientId &&
+            (p.CoordinatorId == userId.Value
+             || p.SecondaryCoordinatorId == userId.Value
+             || p.BackupCoordinatorId == userId.Value), cancellationToken);
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetPatients(
         [FromQuery] int pageNumber = 1,
@@ -74,10 +90,17 @@ public sealed class PatientsController : ControllerBase
         [FromQuery] Guid? clinicianId = null,
         [FromQuery] string sortBy = "Name",
         [FromQuery] bool sortDescending = false,
-        CancellationToken cancellationToken = default) =>
-        Ok(await _sender.Send(
-            new GetPatientsQuery(pageNumber, pageSize, search, status, clinicianId, sortBy, sortDescending),
+        CancellationToken cancellationToken = default)
+    {
+        var currentUserId = await ResolveCurrentUserIdAsync(cancellationToken);
+        if (!User.IsInRole("Administrator") && !currentUserId.HasValue)
+            return Unauthorized();
+
+        return Ok(await _sender.Send(
+            new GetPatientsQuery(pageNumber, pageSize, search, status, clinicianId,
+                User.IsInRole("Administrator") ? null : currentUserId, sortBy, sortDescending),
             cancellationToken));
+    }
 
     [HttpGet("service-types")]
     [Authorize(Policy = PermissionPolicies.PatientsView)]
@@ -94,6 +117,9 @@ public sealed class PatientsController : ControllerBase
     Guid patientId,
     CancellationToken cancellationToken)
     {
+        if (!await CanAccessPatientAsync(patientId, cancellationToken))
+            return NotFound();
+
         var result = await _sender.Send(
             new GetPatientWorkflowQuery(patientId),
             cancellationToken);
@@ -116,6 +142,8 @@ public sealed class PatientsController : ControllerBase
         AddCallNoteCommand command,
         CancellationToken cancellationToken)
     {
+        if (!await CanAccessPatientAsync(patientId, cancellationToken))
+            return NotFound();
         if (patientId != command.PatientId)
             return BadRequest("Route ID and command PatientId do not match.");
 
@@ -133,6 +161,8 @@ public sealed class PatientsController : ControllerBase
     [Authorize(Policy = PermissionPolicies.PatientsManage)]
     public async Task<IActionResult> AddCareLog(Guid patientId, AddCareLogCommand command, CancellationToken cancellationToken)
     {
+        if (!await CanAccessPatientAsync(patientId, cancellationToken))
+            return NotFound();
         if (patientId != command.PatientId) return BadRequest("Route ID and command PatientId do not match.");
         var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
@@ -144,6 +174,8 @@ public sealed class PatientsController : ControllerBase
     [Authorize(Policy = PermissionPolicies.PatientsManage)]
     public async Task<IActionResult> UpdateCareLog(Guid patientId, Guid logId, UpdatePatientCareLogRequest request, CancellationToken cancellationToken)
     {
+        if (!await CanAccessPatientAsync(patientId, cancellationToken))
+            return NotFound();
         var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
         if (string.IsNullOrWhiteSpace(request.Item)) return BadRequest("Item / Description is required.");
@@ -162,6 +194,8 @@ public sealed class PatientsController : ControllerBase
     [Authorize(Policy = PermissionPolicies.PatientsManage)]
     public async Task<IActionResult> DeleteCareLog(Guid patientId, Guid logId, CancellationToken cancellationToken)
     {
+        if (!await CanAccessPatientAsync(patientId, cancellationToken))
+            return NotFound();
         var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
         var log = await _db.PatientCareLogs.FirstOrDefaultAsync(x => x.PatientId == patientId && x.PatientCareLogId == logId, cancellationToken);
@@ -177,6 +211,8 @@ public sealed class PatientsController : ControllerBase
     [Authorize(Policy = PermissionPolicies.PatientsManage)]
     public async Task<IActionResult> AddServiceOrder(Guid patientId, AddServiceOrderCommand command, CancellationToken cancellationToken)
     {
+        if (!await CanAccessPatientAsync(patientId, cancellationToken))
+            return NotFound();
         if (patientId != command.PatientId) return BadRequest("Route ID and command PatientId do not match.");
         var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
@@ -188,6 +224,8 @@ public sealed class PatientsController : ControllerBase
     [Authorize(Policy = PermissionPolicies.PatientsManage)]
     public async Task<IActionResult> DeleteServiceOrder(Guid patientId, Guid orderId, CancellationToken cancellationToken)
     {
+        if (!await CanAccessPatientAsync(patientId, cancellationToken))
+            return NotFound();
         var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
 
@@ -213,6 +251,8 @@ public sealed class PatientsController : ControllerBase
         CompleteCareCommand command,
         CancellationToken cancellationToken)
     {
+        if (!await CanAccessPatientAsync(patientId, cancellationToken))
+            return NotFound();
         if (patientId != command.PatientId)
             return BadRequest("Route ID and command PatientId do not match.");
 
@@ -241,17 +281,31 @@ public sealed class PatientsController : ControllerBase
         [FromBody] UpdatePatientRequest request,
         CancellationToken cancellationToken)
     {
+        if (!await CanAccessPatientAsync(patientId, cancellationToken))
+            return NotFound();
         var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
+
+        if (request.BackupCoordinatorId.HasValue && User.IsInRole("Administrator"))
+        {
+            var backupIsValid = await _db.ApplicationUsers
+                .Include(u => u.Role)
+                .AnyAsync(u => u.UserId == request.BackupCoordinatorId.Value
+                    && u.IsActive
+                    && u.Role.RoleName == "Care Coordinator", cancellationToken);
+            if (!backupIsValid)
+                return BadRequest("Backup CC must be an active Care Coordinator.");
+        }
+
         await _sender.Send(
             new UpdatePatientCommand(patientId, request.MRN, request.FirstName, request.MiddleName, request.LastName, request.SocDate,
                 request.DateOfBirth, request.Gender, request.PrimaryPhone, request.AlternatePhone, request.StreetAddress,
                 request.City, request.State, request.ZipCode, request.EmergencyContactName, request.EmergencyContactRelationship,
-                request.EmergencyContactPhone, request.ReferralDate, request.ReferralType, request.ReferralSource,
+                request.EmergencyContactPhone, request.EmergencyContactsJson, request.ReferralDate, request.ReferralType, request.ReferralSource,
                 request.ReferralChannel, request.Priority, request.ReferringPhysician, request.PhysicianPhone,
                 request.PhysicianFax, request.PhysicianNpi, request.PcosRegistered, request.PrimaryDiagnosis,
                 request.SecondaryDiagnosis, request.ReferralNotes, request.VisitPriority, request.CaseStatus,
-                request.InternalNotes, currentUserId), cancellationToken);
+                request.InternalNotes, request.BackupCoordinatorId, User.IsInRole("Administrator"), currentUserId), cancellationToken);
         return NoContent();
     }
 
@@ -259,6 +313,8 @@ public sealed class PatientsController : ControllerBase
     [Authorize(Policy = PermissionPolicies.PatientsManage)]
     public async Task<IActionResult> UpdateWorkflowDetails(Guid patientId, [FromBody] UpdateWorkflowDetailsRequest request, CancellationToken cancellationToken)
     {
+        if (!await CanAccessPatientAsync(patientId, cancellationToken))
+            return NotFound();
         var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
         await _sender.Send(new UpdateWorkflowDetailsCommand(patientId, request.PreAuthDueDate, request.NumberOfVisits, request.CaseMixType, request.DmeMedSupplyNotes, request.SocFeedbackFromPatient, request.TifDate, request.RocDate, request.RecertDate, request.PcpPtNotified, request.DischargeDate, request.DischargeFeedback, request.TransferDestination, request.TransferDate, request.TransferReason, currentUserId), cancellationToken);
@@ -272,6 +328,8 @@ public sealed class PatientsController : ControllerBase
     [FromBody] UpdateInsuranceRequest request,
     CancellationToken cancellationToken)
     {
+        if (!await CanAccessPatientAsync(patientId, cancellationToken))
+            return NotFound();
         await _sender.Send(
             new UpdateInsuranceCommand(
                 patientId,
@@ -291,6 +349,8 @@ public sealed class PatientsController : ControllerBase
         Guid patientId,
         CancellationToken cancellationToken)
     {
+        if (!await CanAccessPatientAsync(patientId, cancellationToken))
+            return NotFound();
         var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userIdValue, out var currentUserId))
             return Unauthorized();
@@ -308,6 +368,8 @@ public sealed class PatientsController : ControllerBase
     Guid patientId,
     CancellationToken cancellationToken)
     {
+        if (!await CanAccessPatientAsync(patientId, cancellationToken))
+            return NotFound();
         var result = await _sender.Send(
             new GetPatientCareManagementQuery(patientId),
             cancellationToken);
@@ -325,6 +387,8 @@ public sealed class PatientsController : ControllerBase
     [FromBody] ScheduleSocRequest request,
     CancellationToken cancellationToken)
     {
+        if (!await CanAccessPatientAsync(patientId, cancellationToken))
+            return NotFound();
         var userIdValue =
             User.FindFirstValue(
                 ClaimTypes.NameIdentifier);
@@ -356,6 +420,8 @@ public sealed class PatientsController : ControllerBase
         [FromBody] CompleteSocRequest request,
         CancellationToken cancellationToken)
     {
+        if (!await CanAccessPatientAsync(patientId, cancellationToken))
+            return NotFound();
         var userIdValue =
             User.FindFirstValue(
                 ClaimTypes.NameIdentifier);
@@ -388,6 +454,8 @@ public sealed class PatientsController : ControllerBase
     string requirementCode,
     CancellationToken cancellationToken)
     {
+        if (!await CanAccessPatientAsync(patientId, cancellationToken))
+            return NotFound();
         var resolvedUserId = await ResolveCurrentUserIdAsync(cancellationToken);
         if (resolvedUserId is null)
             return Unauthorized(new { message = "Your login is no longer linked to an active CCAP user. Please sign out and sign in again." });
@@ -406,6 +474,8 @@ public sealed class PatientsController : ControllerBase
     [Authorize(Policy = PermissionPolicies.PatientsManage)]
     public async Task<IActionResult> SetComplianceStatus(Guid patientId, string requirementCode, [FromBody] SetComplianceStatusRequest request, CancellationToken cancellationToken)
     {
+        if (!await CanAccessPatientAsync(patientId, cancellationToken))
+            return NotFound();
         var resolvedUserId = await ResolveCurrentUserIdAsync(cancellationToken);
         if (resolvedUserId is null) return Unauthorized(new { message = "Your login is no longer linked to an active CCAP user. Please sign out and sign in again." });
         await _sender.Send(new SetComplianceStatusCommand(patientId, requirementCode, request.Status, resolvedUserId.Value), cancellationToken);
@@ -418,6 +488,8 @@ public sealed class PatientsController : ControllerBase
     [Authorize(Policy = PermissionPolicies.PatientsManage)]
     public async Task<IActionResult> UnmarkCompliance(Guid patientId, string requirementCode, CancellationToken cancellationToken)
     {
+        if (!await CanAccessPatientAsync(patientId, cancellationToken))
+            return NotFound();
         var resolvedUserId = await ResolveCurrentUserIdAsync(cancellationToken);
         if (resolvedUserId is null) return Unauthorized(new { message = "Your login is no longer linked to an active CCAP user. Please sign out and sign in again." });
         await _sender.Send(new UnmarkComplianceCommand(patientId, requirementCode, resolvedUserId.Value), cancellationToken);

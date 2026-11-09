@@ -44,6 +44,10 @@ public sealed class Patient
 
     public string? EmergencyContactPhone { get; private set; }
 
+    public string? EmergencyContactsJson { get; private set; }
+
+    public void SetEmergencyContactsJson(string? value) => EmergencyContactsJson = Normalize(value);
+
     public string? PrimaryInsurance { get; private set; }
 
     public string? InsuranceMemberId { get; private set; }
@@ -84,6 +88,10 @@ public sealed class Patient
 
     public Guid? CoordinatorId { get; private set; }
 
+    public Guid? SecondaryCoordinatorId { get; private set; }
+
+    public Guid? BackupCoordinatorId { get; private set; }
+
     public Guid? ClinicianId { get; private set; }
 
     public DateOnly? SocDate { get; private set; }
@@ -99,6 +107,10 @@ public sealed class Patient
     public Guid? ArchivedByUserId { get; private set; }
 
     public ApplicationUser? Coordinator { get; private set; }
+
+    public ApplicationUser? SecondaryCoordinator { get; private set; }
+
+    public ApplicationUser? BackupCoordinator { get; private set; }
 
     public ApplicationUser? Clinician { get; private set; }
 
@@ -184,6 +196,7 @@ public sealed class Patient
         string? physicianPhone,
         string? referralNotes,
         Guid? coordinatorId,
+        Guid? secondaryCoordinatorId,
         Guid? clinicianId,
         DateOnly? socDate)
     {
@@ -242,7 +255,7 @@ public sealed class Patient
         ReferralNotes =
             Normalize(referralNotes);
 
-        CoordinatorId = coordinatorId;
+        SetCoordinatorAssignments(coordinatorId, secondaryCoordinatorId);
 
         ClinicianId = clinicianId;
 
@@ -362,6 +375,24 @@ public sealed class Patient
 
     public void SetCoordinator(Guid? userId)
         => CoordinatorId = userId;
+
+    public void SetSecondaryCoordinator(Guid? userId)
+        => SecondaryCoordinatorId = userId;
+
+    public void SetBackupCoordinator(Guid? userId)
+    {
+        if (userId.HasValue && (userId == CoordinatorId || userId == SecondaryCoordinatorId))
+            throw new InvalidOperationException("Backup CC must be different from the Primary and Secondary CC.");
+        BackupCoordinatorId = userId;
+    }
+
+    public void SetCoordinatorAssignments(Guid? primaryCoordinatorId, Guid? secondaryCoordinatorId)
+    {
+        if (primaryCoordinatorId.HasValue && primaryCoordinatorId == secondaryCoordinatorId)
+            throw new InvalidOperationException("Primary and Secondary CC must be different users.");
+        CoordinatorId = primaryCoordinatorId;
+        SecondaryCoordinatorId = secondaryCoordinatorId;
+    }
 
     public void SetClinician(Guid? userId)
         => ClinicianId = userId;

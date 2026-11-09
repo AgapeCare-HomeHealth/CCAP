@@ -1,4 +1,4 @@
-using CCAP.Application.Abstractions.Persistence;
+﻿using CCAP.Application.Abstractions.Persistence;
 using CCAP.Application.Features.Patients.DTOs;
 using CCAP.Domain.Entities;
 using CCAP.Domain.Enums;
@@ -333,6 +333,11 @@ public sealed class GetPatientWorkflowQueryHandler
                 SocDate = patient.SocDate,
 
                 Coordinator = coordinator,
+                CoordinatorId = patient.CoordinatorId,
+                SecondaryCoordinatorId = patient.SecondaryCoordinatorId,
+                BackupCoordinatorId = patient.BackupCoordinatorId,
+                SecondaryCoordinator = patient.SecondaryCoordinator is null ? string.Empty : $"{patient.SecondaryCoordinator.FirstName} {patient.SecondaryCoordinator.LastName}",
+                BackupCoordinator = patient.BackupCoordinator is null ? string.Empty : $"{patient.BackupCoordinator.FirstName} {patient.BackupCoordinator.LastName}",
                 DateOfBirth = patient.DateOfBirth,
                 Gender = patient.Gender ?? string.Empty,
                 PrimaryPhone = patient.PhoneNumber ?? string.Empty,
@@ -344,6 +349,7 @@ public sealed class GetPatientWorkflowQueryHandler
                 EmergencyContactName = patient.EmergencyContactName ?? string.Empty,
                 EmergencyContactRelationship = patient.EmergencyContactRelationship ?? string.Empty,
                 EmergencyContactPhone = patient.EmergencyContactPhone ?? string.Empty,
+                EmergencyContactsJson = patient.EmergencyContactsJson ?? string.Empty,
                 ReferralDate = referral?.ReferralDate,
                 ReferralType = referral?.ReferralType ?? string.Empty,
                 ReferralSource = referral?.Source ?? string.Empty,
@@ -386,6 +392,11 @@ public sealed class GetPatientWorkflowQueryHandler
             KeyInformation = new KeyInformationResponseDto
             {
                 Coordinator = coordinator,
+                CoordinatorId = patient.CoordinatorId,
+                SecondaryCoordinatorId = patient.SecondaryCoordinatorId,
+                BackupCoordinatorId = patient.BackupCoordinatorId,
+                SecondaryCoordinator = patient.SecondaryCoordinator is null ? string.Empty : $"{patient.SecondaryCoordinator.FirstName} {patient.SecondaryCoordinator.LastName}",
+                BackupCoordinator = patient.BackupCoordinator is null ? string.Empty : $"{patient.BackupCoordinator.FirstName} {patient.BackupCoordinator.LastName}",
 
                 Clinician = clinician,
 
@@ -546,29 +557,28 @@ public sealed class GetPatientWorkflowQueryHandler
 
     private static List<WorkflowStageResponseDto> BuildWorkflowStages(Patient patient, Referral? referral)
     {
-        // Keep the Patient Workflow progress bar aligned with the established
-        // CCAP patient workflow presentation. Insurance is shown as the
-        // compliance checkpoint, followed by Admission and then SOC.
-        // Recertification remains a milestone shown in the progress bar; it is
-        // not a separate recertification workflow/module.
-        var referralCompleted = referral is not null;
+        // Referral intake creates the seven Phase 1 compliance records. The
+        // existence of a Referral entity only proves that intake was created;
+        // it does not prove that the required referral checks were completed.
+        var referralRequirementCodes = new[]
+        {
+            "PRE_AUTH_RECEIVED", "PRO_RECEIVED", "H_AND_P_RECEIVED",
+            "F2F_RECEIVED", "PCP_CONFIRMED", "AVS_RECEIVED", "SIGNED_CONSENTS"
+        };
+        var referralCompleted = referralRequirementCodes.All(code => IsComplianceCompleted(patient, code));
+        var referralHasProgress = referralRequirementCodes.Any(code => IsComplianceCompleted(patient, code));
         var insuranceCompleted = IsComplianceCompleted(patient, "INSURANCE_VERIFICATION");
-        var socCompleted = IsComplianceCompleted(patient, "SOC_COMPLIANT");
 
         var admissionRequirementCodes = new[]
         {
-            "DME_MED_SUPPLY",
-            "NOA_FILED",
-            "OASIS_SOC_COMPLETE",
-            "QA_APPROVAL",
-            "ORDERS_SIGNED",
-            "DOCS_UPLOADED",
-            "CASE_MIX_IDENTIFIED",
-            "CASE_MIX_ORDERS_SIGNED",
-            "CASE_MIX_PLOTTED"
+            "PHYSICIAN_ORDERS", "DME_MED_SUPPLY", "NOA_FILED",
+            "QA_APPROVAL", "ORDERS_SIGNED", "DOCS_UPLOADED",
+            "CASE_MIX_IDENTIFIED", "CASE_MIX_ORDERS_SIGNED", "CASE_MIX_PLOTTED"
         };
+        var socRequirementCodes = new[] { "SOC_COMPLIANT", "OASIS_SOC_COMPLETE" };
 
         var admissionCompleted = admissionRequirementCodes.All(code => IsComplianceCompleted(patient, code));
+        var socCompleted = socRequirementCodes.All(code => IsComplianceCompleted(patient, code));
         var ongoingCareCompleted = patient.CareCompletedAt.HasValue;
         var recertCompleted = patient.RecertDate.HasValue || IsComplianceCompleted(patient, "RECERTIFICATION");
         var finalOutcomeCompleted = patient.CareCompletedAt.HasValue || patient.TransferDate.HasValue;
@@ -578,13 +588,21 @@ public sealed class GetPatientWorkflowQueryHandler
             CreateWorkflowStage(patient, 1, "REFERRAL", "Referral", referralCompleted, referral?.ReferralDate),
             CreateWorkflowStage(patient, 2, "INSURANCE", "Insurance", insuranceCompleted, GetComplianceCompletedDate(patient, "INSURANCE_VERIFICATION")),
             CreateWorkflowStage(patient, 3, "ADMISSION", "Admission", admissionCompleted, admissionCompleted ? GetAdmissionCompletionDate(patient, admissionRequirementCodes) : null),
-            CreateWorkflowStage(patient, 4, "SOC", "SOC", socCompleted, GetSocCompletionDate(patient)),
+            CreateWorkflowStage(patient, 4, "SOC", "SOC", socCompleted, socCompleted ? GetAdmissionCompletionDate(patient, socRequirementCodes) : null),
             CreateWorkflowStage(patient, 5, "ONGOING_CARE", "Ongoing Care", ongoingCareCompleted, patient.CareCompletedAt),
             CreateWorkflowStage(patient, 6, "RECERTIFICATION", "Recertification", recertCompleted, patient.RecertDate?.ToDateTime(TimeOnly.MinValue) ?? GetComplianceCompletedDate(patient, "RECERTIFICATION")),
             CreateWorkflowStage(patient, 7, "FINAL_OUTCOME", "Final Outcome", finalOutcomeCompleted, patient.CareCompletedAt ?? patient.TransferDate?.ToDateTime(TimeOnly.MinValue))
         };
 
-        SetWorkflowState(stages);
+        // Keep Referral pending until at least one referral requirement is
+        // confirmed. If partially completed, Referral is the current stage.
+        // Insurance (and later stages) cannot become current until Referral
+        // requirements are all complete.
+        var currentIndex = referralCompleted
+            ? stages.FindIndex(x => x.Status == 0)
+            : referralHasProgress ? 0 : -1;
+
+        SetWorkflowState(stages, currentIndex);
         return stages;
     }
 
@@ -698,17 +716,40 @@ public sealed class GetPatientWorkflowQueryHandler
             .FirstOrDefault();
     }
 
-    private static void SetWorkflowState(List<WorkflowStageResponseDto> stages)
+    private static void SetWorkflowState(List<WorkflowStageResponseDto> stages, int currentIndex)
     {
-        var currentIndex = stages.FindIndex(x => x.Status != 2 && x.Status != 3);
-        if (currentIndex < 0) return;
-        for (var i=0;i<stages.Count;i++)
+        // Preserve each stage's own completion state. A completed SOC must remain
+        // completed even if Admission is still outstanding (and vice versa).
+        // currentIndex is selected from the actual referral checklist progress.
+        for (var i = 0; i < stages.Count; i++)
         {
-            var stage=stages[i];
-            if(stage.Status==3) continue;
-            if(i<currentIndex){stage.Status=2;stage.Description="Completed";stage.IsClickable=true;}
-            else if(i==currentIndex){stage.Status=1;stage.Description="Current Stage";stage.IsClickable=true;}
-            else{stage.Status=0;stage.Description="Pending";stage.IsClickable=false;}
+            var stage = stages[i];
+            if (stage.Status == 3)
+            {
+                stage.Description = "Not applicable";
+                stage.IsClickable = false;
+                continue;
+            }
+
+            if (stage.Status == 2)
+            {
+                stage.Description = "Completed";
+                stage.IsClickable = true;
+                continue;
+            }
+
+            if (i == currentIndex)
+            {
+                stage.Status = 1;
+                stage.Description = "Current Stage";
+                stage.IsClickable = true;
+            }
+            else
+            {
+                stage.Status = 0;
+                stage.Description = "Pending";
+                stage.IsClickable = false;
+            }
         }
     }
 

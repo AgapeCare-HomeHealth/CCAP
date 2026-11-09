@@ -21,6 +21,13 @@
                 <option value="No">No</option>
                 <option value="N/A">N/A</option>
             </select>
+            @if (IsSaving || IsUnmarking)
+            {
+                <div class="small text-primary mt-2 d-flex align-items-center gap-2" role="status" aria-live="polite">
+                    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                    <span>Saving status...</span>
+                </div>
+            }
         </div>
     </div>
     @if (Item.IsCompleted && Item.CompletedAt.HasValue)

@@ -1,4 +1,5 @@
 @using CCAP.Web.Features.Tracker.PatientWorkflow.Models
+@using CCAP.Web.Features.Admin.Users.Models
 
 @if (Visible)
 {
@@ -45,9 +46,27 @@
                                 <input class="form-control" value="@Model.ReferralNumber" readonly />
                                 <div class="form-text">System-generated referral identifier.</div>
                             </div>
+                            @if (IsAdministrator)
+                            {
+                                <div class="col-12"><hr/><h6>Backup Care Coordinator</h6></div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Backup CC</label>
+                                    <select class="form-select" @bind="Model.BackupCoordinatorId">
+                                        <option value="">No Backup CC assigned</option>
+                                        @foreach (var user in Coordinators.Where(x => x.UserId != Model.CoordinatorId && x.UserId != Model.SecondaryCoordinatorId))
+                                        {
+                                            <option value="@user.UserId">@user.FullName</option>
+                                        }
+                                    </select>
+                                    <div class="form-text">Administrator-only assignment for coverage when both Primary and Secondary CCs are unavailable.</div>
+                                </div>
+                            }
+
+                            <div class="col-12"><hr/><h6>Patient Admission Information</h6></div>
                             <div class="col-md-6">
                                 <label class="form-label">SOC Date</label>
                                 <InputDate class="form-control" @bind-Value="Model.SocDate" />
+                                <div class="form-text">Start of Care date for this patient episode.</div>
                             </div>
                             <div class="col-12"><hr/><h6>Patient Contact Information</h6></div>
                             <div class="col-md-4"><label class="form-label">Date of Birth</label><InputDate class="form-control" @bind-Value="Model.DateOfBirth" /></div>
@@ -58,9 +77,31 @@
                             <div class="col-md-4"><label class="form-label">City</label><InputText class="form-control" @bind-Value="Model.City" /></div>
                             <div class="col-md-4"><label class="form-label">State</label><InputText class="form-control" @bind-Value="Model.State" /></div>
                             <div class="col-md-4"><label class="form-label">ZIP Code</label><InputText class="form-control" @bind-Value="Model.ZipCode" /></div>
-                            <div class="col-md-4"><label class="form-label">Emergency Contact</label><InputText class="form-control" @bind-Value="Model.EmergencyContactName" /></div>
-                            <div class="col-md-4"><label class="form-label">Relationship</label><InputText class="form-control" @bind-Value="Model.EmergencyContactRelationship" /></div>
-                            <div class="col-md-4"><label class="form-label">Emergency Phone</label><InputText class="form-control" @bind-Value="Model.EmergencyContactPhone" /></div>
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="mb-0">Emergency Contacts</h6>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" @onclick="AddEmergencyContact">
+                                        <i class="bi bi-plus-lg"></i> Add Contact
+                                    </button>
+                                </div>
+                                @if (Model.EmergencyContacts.Count == 0)
+                                {
+                                    <div class="text-muted small mb-2">No emergency contacts added.</div>
+                                }
+                                @for (var i = 0; i < Model.EmergencyContacts.Count; i++)
+                                {
+                                    var contact = Model.EmergencyContacts[i];
+                                    <div class="row g-2 align-items-end border rounded p-3 mb-2" @key="contact">
+                                        <div class="col-12 d-flex justify-content-between align-items-center">
+                                            <strong>Emergency Contact @(i + 1)</strong>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => RemoveEmergencyContact(contact)">Remove</button>
+                                        </div>
+                                        <div class="col-md-4"><label class="form-label">Contact Name</label><InputText class="form-control" @bind-Value="contact.Name" /></div>
+                                        <div class="col-md-4"><label class="form-label">Relationship</label><InputText class="form-control" @bind-Value="contact.Relationship" /></div>
+                                        <div class="col-md-4"><label class="form-label">Phone Number</label><InputText class="form-control" @bind-Value="contact.Phone" /></div>
+                                    </div>
+                                }
+                            </div>
                             <div class="col-12"><hr/><h6>Referral Details (insurance is managed in Compliance)</h6></div>
                             <div class="col-md-4"><label class="form-label">Referral Date</label><InputDate class="form-control" @bind-Value="Model.ReferralDate" /></div>
                             <div class="col-md-4"><label class="form-label">Referral Type</label><InputText class="form-control" @bind-Value="Model.ReferralType" /></div>
@@ -98,9 +139,15 @@
     [Parameter] public bool Visible { get; set; }
     [Parameter] public PatientEditModel Model { get; set; } = new();
     [Parameter] public bool Saving { get; set; }
+    [Parameter] public bool IsAdministrator { get; set; }
+    [Parameter] public List<UserDto> Coordinators { get; set; } = [];
     [Parameter] public string? ErrorMessage { get; set; }
     [Parameter] public EventCallback OnSave { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
+
+    private void AddEmergencyContact() => Model.EmergencyContacts.Add(new EmergencyContactEditModel());
+
+    private void RemoveEmergencyContact(EmergencyContactEditModel contact) => Model.EmergencyContacts.Remove(contact);
 
     private Task Save() => OnSave.InvokeAsync();
     private Task Close() => OnClose.InvokeAsync();

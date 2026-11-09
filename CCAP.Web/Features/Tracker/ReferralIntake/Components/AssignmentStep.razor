@@ -24,21 +24,30 @@
 
         <div class="row g-4">
             <div class="col-md-6">
-                <label class="form-label">Care Coordinator</label>
-                <select class="form-select" @bind="Model.CoordinatorId" disabled="@(!IsAdministrator)">
-                    @if (IsAdministrator)
+                <label class="form-label">Primary Care Coordinator</label>
+                <select class="form-select" @bind="Model.CoordinatorId">
+                    @if (!IsCareCoordinator)
                     {
-                        <option value="">Select Coordinator</option>
+                        <option value="">Select Primary CC</option>
                     }
                     @foreach (var user in Coordinators)
+                    {
+                        <option value="@user.UserId" disabled="@(user.UserId == Model.SecondaryCoordinatorId)">@user.FullName</option>
+                    }
+                </select>
+                <div class="form-text">Defaults to the logged-in user. You may change the Primary CC if needed.</div>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Secondary Care Coordinator</label>
+                <select class="form-select" @bind="Model.SecondaryCoordinatorId">
+                    <option value="">Select Secondary CC (optional)</option>
+                    @foreach (var user in Coordinators.Where(x => x.UserId != Model.CoordinatorId))
                     {
                         <option value="@user.UserId">@user.FullName</option>
                     }
                 </select>
-                @if (!IsAdministrator)
-                {
-                    <div class="form-text">Automatically assigned to your signed-in account.</div>
-                }
+                <div class="form-text">Backup coverage when the Primary CC is unavailable.</div>
             </div>
 
             <div class="col-md-6">
@@ -120,6 +129,9 @@
 
     [Parameter]
     public bool IsAdministrator { get; set; }
+
+    [Parameter]
+    public bool IsCareCoordinator { get; set; }
 
     [Parameter]
     public List<UserDto> Coordinators { get; set; } = [];
