@@ -177,7 +177,18 @@ public sealed class PatientCareProfileDto
 
     public List<PatientRelatedNoteDto> RelatedNotes { get; set; } = [];
 }
-public sealed class PatientCareLogDto { public Guid PatientCareLogId{get;set;} public string LogType{get;set;}=""; public string Item{get;set;}=""; public decimal? Quantity{get;set;} public string? Unit{get;set;} public DateTime RecordedAt{get;set;} public string? Notes{get;set;} public string RecordedBy{get;set;}="System"; }
+public sealed class PatientCareLogDto
+{
+    public Guid PatientCareLogId { get; set; }
+    public string LogType { get; set; } = string.Empty;
+    public string Item { get; set; } = string.Empty;
+    public decimal? Quantity { get; set; }
+    public string? Unit { get; set; }
+    public DateTime RecordedAt { get; set; }
+    public string? Notes { get; set; }
+    public string? Status { get; set; }
+    public string RecordedBy { get; set; } = "System";
+}
 
 public sealed class PatientRelatedNoteDto
 {

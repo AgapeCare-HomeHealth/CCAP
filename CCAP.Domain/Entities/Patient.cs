@@ -443,6 +443,35 @@ public sealed class Patient
         Status = PatientStatus.Archived;
     }
 
+
+    public void UpdateEditableProfile(
+        string mrn, string firstName, string? middleName, string lastName,
+        DateOnly? socDate, DateOnly? dateOfBirth, string? gender,
+        string? primaryDiagnosis, string? secondaryDiagnosis, string? streetAddress,
+        string? city, string? state, string? zipCode, string? primaryPhone,
+        string? alternatePhone, string? emergencyContactName,
+        string? emergencyContactRelationship, string? emergencyContactPhone,
+        string? referringPhysician, string? physicianPhone, string? referralNotes)
+    {
+        UpdateBasicInformation(mrn, firstName, middleName, lastName, socDate);
+        DateOfBirth = dateOfBirth;
+        Gender = Normalize(gender);
+        PrimaryDiagnosis = Normalize(primaryDiagnosis);
+        SecondaryDiagnosis = Normalize(secondaryDiagnosis);
+        Address = Normalize(streetAddress);
+        City = Normalize(city);
+        State = Normalize(state);
+        ZipCode = Normalize(zipCode);
+        PhoneNumber = Normalize(primaryPhone);
+        AlternatePhone = Normalize(alternatePhone);
+        EmergencyContactName = Normalize(emergencyContactName);
+        EmergencyContactRelationship = Normalize(emergencyContactRelationship);
+        EmergencyContactPhone = Normalize(emergencyContactPhone);
+        ReferringPhysician = Normalize(referringPhysician);
+        PhysicianPhone = Normalize(physicianPhone);
+        ReferralNotes = Normalize(referralNotes);
+    }
+
     private static string? Normalize(string? value)
     {
         return string.IsNullOrWhiteSpace(value)

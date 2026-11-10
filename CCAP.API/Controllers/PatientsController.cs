@@ -166,7 +166,7 @@ public sealed class PatientsController : ControllerBase
         if (patientId != command.PatientId) return BadRequest("Route ID and command PatientId do not match.");
         var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
-        var id = await _sender.Send(new AddCareLogCommand(command.PatientId, command.LogType, command.Item, command.Quantity, command.Unit, command.Notes, currentUserId), cancellationToken);
+        var id = await _sender.Send(new AddCareLogCommand(command.PatientId, command.LogType, command.Item, command.Quantity, command.Unit, command.Notes, currentUserId, command.Status), cancellationToken);
         return Ok(new { PatientCareLogId = id });
     }
 
@@ -506,4 +506,6 @@ public sealed class PatientsController : ControllerBase
         return NoContent();
     }
 
+
+    public sealed record UpdatePatientCareLogRequest(string Item, decimal? Quantity, string? Unit, string? Notes, string? Status);
 }

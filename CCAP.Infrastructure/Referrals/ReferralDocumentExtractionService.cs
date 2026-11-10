@@ -84,39 +84,16 @@ public sealed class ReferralDocumentExtractionService : IReferralDocumentExtract
         if (combinedText.Length > 1_500_000)
             throw new InvalidOperationException("The extracted referral text is too large to process safely.");
 
-        var textValue = digitalText.ToString();
-        double? confidence = null;
+        // The browser OCR flow supplies page text to this method. Keep this method
+        // synchronous internally: no image payloads or native OCR work are performed here.
         var profiles = ReferralFormProfileLoader.Load(_configuration);
         var result = ReferralDocumentFieldParser.Parse(combinedText, ocrUsed, confidence, profiles);
 
-        // Second pass: when embedded page images exist, run OCR even if the
-        // PDF text layer returned some values. Scanned referrals can contain a
-        // small amount of selectable text alongside image-only sections, so
-        // using a "fewer than two fields" threshold silently misses those fields.
-        // MergeMissing preserves the text-layer values and fills only gaps from OCR.
-        if (imagePayloads.Count > 0)
-        {
-            // Do not silently report "text layer read directly" when OCR failed.
-            // The upload UI catches this exception and can show a useful message.
-            var ocr = await RunOcrAsync(imagePayloads, cancellationToken);
-            if (!string.IsNullOrWhiteSpace(ocr.Text))
-            {
-                var ocrResult = ReferralDocumentFieldParser.Parse(ocr.Text, true, ocr.Confidence, profiles);
-                result = ReferralDocumentFieldParser.MergeMissing(result, ocrResult);
-                confidence = ocr.Confidence;
-            }
-            else if (ReferralDocumentFieldParser.CountDetectedValues(result) == 0)
-            {
-                throw new InvalidOperationException(
-                    "RapidOCR did not recognize readable text in the PDF pages. " +
-                    "Check image quality, page rotation, and the published OCR model files.");
-            }
-        }
-        else if (ReferralDocumentFieldParser.CountDetectedValues(result) == 0)
+        if (ReferralDocumentFieldParser.CountDetectedValues(result) == 0)
         {
             throw new InvalidOperationException(
-                $"CCAP could not extract referral values. {renderingFailure ?? "No OCR-ready page images were produced."} " +
-                "Verify the PDFium/Docnet native runtime files and the RapidOCR model files in the published API.");
+                "CCAP could not extract referral values from the supplied page text. " +
+                "If this is a scanned PDF, ensure browser OCR completed and supplied readable page text.");
         }
 
         result = ReferralExtractionSafety.Apply(result, normalizedPages);
@@ -529,6 +506,24 @@ internal static class ReferralDocumentFieldParser
         }
 
         return (null, null, null);
+    }
+
+    private static bool IsPlausibleName(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        var cleaned = Regex.Replace(value.Trim(), @"\\s+", " ");
+        if (cleaned.Length is < 3 or > 100)
+            return false;
+
+        // Require at least two name parts and reject labels/numeric OCR noise.
+        var parts = cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 2 || parts.Length > 5)
+            return false;
+
+        return parts.All(part =>
+            Regex.IsMatch(part, @"^[A-Za-z][A-Za-z'’.-]*$"));
     }
 
     private static string? NormalizePersonName(string? value)

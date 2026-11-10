@@ -4,6 +4,8 @@
 @attribute [CcapAuthorize(Policy = "referrals.view")]
 
 @using Microsoft.JSInterop
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
 @using CCAP.Web.Features.Admin.Users.Services
 @using CCAP.Web.Features.Admin.Users.Models
 @using CCAP.Web.Features.Tracker.ReferralIntake.Components
@@ -11,6 +13,7 @@
 @using CCAP.Web.Features.Tracker.ReferralIntake.Services
 
 @inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ReferralIntakeService ReferralIntakeService
 @inject NavigationManager Navigation
 @inject UserServices UserService

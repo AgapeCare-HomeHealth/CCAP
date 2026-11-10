@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using CCAP.Application.Features.Referrals.DTOs;
 
 namespace CCAP.API.Controllers;
 
@@ -212,14 +213,7 @@ public sealed class ReferralController : ControllerBase
         }
     }
 
-    // ========================================================
-    // EXTRACT TEXT PRODUCED BY THE USER'S BROWSER
-    // ========================================================
-
-    // Scanned-page OCR runs in the browser so the hosting server does not need
-    // Poppler, Tesseract, Python, or native OCR binaries. Only extracted text is
-    // sent here; it is validated and mapped with the same Application/Infrastructure
-    // rules as other referral extraction paths.
+  
     [HttpPost("extract-browser-text")]
     [Authorize(Policy = PermissionPolicies.ReferralsManage)]
     [RequestSizeLimit(8 * 1024 * 1024)]

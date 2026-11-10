@@ -58,7 +58,7 @@ public sealed class GetPatientCareManagementQueryHandler
 
         var mappedCareLogs = careLogs.Select(x => new PatientCareLogResponseDto {
             PatientCareLogId = x.PatientCareLogId, LogType = x.LogType, Item = x.Item, Quantity = x.Quantity, Unit = x.Unit,
-            RecordedAt = x.RecordedAt, Notes = x.Notes, RecordedBy = x.RecordedByUser is null ? "System" : $"{x.RecordedByUser.FirstName} {x.RecordedByUser.LastName}".Trim()
+            RecordedAt = x.RecordedAt, Notes = x.Notes, Status = x.Status, RecordedBy = x.RecordedByUser is null ? "System" : $"{x.RecordedByUser.FirstName} {x.RecordedByUser.LastName}".Trim()
         }).ToList();
 
         var serviceOrders =

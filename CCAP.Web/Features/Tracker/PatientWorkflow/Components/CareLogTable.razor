@@ -15,7 +15,7 @@
  <TablePager CurrentPage="@CurrentPage" PageSize="@PageSize" TotalItems="@FilteredLogs.Count" OnPageChanged="GoToPage" OnPageSizeChanged="ChangePageSize" />
 </div>
 @code{
- [Parameter]public string Title{get;set;}=""; [Parameter]public string LogType{get;set;}=""; [Parameter]public List<PatientCareLogDto> Logs{get;set;}=[]; [Parameter]public EventCallback<string> OnAdd{get;set;}
+ [Parameter]public string Title{get;set;}=""; [Parameter]public string LogType{get;set;}=""; [Parameter]public List<PatientCareLogDto> Logs{get;set;}=[]; [Parameter]public EventCallback<string> OnAdd{get;set;} [Parameter]public EventCallback<PatientCareLogDto> OnEdit{get;set;} [Parameter]public EventCallback<PatientCareLogDto> OnDelete{get;set;} [Parameter]public bool Busy{get;set;}
  private string SearchText=string.Empty; private int CurrentPage=1; private int PageSize=20;
  private static string GetSupplyStatusClass(string? status) => status?.Trim().ToUpperInvariant() switch
  {

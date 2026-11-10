@@ -34,7 +34,7 @@
  [Parameter] public EventCallback OnChanged { get; set; }
  private PatientCareProfileDto? Care; private bool IsLoading; private string? ErrorMessage;
  private List<ServiceTypeDto> ServiceTypes=[]; private bool ShowOrderForm,SavingOrder; private OrderFormModel NewOrder=new(); private Guid? EditingOrderId;
- private bool ShowCareLogForm,SavingCareLog; private CareLogFormModel NewCareLog=new();
+ private bool ShowCareLogForm,SavingCareLog; private Guid? EditingCareLogId; private CareLogFormModel NewCareLog=new();
  protected override async Task OnParametersSetAsync(){await LoadAsync();}
  private async Task LoadAsync(){IsLoading=true;ErrorMessage=null;try{Care=await CareService.GetAsync(PatientId);}catch(Exception ex){ErrorMessage=ex.Message;}finally{IsLoading=false;}}
  private async Task ShowAddOrder(){try{ServiceTypes=await CareService.GetServiceTypesAsync();NewOrder=new();EditingOrderId=null;ShowOrderForm=true;}catch(Exception ex){ErrorMessage=ex.Message;}}
@@ -56,5 +56,5 @@
  };
  private static string Display(string? x)=>string.IsNullOrWhiteSpace(x)?"-":x; private static string GetStatusClass(string? s)=>s?.ToLowerInvariant() switch{"completed"=>"bg-success","active"=>"bg-success","scheduled"=>"bg-primary","ordered"=>"bg-primary","pending"=>"bg-secondary","cancelled"=>"bg-danger",_=>"bg-secondary"};
  private sealed class OrderFormModel{public Guid ServiceTypeId{get;set;}public string? Frequency{get;set;}}
- private sealed class CareLogFormModel{public string LogType{get;set;}="";public string Item{get;set;}="";public decimal? Quantity{get;set;}public string? Unit{get;set;}public string? Notes{get;set;}}
+ private sealed class CareLogFormModel{public string LogType{get;set;}="";public string Item{get;set;}="";public decimal? Quantity{get;set;}public string? Unit{get;set;}public string? Notes{get;set;} public string? Status{get;set;}}
 }
