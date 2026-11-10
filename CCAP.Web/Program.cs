@@ -14,7 +14,17 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services
     .AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveServerComponents(options =>
+    {
+        // Multi-page scanned referrals may need several minutes of browser OCR.
+        options.JSInteropDefaultCallTimeout = TimeSpan.FromMinutes(5);
+    })
+    .AddHubOptions(options =>
+    {
+        // The browser returns bounded page text (never PDF bytes) through JS interop.
+        // 8 MB accommodates JSON escaping while retaining an explicit upper bound.
+        options.MaximumReceiveMessageSize = 8 * 1024 * 1024;
+    });
 
 builder.Services.AddCascadingAuthenticationState();
 

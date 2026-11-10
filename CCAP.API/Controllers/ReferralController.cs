@@ -3,6 +3,7 @@ using CCAP.API.Authorization;
 using CCAP.Application.Features.ReferralDrafts.Queries;
 using CCAP.Application.Features.Referrals.Commands.CreateReferralIntake;
 using CCAP.Application.Features.Referrals.Commands.SaveReferralDraft;
+using CCAP.Application.Features.Referrals.DTOs;
 using CCAP.Application.Abstractions.Referrals;
 using CCAP.Application.Features.ReferralDrafts.Queries.GetReferralDraftById;
 using MediatR;
@@ -148,6 +149,53 @@ public sealed class ReferralController : ControllerBase
     }
 
     // ========================================================
+    // EXTRACT TEXT PRODUCED BY THE USER'S BROWSER
+    // ========================================================
+
+    // Scanned-page OCR runs in the browser so the hosting server does not need
+    // Poppler, Tesseract, Python, or native OCR binaries. Only extracted text is
+    // sent here; it is validated and mapped with the same Application/Infrastructure
+    // rules as other referral extraction paths.
+    [HttpPost("extract-browser-text")]
+    [Authorize(Policy = PermissionPolicies.ReferralsManage)]
+    [RequestSizeLimit(8 * 1024 * 1024)]
+    public async Task<IActionResult> ExtractBrowserText(
+        [FromBody] ReferralDocumentTextExtractionInput request,
+        CancellationToken cancellationToken)
+    {
+        if (request?.PageTexts is null || request.PageTexts.Count is < 1 or > 25)
+            return BadRequest(new { message = "Referral extraction must contain between 1 and 25 pages." });
+
+        if (request.PageTexts.Any(page => page is null))
+            return BadRequest(new { message = "Referral page text is invalid." });
+
+        var totalCharacters = request.PageTexts.Sum(page => page.Length);
+        if (totalCharacters < 10)
+            return UnprocessableEntity(new { message = "No readable text was extracted from the referral PDF." });
+
+        if (totalCharacters > 1_000_000)
+            return BadRequest(new { message = "The extracted referral text exceeds the allowed size." });
+
+        if (request.Confidence is < 0 or > 1)
+            return BadRequest(new { message = "OCR confidence must be between 0 and 1." });
+
+        try
+        {
+            var result = await _documentExtraction.ExtractFromTextAsync(
+                request.PageTexts,
+                request.OcrUsed,
+                request.Confidence,
+                cancellationToken);
+
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return UnprocessableEntity(new { message = ex.Message });
+        }
+    }
+
+    // ========================================================
     // GET REFERRAL DRAFTS
     // ========================================================
 
@@ -212,23 +260,6 @@ public sealed class ReferralController : ControllerBase
     [FromForm] CreateReferralIntakeRequest request,
     CancellationToken cancellationToken)
     {
-        // Non-administrators must not be able to assign referral work to
-        // another coordinator by changing the client-submitted CoordinatorId.
-        // Administrators retain the ability to choose a coordinator.
-        if (!User.IsInRole("Administrator"))
-        {
-            var currentUserIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!Guid.TryParse(currentUserIdValue, out var currentUserId))
-            {
-                return Unauthorized(new
-                {
-                    message = "Unable to determine the authenticated user."
-                });
-            }
-
-            request.CoordinatorId = currentUserId;
-        }
-
         // =========================================================
         // OPTIONAL PDF VALIDATION
         // =========================================================

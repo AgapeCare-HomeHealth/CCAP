@@ -10,6 +10,8 @@ public sealed class ReferralDocumentExtractionDto
     public string? RawText { get; set; }
 
     public string? MRN { get; set; }
+    public bool MrnRequiresReview { get; set; }
+    public List<ReferralMrnCandidateDto> MrnCandidates { get; set; } = [];
     public string? FirstName { get; set; }
     public string? MiddleName { get; set; }
     public string? LastName { get; set; }
@@ -38,4 +40,11 @@ public sealed class ReferralDocumentExtractionDto
     public string? SecondaryDiagnosis { get; set; }
     public List<string> OrderedServices { get; set; } = [];
     public string? ReferralNotes { get; set; }
+}
+
+public sealed class ReferralMrnCandidateDto
+{
+    public string Value { get; set; } = string.Empty;
+    public int PageNumber { get; set; }
+    public string Source { get; set; } = string.Empty;
 }

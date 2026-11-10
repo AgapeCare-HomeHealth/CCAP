@@ -69,6 +69,40 @@ public sealed class ReferralIntakeService
     }
 
     // =========================================================
+    // BROWSER OCR TEXT EXTRACTION
+    // =========================================================
+
+    public async Task<ReferralDocumentExtractionDto> ExtractReferralTextAsync(
+        BrowserReferralTextExtractionRequest input,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        if (input.PageTexts is null || input.PageTexts.Count is < 1 or > 25)
+            throw new InvalidOperationException("The browser did not return a valid page-text result.");
+
+        using var response = await _api.PostAsJsonAsync(
+            "api/referrals/extract-browser-text",
+            input,
+            cancellationToken);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var message = TryExtractMessage(body);
+            throw new InvalidOperationException(
+                string.IsNullOrWhiteSpace(message)
+                    ? "Unable to map the extracted referral text."
+                    : message);
+        }
+
+        return JsonSerializer.Deserialize<ReferralDocumentExtractionDto>(
+            body,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+            ?? throw new InvalidOperationException(
+                "The referral extraction service returned an empty response.");
+    }
+
+    // =========================================================
     // CREATE
     // =========================================================
 

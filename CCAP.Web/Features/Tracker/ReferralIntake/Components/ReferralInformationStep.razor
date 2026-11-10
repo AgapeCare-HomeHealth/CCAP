@@ -74,6 +74,15 @@
 
     <hr />
 
+    <!-- MRN is an external facility identifier; review or correct it before submission. -->
+    <div class="row g-3 mb-3">
+        <div class="col-md-6">
+            <label class="form-label" for="referralMrn">Medical Record Number (MRN)</label>
+            <input id="referralMrn" class="form-control" @bind="Model.MRN" maxlength="32" />
+            <div class="form-text">Confirm the correct referring facility's MRN against the uploaded document.</div>
+        </div>
+    </div>
+
     <!-- ================= Insurance ================= -->
 
     <h5 class="section-heading">

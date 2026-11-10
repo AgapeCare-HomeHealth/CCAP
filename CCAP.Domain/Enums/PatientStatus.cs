@@ -6,6 +6,5 @@ public enum PatientStatus
     OnHold,
     Completed,
     Cancelled,
-    Archived,
-    Pending
+    Archived
 }

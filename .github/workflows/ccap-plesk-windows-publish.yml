@@ -11,9 +11,6 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      - name: Prepare pinned Windows OCR runtime
-        shell: pwsh
-        run: ./tools/prepare-ocr-windows.ps1
       - name: Restore and build
         shell: pwsh
         run: |
@@ -24,11 +21,13 @@ jobs:
         run: |
           dotnet publish CCAP.API/CCAP.API.csproj -c Release --no-restore -o publish/api
           dotnet publish CCAP.Web/CCAP.Web.csproj -c Release --no-restore -o publish/web
-          if (!(Test-Path publish/api/tessdata/eng.traineddata)) { throw 'Missing English traineddata' }
-          if (!(Test-Path publish/api/Tools/poppler/windows/Library/bin/pdftoppm.exe)) { throw 'Missing Poppler' }
-          # Secrets must be supplied by Plesk; do not publish developer appsettings.
-          Remove-Item publish/api/appsettings*.json -ErrorAction SilentlyContinue
-          Remove-Item publish/web/appsettings*.json -ErrorAction SilentlyContinue
+          if (!(Test-Path publish/web/wwwroot/js/ccap-referral-pdf-ocr.js)) { throw 'Missing browser OCR JavaScript' }
+          if (!(Test-Path publish/web/wwwroot/ocr/lang/eng.traineddata.gz)) { throw 'Missing bundled English OCR model' }
+          # Keep base/Production non-secret configuration (form profiles, safe defaults).
+          # Never publish Development settings. Production secrets must be overridden
+          # by Plesk environment variables / protected settings.
+          Remove-Item publish/api/appsettings.Development.json -ErrorAction SilentlyContinue
+          Remove-Item publish/web/appsettings.Development.json -ErrorAction SilentlyContinue
       - uses: actions/upload-artifact@v4
         with:
           name: ccap-windows-plesk-api

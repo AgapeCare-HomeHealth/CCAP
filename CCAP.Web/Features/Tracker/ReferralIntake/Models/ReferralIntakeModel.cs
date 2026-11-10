@@ -30,6 +30,13 @@ public sealed class ReferralIntakeModel
 
     public string MRN { get; set; } = string.Empty;
 
+    // Ephemeral review state; not an admission record or a persisted attachment.
+    public List<ReferralMrnCandidateDto> MrnCandidates { get; set; } = [];
+    public bool MrnReviewRequired { get; set; }
+    public bool MrnReviewCompleted { get; set; }
+    public string MrnReviewChoice { get; set; } = string.Empty;
+    public bool ReferralExtractionInProgress { get; set; }
+
     public string FirstName { get; set; } = string.Empty;
 
     public string MiddleName { get; set; } = string.Empty;

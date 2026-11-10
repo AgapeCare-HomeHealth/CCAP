@@ -1,0 +1,3 @@
+English Tesseract language model (eng.traineddata), bundled as eng.traineddata.gz for browser-side OCR.
+The upstream model is from the tesseract-ocr/tessdata_fast project and is licensed under Apache-2.0.
+This file is served by CCAP.Web. It is not patient data.

@@ -654,10 +654,6 @@ namespace CCAP.Infrastructure.Migrations
                     b.Property<Guid?>("RecordedByUserId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("Status")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
                     b.Property<string>("Unit")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -687,11 +683,6 @@ namespace CCAP.Infrastructure.Migrations
 
                     b.Property<bool>("IsPrimaryDiscipline")
                         .HasColumnType("bit");
-
-                    b.Property<DateTime>("OrderDate")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<Guid>("PatientId")
                         .HasColumnType("uniqueidentifier");

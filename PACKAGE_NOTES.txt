@@ -1,0 +1,23 @@
+CCAP Complete Source Solution — Calendar + Browser PDF OCR
+Prepared: 2026-10-28
+
+CONTENTS
+- Complete CCAP source solution and solution files (.sln and .slnx).
+- CCAP.Domain, CCAP.Application, CCAP.Infrastructure, CCAP.API, and CCAP.Web projects.
+- Latest Calendar/Tracker changes from the October 27 solution.
+- Browser-side PDF.js/Tesseract.js OCR with bundled English OCR model.
+- MRN/PCP/insurance safety rules and existing Referral Intake workflow.
+- Documentation for browser OCR setup, limitations, and QA.
+
+OCR DEPLOYMENT
+- Plesk does not need Poppler, native Tesseract, Python, Docker, or server-level installation rights for OCR.
+- The browser downloads pinned JavaScript/WASM engine assets from jsDelivr; `eng.traineddata.gz` is bundled under CCAP.Web/wwwroot/ocr/lang.
+- The browser must be able to reach jsDelivr. If external CDNs are blocked by policy or CSP, vendor the runtime/core files locally before deployment.
+
+PACKAGE HYGIENE
+- Git history, Visual Studio local state, and bin/obj build outputs are not included.
+- Supply database/JWT/storage secrets through Plesk secure settings or an approved secret provider. Do not commit credentials or patient PDFs.
+
+VERIFICATION STATUS
+- The archive is source-checked and ZIP integrity will be checked after packaging.
+- A .NET 10 build and end-to-end browser upload test could not be run in this environment; run both before deployment.

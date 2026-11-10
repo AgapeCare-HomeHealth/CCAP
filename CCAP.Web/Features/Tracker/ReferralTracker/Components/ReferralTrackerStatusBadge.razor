@@ -1,0 +1,13 @@
+@using CCAP.Web.Features.Tracker.ReferralTracker.Models
+@{
+    var style = ReferralTrackerStatusStyle.Resolve(Status);
+}
+<span class="referral-tracker-status"
+      style="background-color:@style.Background;color:@style.Foreground"
+      title="@style.Label">
+    @style.Label
+</span>
+
+@code {
+    [Parameter] public string? Status { get; set; }
+}

@@ -23,6 +23,16 @@ builder.Services.AddInfrastructure(builder.Configuration);
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()
     ?? throw new InvalidOperationException("Jwt configuration is missing.");
 
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32 ||
+    jwtKey.StartsWith("CHANGE_THIS", StringComparison.OrdinalIgnoreCase) ||
+    jwtKey.Contains("REPLACE_WITH", StringComparison.OrdinalIgnoreCase))
+{
+    throw new InvalidOperationException(
+        "Jwt:Key must be supplied as a strong secret (at least 32 characters). " +
+        "Use the development-only local key for Development and a secret provider/environment variable for Production.");
+}
+
 builder.Services
     .AddAuthentication(options =>
     {
@@ -34,11 +44,6 @@ builder.Services
     })
     .AddJwtBearer(options =>
     {
-        var jwtKey =
-            builder.Configuration["Jwt:Key"]
-            ?? throw new InvalidOperationException(
-                "Jwt:Key is not configured.");
-
         options.TokenValidationParameters =
             new TokenValidationParameters
             {

@@ -168,8 +168,7 @@ public static class DatabaseSeeder
             ("PT", "Physical Therapy", "bi bi-person-walking", "text-primary"),
             ("OT", "Occupational Therapy", "bi bi-universal-access", "text-success"),
             ("ST", "Speech Therapy", "bi bi-chat-dots", "text-info"),
-            ("HHA", "Home Health Aide", "bi bi-person-heart", "text-warning"),
-            ("MSW", "Medical Social Worker (MSW)", "bi bi-people", "text-info")
+            ("HHA", "Home Health Aide", "bi bi-person-heart", "text-warning")
         };
 
         // Remove any accidental empty additions from the first pass and use
@@ -299,7 +298,7 @@ public static class DatabaseSeeder
             ["CaseMixType"] = ["SN EVAL ONLY", "PT EVAL ONLY", "SN ONLY", "PT ONLY", "SN, PT", "SN, HHA", "SN, OT", "SN, MWS", "SN, ST", "SN, PT, HHA", "SN, PT, MWS", "SN, PT, OT", "SN, PT, SP", "SN, PT, HHA, MWS", "SN, PT, OT, HHA", "SN, PT, HHA, MSW", "SN, PT, OT, SP", "SN, PT, OT, HHA, MSW, ST"],
             ["ContactType"] = ["Patient", "Caregiver", "Physician Office", "Insurance", "Other"],
             ["CommunicationMethod"] = ["Note", "Phone", "Email", "SMS", "Fax"],
-            ["ConfirmationStatus"] = ["Confirmed", "Left VM", "Left VM and Sent SMS", "Sent SMS", "No Answer", "Reschedule", "TIF", "Cancelled Visit", "Non-Visit Discharge", "Missed Visit"],
+            ["ConfirmationStatus"] = ["Confirmed", "Left VM", "Left VM and Sent SMS", "Sent SMS", "No Answer", "Reschedule", "TIF", "Cancelled Visit", "Non-visit DC", "Missed Visit"],
             ["VisitType"] = ["SOC", "ROC", "LVN", "PT EVAL", "BATH", "RE-EVAL", "RECERT", "OT", "ST", "MSW", "HHA"],
             ["VisitStatus"] = ["Completed", "Missed", "Rescheduled", "Cancelled"],
             ["FinalDischargeStatus"] = ["Completed", "Discharged", "Transferred", "Patient Declined"],

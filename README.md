@@ -1813,25 +1813,11 @@ The schedule review modal closes before the SweetAlert loading dialog opens, so 
 
 New Referral now treats only **First Name + Last Name + Date of Birth** as required at final submission. MRN, referral number, referral metadata, assignment, SOC, insurance, physician, diagnosis, and service fields may be populated later because the EMR is the source of truth.
 
-When a referral PDF is uploaded in Step 1, CCAP calls `POST /api/referrals/extract`:
+When a referral PDF is uploaded in Step 1, CCAP processes the file in the browser:
 
-- Digital PDF: reads the PDF text layer directly.
-- Scanned PDF: extracts embedded page images and runs Tesseract OCR.
-- Extracted values are written into the wizard for review/editing; they are not silently treated as authoritative.
-- Drafts preserve the extracted structured values so reopening a draft does not require re-extraction.
-
-Before testing scanned PDFs, run `setup-referral-ocr.ps1` or place `eng.traineddata` in `CCAP/CCAP.API/tessdata` on the API server. The OCR wrapper also requires the Microsoft Visual C++ 2022 runtime on Windows hosts.
-
-## Scanned referral PDF OCR (no Poppler)
-
-The referral extraction service now renders complete PDF pages to PNG using Docnet.Core (PDFium) and SkiaSharp before running Tesseract. This is important for scanned PDFs where the page is a single scan and PdfPig does not expose usable embedded images. The renderer and native runtime assets are NuGet dependencies; Poppler is not required.
-
-### Build and deploy
-
-1. In Visual Studio, restore NuGet packages and build the solution. The Infrastructure project references `Docnet.Core`, `SkiaSharp`, and the Windows/Linux Skia native asset packages.
-2. Ensure `CCAP.API/tessdata/eng.traineddata` exists before publishing. The API project copies this file to build/publish output when it exists. The setup script `setup-referral-ocr.ps1` can help prepare it locally.
-3. Publish the API for the same operating system/architecture used by the Plesk hosting plan. Native PDFium and Skia assets must match the hosting OS/architecture; including a NuGet package does not make a Windows-published application portable to Linux automatically.
-4. Deploy the entire published output, including native runtime assets and `tessdata/eng.traineddata`, not just the API DLL.
-5. Upload the sample PDF and confirm the extraction result reports OCR usage and fields are populated. OCR output must be reviewed before referral submission.
-
-If PDF rendering fails on the target server, the service falls back to PDF text/embedded-image extraction. Check server architecture, native library loading, and that all publish output files were deployed.
+- Digital PDF: PDF.js reads a usable text layer.
+- Scanned PDF: PDF.js renders each scanned page and Tesseract.js performs OCR in a browser Web Worker.
+- Only extracted page text is sent to the authenticated `POST /api/referrals/extract-browser-text` endpoint for the existing server-side parser and safety rules; the PDF itself is not sent to an OCR vendor.
+- The English OCR model is served by CCAP.Web from `wwwroot/ocr/lang/eng.traineddata.gz`. Plesk does not need native Poppler/Tesseract or Python installed.
+- The browser must be able to load pinned PDF.js and Tesseract.js runtime/core files from jsDelivr. See `docs/REFERRAL_BROWSER_OCR.md` for configuration, limits, privacy notes and tests.
+- Extracted values are suggestions for user review, not authoritative patient data. Multiple MRNs require Care Coordinator review; insurance must exactly match an active dropdown option; Ordered Services remain manual.

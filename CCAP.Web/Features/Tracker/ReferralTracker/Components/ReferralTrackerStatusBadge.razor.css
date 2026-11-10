@@ -1,0 +1,11 @@
+.referral-tracker-status {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    padding: .3rem .55rem;
+    border-radius: .35rem;
+    font-size: .75rem;
+    font-weight: 700;
+    line-height: 1.25;
+    white-space: normal;
+}

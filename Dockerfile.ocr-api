@@ -1,0 +1,16 @@
+# CCAP API container. Scanned PDF OCR is executed in the user's browser,
+# so this image does not install Poppler, Tesseract, Python, or native OCR tools.
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY . .
+RUN dotnet publish CCAP.API/CCAP.API.csproj -c Release -o /app/publish /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
+WORKDIR /app
+COPY --from=build /app/publish .
+# Application secrets must be supplied by the hosting environment/secret manager.
+RUN rm -f /app/appsettings.Development.json
+ENV ASPNETCORE_HTTP_PORTS=8080
+EXPOSE 8080
+USER $APP_UID
+ENTRYPOINT ["dotnet", "CCAP.API.dll"]

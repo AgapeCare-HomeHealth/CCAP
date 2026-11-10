@@ -1,0 +1,11 @@
+@using CCAP.Web.Features.Tracker.ReferralTracker.Models
+
+<div class="referral-status-legend">
+    @foreach (var item in ReferralTrackerStatusStyle.All)
+    {
+        <div class="referral-status-legend-item">
+            <span class="referral-status-swatch" style="background-color:@item.Background"></span>
+            <span>@item.Label</span>
+        </div>
+    }
+</div>
