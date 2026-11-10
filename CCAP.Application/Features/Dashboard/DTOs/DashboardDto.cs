@@ -43,6 +43,7 @@ public sealed class MyTaskDto
     public string AssignedClinician { get; set; } = string.Empty;
 
     public string CurrentStage { get; set; } = string.Empty;
+    public string PatientCoordinatorRole { get; set; } = "Not Assigned";
 }
 
 public sealed class ReferralSummaryDto

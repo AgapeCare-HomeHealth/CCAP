@@ -4,6 +4,9 @@ namespace CCAP.Web.Features.Tracker.ReferralIntake.Models;
 
 public sealed class ReferralIntakeModel
 {
+    public List<EmergencyContactModel> EmergencyContacts { get; set; } = [new()];
+
+
     // =========================
     // Draft
     // =========================
@@ -81,6 +84,16 @@ public sealed class ReferralIntakeModel
 
     public string ReferralChannel { get; set; } = string.Empty;
 
+    // Optional fields used by the Referral Tracker list.
+    public string PostedOn { get; set; } = "Referral/Intake";
+    public string TrackerStatus { get; set; } = string.Empty;
+    public DateOnly? EstimatedDischargeDate { get; set; }
+    public string TrackerCoordinatorName { get; set; } = string.Empty;
+    public string FirstMarketingCall { get; set; } = string.Empty;
+    public string SecondCoordinatorCall { get; set; } = string.Empty;
+    public string ThirdCoordinatorCall { get; set; } = string.Empty;
+    public string Resolution { get; set; } = string.Empty;
+
     public string Priority { get; set; } = "Routine";
 
     // =========================
@@ -130,6 +143,8 @@ public sealed class ReferralIntakeModel
     // =========================
 
     public Guid? CoordinatorId { get; set; }
+
+    public Guid? SecondaryCoordinatorId { get; set; }
 
     public Guid? ClinicianId { get; set; }
 

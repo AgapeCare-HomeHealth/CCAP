@@ -6,6 +6,7 @@ using CCAP.Web.Features.Tracker.ReferralDrafts.Models;
 using CCAP.Web.Features.Tracker.ReferralIntake.Models;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using CCAP.Web.Features.Tracker.ReferralList.Models;
 
 namespace CCAP.Web.Features.Tracker.ReferralIntake.Services;
 
@@ -209,20 +210,30 @@ public sealed class ReferralIntakeService
         // EMERGENCY CONTACT
         // =====================================================
 
-        Add(
-            form,
-            "EmergencyContactName",
-            model.EmergencyContactName);
+        var emergencyContacts = model.EmergencyContacts
+            .Where(x => !string.IsNullOrWhiteSpace(x.Name)
+                     || !string.IsNullOrWhiteSpace(x.Relationship)
+                     || !string.IsNullOrWhiteSpace(x.Phone))
+            .ToList();
 
-        Add(
-            form,
-            "EmergencyContactRelationship",
-            model.EmergencyContactRelationship);
+        if (emergencyContacts.Count == 0 &&
+            (!string.IsNullOrWhiteSpace(model.EmergencyContactName)
+             || !string.IsNullOrWhiteSpace(model.EmergencyContactRelationship)
+             || !string.IsNullOrWhiteSpace(model.EmergencyContactPhone)))
+        {
+            emergencyContacts.Add(new EmergencyContactModel
+            {
+                Name = model.EmergencyContactName,
+                Relationship = model.EmergencyContactRelationship,
+                Phone = model.EmergencyContactPhone
+            });
+        }
 
-        Add(
-            form,
-            "EmergencyContactPhone",
-            model.EmergencyContactPhone);
+        var primaryEmergencyContact = emergencyContacts.FirstOrDefault();
+        Add(form, "EmergencyContactName", primaryEmergencyContact?.Name);
+        Add(form, "EmergencyContactRelationship", primaryEmergencyContact?.Relationship);
+        Add(form, "EmergencyContactPhone", primaryEmergencyContact?.Phone);
+        Add(form, "EmergencyContactsJson", JsonSerializer.Serialize(emergencyContacts));
 
         // =====================================================
         // REFERRAL
@@ -252,6 +263,15 @@ public sealed class ReferralIntakeService
             form,
             "ReferralChannel",
             model.ReferralChannel);
+
+        Add(form, "PostedOn", model.PostedOn);
+        Add(form, "TrackerStatus", model.TrackerStatus);
+        Add(form, "EstimatedDischargeDate", model.EstimatedDischargeDate?.ToString("yyyy-MM-dd"));
+        Add(form, "TrackerCoordinatorName", model.TrackerCoordinatorName);
+        Add(form, "FirstMarketingCall", model.FirstMarketingCall);
+        Add(form, "SecondCoordinatorCall", model.SecondCoordinatorCall);
+        Add(form, "ThirdCoordinatorCall", model.ThirdCoordinatorCall);
+        Add(form, "Resolution", model.Resolution);
 
         Add(
             form,
@@ -333,6 +353,8 @@ public sealed class ReferralIntakeService
             form,
             "CoordinatorId",
             model.CoordinatorId?.ToString());
+
+        Add(form, "SecondaryCoordinatorId", model.SecondaryCoordinatorId?.ToString());
 
         Add(
             form,
@@ -715,11 +737,20 @@ public sealed class ReferralIntakeService
             EmergencyContactName = model.EmergencyContactName,
             EmergencyContactRelationship = model.EmergencyContactRelationship,
             EmergencyContactPhone = model.EmergencyContactPhone,
+            EmergencyContacts = model.EmergencyContacts.ToList(),
             ReferralNumber = model.ReferralNumber,
             ReferralDate = model.ReferralDate,
             ReferralSource = model.ReferralSource,
             ReferralType = model.ReferralType,
             ReferralChannel = model.ReferralChannel,
+            PostedOn = model.PostedOn,
+            TrackerStatus = model.TrackerStatus,
+            EstimatedDischargeDate = model.EstimatedDischargeDate,
+            TrackerCoordinatorName = model.TrackerCoordinatorName,
+            FirstMarketingCall = model.FirstMarketingCall,
+            SecondCoordinatorCall = model.SecondCoordinatorCall,
+            ThirdCoordinatorCall = model.ThirdCoordinatorCall,
+            Resolution = model.Resolution,
             Priority = model.Priority,
             PrimaryInsurance = model.PrimaryInsurance,
             InsuranceMemberId = model.InsuranceMemberId,
@@ -736,6 +767,7 @@ public sealed class ReferralIntakeService
             OrderedServices = model.OrderedServices.ToList(),
             ReferralNotes = model.ReferralNotes,
             CoordinatorId = model.CoordinatorId,
+            SecondaryCoordinatorId = model.SecondaryCoordinatorId,
             ClinicianId = model.ClinicianId,
             DisciplineId = model.DisciplineId,
             SocDate = model.SocDate,
@@ -776,7 +808,49 @@ public sealed class ReferralIntakeService
             ?? new PagedResult<ReferralDraftListItem>();
     }
 
+    public async Task<PagedResult<ReferralListItem>> GetReferralListAsync(
+        int pageNumber, int pageSize, string? search = null, string? status = null,
+        string? source = null, string? insurance = null, CancellationToken cancellationToken = default)
+    {
+        var query = $"api/referrals?pageNumber={pageNumber}&pageSize={pageSize}";
+        if (!string.IsNullOrWhiteSpace(search)) query += $"&search={Uri.EscapeDataString(search.Trim())}";
+        if (!string.IsNullOrWhiteSpace(status)) query += $"&status={Uri.EscapeDataString(status)}";
+        if (!string.IsNullOrWhiteSpace(source)) query += $"&source={Uri.EscapeDataString(source)}";
+        if (!string.IsNullOrWhiteSpace(insurance)) query += $"&insurance={Uri.EscapeDataString(insurance)}";
+        return await _api.GetFromJsonAsync<PagedResult<ReferralListItem>>(query, cancellationToken)
+            ?? new PagedResult<ReferralListItem>();
+    }
+
+    public async Task<List<CCAP.Web.Features.Admin.Users.Models.UserDto>> GetReferralAssignmentUsersAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await _api.GetFromJsonAsync<List<CCAP.Web.Features.Admin.Users.Models.UserDto>>(
+            "api/referrals/assignment-users", cancellationToken) ?? [];
+    }
+
+    public async Task UpdateReferralTrackerDetailsAsync(
+        ReferralListItem item, CancellationToken cancellationToken = default)
+    {
+        var request = new
+        {
+            item.ReferralId,
+            item.PostedOn,
+            TrackerStatus = item.Status,
+            item.EstimatedDischargeDate,
+            PrimaryInsurance = item.Insurance,
+            Source = item.Source,
+            SecondCoordinatorCall = item.SecondCoordinatorCall,
+            ThirdCoordinatorCall = item.ThirdCoordinatorCall,
+            item.Resolution
+        };
+        using var response = await _api.PutAsJsonAsync(
+            $"api/referrals/{item.ReferralId}/tracker", request, cancellationToken);
+        await _api.EnsureSuccessAsync(response, cancellationToken);
+    }
+
+
     public async Task<ReferralIntakeModel> LoadDraftAsync(
+
     Guid draftId,
     CancellationToken cancellationToken = default)
     {
@@ -827,11 +901,22 @@ public sealed class ReferralIntakeService
             EmergencyContactName = draftData.EmergencyContactName,
             EmergencyContactRelationship = draftData.EmergencyContactRelationship,
             EmergencyContactPhone = draftData.EmergencyContactPhone,
+            EmergencyContacts = draftData.EmergencyContacts.Count > 0
+                ? draftData.EmergencyContacts
+                : [new EmergencyContactModel { Name = draftData.EmergencyContactName, Relationship = draftData.EmergencyContactRelationship, Phone = draftData.EmergencyContactPhone }],
             ReferralNumber = draftData.ReferralNumber,
             ReferralDate = draftData.ReferralDate,
             ReferralSource = draftData.ReferralSource,
             ReferralType = draftData.ReferralType,
             ReferralChannel = draftData.ReferralChannel,
+            PostedOn = draftData.PostedOn ?? "Referral/Intake",
+            TrackerStatus = draftData.TrackerStatus ?? string.Empty,
+            EstimatedDischargeDate = draftData.EstimatedDischargeDate,
+            TrackerCoordinatorName = draftData.TrackerCoordinatorName ?? string.Empty,
+            FirstMarketingCall = draftData.FirstMarketingCall ?? string.Empty,
+            SecondCoordinatorCall = draftData.SecondCoordinatorCall ?? string.Empty,
+            ThirdCoordinatorCall = draftData.ThirdCoordinatorCall ?? string.Empty,
+            Resolution = draftData.Resolution ?? string.Empty,
             Priority = draftData.Priority,
             PrimaryInsurance = draftData.PrimaryInsurance,
             InsuranceMemberId = draftData.InsuranceMemberId,
@@ -848,6 +933,7 @@ public sealed class ReferralIntakeService
             OrderedServices = draftData.OrderedServices,
             ReferralNotes = draftData.ReferralNotes,
             CoordinatorId = draftData.CoordinatorId,
+            SecondaryCoordinatorId = draftData.SecondaryCoordinatorId,
             ClinicianId = draftData.ClinicianId,
             DisciplineId = draftData.DisciplineId,
             SocDate = draftData.SocDate,

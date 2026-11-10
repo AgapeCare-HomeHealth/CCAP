@@ -35,7 +35,11 @@ public sealed class DashboardRepository : IDashboardRepository
             "PCP_CONFIRMED", "AVS_RECEIVED", "SIGNED_CONSENTS", "INSURANCE_VERIFICATION",
             "PHYSICIAN_ORDERS", "SOC_COMPLIANT", "DME_MED_SUPPLY", "NOA_FILED", "OASIS_SOC_COMPLETE",
             "QA_APPROVAL", "ORDERS_SIGNED", "DOCS_UPLOADED", "CASE_MIX_IDENTIFIED",
-            "CASE_MIX_ORDERS_SIGNED", "CASE_MIX_PLOTTED", "PCP_PT_NOTIFIED", "ROC",
+            "CASE_MIX_ORDERS_SIGNED", "CASE_MIX_PLOTTED", "PCP_PT_NOTIFIED",
+            // ROC is a workflow event tracked by the ROC Date, not a
+            // standing compliance requirement. It is intentionally excluded
+            // from dashboard outstanding tasks because there is no ROC
+            // compliance control in the Compliance tab to complete.
             "RECERTIFICATION", "DISCHARGE_SUMMARY_SIGNED", "NOMNC_SIGNED"
         };
 
@@ -50,6 +54,9 @@ public sealed class DashboardRepository : IDashboardRepository
                 x.Patient.FirstName,
                 x.Patient.LastName,
                 x.Patient.SocDate,
+                x.Patient.CoordinatorId,
+                x.Patient.SecondaryCoordinatorId,
+                x.Patient.BackupCoordinatorId,
                 Clinician = x.Patient.Clinician == null ? "" : x.Patient.Clinician.FirstName + " " + x.Patient.Clinician.LastName,
                 Coordinator = x.Patient.Coordinator == null ? "" : x.Patient.Coordinator.FirstName + " " + x.Patient.Coordinator.LastName
             })
@@ -67,7 +74,14 @@ public sealed class DashboardRepository : IDashboardRepository
                 DueDate = x.SocDate.HasValue ? x.SocDate.Value.ToDateTime(TimeOnly.MinValue) : tomorrow,
                 AssignedTo = string.IsNullOrWhiteSpace(x.Coordinator) ? "Unassigned" : x.Coordinator,
                 AssignedClinician = string.IsNullOrWhiteSpace(x.Clinician) ? "Unassigned" : x.Clinician,
-                CurrentStage = "Compliance"
+                CurrentStage = "Compliance",
+                PatientCoordinatorRole = x.CoordinatorId == userId
+                    ? "Primary CC"
+                    : x.SecondaryCoordinatorId == userId
+                        ? "Secondary CC"
+                        : x.BackupCoordinatorId == userId
+                            ? "Backup CC"
+                            : "Not Assigned"
             })
             .OrderBy(x => x.DueDate)
             .ToList();
@@ -236,7 +250,6 @@ public sealed class DashboardRepository : IDashboardRepository
         "CASE_MIX_ORDERS_SIGNED" => "Confirm Case Mix Orders Signed",
         "CASE_MIX_PLOTTED" => "Confirm Case Mix Plotted",
         "PCP_PT_NOTIFIED" => "Confirm PCP & PT Notified",
-        "ROC" => "Confirm ROC",
         "RECERTIFICATION" => "Complete Recertification",
         "DISCHARGE_SUMMARY_SIGNED" => "Complete Compliance: DISCHARGE SUMMARY SIGNED",
         "NOMNC_SIGNED" => "Complete Compliance: NOMNC SIGNED",

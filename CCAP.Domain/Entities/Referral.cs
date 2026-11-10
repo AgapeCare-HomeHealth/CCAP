@@ -65,6 +65,17 @@ public sealed class Referral
 
     public string? InternalNotes { get; private set; }
 
+    // Referral Tracker fields are kept separate from clinical intake workflow fields.
+    public string? PostedOn { get; private set; }
+    public string? TrackerCoordinatorName { get; private set; }
+    public string? TrackerStatus { get; private set; }
+    public DateOnly? EstimatedDischargeDate { get; private set; }
+    public string? FirstMarketingCall { get; private set; }
+    public string? SecondCoordinatorCall { get; private set; }
+    public string? ThirdCoordinatorCall { get; private set; }
+    public string? Resolution { get; private set; }
+
+
     public Patient? Patient { get; private set; }
 
     public ApplicationUser? AssignedUser { get; private set; }
@@ -273,6 +284,60 @@ public sealed class Referral
 
         InternalNotes =
             Normalize(internalNotes);
+    }
+
+    public void UpdateEditableDetails(
+        DateTime? referralDate, string? source, string? referralType, string? referralChannel,
+        string? priority, string? visitPriority, string? caseStatus, string? referringPhysician,
+        string? physicianPhone, string? physicianFax, string? physicianNpi, string? pcosRegistered,
+        string? secondaryDiagnosis, string? referralNotes, string? internalNotes)
+    {
+        if (referralDate.HasValue && referralDate.Value != default)
+            ReferralDate = referralDate.Value;
+        Source = Normalize(source);
+        ReferralType = Normalize(referralType);
+        ReferralChannel = Normalize(referralChannel);
+        Priority = Normalize(priority);
+        VisitPriority = Normalize(visitPriority);
+        CaseStatus = Normalize(caseStatus);
+        ReferringPhysician = Normalize(referringPhysician);
+        PhysicianPhone = Normalize(physicianPhone);
+        PhysicianFax = Normalize(physicianFax);
+        PhysicianNpi = Normalize(physicianNpi);
+        PcosRegistered = Normalize(pcosRegistered);
+        SecondaryDiagnosis = Normalize(secondaryDiagnosis);
+        ReferralNotes = Normalize(referralNotes);
+        InternalNotes = Normalize(internalNotes);
+    }
+
+    public void UpdateTrackerDetails(
+        string? postedOn, string? trackerStatus, DateOnly? estimatedDischargeDate,
+        string? primaryInsurance, string? source, string? secondCoordinatorCall,
+        string? thirdCoordinatorCall, string? resolution)
+    {
+        PostedOn = Normalize(postedOn);
+        TrackerStatus = Normalize(trackerStatus);
+        EstimatedDischargeDate = estimatedDischargeDate;
+        PrimaryInsurance = Normalize(primaryInsurance);
+        Source = Normalize(source);
+        SecondCoordinatorCall = Normalize(secondCoordinatorCall);
+        ThirdCoordinatorCall = Normalize(thirdCoordinatorCall);
+        Resolution = Normalize(resolution);
+    }
+
+    public void SetInitialTrackerDetails(
+        string? postedOn, string? trackerStatus, DateOnly? estimatedDischargeDate,
+        string? trackerCoordinatorName, string? firstMarketingCall,
+        string? secondCoordinatorCall, string? thirdCoordinatorCall, string? resolution)
+    {
+        PostedOn = Normalize(postedOn);
+        TrackerStatus = Normalize(trackerStatus);
+        EstimatedDischargeDate = estimatedDischargeDate;
+        TrackerCoordinatorName = Normalize(trackerCoordinatorName);
+        FirstMarketingCall = Normalize(firstMarketingCall);
+        SecondCoordinatorCall = Normalize(secondCoordinatorCall);
+        ThirdCoordinatorCall = Normalize(thirdCoordinatorCall);
+        Resolution = Normalize(resolution);
     }
 
     public void MarkAsDraft()

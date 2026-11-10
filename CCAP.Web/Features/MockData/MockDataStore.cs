@@ -660,7 +660,7 @@ public sealed class MockDataStore
     private static List<WorkflowStageDto> BuildStages(PatientListItem patient)
     {
         var current = patient.Status == "Pending" ? 1 : patient.Status == "On Hold" ? 2 : 3;
-        var names = new[] { ("REFERRAL", "Referral"), ("INSURANCE", "Insurance"), ("SOC", "SOC Scheduled"), ("ADMISSION", "Admission"), ("VISITS", "Visits"), ("RECERT", "Recertification"), ("DISCHARGE", "Discharge") };
+        var names = new[] { ("REFERRAL", "Referral"), ("INSURANCE", "Insurance"), ("SOC", "SOC"), ("VISITS", "Ongoing Care"), ("RECERT", "Recertification"), ("DISCHARGE", "Discharge") };
         return names.Select((x, i) => new WorkflowStageDto
         {
             Sequence = i + 1,

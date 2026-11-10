@@ -22,7 +22,8 @@ public sealed class PatientRepository : IPatientRepository
         return _context.Patients
 
             .Include(x => x.Coordinator)
-
+            .Include(x => x.SecondaryCoordinator)
+            .Include(x => x.BackupCoordinator)
             .Include(x => x.Clinician)
 
             .Include(x => x.Referrals)
@@ -96,12 +97,16 @@ public sealed class PatientRepository : IPatientRepository
         string? search,
         string? status,
         Guid? clinicianId,
+        Guid? assignedUserId,
         string sortBy,
         bool sortDescending,
         CancellationToken cancellationToken)
     {
         var query = _context.Patients
             .Include(x => x.Clinician)
+            .Include(x => x.Coordinator)
+            .Include(x => x.SecondaryCoordinator)
+            .Include(x => x.BackupCoordinator)
             .AsNoTracking()
             .AsQueryable();
 
@@ -121,6 +126,11 @@ public sealed class PatientRepository : IPatientRepository
 
         if (clinicianId.HasValue && clinicianId.Value != Guid.Empty)
             query = query.Where(x => x.ClinicianId == clinicianId.Value);
+
+        if (assignedUserId.HasValue && assignedUserId.Value != Guid.Empty)
+            query = query.Where(x => x.CoordinatorId == assignedUserId.Value
+                || x.SecondaryCoordinatorId == assignedUserId.Value
+                || x.BackupCoordinatorId == assignedUserId.Value);
 
         query = sortBy.ToLowerInvariant() switch
         {

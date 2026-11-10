@@ -1,4 +1,4 @@
-﻿@using CCAP.Web.Features.Patients.Models
+@using CCAP.Web.Features.Patients.Models
 @inject NavigationManager Navigation
 
 <div class="patient-table-card">
@@ -28,7 +28,13 @@
                     <tr class="clickable-row"
                         @onclick="() => OpenPatient(patient)">
 
-                        <td>@patient.Name</td>
+                        <td>
+                            <div class="fw-semibold">@patient.Name</div>
+                            @if (!string.IsNullOrWhiteSpace(patient.MyAssignmentRole))
+                            {
+                                <span class="badge @(patient.MyAssignmentRole == "Primary CC" ? "bg-success" : patient.MyAssignmentRole == "Secondary CC" ? "bg-info text-dark" : "bg-warning text-dark")">@patient.MyAssignmentRole</span>
+                            }
+                        </td>
 
                         <td>@patient.MRN</td>
 

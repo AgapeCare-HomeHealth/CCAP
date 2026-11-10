@@ -11,6 +11,11 @@
     <PackageReference Include="DocumentFormat.OpenXml" Version="3.3.0" />
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
     <PackageReference Include="UglyToad.PdfPig" Version="1.7.0-custom-5" />
+    <PackageReference Include="Docnet.Core" Version="2.6.0" />
+    <PackageReference Include="SkiaSharp" Version="3.119.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="3.119.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.1" />
+    <PackageReference Include="RapidOcrNet" Version="4.2.0" />
     <PackageReference Include="Azure.Storage.Blobs" Version="12.26.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.11">
       <PrivateAssets>all</PrivateAssets>
@@ -27,4 +32,22 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.11" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
   </ItemGroup>
+
+  <!-- RapidOcrNet ships its default PP-OCRv5 Latin models inside the NuGet package.
+       Copy them explicitly to each project's output because content files from a
+       referenced class library are not guaranteed to flow to the API output. -->
+  <Target Name="CopyRapidOcrModelsToOutput" AfterTargets="Build" BeforeTargets="Publish">
+    <ItemGroup>
+      <RapidOcrModelFiles Include="$(NuGetPackageRoot)rapidocrnet\4.2.0\**\ch_PP-OCRv5_mobile_det.onnx" />
+      <RapidOcrModelFiles Include="$(NuGetPackageRoot)rapidocrnet\4.2.0\**\ch_PP-LCNet_x0_25_textline_ori_cls_mobile.onnx" />
+      <RapidOcrModelFiles Include="$(NuGetPackageRoot)rapidocrnet\4.2.0\**\latin_PP-OCRv5_rec_mobile_infer.onnx" />
+      <RapidOcrModelFiles Include="$(NuGetPackageRoot)rapidocrnet\4.2.0\**\ppocrv5_latin_dict.txt" />
+    </ItemGroup>
+    <MakeDir Directories="$(OutDir)models\v5" Condition="'@(RapidOcrModelFiles)' != ''" />
+    <Copy SourceFiles="@(RapidOcrModelFiles)"
+          DestinationFiles="@(RapidOcrModelFiles->'$(OutDir)models\v5\%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition="'@(RapidOcrModelFiles)' != ''" />
+  </Target>
+
 </Project>

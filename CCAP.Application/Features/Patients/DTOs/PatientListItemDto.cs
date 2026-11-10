@@ -8,4 +8,5 @@ public sealed record PatientListItemDto(
     string PrimaryDiagnosis,
     string AssignedClinician,
     string? NextVisit,
-    Guid? AssignedClinicianId);
+    Guid? AssignedClinicianId,
+    string MyAssignmentRole);

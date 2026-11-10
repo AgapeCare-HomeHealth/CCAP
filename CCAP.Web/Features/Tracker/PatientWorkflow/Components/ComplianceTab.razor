@@ -6,76 +6,32 @@
 @using CCAP.Web.Features.Admin.LookupOptions.Services
 
 <div class="compliance-page">
-    @if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <div class="alert alert-danger">@ErrorMessage</div> }
-    <div class="alert alert-info border-0 shadow-sm"><i class="bi bi-info-circle me-2"></i><strong>How to use this tab:</strong> CCAP records confirmations and next actions. The EMR remains the source for clinical documents and visit details. Mark an item complete only after you have checked the corresponding information in the EMR or completed the required coordination action. Dates shown below are workflow dates and are not a substitute for EMR documentation.</div>
-
-    @if (PreAuthItem is not null || InsuranceVerificationItem is not null)
+    @if (IsSaving || IsUnmarking)
     {
-        <div class="card shadow-sm border-0 mb-4">
-            <div class="card-header bg-white">
-                <h5 class="mb-1">Phase 1 — Referral & Admission Preparation</h5>
-                <small class="text-muted">Confirm the referral, insurance, and admission-preparation items from the EMR.</small>
-            </div>
-            <div class="card-body">
-                @if (PreAuthItem is not null)
-                {
-                    <div class="mb-3">
-                        <ComplianceRequirementCard Item="@PreAuthItem"
-                                                   OnComplete="CompleteComplianceAsync"
-                                                   OnUnmark="UnmarkComplianceAsync"
-                                                   IsSaving="@(IsSaving && SavingRequirementCode == PreAuthItem.RequirementCode)"
-                                                   IsUnmarking="@(IsUnmarking && UnmarkingRequirementCode == PreAuthItem.RequirementCode)" />
-                    </div>
-                }
-
-                <InsuranceComplianceSection PatientId="@PatientId" Workflow="@Workflow" OnCompleted="OnCompleted" />
-
-                @if (InsuranceVerificationItem is not null)
-                {
-                    <div class="border rounded p-3 mb-3 compliance-requirement-card @InsuranceStatusBorderClass">
-                        <div class="d-flex justify-content-between align-items-start gap-3">
-                            <div>
-                                <div class="d-flex align-items-center flex-wrap gap-2">
-                                    <div class="fw-semibold">@InsuranceVerificationItem.RequirementName</div>
-                                    <span class="badge rounded-pill @InsuranceStatusBadgeClass"><i class="bi @InsuranceStatusIcon me-1"></i>@InsuranceStatusLabel</span>
-                                </div>
-                                <div class="small text-muted mt-1">@InsuranceVerificationItem.Description</div>
-                            </div>
-
-                            <div style="min-width:120px">
-                                <select class="form-select form-select-sm" aria-label="Compliance status for @InsuranceVerificationItem.RequirementName"
-                                        value="@(InsuranceVerificationItem.ComplianceStatus ?? (InsuranceVerificationItem.IsCompleted ? "Yes" : ""))"
-                                        @onchange="(e) => HandleComplianceStatusChanged(InsuranceVerificationItem.RequirementCode, e.Value?.ToString())"
-                                        disabled="@IsSaving">
-                                    <option value="">Select...</option><option value="Yes">Yes</option><option value="No">No</option><option value="N/A">N/A</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        @if (InsuranceVerificationItem.IsCompleted && InsuranceVerificationItem.CompletedAt.HasValue)
-                        {
-                            <div class="small text-muted border-top mt-3 pt-3">
-                                Completed @InsuranceVerificationItem.CompletedAt.Value.ToLocalTime().ToString("MM/dd/yyyy h:mm tt")
-                                @if (!string.IsNullOrWhiteSpace(InsuranceVerificationItem.CompletedByUserName))
-                                {
-                                    <span>by @InsuranceVerificationItem.CompletedByUserName</span>
-                                }
-                            </div>
-                        }
-                    </div>
-                }
+        <div class="compliance-loading-overlay" role="alert" aria-live="assertive" aria-busy="true">
+            <div class="compliance-loading-content">
+                <span class="spinner-border text-primary compliance-loading-spinner" aria-hidden="true"></span>
+                <div class="fw-semibold mt-3">Updating compliance status...</div>
+                <div class="small text-muted mt-1">Please wait while the change is saved and the workflow is refreshed.</div>
             </div>
         </div>
     }
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <div class="alert alert-danger">@ErrorMessage</div> }
+    <div class="alert alert-info border-0 shadow-sm"><i class="bi bi-info-circle me-2"></i><strong>How to use this tab:</strong> CCAP records confirmations and next actions. The EMR remains the source for clinical documents and visit details. Mark an item complete only after you have checked the corresponding information in the EMR or completed the required coordination action. Dates shown below are workflow dates and are not a substitute for EMR documentation.</div>
 
-    <ComplianceGroup Title="Phase 1 — Remaining Requirements" Description="Confirm the remaining referral and admission-preparation items from the EMR." Items="RemainingPhase1Items" OnComplete="CompleteComplianceAsync" OnUnmark="UnmarkComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" IsUnmarking="IsUnmarking" UnmarkingCode="UnmarkingRequirementCode" />
+    <ComplianceGroup Title="Referral" Description="Referral intake and documentation required before admission." Items="ReferralStageItems" OnComplete="CompleteComplianceAsync" OnUnmark="UnmarkComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" IsUnmarking="IsUnmarking" UnmarkingCode="UnmarkingRequirementCode" />
 
-    <ComplianceGroup Title="SOC Confirmation" Description="SOC scheduling and the SOC visit are managed in the EMR. Use this section to confirm the SOC compliance result in CCAP." Items="SocItems" OnComplete="CompleteComplianceAsync" OnUnmark="UnmarkComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" IsUnmarking="IsUnmarking" UnmarkingCode="UnmarkingRequirementCode" />
-    <ComplianceGroup Title="Admission Compliance" Description="These confirmations correspond to the Excel Phase 2 checklist and determine when the Admission stage is complete." Items="AdmissionItems" OnComplete="CompleteComplianceAsync" OnUnmark="UnmarkComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" IsUnmarking="IsUnmarking" UnmarkingCode="UnmarkingRequirementCode" />
-    <ComplianceGroup Title="Ongoing Care & Recertification" Description="Use these confirmations when applicable during the active episode. TIF/ROC are workflow events; permanent transfer is handled only in Final Outcome." Items="Phase3Items" OnComplete="CompleteComplianceAsync" OnUnmark="UnmarkComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" IsUnmarking="IsUnmarking" UnmarkingCode="UnmarkingRequirementCode" />
+    <ComplianceGroup Title="Insurance" Description="Insurance verification and authorization confirmation." Items="InsuranceStageItems" OnComplete="CompleteComplianceAsync" OnUnmark="UnmarkComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" IsUnmarking="IsUnmarking" UnmarkingCode="UnmarkingRequirementCode" />
+    <InsuranceComplianceSection PatientId="@PatientId" Workflow="@Workflow" OnCompleted="OnCompleted" />
+
+    <ComplianceGroup Title="Admission" Description="Admission preparation tasks, physician orders, case mix, and required documentation." Items="AdmissionStageItems" OnComplete="CompleteComplianceAsync" OnUnmark="UnmarkComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" IsUnmarking="IsUnmarking" UnmarkingCode="UnmarkingRequirementCode" />
+    <ComplianceGroup Title="SOC" Description="Start of Care and OASIS completion requirements." Items="SocStageItems" OnComplete="CompleteComplianceAsync" OnUnmark="UnmarkComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" IsUnmarking="IsUnmarking" UnmarkingCode="UnmarkingRequirementCode" />
+    <ComplianceGroup Title="Ongoing Care" Description="Requirements and confirmations during the active episode of care." Items="OngoingCareStageItems" OnComplete="CompleteComplianceAsync" OnUnmark="UnmarkComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" IsUnmarking="IsUnmarking" UnmarkingCode="UnmarkingRequirementCode" />
+    <ComplianceGroup Title="Recertification" Description="Recertification requirements for continuation of the episode." Items="RecertificationStageItems" OnComplete="CompleteComplianceAsync" OnUnmark="UnmarkComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" IsUnmarking="IsUnmarking" UnmarkingCode="UnmarkingRequirementCode" />
+    <ComplianceGroup Title="Final Outcome" Description="Final documentation and outcome confirmations when the episode is completed or transferred." Items="FinalOutcomeStageItems" OnComplete="CompleteComplianceAsync" OnUnmark="UnmarkComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" IsUnmarking="IsUnmarking" UnmarkingCode="UnmarkingRequirementCode" />
 
     <div class="card shadow-sm border-0 mb-4">
-      <div class="card-header bg-white d-flex justify-content-between align-items-center"><div><h5 class="mb-1">Referral & Admission Preparation</h5><small class="text-muted">Supporting dates and referral context.</small></div><button class="btn btn-sm btn-primary" @onclick="SaveDetailsAsync" disabled="@IsSavingDetails">@(IsSavingDetails ? "Updating..." : "Update")</button></div>
+      <div class="card-header bg-white d-flex justify-content-between align-items-center"><div><h5 class="mb-1">Referral & SOC Preparation</h5><small class="text-muted">Supporting dates and referral context.</small></div><button class="btn btn-sm btn-primary" @onclick="SaveDetailsAsync" disabled="@IsSavingDetails">@(IsSavingDetails ? "Updating..." : "Update")</button></div>
       <div class="card-body"><div class="row g-3">
         <DateField Label="Pre-Auth Due" Value="@Workflow.WorkflowDetails.PreAuthDueDate" ValueChanged="@(v => Workflow.WorkflowDetails.PreAuthDueDate = v)" />
         <div class="col-md-4"><label class="form-label">Case Mix Type</label><select class="form-select" @bind="Workflow.WorkflowDetails.CaseMixType"><option value="">Not recorded</option>@foreach(var option in CaseMixOptions){<option value="@option.Code">@option.DisplayName</option>}</select></div>
@@ -105,18 +61,22 @@
  [Parameter] public Guid PatientId {get;set;} [Parameter] public PatientWorkflowDto Workflow {get;set;} = new(); [Parameter] public EventCallback OnCompleted {get;set;}
  private bool IsSaving; private bool IsSavingDetails; private bool IsUnmarking; private List<LookupOptionDto> CaseMixOptions = []; private string? ErrorMessage; private string? SavingRequirementCode; private string? UnmarkingRequirementCode;
  protected override async Task OnInitializedAsync(){ try{ CaseMixOptions = await LookupService.GetAsync("CaseMixType", true); } catch { CaseMixOptions = []; } }
- private string InsuranceCurrentStatus => InsuranceVerificationItem?.ComplianceStatus ?? (InsuranceVerificationItem?.IsCompleted == true ? "Yes" : string.Empty);
- private string InsuranceStatusLabel => InsuranceCurrentStatus switch { "Yes" => "Complete", "N/A" => "Not Applicable · Complete", "No" => "Outstanding", _ => "Pending" };
- private string InsuranceStatusBadgeClass => InsuranceCurrentStatus switch { "Yes" => "text-bg-success", "N/A" => "text-bg-info", "No" => "text-bg-danger", _ => "text-bg-secondary" };
- private string InsuranceStatusBorderClass => InsuranceCurrentStatus switch { "Yes" => "border-success border-2", "N/A" => "border-info border-2", "No" => "border-danger border-2", _ => "border-secondary-subtle" };
- private string InsuranceStatusIcon => InsuranceCurrentStatus switch { "Yes" => "bi-check-circle-fill", "N/A" => "bi-check-circle", "No" => "bi-exclamation-circle-fill", _ => "bi-hourglass-split" };
  private IEnumerable<ComplianceItemDto> Items => Workflow.ComplianceItems ?? [];
- private ComplianceItemDto? PreAuthItem => Items.FirstOrDefault(x => string.Equals(x.RequirementCode, "PRE_AUTH_RECEIVED", StringComparison.OrdinalIgnoreCase));
- private ComplianceItemDto? InsuranceVerificationItem => Items.FirstOrDefault(x => string.Equals(x.RequirementCode, "INSURANCE_VERIFICATION", StringComparison.OrdinalIgnoreCase));
- private IEnumerable<ComplianceItemDto> RemainingPhase1Items => Items.Where(x=>x.Phase==1 && !string.Equals(x.RequirementCode,"INSURANCE_VERIFICATION",StringComparison.OrdinalIgnoreCase) && !string.Equals(x.RequirementCode,"PRE_AUTH_RECEIVED",StringComparison.OrdinalIgnoreCase));
- private IEnumerable<ComplianceItemDto> SocItems => Items.Where(x=>string.Equals(x.RequirementCode,"SOC_COMPLIANT",StringComparison.OrdinalIgnoreCase));
- private IEnumerable<ComplianceItemDto> AdmissionItems => Items.Where(x=>x.Phase==2 && !string.Equals(x.RequirementCode,"SOC_COMPLIANT",StringComparison.OrdinalIgnoreCase));
- private IEnumerable<ComplianceItemDto> Phase3Items => Items.Where(x=>x.Phase>=3 && !string.Equals(x.RequirementCode,"DISCHARGE_SUMMARY_SIGNED",StringComparison.OrdinalIgnoreCase) && !string.Equals(x.RequirementCode,"NOMNC_SIGNED",StringComparison.OrdinalIgnoreCase) && !string.Equals(x.RequirementCode,"ROC",StringComparison.OrdinalIgnoreCase));
+ private static readonly string[] ReferralRequirementCodes = ["PRE_AUTH_RECEIVED", "PRO_RECEIVED", "H_AND_P_RECEIVED", "F2F_RECEIVED", "PCP_CONFIRMED", "AVS_RECEIVED", "SIGNED_CONSENTS"];
+ private static readonly string[] InsuranceRequirementCodes = ["INSURANCE_VERIFICATION"];
+ private static readonly string[] AdmissionRequirementCodes = ["PHYSICIAN_ORDERS", "DME_MED_SUPPLY", "NOA_FILED", "QA_APPROVAL", "ORDERS_SIGNED", "DOCS_UPLOADED", "CASE_MIX_IDENTIFIED", "CASE_MIX_ORDERS_SIGNED", "CASE_MIX_PLOTTED"];
+ private static readonly string[] SocRequirementCodes = ["SOC_COMPLIANT", "OASIS_SOC_COMPLETE"];
+ private static readonly string[] OngoingCareRequirementCodes = ["ROC", "PCP_PT_NOTIFIED"];
+ private static readonly string[] RecertificationRequirementCodes = ["RECERTIFICATION"];
+ private static readonly string[] FinalOutcomeRequirementCodes = ["DISCHARGE_SUMMARY_SIGNED", "NOMNC_SIGNED"];
+ private IEnumerable<ComplianceItemDto> ByCodes(IEnumerable<string> codes) => Items.Where(x => codes.Contains(x.RequirementCode, StringComparer.OrdinalIgnoreCase));
+ private IEnumerable<ComplianceItemDto> ReferralStageItems => ByCodes(ReferralRequirementCodes);
+ private IEnumerable<ComplianceItemDto> InsuranceStageItems => ByCodes(InsuranceRequirementCodes);
+ private IEnumerable<ComplianceItemDto> AdmissionStageItems => ByCodes(AdmissionRequirementCodes);
+ private IEnumerable<ComplianceItemDto> SocStageItems => ByCodes(SocRequirementCodes);
+ private IEnumerable<ComplianceItemDto> OngoingCareStageItems => ByCodes(OngoingCareRequirementCodes);
+ private IEnumerable<ComplianceItemDto> RecertificationStageItems => ByCodes(RecertificationRequirementCodes);
+ private IEnumerable<ComplianceItemDto> FinalOutcomeStageItems => ByCodes(FinalOutcomeRequirementCodes);
  private string PcpPtNotified { get => Workflow.WorkflowDetails.PcpPtNotified.HasValue ? Workflow.WorkflowDetails.PcpPtNotified.Value.ToString().ToLowerInvariant() : ""; set => Workflow.WorkflowDetails.PcpPtNotified = string.IsNullOrEmpty(value) ? null : bool.Parse(value); }
  private async Task HandleComplianceStatusChanged(string code, string? status)
  {
@@ -124,7 +84,31 @@
  }
  private async Task UnmarkComplianceAsync(string code) { await SaveComplianceStatusAsync(code, "No"); }
  private async Task CompleteComplianceAsync(string code) { if (code.Contains("|STATUS|", StringComparison.Ordinal)) { var parts = code.Split("|STATUS|", 2, StringSplitOptions.None); await SaveComplianceStatusAsync(parts[0], parts[1]); } else await SaveComplianceStatusAsync(code, "Yes"); }
- private async Task SaveComplianceStatusAsync(string code, string status) { if(IsSaving || IsUnmarking)return; IsSaving=true; SavingRequirementCode=code; ErrorMessage=null; try { await WorkflowService.SetComplianceStatusAsync(PatientId,code,status); await OnCompleted.InvokeAsync(); } catch(Exception ex) { ErrorMessage=ex.Message; } finally { IsSaving=false; SavingRequirementCode=null; IsUnmarking=false; UnmarkingRequirementCode=null; } }
+ private async Task SaveComplianceStatusAsync(string code, string status)
+ {
+     if (IsSaving || IsUnmarking) return;
+     IsSaving = true;
+     SavingRequirementCode = code;
+     ErrorMessage = null;
+     await InvokeAsync(StateHasChanged);
+     try
+     {
+         await WorkflowService.SetComplianceStatusAsync(PatientId, code, status);
+         await OnCompleted.InvokeAsync();
+     }
+     catch (Exception ex)
+     {
+         ErrorMessage = $"Unable to update compliance status: {ex.Message}";
+     }
+     finally
+     {
+         IsSaving = false;
+         SavingRequirementCode = null;
+         IsUnmarking = false;
+         UnmarkingRequirementCode = null;
+         await InvokeAsync(StateHasChanged);
+     }
+ }
  private async Task SaveDetailsAsync(){if(IsSavingDetails)return;IsSavingDetails=true;ErrorMessage=null;try{await WorkflowService.UpdateWorkflowDetailsAsync(PatientId,Workflow.WorkflowDetails);await OnCompleted.InvokeAsync();}catch(Exception ex){ErrorMessage=ex.Message;}finally{IsSavingDetails=false;}}
 }
 

@@ -23,7 +23,7 @@ public sealed class GetPatientsQueryHandler
         var sortBy = string.IsNullOrWhiteSpace(request.SortBy) ? "Name" : request.SortBy.Trim();
 
         var (patients, totalCount) = await _patients.GetPagedAsync(
-            pageNumber, pageSize, search, status, request.ClinicianId, sortBy, request.SortDescending, cancellationToken);
+            pageNumber, pageSize, search, status, request.ClinicianId, request.AssignedUserId, sortBy, request.SortDescending, cancellationToken);
 
         var items = patients.Select(x => new PatientListItemDto(
             x.PatientId,
@@ -33,7 +33,10 @@ public sealed class GetPatientsQueryHandler
             x.PrimaryDiagnosis ?? string.Empty,
             x.Clinician is null ? string.Empty : $"{x.Clinician.FirstName} {x.Clinician.LastName}",
             null,
-            x.ClinicianId)).ToList();
+            x.ClinicianId,
+            request.AssignedUserId.HasValue && x.CoordinatorId == request.AssignedUserId ? "Primary CC" :
+                request.AssignedUserId.HasValue && x.SecondaryCoordinatorId == request.AssignedUserId ? "Secondary CC" :
+                request.AssignedUserId.HasValue && x.BackupCoordinatorId == request.AssignedUserId ? "Backup CC" : string.Empty)).ToList();
 
         return new PagedResult<PatientListItemDto>
         {

@@ -89,7 +89,8 @@
     <hr />
     <h5 class="section-heading">Assignment & Initial Scheduling</h5>
     <div class="summary-grid">
-        <SummaryItem Label="Coordinator" Value="@CoordinatorName" />
+        <SummaryItem Label="Primary CC" Value="@CoordinatorName" />
+        <SummaryItem Label="Secondary CC" Value="@SecondaryCoordinatorName" />
         <SummaryItem Label="Clinician" Value="@ClinicianName" />
         <SummaryItem Label="Discipline" Value="@DisciplineName" />
         <SummaryItem Label="Target SOC Date" Value="@FormatDate(Model.SocDate)" />
@@ -125,6 +126,7 @@
     [Parameter] public List<UserDto> Clinicians { get; set; } = [];
     [Parameter] public List<LookupDto> Disciplines { get; set; } = [];
 
+    private string SecondaryCoordinatorName => Coordinators.FirstOrDefault(x => x.UserId == Model.SecondaryCoordinatorId)?.FullName ?? "Not assigned";
     private string CoordinatorName => Model.CoordinatorId.HasValue
         ? Coordinators.FirstOrDefault(x => x.UserId == Model.CoordinatorId.Value)?.FullName ?? Model.CoordinatorId.Value.ToString()
         : string.Empty;

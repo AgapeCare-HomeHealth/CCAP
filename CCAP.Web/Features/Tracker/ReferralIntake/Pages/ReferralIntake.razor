@@ -53,6 +53,7 @@
                                 Clinicians="@Clinicians"
                                 Disciplines="@Disciplines"
                                 IsLoading="@AssignmentOptionsLoading"
+                                IsCareCoordinator="@IsCareCoordinator"
                                 ErrorMessage="@AssignmentOptionsError" />
                 break;
 
@@ -199,6 +200,9 @@
 
     private bool AssignmentOptionsLoaded;
     private bool AssignmentOptionsLoading;
+    private bool IsAdministrator;
+    private bool IsCareCoordinator;
+    private Guid? CurrentUserId;
     private string? AssignmentOptionsError;
 
     private int CurrentStep = 1;
@@ -285,6 +289,15 @@
         if (AssignmentOptionsLoaded)
             return;
 
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var principal = authState.User;
+        IsAdministrator = principal.IsInRole("Administrator");
+        IsCareCoordinator = principal.IsInRole("Care Coordinator");
+        var idValue = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? principal.FindFirst("sub")?.Value
+            ?? principal.FindFirst("userId")?.Value;
+        CurrentUserId = Guid.TryParse(idValue, out var currentUserId) ? currentUserId : null;
+
         AssignmentOptionsLoading = true;
         AssignmentOptionsError = null;
 
@@ -302,18 +315,25 @@
                 await disciplinesTask;
 
             Coordinators = users
-                .Where(x =>
-                    x.IsActive &&
-                    (
-                        x.Role.Contains(
-                            "Coordinator",
-                            StringComparison.OrdinalIgnoreCase)
-                        ||
-                        x.Role.Contains(
-                            "Administrator",
-                            StringComparison.OrdinalIgnoreCase)
-                    ))
+                .Where(x => x.IsActive &&
+                    string.Equals(x.Role?.Trim(), "Care Coordinator", StringComparison.OrdinalIgnoreCase))
                 .ToList();
+
+            if (IsCareCoordinator)
+            {
+                if (!CurrentUserId.HasValue)
+                    throw new InvalidOperationException("Unable to identify the signed-in user. Please sign in again.");
+
+                // Default the Primary CC to the logged-in coordinator, but retain
+                // a user-selected or draft-selected coordinator.
+                Model.CoordinatorId ??= CurrentUserId.Value;
+            }
+            else if (Model.CoordinatorId is null && Coordinators.Count == 1)
+            {
+                // For non-CC users, preserve a selected draft assignment; only
+                // preselect when there is exactly one eligible coordinator.
+                Model.CoordinatorId = Coordinators[0].UserId;
+            }
 
             Clinicians = users
                 .Where(x =>
@@ -426,6 +446,13 @@
 
         try
         {
+            if (!Model.CoordinatorId.HasValue)
+                throw new InvalidOperationException("Select a Primary Care Coordinator before submitting the referral.");
+
+            if (Model.SecondaryCoordinatorId.HasValue &&
+                Model.SecondaryCoordinatorId == Model.CoordinatorId)
+                throw new InvalidOperationException("Primary and Secondary CC must be different users.");
+
             var result =
                 await ReferralIntakeService.CreateAsync(
                     Model);
@@ -516,6 +543,22 @@
         try
         {
             IsSavingDraft = true;
+
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var principal = authState.User;
+            IsAdministrator = principal.IsInRole("Administrator");
+            IsCareCoordinator = principal.IsInRole("Care Coordinator");
+            if (IsCareCoordinator)
+            {
+                var idValue = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    ?? principal.FindFirst("sub")?.Value
+                    ?? principal.FindFirst("userId")?.Value;
+                if (!Guid.TryParse(idValue, out var signedInUserId))
+                    throw new InvalidOperationException("Unable to identify the signed-in user. Please sign in again.");
+                CurrentUserId = signedInUserId;
+                if (!Model.CoordinatorId.HasValue)
+                    Model.CoordinatorId = signedInUserId;
+            }
 
             await ReferralIntakeService.SaveDraftAsync(
                 Model);

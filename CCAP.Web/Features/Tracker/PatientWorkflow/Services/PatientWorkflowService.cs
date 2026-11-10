@@ -67,11 +67,19 @@ public sealed class PatientWorkflowService
             $"api/patients/{model.PatientId}",
             new
             {
-                model.MRN,
-                model.FirstName,
-                model.MiddleName,
-                model.LastName,
-                model.SocDate
+                model.MRN, model.FirstName, model.MiddleName, model.LastName, model.SocDate,
+                model.DateOfBirth, model.Gender, PrimaryPhone = model.PrimaryPhone, model.AlternatePhone,
+                StreetAddress = model.StreetAddress, model.City, model.State, model.ZipCode,
+                EmergencyContactName = model.EmergencyContacts.FirstOrDefault()?.Name ?? model.EmergencyContactName,
+                EmergencyContactRelationship = model.EmergencyContacts.FirstOrDefault()?.Relationship ?? model.EmergencyContactRelationship,
+                EmergencyContactPhone = model.EmergencyContacts.FirstOrDefault()?.Phone ?? model.EmergencyContactPhone,
+                EmergencyContactsJson = System.Text.Json.JsonSerializer.Serialize(model.EmergencyContacts.Where(c =>
+                    !string.IsNullOrWhiteSpace(c.Name) || !string.IsNullOrWhiteSpace(c.Relationship) || !string.IsNullOrWhiteSpace(c.Phone))),
+                model.ReferralDate, model.ReferralType, ReferralSource = model.ReferralSource,
+                model.ReferralChannel, model.Priority, model.ReferringPhysician, model.PhysicianPhone,
+                model.PhysicianFax, PhysicianNpi = model.PhysicianNpi, model.PcosRegistered,
+                model.PrimaryDiagnosis, model.SecondaryDiagnosis, model.ReferralNotes,
+                model.VisitPriority, model.CaseStatus, model.InternalNotes, model.BackupCoordinatorId
             },
             cancellationToken);
         await _api.EnsureSuccessAsync(response, cancellationToken);
