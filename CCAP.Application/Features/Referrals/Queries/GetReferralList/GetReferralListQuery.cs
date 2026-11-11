@@ -10,7 +10,4 @@ public sealed record GetReferralListQuery(
     string? Search = null,
     string? Status = null,
     string? Source = null,
-    string? Insurance = null,
-    Guid? CoordinatorId = null,
-    DateTime? FromDate = null,
-    DateTime? ToDate = null) : IRequest<PagedResult<ReferralListItemDto>>;
+    string? Insurance = null) : IRequest<PagedResult<ReferralListItemDto>>;

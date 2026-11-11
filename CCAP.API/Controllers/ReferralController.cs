@@ -2,6 +2,7 @@ using CCAP.API.Contracts.Referrals;
 using CCAP.API.Authorization;
 using CCAP.Application.Features.ReferralDrafts.Queries;
 using CCAP.Application.Features.Referrals.Commands.CreateReferralIntake;
+using CCAP.Application.Features.Referrals.Commands.CreateReferralTrackerEntries;
 using CCAP.Application.Features.Referrals.Commands.SaveReferralDraft;
 using CCAP.Application.Features.Referrals.Commands.UpdateReferralTrackerDetails;
 using CCAP.Application.Features.Referrals.Queries.GetReferralList;
@@ -29,8 +30,6 @@ public sealed class ReferralController : ControllerBase
     private readonly ISender _sender;
     private readonly IReferralDocumentExtractionService _documentExtraction;
     private readonly IUserRepository _users;
-    private readonly IReferralTrackerRepository _trackerRepository;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly AppDbContext _db;
     private readonly IHubContext<NotificationsHub> _notificationsHub;
     private static readonly ConcurrentDictionary<Guid, ReferralExtractionProgressResponse> ExtractionProgress = new();
@@ -41,13 +40,11 @@ public sealed class ReferralController : ControllerBase
     public ReferralController(
         ISender sender,
         IReferralDocumentExtractionService documentExtraction,
-        IUserRepository users, IReferralTrackerRepository trackerRepository, IUnitOfWork unitOfWork, AppDbContext db, IHubContext<NotificationsHub> notificationsHub)
+        IUserRepository users, AppDbContext db, IHubContext<NotificationsHub> notificationsHub)
     {
         _sender = sender;
         _documentExtraction = documentExtraction;
         _users = users;
-        _trackerRepository = trackerRepository;
-        _unitOfWork = unitOfWork;
         _db = db;
         _notificationsHub = notificationsHub;
     }
@@ -68,10 +65,10 @@ public sealed class ReferralController : ControllerBase
     {
         var page = Math.Max(1, pageNumber);
         var size = Math.Clamp(pageSize, 1, 100);
-        var (items, count) = await _trackerRepository.GetPagedListAsync(
-            page, size, search, status, source, insurance, cancellationToken);
-        return Ok(new CCAP.Application.Common.Models.PagedResult<CCAP.Application.Features.Referrals.DTOs.ReferralListItemDto>
-        { Items = items, PageNumber = page, PageSize = size, TotalCount = count });
+        var result = await _sender.Send(
+            new GetReferralListQuery(page, size, search, status, source, insurance),
+            cancellationToken);
+        return Ok(result);
     }
 
     [HttpGet("assignment-users")]
@@ -103,13 +100,7 @@ public sealed class ReferralController : ControllerBase
     {
         if (referralId != request.ReferralId)
             return BadRequest(new { message = "Tracker identifier does not match the request." });
-        var entry = await _trackerRepository.GetByIdAsync(referralId, cancellationToken);
-        if (entry is null) return NotFound(new { message = "Referral tracker entry was not found." });
-        entry.Update(request.PostedOn, request.EstimatedDischargeDate, request.TrackerStatus,
-            request.Source, request.PrimaryInsurance, null, null, null,
-            request.SecondCoordinatorCall, request.ThirdCoordinatorCall, request.Resolution);
-        _trackerRepository.Update(entry);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await _sender.Send(request, cancellationToken);
         return NoContent();
     }
 
@@ -119,33 +110,10 @@ public sealed class ReferralController : ControllerBase
         [FromBody] List<CCAP.Application.Features.Referrals.DTOs.CreateReferralTrackerEntryRequest> requests,
         CancellationToken cancellationToken)
     {
-        if (requests is null || requests.Count == 0)
-            return BadRequest(new { message = "At least one tracker entry is required." });
-        if (requests.Count > 100)
-            return BadRequest(new { message = "A maximum of 100 tracker entries can be saved at once." });
-        foreach (var request in requests)
-        {
-            if (string.IsNullOrWhiteSpace(request.FirstName) ||
-                string.IsNullOrWhiteSpace(request.LastName) || !request.DateOfBirth.HasValue)
-                return BadRequest(new { message = "First name, last name, and date of birth are required." });
-            var coordinatorName = string.Empty;
-            if (request.AssignedCoordinatorId.HasValue)
-            {
-                var coordinator = await _users.GetByIdAsync(request.AssignedCoordinatorId.Value, cancellationToken);
-                if (coordinator is null) return BadRequest(new { message = "Selected Care Coordinator was not found." });
-                coordinatorName = $"{coordinator.FirstName} {coordinator.LastName}".Trim();
-            }
-            var entry = new CCAP.Domain.Entities.ReferralTrackerEntry(
-                $"TRK-{Guid.NewGuid():N}"[..20], request.ReferralDate ?? DateTime.Today,
-                request.FirstName, request.LastName, DateOnly.FromDateTime(request.DateOfBirth.Value),
-                request.Mrn, request.PostedOn, request.EstimatedDischargeDate, request.Status,
-                request.Source, request.Insurance, request.AssignedCoordinatorId, coordinatorName,
-                request.FirstMarketingCall, request.SecondCoordinatorCall, request.ThirdCoordinatorCall,
-                request.Resolution);
-            await _trackerRepository.AddAsync(entry, cancellationToken);
-        }
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-        return Ok(new { saved = requests.Count });
+        var result = await _sender.Send(
+            new CreateReferralTrackerEntriesCommand(requests),
+            cancellationToken);
+        return Ok(new { saved = result.Saved });
     }
 
     // SAVE REFERRAL DRAFT

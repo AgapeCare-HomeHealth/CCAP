@@ -6,11 +6,11 @@ namespace CCAP.Application.Features.Referrals.Commands.UpdateReferralTrackerDeta
 public sealed class UpdateReferralTrackerDetailsCommandHandler
     : IRequestHandler<UpdateReferralTrackerDetailsCommand>
 {
-    private readonly IReferralRepository _referrals;
+    private readonly IReferralTrackerRepository _referrals;
     private readonly IUnitOfWork _unitOfWork;
 
     public UpdateReferralTrackerDetailsCommandHandler(
-        IReferralRepository referrals,
+        IReferralTrackerRepository referrals,
         IUnitOfWork unitOfWork)
     {
         _referrals = referrals;
@@ -22,14 +22,17 @@ public sealed class UpdateReferralTrackerDetailsCommandHandler
         CancellationToken cancellationToken)
     {
         var referral = await _referrals.GetByIdAsync(request.ReferralId, cancellationToken)
-            ?? throw new KeyNotFoundException("Referral was not found.");
+            ?? throw new KeyNotFoundException("Referral tracker entry was not found.");
 
-        referral.UpdateTrackerDetails(
+        referral.Update(
             request.PostedOn,
-            request.TrackerStatus,
             request.EstimatedDischargeDate,
-            request.PrimaryInsurance,
+            request.TrackerStatus,
             request.Source,
+            request.PrimaryInsurance,
+            referral.AssignedCoordinatorId,
+            referral.AssignedCoordinatorName,
+            referral.FirstMarketingCall,
             request.SecondCoordinatorCall,
             request.ThirdCoordinatorCall,
             request.Resolution);

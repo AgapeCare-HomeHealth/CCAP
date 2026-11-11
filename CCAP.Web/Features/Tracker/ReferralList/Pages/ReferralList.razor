@@ -165,7 +165,7 @@
 
             <div class="referral-bulk-toolbar">
                 <div><strong>@Rows.Count</strong> <span>referral entries</span><small> · Required: first name, last name and date of birth</small></div>
-                <button class="btn btn-outline-primary" @onclick="AddRow"><i class="bi bi-plus-lg me-1"></i>Add another referral</button>
+                <button class="btn btn-outline-primary" @onclick="AddRow" disabled="@(IsSaving || Rows.Count >= 100)" title="Up to 100 referrals per batch"><i class="bi bi-plus-lg me-1"></i>Add another referral</button>
             </div>
 
             @if (AssignmentUsersLoading)
@@ -177,51 +177,80 @@
                 <div class="alert alert-warning mx-4">No active Care Coordinator accounts with login credentials were found. Create or activate a Care Coordinator account before assigning referrals.</div>
             }
 
-            <div class="referral-bulk-rows">
-                @for (var i = 0; i < Rows.Count; i++)
-                {
-                    var row = Rows[i];
-                    <article class="referral-entry-card" @key="row">
-                        <div class="entry-card-heading">
-                            <div class="entry-number">@(i + 1)</div>
-                            <div><strong>Referral @(i + 1)</strong><span>Patient and tracker information</span></div>
-                            <button class="entry-remove" title="Remove referral" disabled="@(Rows.Count <= 1 || IsSaving)" @onclick="() => RemoveRow(row)"><i class="bi bi-trash3"></i><span>Remove</span></button>
-                        </div>
-
-                        <div class="entry-section">
-                            <div class="entry-section-title"><i class="bi bi-person-vcard"></i>Patient details</div>
-                            <div class="entry-fields patient-fields">
-                                <label>First name <b>*</b><input class="form-control" autocomplete="off" @bind="row.FirstName" placeholder="First name" /></label>
-                                <label>Last name <b>*</b><input class="form-control" autocomplete="off" @bind="row.LastName" placeholder="Last name" /></label>
-                                <label>Date of birth <b>*</b><input class="form-control" type="date" @bind="row.DateOfBirth" /></label>
-                                <label>MRN<input class="form-control" @bind="row.MRN" placeholder="Medical record number" /></label>
-                            </div>
-                        </div>
-
-                        <div class="entry-section">
-                            <div class="entry-section-title"><i class="bi bi-clipboard2-pulse"></i>Referral details</div>
-                            <div class="entry-fields referral-fields">
-                                <label>Referral date<input class="form-control" type="date" @bind="row.ReferralDate" /></label>
-                                <label>Posted on<select class="form-select" @bind="row.PostedOn"><option value="">Select</option>@foreach (var v in ReferralTrackerOptions.PostedOn) { <option value="@v">@v</option> }</select></label>
-                                <label>EDD<input class="form-control" type="date" @bind="row.Edd" /></label>
-                                <label>Status<select class="form-select" @bind="row.Status"><option value="">Select status</option>@foreach (var v in ReferralTrackerOptions.Statuses) { <option value="@v">@v</option> }</select></label>
-                                <label>Referral source<select class="form-select" @bind="row.Source"><option value="">Select source</option>@foreach (var v in ReferralTrackerOptions.ReferralSources) { <option value="@v">@v</option> }</select></label>
-                                <label>Payor / Insurance<select class="form-select" @bind="row.Insurance"><option value="">Select payor</option>@foreach (var v in ReferralTrackerOptions.Payors) { <option value="@v">@v</option> }</select></label>
-                                <label class="assigned-cc-field">Assigned CC<select class="form-select" @bind="row.AssignedCCId" disabled="@(AssignmentUsersLoading || AssignmentUsers.Count == 0)"><option value="">Select Care Coordinator</option>@foreach (var user in AssignmentUsers) { <option value="@user.UserId">@user.FullName (@user.Email)</option> }</select></label>
-                            </div>
-                        </div>
-
-                        <div class="entry-section">
-                            <div class="entry-section-title"><i class="bi bi-telephone"></i>Follow-up and resolution</div>
-                            <div class="entry-fields call-fields">
-                                <label>1st Call - Marketing<input class="form-control" maxlength="2000" @bind="row.FirstMarketingCall" placeholder="Marketing call notes" /></label>
-                                <label>2nd Call - CC<input class="form-control" maxlength="2000" @bind="row.SecondCoordinatorCall" placeholder="Coordinator follow-up" /></label>
-                                <label>3rd Call - CC<input class="form-control" maxlength="2000" @bind="row.ThirdCoordinatorCall" placeholder="Coordinator follow-up" /></label>
-                                <label>Resolution<input class="form-control" maxlength="500" @bind="row.Resolution" placeholder="Outcome / resolution" /></label>
-                            </div>
-                        </div>
-                    </article>
-                }
+            <div class="referral-bulk-rows" role="region" aria-label="Referral entry preview" tabindex="0">
+                <table class="referral-preview-table">
+                    <colgroup>
+                        <col style="width: 52px" />
+                        <col style="width: 180px" />
+                        <col style="width: 180px" />
+                        <col style="width: 150px" />
+                        <col style="width: 190px" />
+                        <col style="width: 150px" />
+                        <col style="width: 155px" />
+                        <col style="width: 145px" />
+                        <col style="width: 160px" />
+                        <col style="width: 180px" />
+                        <col style="width: 190px" />
+                        <col style="width: 220px" />
+                        <col style="width: 230px" />
+                        <col style="width: 230px" />
+                        <col style="width: 230px" />
+                        <col style="width: 190px" />
+                        <col style="width: 68px" />
+                    </colgroup>
+                    <thead>
+                        <tr class="preview-group-row">
+                            <th rowspan="2" class="preview-index-header">#</th>
+                            <th colspan="4" scope="colgroup">Patient Information</th>
+                            <th colspan="6" scope="colgroup">Referral Information</th>
+                            <th colspan="1" scope="colgroup">Assignment</th>
+                            <th colspan="4" scope="colgroup">Follow-up and Resolution</th>
+                            <th rowspan="2" class="preview-actions-header">Actions</th>
+                        </tr>
+                        <tr class="preview-column-row">
+                            <th scope="col">First name <b>*</b></th>
+                            <th scope="col">Last name <b>*</b></th>
+                            <th scope="col">Date of birth <b>*</b></th>
+                            <th scope="col">MRN</th>
+                            <th scope="col">Referral date</th>
+                            <th scope="col">Posted on</th>
+                            <th scope="col">EDD</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Referral source</th>
+                            <th scope="col">Payor / Insurance</th>
+                            <th scope="col">Assigned CC</th>
+                            <th scope="col">1st Call - Marketing</th>
+                            <th scope="col">2nd Call - CC</th>
+                            <th scope="col">3rd Call - CC</th>
+                            <th scope="col">Resolution</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var i = 0; i < Rows.Count; i++)
+                        {
+                            var row = Rows[i];
+                            <tr @key="row">
+                                <th scope="row" class="preview-row-number">@(i + 1)</th>
+                                <td><input class="form-control" aria-label="Referral @(i + 1) first name" autocomplete="off" @bind="row.FirstName" placeholder="First name" disabled="@IsSaving" /></td>
+                                <td><input class="form-control" aria-label="Referral @(i + 1) last name" autocomplete="off" @bind="row.LastName" placeholder="Last name" disabled="@IsSaving" /></td>
+                                <td><input class="form-control" aria-label="Referral @(i + 1) date of birth" type="date" @bind="row.DateOfBirth" disabled="@IsSaving" /></td>
+                                <td><input class="form-control" aria-label="Referral @(i + 1) medical record number" @bind="row.MRN" placeholder="Medical record number" disabled="@IsSaving" /></td>
+                                <td><input class="form-control" aria-label="Referral @(i + 1) referral date" type="date" @bind="row.ReferralDate" disabled="@IsSaving" /></td>
+                                <td><select class="form-select" aria-label="Referral @(i + 1) posted on" @bind="row.PostedOn" disabled="@IsSaving"><option value="">Select</option>@foreach (var v in ReferralTrackerOptions.PostedOn) { <option value="@v">@v</option> }</select></td>
+                                <td><input class="form-control" aria-label="Referral @(i + 1) estimated discharge date" type="date" @bind="row.Edd" disabled="@IsSaving" /></td>
+                                <td><select class="form-select" aria-label="Referral @(i + 1) status" @bind="row.Status" disabled="@IsSaving"><option value="">Select status</option>@foreach (var v in ReferralTrackerOptions.Statuses) { <option value="@v">@v</option> }</select></td>
+                                <td><select class="form-select" aria-label="Referral @(i + 1) source" @bind="row.Source" disabled="@IsSaving"><option value="">Select source</option>@foreach (var v in ReferralTrackerOptions.ReferralSources) { <option value="@v">@v</option> }</select></td>
+                                <td><select class="form-select" aria-label="Referral @(i + 1) payor or insurance" @bind="row.Insurance" disabled="@IsSaving"><option value="">Select payor</option>@foreach (var v in ReferralTrackerOptions.Payors) { <option value="@v">@v</option> }</select></td>
+                                <td><select class="form-select" aria-label="Referral @(i + 1) assigned care coordinator" @bind="row.AssignedCCId" disabled="@(IsSaving || AssignmentUsersLoading || AssignmentUsers.Count == 0)"><option value="">Select Care Coordinator</option>@foreach (var user in AssignmentUsers) { <option value="@user.UserId">@user.FullName (@user.Email)</option> }</select></td>
+                                <td><input class="form-control" aria-label="Referral @(i + 1) first marketing call" maxlength="2000" @bind="row.FirstMarketingCall" placeholder="Marketing call notes" disabled="@IsSaving" /></td>
+                                <td><input class="form-control" aria-label="Referral @(i + 1) second coordinator call" maxlength="2000" @bind="row.SecondCoordinatorCall" placeholder="Coordinator follow-up" disabled="@IsSaving" /></td>
+                                <td><input class="form-control" aria-label="Referral @(i + 1) third coordinator call" maxlength="2000" @bind="row.ThirdCoordinatorCall" placeholder="Coordinator follow-up" disabled="@IsSaving" /></td>
+                                <td><input class="form-control" aria-label="Referral @(i + 1) resolution" maxlength="500" @bind="row.Resolution" placeholder="Outcome / resolution" disabled="@IsSaving" /></td>
+                                <td class="preview-actions-cell"><button type="button" class="entry-remove" aria-label="Remove referral row @(i + 1)" title="Remove row" disabled="@(Rows.Count <= 1 || IsSaving)" @onclick="() => RemoveRow(row)"><i class="bi bi-trash3"></i></button></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
 
             @if (!string.IsNullOrWhiteSpace(BulkError)) { <div class="alert alert-danger mx-4 mb-0">@BulkError</div> }
@@ -278,7 +307,7 @@
     private async Task NextPage() { if (CurrentPage < TotalPages) { CurrentPage++; await LoadAsync(); } }
     private async Task OpenBulkEntry()
     {
-        Rows = Enumerable.Range(0, 5).Select(_ => new BulkReferralEntry()).ToList();
+        Rows = Enumerable.Range(0, 3).Select(_ => new BulkReferralEntry()).ToList();
         BulkError = null;
         ShowBulkEntry = true;
         if (AssignmentUsers.Count > 0) return;
@@ -295,7 +324,7 @@
         finally { AssignmentUsersLoading = false; }
     }
     private void CloseBulkEntry() { if (!IsSaving) ShowBulkEntry = false; }
-    private void AddRow() => Rows.Add(new());
+    private void AddRow() { if (Rows.Count < 100) Rows.Add(new()); }
     private void RemoveRow(BulkReferralEntry row) => Rows.Remove(row);
     private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
 
@@ -382,7 +411,10 @@
         public string ThirdCoordinatorCall { get; set; } = string.Empty;
         public string Resolution { get; set; } = string.Empty;
         public bool HasAnyValue => !string.IsNullOrWhiteSpace(FirstName) || !string.IsNullOrWhiteSpace(LastName)
-            || DateOfBirth.HasValue || !string.IsNullOrWhiteSpace(MRN) || !string.IsNullOrWhiteSpace(Source)
+            || DateOfBirth.HasValue || !string.IsNullOrWhiteSpace(MRN)
+            || (ReferralDate.HasValue && ReferralDate.Value.Date != DateTime.Today)
+            || (!string.IsNullOrWhiteSpace(PostedOn) && PostedOn != "Referral/Intake") || Edd.HasValue
+            || !string.IsNullOrWhiteSpace(Status) || !string.IsNullOrWhiteSpace(Source)
             || !string.IsNullOrWhiteSpace(Insurance) || AssignedCCId.HasValue || !string.IsNullOrWhiteSpace(FirstMarketingCall)
             || !string.IsNullOrWhiteSpace(SecondCoordinatorCall) || !string.IsNullOrWhiteSpace(ThirdCoordinatorCall)
             || !string.IsNullOrWhiteSpace(Resolution);
