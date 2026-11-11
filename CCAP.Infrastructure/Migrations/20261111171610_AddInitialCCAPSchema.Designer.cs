@@ -12,11 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CCAP.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-<<<<<<<< HEAD:CCAP.Infrastructure/Migrations/20261028092217_AddInitialCCAPSchema.Designer.cs
-    [Migration("20261028092217_AddInitialCCAPSchema")]
-========
-    [Migration("20261111160834_AddInitialCCAPSchema")]
->>>>>>>> main:CCAP.Infrastructure/Migrations/20261111160834_AddInitialCCAPSchema.Designer.cs
+    [Migration("20261111171610_AddInitialCCAPSchema")]
     partial class AddInitialCCAPSchema
     {
         /// <inheritdoc />
