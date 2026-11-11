@@ -44,6 +44,10 @@ public sealed class Patient
 
     public string? EmergencyContactPhone { get; private set; }
 
+    public string? EmergencyContactsJson { get; private set; }
+
+    public void SetEmergencyContactsJson(string? value) => EmergencyContactsJson = Normalize(value);
+
     public string? PrimaryInsurance { get; private set; }
 
     public string? InsuranceMemberId { get; private set; }
@@ -54,6 +58,7 @@ public sealed class Patient
     public DateOnly? PreAuthDueDate { get; private set; }
     public int? NumberOfVisits { get; private set; }
     public string? CaseMixType { get; private set; }
+    public string? HospitalDcSummaryNotes { get; private set; }
     public string? DmeMedSupplyNotes { get; private set; }
     public string? SocFeedbackFromPatient { get; private set; }
     public DateOnly? TifDate { get; private set; }
@@ -84,6 +89,10 @@ public sealed class Patient
 
     public Guid? CoordinatorId { get; private set; }
 
+    public Guid? SecondaryCoordinatorId { get; private set; }
+
+    public Guid? BackupCoordinatorId { get; private set; }
+
     public Guid? ClinicianId { get; private set; }
 
     public DateOnly? SocDate { get; private set; }
@@ -99,6 +108,10 @@ public sealed class Patient
     public Guid? ArchivedByUserId { get; private set; }
 
     public ApplicationUser? Coordinator { get; private set; }
+
+    public ApplicationUser? SecondaryCoordinator { get; private set; }
+
+    public ApplicationUser? BackupCoordinator { get; private set; }
 
     public ApplicationUser? Clinician { get; private set; }
 
@@ -151,7 +164,13 @@ public sealed class Patient
 
         LastName = lastName.Trim();
 
-        Status = PatientStatus.Active;
+        Status = PatientStatus.Pending;
+    }
+
+    public void ActivateAfterAdmission()
+    {
+        if (Status == PatientStatus.Pending)
+            Status = PatientStatus.Active;
     }
 
     public void ApplyReferralIntake(
@@ -178,6 +197,7 @@ public sealed class Patient
         string? physicianPhone,
         string? referralNotes,
         Guid? coordinatorId,
+        Guid? secondaryCoordinatorId,
         Guid? clinicianId,
         DateOnly? socDate)
     {
@@ -236,11 +256,37 @@ public sealed class Patient
         ReferralNotes =
             Normalize(referralNotes);
 
-        CoordinatorId = coordinatorId;
+        SetCoordinatorAssignments(coordinatorId, secondaryCoordinatorId);
 
         ClinicianId = clinicianId;
 
         SocDate = socDate;
+    }
+
+    public void UpdateEditableProfile(
+        string mrn, string firstName, string? middleName, string lastName, DateOnly? socDate,
+        DateOnly? dateOfBirth, string? gender, string? primaryDiagnosis, string? secondaryDiagnosis,
+        string? address, string? city, string? state, string? zipCode, string? phoneNumber,
+        string? alternatePhone, string? emergencyContactName, string? emergencyContactRelationship,
+        string? emergencyContactPhone, string? referringPhysician, string? physicianPhone, string? referralNotes)
+    {
+        UpdateBasicInformation(mrn, firstName, middleName, lastName, socDate);
+        DateOfBirth = dateOfBirth;
+        Gender = Normalize(gender);
+        PrimaryDiagnosis = Normalize(primaryDiagnosis);
+        SecondaryDiagnosis = Normalize(secondaryDiagnosis);
+        Address = Normalize(address);
+        City = Normalize(city);
+        State = Normalize(state);
+        ZipCode = Normalize(zipCode);
+        PhoneNumber = Normalize(phoneNumber);
+        AlternatePhone = Normalize(alternatePhone);
+        EmergencyContactName = Normalize(emergencyContactName);
+        EmergencyContactRelationship = Normalize(emergencyContactRelationship);
+        EmergencyContactPhone = Normalize(emergencyContactPhone);
+        ReferringPhysician = Normalize(referringPhysician);
+        PhysicianPhone = Normalize(physicianPhone);
+        ReferralNotes = Normalize(referralNotes);
     }
 
     public void UpdateBasicInformation(
@@ -331,6 +377,24 @@ public sealed class Patient
     public void SetCoordinator(Guid? userId)
         => CoordinatorId = userId;
 
+    public void SetSecondaryCoordinator(Guid? userId)
+        => SecondaryCoordinatorId = userId;
+
+    public void SetBackupCoordinator(Guid? userId)
+    {
+        if (userId.HasValue && (userId == CoordinatorId || userId == SecondaryCoordinatorId))
+            throw new InvalidOperationException("Backup CC must be different from the Primary and Secondary CC.");
+        BackupCoordinatorId = userId;
+    }
+
+    public void SetCoordinatorAssignments(Guid? primaryCoordinatorId, Guid? secondaryCoordinatorId)
+    {
+        if (primaryCoordinatorId.HasValue && primaryCoordinatorId == secondaryCoordinatorId)
+            throw new InvalidOperationException("Primary and Secondary CC must be different users.");
+        CoordinatorId = primaryCoordinatorId;
+        SecondaryCoordinatorId = secondaryCoordinatorId;
+    }
+
     public void SetClinician(Guid? userId)
         => ClinicianId = userId;
 
@@ -341,6 +405,7 @@ public sealed class Patient
         DateOnly? preAuthDueDate,
         int? numberOfVisits,
         string? caseMixType,
+        string? hospitalDcSummaryNotes,
         string? dmeMedSupplyNotes,
         string? socFeedbackFromPatient,
         DateOnly? tifDate,
@@ -359,6 +424,7 @@ public sealed class Patient
         PreAuthDueDate = preAuthDueDate;
         NumberOfVisits = numberOfVisits;
         CaseMixType = Normalize(caseMixType);
+        HospitalDcSummaryNotes = Normalize(hospitalDcSummaryNotes);
         DmeMedSupplyNotes = Normalize(dmeMedSupplyNotes);
         SocFeedbackFromPatient = Normalize(socFeedbackFromPatient);
         TifDate = tifDate;

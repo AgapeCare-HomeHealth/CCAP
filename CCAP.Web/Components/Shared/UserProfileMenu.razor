@@ -1,9 +1,11 @@
 @using CCAP.Web.Features.Authentication.Services
 @using CCAP.Web.Features.Authentication.State
+@using Microsoft.JSInterop
 @using Microsoft.AspNetCore.Components.Authorization
 @inject TokenStore TokenStore
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
+@inject CcapApiClient Api
 
 <div class="profile-menu">
     @if (IsActualAdministrator)
@@ -26,6 +28,19 @@
         }
     }
 
+    <button class="profile-menu-item" @onclick="() => ShowChangePassword = !ShowChangePassword">
+        <i class="bi bi-key"></i><span>Change Password</span>
+    </button>
+    @if (ShowChangePassword)
+    {
+        <div class="px-3 py-2">
+            @if (!string.IsNullOrWhiteSpace(PasswordMessage)) { <div class="small @(PasswordError ? "text-danger" : "text-success")">@PasswordMessage</div> }
+            <input class="form-control form-control-sm mb-2" type="password" placeholder="Current password" @bind="CurrentPassword" />
+            <input class="form-control form-control-sm mb-2" type="password" placeholder="New password (8+ characters)" @bind="NewPassword" />
+            <input class="form-control form-control-sm mb-2" type="password" placeholder="Confirm new password" @bind="ConfirmPassword" />
+            <button class="btn btn-primary btn-sm w-100" disabled="@IsChangingPassword" @onclick="ChangePasswordAsync">@(IsChangingPassword ? "Updating..." : "Update Password")</button>
+        </div>
+    }
     <button class="profile-menu-item logout" @onclick="LogoutAsync">
         <i class="bi bi-box-arrow-right"></i><span>Logout</span>
     </button>
@@ -35,6 +50,8 @@
     private bool IsActualAdministrator;
     private bool IsViewingAnotherRole;
     private string? CurrentViewRole;
+    private bool ShowChangePassword, IsChangingPassword, PasswordError;
+    private string CurrentPassword = "", NewPassword = "", ConfirmPassword = "", PasswordMessage = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -82,6 +99,23 @@
         CurrentViewRole = null;
         IsViewingAnotherRole = false;
         StateHasChanged();
+    }
+
+    private async Task ChangePasswordAsync()
+    {
+        PasswordMessage = ""; PasswordError = false;
+        if (NewPassword.Length < 8) { PasswordMessage = "New password must be at least 8 characters."; PasswordError = true; return; }
+        if (NewPassword != ConfirmPassword) { PasswordMessage = "New password and confirmation do not match."; PasswordError = true; return; }
+        IsChangingPassword = true;
+        try
+        {
+            var response = await Api.PostAsJsonAsync("api/users/change-password", new { CurrentPassword, NewPassword });
+            await Api.EnsureSuccessAsync(response);
+            PasswordMessage = "Password updated successfully.";
+            CurrentPassword = NewPassword = ConfirmPassword = "";
+        }
+        catch (Exception ex) { PasswordMessage = ex.Message; PasswordError = true; }
+        finally { IsChangingPassword = false; }
     }
 
     private async Task LogoutAsync()

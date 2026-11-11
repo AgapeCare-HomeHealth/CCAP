@@ -3,13 +3,21 @@ using CCAP.API.Authorization;
 using CCAP.Application.Features.ReferralDrafts.Queries;
 using CCAP.Application.Features.Referrals.Commands.CreateReferralIntake;
 using CCAP.Application.Features.Referrals.Commands.SaveReferralDraft;
+using CCAP.Application.Features.Referrals.Commands.UpdateReferralTrackerDetails;
+using CCAP.Application.Features.Referrals.Queries.GetReferralList;
 using CCAP.Application.Abstractions.Referrals;
+using CCAP.Application.Abstractions.Persistence;
+using CCAP.Infrastructure.Persistence;
 using CCAP.Application.Features.ReferralDrafts.Queries.GetReferralDraftById;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Collections.Concurrent;
+using CCAP.API.Hubs;
+using CCAP.Domain.Entities;
+using Microsoft.AspNetCore.SignalR;
 
 namespace CCAP.API.Controllers;
 
@@ -20,19 +28,126 @@ public sealed class ReferralController : ControllerBase
 {
     private readonly ISender _sender;
     private readonly IReferralDocumentExtractionService _documentExtraction;
+    private readonly IUserRepository _users;
+    private readonly IReferralTrackerRepository _trackerRepository;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly AppDbContext _db;
+    private readonly IHubContext<NotificationsHub> _notificationsHub;
+    private static readonly ConcurrentDictionary<Guid, ReferralExtractionProgressResponse> ExtractionProgress = new();
 
     private const long MaxFileSize =
         10 * 1024 * 1024; // 10 MB
 
     public ReferralController(
         ISender sender,
-        IReferralDocumentExtractionService documentExtraction)
+        IReferralDocumentExtractionService documentExtraction,
+        IUserRepository users, IReferralTrackerRepository trackerRepository, IUnitOfWork unitOfWork, AppDbContext db, IHubContext<NotificationsHub> notificationsHub)
     {
         _sender = sender;
         _documentExtraction = documentExtraction;
+        _users = users;
+        _trackerRepository = trackerRepository;
+        _unitOfWork = unitOfWork;
+        _db = db;
+        _notificationsHub = notificationsHub;
     }
 
-    // =========================================================
+    [HttpGet]
+    [Authorize(Policy = PermissionPolicies.ReferralsView)]
+    public async Task<IActionResult> GetReferralList(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null,
+        [FromQuery] string? status = null,
+        [FromQuery] string? source = null,
+        [FromQuery] string? insurance = null,
+        [FromQuery] Guid? coordinatorId = null,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null,
+        CancellationToken cancellationToken = default)
+    {
+        var page = Math.Max(1, pageNumber);
+        var size = Math.Clamp(pageSize, 1, 100);
+        var (items, count) = await _trackerRepository.GetPagedListAsync(
+            page, size, search, status, source, insurance, cancellationToken);
+        return Ok(new CCAP.Application.Common.Models.PagedResult<CCAP.Application.Features.Referrals.DTOs.ReferralListItemDto>
+        { Items = items, PageNumber = page, PageSize = size, TotalCount = count });
+    }
+
+    [HttpGet("assignment-users")]
+    [Authorize(Policy = PermissionPolicies.ReferralsView)]
+    public async Task<IActionResult> GetReferralAssignmentUsers(CancellationToken cancellationToken)
+    {
+        var users = await _users.GetAllAsync(cancellationToken);
+        var coordinators = users
+            .Where(user => user.IsActive &&
+                !string.IsNullOrWhiteSpace(user.Email) &&
+                !string.IsNullOrWhiteSpace(user.PasswordHash) &&
+                user.Role is not null && user.Role.IsActive &&
+                user.Role.RoleName.Contains("Coordinator", StringComparison.OrdinalIgnoreCase))
+            .Select(user => new
+            {
+                user.UserId, user.EmployeeNo, user.FirstName, user.LastName, user.Email,
+                user.RoleId, Role = user.Role.RoleName, user.IsActive
+            })
+            .OrderBy(user => user.LastName).ThenBy(user => user.FirstName).ToList();
+        return Ok(coordinators);
+    }
+
+    [HttpPut("{referralId:guid}/tracker")]
+    [Authorize(Policy = PermissionPolicies.ReferralsManage)]
+    public async Task<IActionResult> UpdateTrackerDetails(
+        Guid referralId,
+        [FromBody] UpdateReferralTrackerDetailsCommand request,
+        CancellationToken cancellationToken)
+    {
+        if (referralId != request.ReferralId)
+            return BadRequest(new { message = "Tracker identifier does not match the request." });
+        var entry = await _trackerRepository.GetByIdAsync(referralId, cancellationToken);
+        if (entry is null) return NotFound(new { message = "Referral tracker entry was not found." });
+        entry.Update(request.PostedOn, request.EstimatedDischargeDate, request.TrackerStatus,
+            request.Source, request.PrimaryInsurance, null, null, null,
+            request.SecondCoordinatorCall, request.ThirdCoordinatorCall, request.Resolution);
+        _trackerRepository.Update(entry);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("tracker")]
+    [Authorize(Policy = PermissionPolicies.ReferralsManage)]
+    public async Task<IActionResult> CreateTrackerEntries(
+        [FromBody] List<CCAP.Application.Features.Referrals.DTOs.CreateReferralTrackerEntryRequest> requests,
+        CancellationToken cancellationToken)
+    {
+        if (requests is null || requests.Count == 0)
+            return BadRequest(new { message = "At least one tracker entry is required." });
+        if (requests.Count > 100)
+            return BadRequest(new { message = "A maximum of 100 tracker entries can be saved at once." });
+        foreach (var request in requests)
+        {
+            if (string.IsNullOrWhiteSpace(request.FirstName) ||
+                string.IsNullOrWhiteSpace(request.LastName) || !request.DateOfBirth.HasValue)
+                return BadRequest(new { message = "First name, last name, and date of birth are required." });
+            var coordinatorName = string.Empty;
+            if (request.AssignedCoordinatorId.HasValue)
+            {
+                var coordinator = await _users.GetByIdAsync(request.AssignedCoordinatorId.Value, cancellationToken);
+                if (coordinator is null) return BadRequest(new { message = "Selected Care Coordinator was not found." });
+                coordinatorName = $"{coordinator.FirstName} {coordinator.LastName}".Trim();
+            }
+            var entry = new CCAP.Domain.Entities.ReferralTrackerEntry(
+                $"TRK-{Guid.NewGuid():N}"[..20], request.ReferralDate ?? DateTime.Today,
+                request.FirstName, request.LastName, DateOnly.FromDateTime(request.DateOfBirth.Value),
+                request.Mrn, request.PostedOn, request.EstimatedDischargeDate, request.Status,
+                request.Source, request.Insurance, request.AssignedCoordinatorId, coordinatorName,
+                request.FirstMarketingCall, request.SecondCoordinatorCall, request.ThirdCoordinatorCall,
+                request.Resolution);
+            await _trackerRepository.AddAsync(entry, cancellationToken);
+        }
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Ok(new { saved = requests.Count });
+    }
+
     // SAVE REFERRAL DRAFT
     // =========================================================
 
@@ -119,32 +234,65 @@ public sealed class ReferralController : ControllerBase
     [Authorize(Policy = PermissionPolicies.ReferralsManage)]
     [RequestSizeLimit(MaxFileSize)]
     public async Task<IActionResult> ExtractReferral(
-    IFormFile pdf,
-    CancellationToken cancellationToken)
+        IFormFile pdf,
+        [FromForm] Guid progressId,
+        CancellationToken cancellationToken)
     {
         if (pdf is null || pdf.Length <= 0)
             return BadRequest(new { message = "Please upload a non-empty referral PDF." });
-
         if (!pdf.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
             return BadRequest(new { message = "Only PDF files are accepted." });
-
         if (pdf.Length > MaxFileSize)
             return BadRequest(new { message = "Referral PDF cannot exceed 10 MB." });
+        if (progressId == Guid.Empty)
+            return BadRequest(new { message = "A progress identifier is required." });
 
+        ExtractionProgress[progressId] = new ReferralExtractionProgressResponse { Stage = "Starting extraction" };
         try
         {
             await using Stream stream = pdf.OpenReadStream();
+            var progress = new InlineProgress<CCAP.Application.Features.Referrals.DTOs.ReferralExtractionProgress>(p =>
+            {
+                ExtractionProgress[progressId] = new ReferralExtractionProgressResponse
+                {
+                    TotalPages = p.TotalPages,
+                    PagesProcessed = p.PagesProcessed,
+                    Stage = p.Stage
+                };
+            });
 
-            var result = await _documentExtraction.ExtractAsync(
-                stream,
-                cancellationToken);
-
+            var result = await _documentExtraction.ExtractAsync(stream, cancellationToken, progress);
+            var current = ExtractionProgress.GetValueOrDefault(progressId);
+            ExtractionProgress[progressId] = new ReferralExtractionProgressResponse
+            {
+                TotalPages = current?.TotalPages ?? 0,
+                PagesProcessed = current?.TotalPages ?? 0,
+                Stage = "Extraction complete",
+                IsComplete = true
+            };
             return Ok(result);
         }
         catch (InvalidOperationException ex)
         {
+            ExtractionProgress.TryRemove(progressId, out _);
             return UnprocessableEntity(new { message = ex.Message });
         }
+        catch
+        {
+            ExtractionProgress.TryRemove(progressId, out _);
+            throw;
+        }
+    }
+
+    [HttpGet("extract/progress/{progressId:guid}")]
+    [Authorize(Policy = PermissionPolicies.ReferralsManage)]
+    public IActionResult GetExtractionProgress(Guid progressId)
+    {
+        if (!ExtractionProgress.TryGetValue(progressId, out var progress))
+            return Ok(new ReferralExtractionProgressResponse());
+        if (progress.IsComplete)
+            ExtractionProgress.TryRemove(progressId, out _);
+        return Ok(progress);
     }
 
     // ========================================================
@@ -212,6 +360,19 @@ public sealed class ReferralController : ControllerBase
     [FromForm] CreateReferralIntakeRequest request,
     CancellationToken cancellationToken)
     {
+        // Primary CC defaults to the signed-in user when the client has not
+        // supplied a selection. An explicit selection is preserved so the creator
+        // can change the Primary CC in the Assignment step.
+        if (!request.CoordinatorId.HasValue)
+        {
+            var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? User.FindFirstValue("sub")
+                ?? User.FindFirstValue("userId");
+            if (Guid.TryParse(userIdValue, out var signedInUserId))
+                request.CoordinatorId = signedInUserId;
+        }
+
+        // Validate both selected coordinators in the application handler.
         // =========================================================
         // OPTIONAL PDF VALIDATION
         // =========================================================
@@ -310,6 +471,7 @@ public sealed class ReferralController : ControllerBase
                     request.EmergencyContactName,
                     request.EmergencyContactRelationship,
                     request.EmergencyContactPhone,
+                    request.EmergencyContactsJson,
 
                     request.ReferralNumber ?? string.Empty,
                     request.ReferralDate,
@@ -338,6 +500,7 @@ public sealed class ReferralController : ControllerBase
                     request.ReferralNotes,
 
                     request.CoordinatorId,
+                    request.SecondaryCoordinatorId,
                     request.ClinicianId,
                     request.DisciplineId,
 
@@ -357,14 +520,58 @@ public sealed class ReferralController : ControllerBase
 
                     request.Pdf?.ContentType ?? request.PdfContentType,
 
-                    request.Pdf?.Length ?? request.PdfSize
+                    request.Pdf?.Length ?? request.PdfSize,
+                    request.PostedOn,
+                    request.TrackerStatus,
+                    request.EstimatedDischargeDate,
+                    request.TrackerCoordinatorName,
+                    request.FirstMarketingCall,
+                    request.SecondCoordinatorCall,
+                    request.ThirdCoordinatorCall,
+                    request.Resolution
                 ),
                 cancellationToken);
 
 
-            // =====================================================
-            // SUCCESS
-            // =====================================================
+            // Persist workflow assignment notifications only after referral/task
+            // creation has committed successfully. SignalR is a delivery channel;
+            // the database record remains the durable source of truth.
+            var patient = await _db.Patients.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.PatientId == result.PatientId, cancellationToken);
+            if (patient is not null)
+            {
+                var roleIds = new[] { patient.CoordinatorId, patient.SecondaryCoordinatorId, patient.BackupCoordinatorId }
+                    .Where(x => x.HasValue).Select(x => x!.Value).Distinct().ToList();
+                var admins = await _db.ApplicationUsers.AsNoTracking()
+                    .Where(x => x.IsActive && x.Role.RoleName == "Administrator")
+                    .Select(x => x.UserId).ToListAsync(cancellationToken);
+                var recipients = roleIds.Concat(admins).Distinct().ToList();
+                var primary = patient.CoordinatorId.HasValue
+                    ? await _db.ApplicationUsers.Where(x => x.UserId == patient.CoordinatorId).Select(x => x.FirstName + " " + x.LastName).FirstOrDefaultAsync(cancellationToken) : null;
+                var secondary = patient.SecondaryCoordinatorId.HasValue
+                    ? await _db.ApplicationUsers.Where(x => x.UserId == patient.SecondaryCoordinatorId).Select(x => x.FirstName + " " + x.LastName).FirstOrDefaultAsync(cancellationToken) : null;
+                var backup = patient.BackupCoordinatorId.HasValue
+                    ? await _db.ApplicationUsers.Where(x => x.UserId == patient.BackupCoordinatorId).Select(x => x.FirstName + " " + x.LastName).FirstOrDefaultAsync(cancellationToken) : null;
+                var patientName = $"{patient.FirstName} {patient.LastName}".Trim();
+                var details = $"Primary CC: {primary ?? "Unassigned"}; Secondary CC: {secondary ?? "Unassigned"}; Backup CC: {backup ?? "Unassigned"}.";
+                var rows = recipients.Select(userId =>
+                {
+                    var assignment = userId == patient.CoordinatorId ? "Primary CC"
+                        : userId == patient.SecondaryCoordinatorId ? "Secondary CC"
+                        : userId == patient.BackupCoordinatorId ? "Backup CC" : "Administrator";
+                    return new UserNotification(userId, patient.PatientId, patientName,
+                        "WorkflowAssignment", "New patient workflow assigned",
+                        $"Your assignment: {assignment}. {details}", "Info");
+                }).ToList();
+                if (rows.Count > 0)
+                {
+                    await _db.UserNotifications.AddRangeAsync(rows, cancellationToken);
+                    await _db.SaveChangesAsync(cancellationToken);
+                    foreach (var row in rows)
+                        await _notificationsHub.Clients.Group($"user:{row.UserId}")
+                            .SendAsync("NotificationCreated", row.NotificationId, cancellationToken);
+                }
+            }
 
             return Ok(result);
         }
@@ -397,4 +604,9 @@ public sealed class ReferralController : ControllerBase
             }
         }
     }
+}
+
+internal sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
+{
+    public void Report(T value) => report(value);
 }

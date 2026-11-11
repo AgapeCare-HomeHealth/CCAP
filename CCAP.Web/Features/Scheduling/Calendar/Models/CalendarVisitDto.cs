@@ -3,6 +3,7 @@ namespace CCAP.Web.Features.Scheduling.Calendar.Models;
 public sealed class CalendarVisitDto
 {
     public Guid VisitId { get; set; }
+    public Guid? AssignedUserId { get; set; }
     public Guid? PatientId { get; set; }
     public Guid? CareCoordinatorId { get; set; }
     public string? CareCoordinatorName { get; set; }
@@ -18,6 +19,17 @@ public sealed class CalendarVisitDto
     public string VisitType { get; set; } = "Visit";
     public string? NotesFlag { get; set; }
     public string? Notes { get; set; }
+    public Guid? RecurrenceGroupId { get; set; }
+    public int VisitsEachDay { get; set; } = 1;
+    public string? Skills { get; set; }
+    public string? TreatmentAuthorizationCode { get; set; }
+    public bool FlexibleVisit { get; set; }
+    public bool OutsourcedVisit { get; set; }
+    public string? AttachmentsNeeded { get; set; }
+    public string? BillingRateCode { get; set; }
+    public string? BillingRevenueCode { get; set; }
+    public decimal? BillingAmount { get; set; }
+    public decimal? BillingOvertimeAmount { get; set; }
 }
 
 public sealed class ScheduleImportPreviewItem
@@ -97,6 +109,18 @@ public sealed class AddScheduleItem
     public string VisitType { get; set; } = string.Empty;
     public string? VisitStatus { get; set; }
     public string? NotesFlag { get; set; }
+    public Guid? CareCoordinatorId { get; set; }
+    public Guid? RecurrenceGroupId { get; set; }
+    public int VisitsEachDay { get; set; } = 1;
+    public string? Skills { get; set; }
+    public string? TreatmentAuthorizationCode { get; set; }
+    public bool FlexibleVisit { get; set; }
+    public bool OutsourcedVisit { get; set; }
+    public string? AttachmentsNeeded { get; set; }
+    public string? BillingRateCode { get; set; }
+    public string? BillingRevenueCode { get; set; }
+    public decimal? BillingAmount { get; set; }
+    public decimal? BillingOvertimeAmount { get; set; }
 }
 
 public sealed class AddSchedulesResult

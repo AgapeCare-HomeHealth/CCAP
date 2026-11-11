@@ -18,6 +18,7 @@ public sealed class CreateReferralIntakeCommandHandler
     private readonly IPatientTaskRepository _tasks;
     private readonly IComplianceRepository _compliance;
     private readonly IReferralDraftRepository _drafts;
+    private readonly IUserRepository _users;
 
     // =========================================================
     // FILE STORAGE
@@ -40,6 +41,7 @@ public sealed class CreateReferralIntakeCommandHandler
     IReferralDraftRepository drafts,
     IReferralDocumentRepository documentRepository,
     IFileStorage fileStorage,
+    IUserRepository users,
     IUnitOfWork unitOfWork)
     {
         _patients = patients;
@@ -49,6 +51,7 @@ public sealed class CreateReferralIntakeCommandHandler
         _tasks = tasks;
         _compliance = compliance;
         _drafts = drafts;
+        _users = users;
 
         _documentRepository = documentRepository;
         _fileStorage = fileStorage;
@@ -80,6 +83,26 @@ public sealed class CreateReferralIntakeCommandHandler
                 throw new InvalidOperationException(
                     "This referral draft has already been completed.");
             }
+        }
+
+        if (!request.CoordinatorId.HasValue)
+            throw new InvalidOperationException("A Primary CC must be assigned before submitting the referral.");
+
+        var coordinatorIds = new[] { request.CoordinatorId, request.SecondaryCoordinatorId }
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .Distinct()
+            .ToList();
+        if (request.CoordinatorId.HasValue && request.CoordinatorId == request.SecondaryCoordinatorId)
+            throw new InvalidOperationException("Primary and Secondary CC must be different users.");
+
+        if (coordinatorIds.Count > 0)
+        {
+            var selectedCoordinators = await _users.GetByIdsAsync(coordinatorIds, cancellationToken);
+            if (selectedCoordinators.Count != coordinatorIds.Count ||
+                selectedCoordinators.Any(u => !u.IsActive ||
+                    !string.Equals(u.Role?.RoleName, "Care Coordinator", StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException("Primary and Secondary CC must be active Care Coordinator users.");
         }
 
         // =========================================================
@@ -183,8 +206,11 @@ public sealed class CreateReferralIntakeCommandHandler
             request.PhysicianPhone,
             request.ReferralNotes,
             request.CoordinatorId,
+            request.SecondaryCoordinatorId,
             request.ClinicianId,
             request.SocDate);
+
+        patient.SetEmergencyContactsJson(request.EmergencyContactsJson);
 
         await _patients.AddAsync(
             patient,
@@ -226,6 +252,16 @@ public sealed class CreateReferralIntakeCommandHandler
         referral.ConvertToPatient(
             patient.PatientId);
 
+        referral.SetInitialTrackerDetails(
+            request.PostedOn,
+            request.TrackerStatus,
+            request.EstimatedDischargeDate,
+            request.TrackerCoordinatorName,
+            request.FirstMarketingCall,
+            request.SecondCoordinatorCall,
+            request.ThirdCoordinatorCall,
+            request.Resolution);
+
         if (request.CoordinatorId.HasValue)
         {
             referral.Assign(
@@ -252,15 +288,23 @@ public sealed class CreateReferralIntakeCommandHandler
                 .Distinct(
                     StringComparer.OrdinalIgnoreCase))
         {
-            var service =
-                activeServices.FirstOrDefault(
-                    x => string.Equals(
-                        x.Name,
-                        requestedService,
-                        StringComparison.OrdinalIgnoreCase));
+            // Referral intake labels are not always identical to the normalized
+            // service type names (e.g. "Medical Social Work (MSW)" vs
+            // "Medical Social Worker (MSW)"). Resolve by normalized label/code.
+            var normalizedRequested = requestedService
+                .Replace("Medical Social Work", "Medical Social Worker", StringComparison.OrdinalIgnoreCase)
+                .Trim();
+
+            var service = activeServices.FirstOrDefault(x =>
+                string.Equals(x.Name, requestedService, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(x.Name, normalizedRequested, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(x.Code, requestedService, StringComparison.OrdinalIgnoreCase) ||
+                (string.Equals(x.Code, "MSW", StringComparison.OrdinalIgnoreCase) &&
+                 requestedService.Contains("MSW", StringComparison.OrdinalIgnoreCase)));
 
             if (service is null)
                 continue;
+
 
             var order =
                 new PatientServiceOrder(
@@ -279,12 +323,6 @@ public sealed class CreateReferralIntakeCommandHandler
         // INITIAL WORKFLOW TASKS
         // =========================================================
 
-        var coordinator =
-            request.CoordinatorId;
-
-        var baseDate =
-            DateTime.UtcNow;
-
         //await AddTask(
         //    patient.PatientId,
         //    "Review Referral",
@@ -294,162 +332,60 @@ public sealed class CreateReferralIntakeCommandHandler
         //    coordinator,
         //    cancellationToken);
 
-        await AddTask(
-            patient.PatientId,
-            "Verify Insurance",
-            "Verify insurance eligibility and authorization requirements.",
-            baseDate.AddDays(1),
-            $"/tracker/patient/{patient.PatientId}",
-            coordinator,
-            cancellationToken);
 
-        await AddTask(
-            patient.PatientId,
-            "Verify Physician Orders",
-            "Review and verify the referring physician orders.",
-            baseDate.AddDays(1),
-            $"/tracker/patient/{patient.PatientId}",
-            coordinator,
-            cancellationToken);
+        // Physician orders are tracked only as a ComplianceRecord below.
+        // Do not create a separate PatientTask that cannot be completed from
+        // the Compliance tab.
 
         // =========================================================
         // NOTE:
-        // Physician Orders and SOC Scheduling are intentionally NOT
-        // created as ComplianceRecord items here because they are
-        // not columns in the Excel compliance checklist.
-        //
-        // SOC scheduling remains handled by the existing SOC command
-        // and visit workflow when that functionality is used.
+        // Physician orders are also exposed as a ComplianceRecord so the
+        // overdue workflow item has a matching, completable item in the
+        // patient's Compliance tab. SOC scheduling remains handled by the
+        // existing SOC command and visit workflow.
         // =========================================================
 
-        // Insurance verification is represented once as a workflow confirmation;
-        // the Insurance tab and Compliance tab operate on this same record.
-        await AddCompliance(patient.PatientId, "INSURANCE_VERIFICATION", "Review the insurance document in the EMR and confirm the insurance name, member ID, and authorization details match. Mark this item complete only after everything has been verified.", cancellationToken);
+        // Insurance remains a separate workflow stage and is verified from
+        // the Insurance tab. The checklist below starts after Insurance.
+        await AddCompliance(patient.PatientId, "INSURANCE_VERIFICATION", "Complete insurance verification before Admission.", cancellationToken);
 
-        // =============================================================
-        // COMPLIANCE REQUIREMENTS
-        // =============================================================
-        //
-        // These requirements correspond to the Excel workflow.
-        //
-        // PHASE 1 - INTAKE & ADMISSION PREPARATION
-        // =============================================================
+        // ADMISSION
+        await AddCompliance(patient.PatientId, "PRE_AUTH_RECEIVED", "Confirm pre-authorization has been received.", cancellationToken);
+        await AddCompliance(patient.PatientId, "PRO_RECEIVED", "Confirm PRO has been received.", cancellationToken);
+        await AddCompliance(patient.PatientId, "H_AND_P_RECEIVED", "Confirm H&P has been received.", cancellationToken);
+        await AddCompliance(patient.PatientId, "F2F_RECEIVED", "Confirm Face-to-Face documentation has been received.", cancellationToken);
+        await AddCompliance(patient.PatientId, "PCP_CONFIRMED", "Confirm the primary care physician.", cancellationToken);
 
-        await AddCompliance(
-            patient.PatientId,
-            "PRE_AUTH_RECEIVED",
-            "Pre-authorization has been received.",
-            cancellationToken);
+        // SOC
+        await AddCompliance(patient.PatientId, "DME_MED_SUPPLY", "Confirm DME and medical supplies.", cancellationToken);
+        await AddCompliance(patient.PatientId, "SIGNED_CONSENTS", "Confirm required consents are signed.", cancellationToken);
+        await AddCompliance(patient.PatientId, "NOA_FILED", "Confirm the Notice of Admission is filed.", cancellationToken);
+        await AddCompliance(patient.PatientId, "OASIS_SOC_COMPLETE", "Confirm OASIS / SOC compliance.", cancellationToken);
+        await AddCompliance(patient.PatientId, "ORDERS_SIGNED", "Confirm orders are signed by the physician.", cancellationToken);
+        await AddCompliance(patient.PatientId, "DOCS_UPLOADED", "Confirm required documents are uploaded.", cancellationToken);
+        await AddCompliance(patient.PatientId, "AVS_RECEIVED", "Confirm AVS has been received.", cancellationToken);
 
-        await AddCompliance(
-            patient.PatientId,
-            "PRO_RECEIVED",
-            "PRO has been received.",
-            cancellationToken);
+        // ON-GOING CARE
+        await AddCompliance(patient.PatientId, "CASE_MIX_IDENTIFIED", "Confirm case mix has been identified.", cancellationToken);
+        await AddCompliance(patient.PatientId, "CASE_MIX_PLOTTED", "Confirm case mix has been plotted.", cancellationToken);
+        await AddCompliance(patient.PatientId, "QA_APPROVAL", "Confirm QA approval and PO/POC readiness for faxing.", cancellationToken);
 
-        await AddCompliance(
-            patient.PatientId,
-            "H_AND_P_RECEIVED",
-            "H&P has been received.",
-            cancellationToken);
+        // RECERT OR DISCHARGE
+        await AddCompliance(patient.PatientId, "PCP_PT_NOTIFIED", "Confirm PCP and PT have been notified.", cancellationToken);
 
-        await AddCompliance(
-            patient.PatientId,
-            "F2F_RECEIVED",
-            "Face-to-Face documentation has been received.",
-            cancellationToken);
+        // DISCHARGE
+        await AddCompliance(patient.PatientId, "DISCHARGE_SUMMARY_SIGNED", "Confirm the discharge summary is signed.", cancellationToken);
+        await AddCompliance(patient.PatientId, "NOMNC_SIGNED", "Confirm NOMNC is signed.", cancellationToken);
 
-        await AddCompliance(
-            patient.PatientId,
-            "PCP_CONFIRMED",
-            "Primary Care Physician has been confirmed.",
-            cancellationToken);
-
-        await AddCompliance(
-            patient.PatientId,
-            "AVS_RECEIVED",
-            "AVS has been received.",
-            cancellationToken);
-
-        await AddCompliance(
-            patient.PatientId,
-            "SIGNED_CONSENTS",
-            "Required consents have been signed.",
-            cancellationToken);
-
-        // =============================================================
-        // PHASE 2 - CARE INITIATION & COMPLIANCE
-        // =============================================================
-
-        await AddCompliance(
-            patient.PatientId,
-            "SOC_COMPLIANT",
-            "Start of Care was completed within the required timeframe.",
-            cancellationToken);
-
-        await AddCompliance(
-            patient.PatientId,
-            "DME_MED_SUPPLY",
-            "DME and medical supplies have been arranged or confirmed.",
-            cancellationToken);
-
-        await AddCompliance(
-            patient.PatientId,
-            "NOA_FILED",
-            "Notice of Admission has been filed.",
-            cancellationToken);
-
-        await AddCompliance(
-            patient.PatientId,
-            "OASIS_SOC_COMPLETE",
-            "OASIS and Start of Care documentation have been completed.",
-            cancellationToken);
-
-        await AddCompliance(
-            patient.PatientId,
-            "QA_APPROVAL",
-            "QA approval has been completed and the PO/POC is ready for faxing.",
-            cancellationToken);
-
-        await AddCompliance(
-            patient.PatientId,
-            "ORDERS_SIGNED",
-            "Orders have been signed by the physician.",
-            cancellationToken);
-
-        await AddCompliance(
-            patient.PatientId,
-            "DOCS_UPLOADED",
-            "Required documentation has been uploaded to the appropriate system.",
-            cancellationToken);
-
-        await AddCompliance(
-            patient.PatientId,
-            "CASE_MIX_IDENTIFIED",
-            "Case mix has been identified.",
-            cancellationToken);
-
-        await AddCompliance(
-            patient.PatientId,
-            "CASE_MIX_ORDERS_SIGNED",
-            "Case mix orders have been signed.",
-            cancellationToken);
-
-        await AddCompliance(
-            patient.PatientId,
-            "CASE_MIX_PLOTTED",
-            "Case mix has been plotted.",
-            cancellationToken);
-        await AddCompliance(patient.PatientId, "PCP_PT_NOTIFIED", "PCP and PT notification has been confirmed when required.", cancellationToken);
-
-        // =============================================================
-        // PHASE 3 - ONGOING / TRANSITION / DISCHARGE
-        // =============================================================
-
-        await AddCompliance(patient.PatientId, "ROC", "Resumption of Care has been confirmed when applicable.", cancellationToken);
-        await AddCompliance(patient.PatientId, "RECERTIFICATION", "Recertification has been completed when applicable.", cancellationToken);
-        await AddCompliance(patient.PatientId, "DISCHARGE_SUMMARY_SIGNED", "Discharge summary has been signed when applicable.", cancellationToken);
-        await AddCompliance(patient.PatientId, "NOMNC_SIGNED", "NOMNC has been signed when applicable.", cancellationToken);
+        // Every compliance requirement is represented by an assigned user task.
+        // Tasks are linked by a stable title key so completion/reverification
+        // stays synchronized without adding a second source of truth.
+        // Use the same idempotent task synchronizer used by the patient workflow.
+        // This creates one task per actionable compliance requirement plus the
+        // separate Insurance Verification task, assigns them to the Primary CC,
+        // and prevents duplicate task creation if this workflow is retried.
+        await CCAP.Application.Features.Patients.PatientComplianceTaskSynchronizer
+            .EnsureAllAsync(patient, _tasks, _compliance, cancellationToken);
 
 
         // =========================================================
@@ -529,38 +465,6 @@ public sealed class CreateReferralIntakeCommandHandler
 
             // NULL because no file is being stored.
             storageKey);
-    }
-
-    // =============================================================
-    // ADD TASK
-    // =============================================================
-
-    private async Task AddTask(
-        Guid patientId,
-        string title,
-        string description,
-        DateTime dueDate,
-        string pageRoute,
-        Guid? assignedUserId,
-        CancellationToken cancellationToken)
-    {
-        var task =
-            new PatientTask(
-                patientId,
-                title,
-                description,
-                dueDate,
-                pageRoute);
-
-        if (assignedUserId.HasValue)
-        {
-            task.Assign(
-                assignedUserId.Value);
-        }
-
-        await _tasks.AddAsync(
-            task,
-            cancellationToken);
     }
 
     // =============================================================

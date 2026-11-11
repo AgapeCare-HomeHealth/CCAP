@@ -35,9 +35,10 @@ public sealed class UserServices
         {
             var role = _mock.Roles.FirstOrDefault(x => x.RoleId == model.RoleId);
             var discipline = model.DisciplineId.HasValue ? _mock.Disciplines.FirstOrDefault(x => x.DisciplineId == model.DisciplineId.Value) : null;
+            var nextEmployeeNumber = _mock.Users.Select(x => int.TryParse(x.EmployeeNo.Replace("EMP-", ""), out var n) ? n : 0).DefaultIfEmpty(0).Max() + 1;
             var user = new UserDto
             {
-                UserId = Guid.NewGuid(), EmployeeNo = model.EmployeeNo, FirstName = model.FirstName, LastName = model.LastName,
+                UserId = Guid.NewGuid(), EmployeeNo = $"EMP-{nextEmployeeNumber:0000}", FirstName = model.FirstName, LastName = model.LastName,
                 Email = model.Email, MobileNo = model.MobileNo, RoleId = model.RoleId, DisciplineId = model.DisciplineId,
                 Role = role?.RoleName ?? "", Discipline = discipline?.Name ?? "", IsActive = model.IsActive, LastLoginAt = null
             };
@@ -46,7 +47,7 @@ public sealed class UserServices
             return Clone(user);
         }
 
-        var response = await _api.PostAsJsonAsync("api/users", new { model.EmployeeNo, model.FirstName, model.LastName, model.Email, Password = model.Password, model.MobileNo, model.RoleId, model.DisciplineId }, cancellationToken);
+        var response = await _api.PostAsJsonAsync("api/users", new { model.FirstName, model.LastName, model.Email, Password = model.Password, model.MobileNo, model.RoleId, model.DisciplineId }, cancellationToken);
         await _api.EnsureSuccessAsync(response, cancellationToken);
         return await response.Content.ReadFromJsonAsync<UserDto>(cancellationToken: cancellationToken);
     }
@@ -56,7 +57,7 @@ public sealed class UserServices
         if (_options.Enabled)
         {
             var user = _mock.Users.FirstOrDefault(x => x.UserId == model.UserId) ?? throw new InvalidOperationException("Mock user not found.");
-            user.EmployeeNo = model.EmployeeNo; user.FirstName = model.FirstName; user.LastName = model.LastName; user.Email = model.Email;
+            user.FirstName = model.FirstName; user.LastName = model.LastName; user.Email = model.Email;
             user.MobileNo = model.MobileNo; user.RoleId = model.RoleId; user.DisciplineId = model.DisciplineId; user.IsActive = model.IsActive;
             var role = _mock.Roles.FirstOrDefault(x => x.RoleId == model.RoleId); user.Role = role?.RoleName ?? "";
             var discipline = model.DisciplineId.HasValue ? _mock.Disciplines.FirstOrDefault(x => x.DisciplineId == model.DisciplineId.Value) : null; user.Discipline = discipline?.Name ?? "";
@@ -65,6 +66,16 @@ public sealed class UserServices
         var response = await _api.PutAsJsonAsync($"api/users/{model.UserId}", new { model.UserId, model.EmployeeNo, model.FirstName, model.LastName, model.Email, model.MobileNo, model.RoleId, model.DisciplineId }, cancellationToken);
         await _api.EnsureSuccessAsync(response, cancellationToken);
     }
+
+    public async Task<string> GenerateTemporaryPasswordAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var response = await _api.PostAsJsonAsync($"api/users/{userId}/temporary-password", new { }, cancellationToken);
+        await _api.EnsureSuccessAsync(response, cancellationToken);
+        var result = await response.Content.ReadFromJsonAsync<TemporaryPasswordResult>(cancellationToken: cancellationToken);
+        return result?.TemporaryPassword ?? throw new InvalidOperationException("The API did not return a temporary password.");
+    }
+
+    private sealed class TemporaryPasswordResult { public string TemporaryPassword { get; set; } = string.Empty; }
 
     public async Task ActivateUserAsync(Guid userId, CancellationToken cancellationToken = default)
     {

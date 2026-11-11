@@ -149,49 +149,83 @@
 
     <hr class="my-4" />
 
-    <h5 class="mb-3">
-        Emergency Contact
-    </h5>
-
-    <div class="row g-4">
-
-        <div class="col-md-4">
-            <label class="form-label">
-                Contact Name <span class="text-muted">(Optional)</span>
-            </label>
-
-            <input class="form-control"
-                   @bind="Model.EmergencyContactName" />
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+            <h5 class="mb-1">Emergency Contacts</h5>
+            <small class="text-muted">Add one or more people who may be contacted in an emergency.</small>
         </div>
-
-        <div class="col-md-4">
-            <label class="form-label">
-                Relationship <span class="text-muted">(Optional)</span>
-            </label>
-
-            <input class="form-control"
-                   @bind="Model.EmergencyContactRelationship" />
-        </div>
-
-        <div class="col-md-4">
-            <label class="form-label">
-                Phone Number <span class="text-muted">(Optional)</span>
-            </label>
-
-            <input class="form-control"
-                   @bind="Model.EmergencyContactPhone" />
-        </div>
-
+        <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddEmergencyContact">
+            <i class="bi bi-plus-lg me-1"></i> Add Contact
+        </button>
     </div>
+
+    @for (var index = 0; index < Model.EmergencyContacts.Count; index++)
+    {
+        var contact = Model.EmergencyContacts[index];
+        <div class="border rounded-3 p-3 mb-3" @key="contact">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <strong>Emergency Contact @(index + 1)</strong>
+                @if (Model.EmergencyContacts.Count > 1)
+                {
+                    <button type="button" class="btn btn-outline-danger btn-sm"
+                            @onclick="() => RemoveEmergencyContact(contact)">
+                        Remove
+                    </button>
+                }
+            </div>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Contact Name <span class="text-muted">(Optional)</span></label>
+                    <input class="form-control" @bind="contact.Name" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Relationship <span class="text-muted">(Optional)</span></label>
+                    <input class="form-control" @bind="contact.Relationship" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Phone Number <span class="text-muted">(Optional)</span></label>
+                    <input class="form-control" type="tel" @bind="contact.Phone" />
+                </div>
+            </div>
+        </div>
+    }
 
 </div>
 
 @code {
     private List<LookupOptionDto> Genders = [];
-    protected override async Task OnInitializedAsync() => Genders = await LookupService.GetAsync("Gender", true);
+
+    protected override async Task OnInitializedAsync() =>
+        Genders = await LookupService.GetAsync("Gender", true);
+
+    protected override void OnParametersSet()
+    {
+        Model.EmergencyContacts ??= [];
+
+        if (Model.EmergencyContacts.Count == 0)
+            Model.EmergencyContacts.Add(new EmergencyContactModel());
+
+        // Drafts and older OCR flows may still populate the legacy scalar
+        // properties. Reflect those values in the first visible contact row.
+        var first = Model.EmergencyContacts[0];
+        if (string.IsNullOrWhiteSpace(first.Name))
+            first.Name = Model.EmergencyContactName ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(first.Relationship))
+            first.Relationship = Model.EmergencyContactRelationship ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(first.Phone))
+            first.Phone = Model.EmergencyContactPhone ?? string.Empty;
+    }
 
     [Parameter]
     public ReferralIntakeModel Model { get; set; } = null!;
+
+    private void AddEmergencyContact() => Model.EmergencyContacts.Add(new EmergencyContactModel());
+
+    private void RemoveEmergencyContact(EmergencyContactModel contact)
+    {
+        if (Model.EmergencyContacts.Count > 1)
+            Model.EmergencyContacts.Remove(contact);
+    }
 
     private string? PrimaryPhoneError;
     private string? AlternatePhoneError;

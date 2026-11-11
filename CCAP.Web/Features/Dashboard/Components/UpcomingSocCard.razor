@@ -1,73 +1,210 @@
-﻿@using CCAP.Web.Features.Dashboard.Models
+@using CCAP.Web.Features.Scheduling.Calendar.Models
+@using CCAP.Web.Features.Scheduling.Calendar.Services
+@inject CalendarService CalendarService
+@inject CCAP.Web.Features.Notifications.Services.NotificationRealtimeService Realtime
+@implements IAsyncDisposable
+@inject NavigationManager Navigation
 
-<div class="widget-card">
-
+<div class="widget-card dashboard-list-card upcoming-appointments-card">
     <div class="widget-header">
-
-        Upcoming SOC (Next 7 Days)
-
+        <span>Upcoming Appointments</span>
+        <button class="btn btn-sm btn-link" @onclick="ViewAll">View Calendar</button>
     </div>
-
-    <table class="table mb-0">
-
-        <tbody>
-            @if (Visits.Any())
+    <div class="dashboard-card-list">
+        @if (IsLoading)
+        {
+            <div class="text-center text-muted py-4">
+                <span class="spinner-border spinner-border-sm me-2"></span>Loading appointments...
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(LoadError))
+        {
+            <div class="text-center text-danger py-4">@LoadError</div>
+        }
+        else if (Appointments.Count == 0)
+        {
+            <div class="text-center text-muted py-4">
+                <i class="bi bi-calendar-check fs-4 d-block mb-2"></i>
+                No upcoming appointments in the next 3 days.
+            </div>
+        }
+        else
+        {
+            @foreach (var item in Appointments.Take(MaxItems))
             {
-                @foreach (var visit in Visits)
-                {
-                    <tr>
-
-                        <td>
-
-                            <div class="fw-semibold">
-
-                                @visit.PatientName
-
-                            </div>
-
-                            <small>
-
-                                @visit.Clinician
-
-                            </small>
-
-                        </td>
-
-                        <td class="text-end">
-
-                            @visit.VisitDate.ToString("MM/dd/yyyy hh:mm tt")
-
-                        </td>
-
-                    </tr>
-                }
+                <button type="button" class="appointment-preview-row" @onclick="() => SelectAppointment(item)">
+                    <span class="appointment-icon"><i class="bi bi-calendar-event"></i></span>
+                    <span class="appointment-main">
+                        <strong>@item.PatientName</strong>
+                        <small>@(string.IsNullOrWhiteSpace(item.VisitType) ? "Appointment" : item.VisitType)</small>
+                        <small class="text-muted">Clinician: @Display(item.Clinician)</small>
+                    </span>
+                    <span class="appointment-date">
+                        <strong>@item.ScheduledDate.ToString("MMM d")</strong>
+                        <small>@GetTime(item)</small>
+                    </span>
+                    <i class="bi bi-chevron-right text-muted"></i>
+                </button>
             }
-            else
-            {
-                <tr>
-
-                    <td colspan="2"
-                        class="text-center py-5">
-
-                        No data available.
-
-                    </td>
-
-                </tr>
-            
-            }
-
-        </tbody>
-
-    </table>
-
+        }
+    </div>
+    <div class="appointment-card-footer">
+        <small class="text-muted">Next 3 calendar days · @Appointments.Count appointment(s)</small>
+        <button class="btn btn-sm btn-link" @onclick="ViewAll">View all</button>
+    </div>
 </div>
 
+@if (SelectedAppointment is not null)
+{
+    <div class="appointment-detail-backdrop" @onclick="CloseDetails">
+        <section class="appointment-detail-modal" role="dialog" aria-modal="true" aria-labelledby="appointment-detail-title" @onclick:stopPropagation="true">
+            <div class="appointment-detail-header">
+                <div>
+                    <small class="text-muted">Calendar appointment</small>
+                    <h5 id="appointment-detail-title" class="mb-0">@SelectedAppointment.PatientName</h5>
+                </div>
+                <button type="button" class="btn-close" aria-label="Close" @onclick="CloseDetails"></button>
+            </div>
+            <div class="appointment-detail-body">
+                <div class="appointment-detail-status">@SelectedAppointment.Status</div>
+                <div class="appointment-detail-grid">
+                    <div><small>Visit type</small><strong>@Display(SelectedAppointment.VisitType)</strong></div>
+                    <div><small>Date and time</small><strong>@SelectedAppointment.ScheduledDate.ToString("MMM d, yyyy h:mm tt")</strong></div>
+                    <div><small>Clinician</small><strong>@Display(SelectedAppointment.Clinician)</strong></div>
+                    <div><small>Care Coordinator</small><strong>@Display(SelectedAppointment.CareCoordinatorName)</strong></div>
+                    <div><small>Confirmation</small><strong>@Display(SelectedAppointment.ConfirmationStatus)</strong></div>
+                    <div><small>Time block</small><strong>@Display(SelectedAppointment.TimeBlock)</strong></div>
+                    <div><small>Patient</small><strong>@Display(SelectedAppointment.PatientName)</strong></div>
+                    <div><small>Schedule status</small><strong>@Display(SelectedAppointment.Status)</strong></div>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(SelectedAppointment.NotesFlag))
+                {
+                    <div class="appointment-detail-notes"><small>Flag</small><p>@SelectedAppointment.NotesFlag</p></div>
+                }
+                @if (!string.IsNullOrWhiteSpace(SelectedAppointment.CallNotes))
+                {
+                    <div class="appointment-detail-notes"><small>Call notes</small><p>@SelectedAppointment.CallNotes</p></div>
+                }
+                @if (!string.IsNullOrWhiteSpace(SelectedAppointment.Notes))
+                {
+                    <div class="appointment-detail-notes"><small>Notes</small><p>@SelectedAppointment.Notes</p></div>
+                }
+                @if (!string.IsNullOrWhiteSpace(SelectedAppointment.Skills))
+                {
+                    <div class="appointment-detail-notes"><small>Skills</small><p>@SelectedAppointment.Skills</p></div>
+                }
+            </div>
+            <div class="appointment-detail-footer">
+                <button class="btn btn-outline-secondary" @onclick="CloseDetails">Close</button>
+                <button class="btn btn-primary" @onclick="ViewAll">Open Calendar</button>
+            </div>
+        </section>
+    </div>
+}
+
 @code {
+    [Parameter] public int MaxItems { get; set; } = 5;
 
-    [Parameter]
+    private List<CalendarVisitDto> Appointments = [];
+    private CalendarVisitDto? SelectedAppointment;
+    private bool IsLoading = true;
+    private string? LoadError;
+    private CancellationTokenSource? _refreshCts;
+    private Task? _refreshLoop;
 
-    public IEnumerable<UpcomingVisitDto> Visits { get; set; }
-        = Enumerable.Empty<UpcomingVisitDto>();
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        Realtime.NotificationReceived += OnNotificationReceived;
+        await LoadAppointmentsAsync();
+        await InvokeAsync(StateHasChanged);
+        _refreshCts = new CancellationTokenSource();
+        _refreshLoop = RefreshLoopAsync(_refreshCts.Token);
+    }
 
+    private async void OnNotificationReceived()
+    {
+        try
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadAppointmentsAsync();
+                StateHasChanged();
+            });
+        }
+        catch (ObjectDisposedException) { }
+    }
+
+    private async Task RefreshLoopAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                await InvokeAsync(async () =>
+                {
+                    await LoadAppointmentsAsync();
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (ObjectDisposedException) { }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Realtime.NotificationReceived -= OnNotificationReceived;
+        if (_refreshCts is not null)
+        {
+            await _refreshCts.CancelAsync();
+            _refreshCts.Dispose();
+        }
+        if (_refreshLoop is not null)
+        {
+            try { await _refreshLoop; } catch (OperationCanceledException) { }
+        }
+    }
+
+    private async Task LoadAppointmentsAsync()
+    {
+        IsLoading = true;
+        try
+        {
+            // Calendar endpoint applies the same role/ownership visibility rules as the calendar page.
+            var start = DateTime.Today;
+            var endExclusive = start.AddDays(4);
+            var visits = await CalendarService.GetVisitsAsync(start, endExclusive);
+            Appointments = visits
+                .Where(x => x.ScheduledDate >= start &&
+                            x.ScheduledDate < endExclusive &&
+                            !IsClosed(x.Status))
+                .OrderBy(x => x.ScheduledDate)
+                .ToList();
+            LoadError = null;
+        }
+        catch (Exception ex)
+        {
+            LoadError = $"Unable to load calendar appointments: {ex.Message}";
+        }
+        finally { IsLoading = false; }
+    }
+
+    private static bool IsClosed(string? status) =>
+        string.Equals(status, "Completed", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(status, "Cancelled", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(status, "Canceled", StringComparison.OrdinalIgnoreCase);
+
+    private static string Display(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "Not specified" : value;
+
+    private static string GetTime(CalendarVisitDto item) =>
+        !string.IsNullOrWhiteSpace(item.TimeBlock)
+            ? item.TimeBlock!
+            : item.ScheduledDate.ToString("h:mm tt");
+
+    private void SelectAppointment(CalendarVisitDto item) => SelectedAppointment = item;
+    private void CloseDetails() => SelectedAppointment = null;
+    private void ViewAll() => Navigation.NavigateTo("/scheduling/calendar");
 }

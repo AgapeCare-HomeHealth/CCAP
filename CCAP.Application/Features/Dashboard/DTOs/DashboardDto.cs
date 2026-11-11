@@ -1,4 +1,4 @@
-﻿namespace CCAP.Application.Features.Dashboard.DTOs;
+namespace CCAP.Application.Features.Dashboard.DTOs;
 
 public sealed class DashboardDto
 {
@@ -40,7 +40,10 @@ public sealed class MyTaskDto
 
     public string AssignedTo { get; set; } = string.Empty;
 
+    public string AssignedClinician { get; set; } = string.Empty;
+
     public string CurrentStage { get; set; } = string.Empty;
+    public string PatientCoordinatorRole { get; set; } = "Not Assigned";
 }
 
 public sealed class ReferralSummaryDto

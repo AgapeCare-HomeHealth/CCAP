@@ -57,13 +57,13 @@
                 }
             </NavLink>
 
-            @* <NavLink href="/referrals" class="nav-item">
-                <i class="bi bi-person-plus"></i>
+            <NavLink href="/referrals/list" Match="NavLinkMatch.All" class="nav-item">
+                <i class="bi bi-list-ul"></i>
                 @if (!IsCollapsed)
                 {
-                    <span>Referrals</span>
+                    <span>Referral Tracker</span>
                 }
-            </NavLink> *@
+            </NavLink>
 
         </div>
 
@@ -278,6 +278,10 @@
 
                 <NavLink href="/admin/roles" class="submenu-item">
                     Roles
+                </NavLink>
+
+                <NavLink href="/admin/announcements" class="submenu-item">
+                    Announcements
                 </NavLink>
 
                 @* <NavLink href="/admin/settings" class="submenu-item">

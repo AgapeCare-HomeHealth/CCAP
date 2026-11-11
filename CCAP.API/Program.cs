@@ -6,6 +6,7 @@ using CCAP.Infrastructure.Identity;
 using CCAP.Infrastructure.Persistence;
 using CCAP.Infrastructure.Seed;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using CCAP.API.Hubs;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -14,6 +15,7 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -34,6 +36,17 @@ builder.Services
     })
     .AddJwtBearer(options =>
     {
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(accessToken) &&
+                    context.HttpContext.Request.Path.StartsWithSegments("/hubs/notifications"))
+                    context.Token = accessToken;
+                return Task.CompletedTask;
+            }
+        };
         var jwtKey =
             builder.Configuration["Jwt:Key"]
             ?? throw new InvalidOperationException(
@@ -157,6 +170,26 @@ using (var scope = app.Services.CreateScope())
         await context.Database.MigrateAsync();
     }
 
+    await context.Database.ExecuteSqlRawAsync("""
+        IF OBJECT_ID(N'dbo.UserNotifications', N'U') IS NULL
+        BEGIN
+            CREATE TABLE dbo.UserNotifications (
+                NotificationId uniqueidentifier NOT NULL PRIMARY KEY,
+                UserId uniqueidentifier NOT NULL,
+                PatientId uniqueidentifier NOT NULL,
+                PatientName nvarchar(250) NOT NULL,
+                Type nvarchar(50) NOT NULL,
+                Title nvarchar(200) NOT NULL,
+                Message nvarchar(2000) NOT NULL,
+                Severity nvarchar(30) NOT NULL,
+                DueDate datetime2 NULL,
+                CreatedAt datetime2 NOT NULL
+            );
+            CREATE INDEX IX_UserNotifications_UserId_CreatedAt
+                ON dbo.UserNotifications(UserId, CreatedAt DESC);
+        END
+        """);
+
     if (seedDatabase)
     {
         var passwordHasher =
@@ -179,5 +212,6 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<NotificationsHub>("/hubs/notifications");
 
 app.Run();

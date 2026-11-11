@@ -1,0 +1,390 @@
+@page "/referrals/list"
+@attribute [CcapAuthorize(Policy = "referrals.view")]
+@using CCAP.Web.Features.Tracker.ReferralIntake.Models
+@using CCAP.Web.Features.Tracker.ReferralIntake.Services
+@using CCAP.Web.Features.Tracker.ReferralList.Models
+@using CCAP.Web.Features.Admin.Users.Models
+@inject ReferralIntakeService ReferralIntakeService
+
+<PageTitle>Referral Tracker</PageTitle>
+
+<div class="referral-list-page">
+    <div class="referral-list-header">
+        <div>
+            <div class="referral-eyebrow">CARE COORDINATION / TRACKER</div>
+            <h2>Referral Tracker</h2>
+            <p>Manage incoming referrals, follow-ups, and outcomes in one place.</p>
+        </div>
+        <button class="btn btn-primary referral-add-button" @onclick="OpenBulkEntry" disabled="@IsLoading">
+            <i class="bi bi-plus-lg me-2"></i>Add Referrals
+        </button>
+    </div>
+
+    <section class="referral-filter-panel">
+        <div class="referral-list-filters">
+            <label class="filter-search">
+                <span>Search</span>
+                <div class="search-control"><i class="bi bi-search"></i><input class="form-control" placeholder="Patient name or MRN..."
+                    @bind="Search" @bind:event="oninput" @bind:after="ApplyFilters" /></div>
+            </label>
+            <label><span>Status</span><select class="form-select" @bind="Status" @bind:after="ApplyFilters">
+                <option value="">All statuses</option>
+                @foreach (var status in ReferralTrackerOptions.Statuses) { <option value="@status">@status</option> }
+            </select></label>
+            <label><span>Referral source</span><select class="form-select" @bind="Source" @bind:after="ApplyFilters">
+                <option value="">All sources</option>
+                @foreach (var source in ReferralTrackerOptions.ReferralSources) { <option value="@source">@source</option> }
+            </select></label>
+            <label><span>Payor / Insurance</span><select class="form-select" @bind="Insurance" @bind:after="ApplyFilters">
+                <option value="">All payors</option>
+                @foreach (var payor in ReferralTrackerOptions.Payors) { <option value="@payor">@payor</option> }
+            </select></label>
+            <button class="btn btn-light referral-clear-button" @onclick="ClearFilters"><i class="bi bi-arrow-counterclockwise me-1"></i>Clear</button>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert alert-danger">@ErrorMessage</div>
+    }
+    @if (!string.IsNullOrWhiteSpace(SaveMessage))
+    {
+        <div class="alert alert-success py-2">@SaveMessage</div>
+    }
+
+    @if (IsLoading)
+    {
+        <div class="py-5 text-center">Loading referral tracker...</div>
+    }
+    else
+    {
+        <div class="referral-table-heading">
+            <div><strong>All Tracker Entries</strong><span>@TotalCount records</span></div>
+            <span class="table-hint"><i class="bi bi-pencil-square me-1"></i>Editable fields save automatically</span>
+        </div>
+        <div class="referral-table-wrap">
+            <table class="table align-middle referral-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Referral Date</th>
+                        <th>Posted On</th>
+                        <th>EDD</th>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th>Referral Source</th>
+                        <th>Payor / Insurance</th>
+                        <th>Assigned CC</th>
+                        <th>1st Call - Marketing</th>
+                        <th>2nd Call - CC</th>
+                        <th>3rd Call - CC</th>
+                        <th>Resolution</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Items.Count == 0)
+                    {
+                        <tr><td colspan="13" class="text-center py-5 text-muted">No referral tracker entries found.</td></tr>
+                    }
+                    else
+                    {
+                        @for (var i = 0; i < Items.Count; i++)
+                        {
+                            var item = Items[i];
+                            <tr>
+                                <td><span class="row-number">@(((CurrentPage - 1) * PageSize) + i + 1)</span></td>
+                                <td>@item.ReferralDate.ToString("MM/dd/yyyy")</td>
+                                <td>
+                                    <select class="form-select form-select-sm tracker-edit" value="@item.PostedOn"
+                                            @onchange="e => ChangePostedOn(item, e.Value?.ToString())">
+                                        @foreach (var option in ReferralTrackerOptions.PostedOn) { <option value="@option">@option</option> }
+                                    </select>
+                                </td>
+                                <td><input class="form-control form-control-sm tracker-edit" type="date"
+                                           value="@item.EstimatedDischargeDate?.ToString("yyyy-MM-dd")"
+                                           @onchange="e => ChangeEdd(item, e.Value?.ToString())" /></td>
+                                <td class="referral-patient-name">@item.PatientName</td>
+                                <td>
+                                    <select class="form-select form-select-sm tracker-edit" value="@item.Status"
+                                            @onchange="e => ChangeStatus(item, e.Value?.ToString())">
+                                        @foreach (var option in ReferralTrackerOptions.Statuses) { <option value="@option">@option</option> }
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm tracker-edit" value="@item.Source"
+                                            @onchange="e => ChangeSource(item, e.Value?.ToString())">
+                                        <option value="">Select source</option>
+                                        @foreach (var option in ReferralTrackerOptions.ReferralSources) { <option value="@option">@option</option> }
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm tracker-edit" value="@item.Insurance"
+                                            @onchange="e => ChangeInsurance(item, e.Value?.ToString())">
+                                        <option value="">Select payor</option>
+                                        @foreach (var option in ReferralTrackerOptions.Payors) { <option value="@option">@option</option> }
+                                    </select>
+                                </td>
+                                <td>@Display(item.CareCoordinator)</td>
+                                <td class="referral-call-cell" title="@item.FirstMarketingCall">@Display(item.FirstMarketingCall)</td>
+                                <td><input maxlength="2000" class="form-control form-control-sm tracker-edit tracker-text" value="@item.SecondCoordinatorCall"
+                                           @onchange="e => ChangeSecondCall(item, e.Value?.ToString())" /></td>
+                                <td><input maxlength="2000" class="form-control form-control-sm tracker-edit tracker-text" value="@item.ThirdCoordinatorCall"
+                                           @onchange="e => ChangeThirdCall(item, e.Value?.ToString())" /></td>
+                                <td><input maxlength="500" class="form-control form-control-sm tracker-edit tracker-text" value="@item.Resolution"
+                                           @onchange="e => ChangeResolution(item, e.Value?.ToString())" /></td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="referral-list-footer">
+            <span>Showing @ShowingStart–@ShowingEnd of @TotalCount referrals</span>
+            <div class="d-flex gap-2 align-items-center">
+                <button class="btn btn-sm btn-outline-secondary" disabled="@(CurrentPage <= 1)" @onclick="PreviousPage">‹ Prev</button>
+                <span class="referral-page-number">@CurrentPage</span>
+                <button class="btn btn-sm btn-outline-secondary" disabled="@(CurrentPage >= TotalPages)" @onclick="NextPage">Next ›</button>
+            </div>
+        </div>
+    }
+</div>
+
+@if (ShowBulkEntry)
+{
+    <div class="referral-modal-backdrop" @onclick="CloseBulkEntry">
+        <section class="referral-bulk-modal" role="dialog" aria-modal="true" aria-labelledby="add-referrals-title" @onclick:stopPropagation="true">
+            <header class="referral-modal-header">
+                <div>
+                    <div class="referral-eyebrow">REFERRAL INTAKE</div>
+                    <h3 id="add-referrals-title">Add referrals</h3>
+                    <p>Enter the patient and tracker details below. You can submit multiple referrals at once.</p>
+                </div>
+                <button class="modal-close" aria-label="Close" @onclick="CloseBulkEntry"><i class="bi bi-x-lg"></i></button>
+            </header>
+
+            <div class="referral-bulk-toolbar">
+                <div><strong>@Rows.Count</strong> <span>referral entries</span><small> · Required: first name, last name and date of birth</small></div>
+                <button class="btn btn-outline-primary" @onclick="AddRow"><i class="bi bi-plus-lg me-1"></i>Add another referral</button>
+            </div>
+
+            @if (AssignmentUsersLoading)
+            {
+                <div class="assignment-loading"><span class="spinner-border spinner-border-sm me-2"></span>Loading active Care Coordinator accounts...</div>
+            }
+            else if (AssignmentUsers.Count == 0)
+            {
+                <div class="alert alert-warning mx-4">No active Care Coordinator accounts with login credentials were found. Create or activate a Care Coordinator account before assigning referrals.</div>
+            }
+
+            <div class="referral-bulk-rows">
+                @for (var i = 0; i < Rows.Count; i++)
+                {
+                    var row = Rows[i];
+                    <article class="referral-entry-card" @key="row">
+                        <div class="entry-card-heading">
+                            <div class="entry-number">@(i + 1)</div>
+                            <div><strong>Referral @(i + 1)</strong><span>Patient and tracker information</span></div>
+                            <button class="entry-remove" title="Remove referral" disabled="@(Rows.Count <= 1 || IsSaving)" @onclick="() => RemoveRow(row)"><i class="bi bi-trash3"></i><span>Remove</span></button>
+                        </div>
+
+                        <div class="entry-section">
+                            <div class="entry-section-title"><i class="bi bi-person-vcard"></i>Patient details</div>
+                            <div class="entry-fields patient-fields">
+                                <label>First name <b>*</b><input class="form-control" autocomplete="off" @bind="row.FirstName" placeholder="First name" /></label>
+                                <label>Last name <b>*</b><input class="form-control" autocomplete="off" @bind="row.LastName" placeholder="Last name" /></label>
+                                <label>Date of birth <b>*</b><input class="form-control" type="date" @bind="row.DateOfBirth" /></label>
+                                <label>MRN<input class="form-control" @bind="row.MRN" placeholder="Medical record number" /></label>
+                            </div>
+                        </div>
+
+                        <div class="entry-section">
+                            <div class="entry-section-title"><i class="bi bi-clipboard2-pulse"></i>Referral details</div>
+                            <div class="entry-fields referral-fields">
+                                <label>Referral date<input class="form-control" type="date" @bind="row.ReferralDate" /></label>
+                                <label>Posted on<select class="form-select" @bind="row.PostedOn"><option value="">Select</option>@foreach (var v in ReferralTrackerOptions.PostedOn) { <option value="@v">@v</option> }</select></label>
+                                <label>EDD<input class="form-control" type="date" @bind="row.Edd" /></label>
+                                <label>Status<select class="form-select" @bind="row.Status"><option value="">Select status</option>@foreach (var v in ReferralTrackerOptions.Statuses) { <option value="@v">@v</option> }</select></label>
+                                <label>Referral source<select class="form-select" @bind="row.Source"><option value="">Select source</option>@foreach (var v in ReferralTrackerOptions.ReferralSources) { <option value="@v">@v</option> }</select></label>
+                                <label>Payor / Insurance<select class="form-select" @bind="row.Insurance"><option value="">Select payor</option>@foreach (var v in ReferralTrackerOptions.Payors) { <option value="@v">@v</option> }</select></label>
+                                <label class="assigned-cc-field">Assigned CC<select class="form-select" @bind="row.AssignedCCId" disabled="@(AssignmentUsersLoading || AssignmentUsers.Count == 0)"><option value="">Select Care Coordinator</option>@foreach (var user in AssignmentUsers) { <option value="@user.UserId">@user.FullName (@user.Email)</option> }</select></label>
+                            </div>
+                        </div>
+
+                        <div class="entry-section">
+                            <div class="entry-section-title"><i class="bi bi-telephone"></i>Follow-up and resolution</div>
+                            <div class="entry-fields call-fields">
+                                <label>1st Call - Marketing<input class="form-control" maxlength="2000" @bind="row.FirstMarketingCall" placeholder="Marketing call notes" /></label>
+                                <label>2nd Call - CC<input class="form-control" maxlength="2000" @bind="row.SecondCoordinatorCall" placeholder="Coordinator follow-up" /></label>
+                                <label>3rd Call - CC<input class="form-control" maxlength="2000" @bind="row.ThirdCoordinatorCall" placeholder="Coordinator follow-up" /></label>
+                                <label>Resolution<input class="form-control" maxlength="500" @bind="row.Resolution" placeholder="Outcome / resolution" /></label>
+                            </div>
+                        </div>
+                    </article>
+                }
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(BulkError)) { <div class="alert alert-danger mx-4 mb-0">@BulkError</div> }
+            <footer class="referral-modal-footer">
+                <span><i class="bi bi-shield-check me-1"></i>Referral assignments use registered CCAP accounts.</span>
+                <div><button class="btn btn-light" disabled="@IsSaving" @onclick="CloseBulkEntry">Cancel</button>
+                <button class="btn btn-primary" disabled="@(IsSaving || AssignmentUsersLoading)" @onclick="SaveBulkEntries">@(IsSaving ? "Saving referrals..." : "Save referrals") <i class="bi bi-arrow-right ms-1"></i></button></div>
+            </footer>
+        </section>
+    </div>
+}
+
+@code {
+    private const int PageSize = 10;
+    private int CurrentPage = 1;
+    private int TotalCount;
+    private int TotalPages => (int)Math.Ceiling(TotalCount / (double)PageSize);
+    private int ShowingStart => TotalCount == 0 ? 0 : (CurrentPage - 1) * PageSize + 1;
+    private int ShowingEnd => Math.Min(CurrentPage * PageSize, TotalCount);
+    private string Search = string.Empty;
+    private string Status = string.Empty;
+    private string Source = string.Empty;
+    private string Insurance = string.Empty;
+    private bool IsLoading;
+    private bool IsSaving;
+    private bool ShowBulkEntry;
+    private string? ErrorMessage;
+    private string? BulkError;
+    private string? SaveMessage;
+    private List<ReferralListItem> Items = [];
+    private List<BulkReferralEntry> Rows = [];
+    private List<UserDto> AssignmentUsers = [];
+    private bool AssignmentUsersLoading;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+        try
+        {
+            var result = await ReferralIntakeService.GetReferralListAsync(CurrentPage, PageSize, Search, Status, Source, Insurance);
+            Items = result.Items;
+            TotalCount = result.TotalCount;
+        }
+        catch (Exception ex) { ErrorMessage = $"Unable to load referrals: {ex.Message}"; Items = []; }
+        finally { IsLoading = false; }
+    }
+
+    private async Task ApplyFilters() { CurrentPage = 1; await LoadAsync(); }
+    private async Task ClearFilters() { Search = Status = Source = Insurance = string.Empty; await ApplyFilters(); }
+    private async Task PreviousPage() { if (CurrentPage > 1) { CurrentPage--; await LoadAsync(); } }
+    private async Task NextPage() { if (CurrentPage < TotalPages) { CurrentPage++; await LoadAsync(); } }
+    private async Task OpenBulkEntry()
+    {
+        Rows = Enumerable.Range(0, 5).Select(_ => new BulkReferralEntry()).ToList();
+        BulkError = null;
+        ShowBulkEntry = true;
+        if (AssignmentUsers.Count > 0) return;
+
+        AssignmentUsersLoading = true;
+        try
+        {
+            AssignmentUsers = await ReferralIntakeService.GetReferralAssignmentUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            BulkError = $"Unable to load Care Coordinator accounts: {ex.Message}";
+        }
+        finally { AssignmentUsersLoading = false; }
+    }
+    private void CloseBulkEntry() { if (!IsSaving) ShowBulkEntry = false; }
+    private void AddRow() => Rows.Add(new());
+    private void RemoveRow(BulkReferralEntry row) => Rows.Remove(row);
+    private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+
+    private async Task PersistEdit(ReferralListItem item)
+    {
+        try
+        {
+            await ReferralIntakeService.UpdateReferralTrackerDetailsAsync(item);
+            SaveMessage = $"Saved changes for {item.PatientName}.";
+            ErrorMessage = null;
+        }
+        catch (Exception ex) { ErrorMessage = $"Unable to save tracker changes: {ex.Message}"; }
+    }
+    private async Task ChangePostedOn(ReferralListItem item, string? value) { item.PostedOn = value ?? ""; await PersistEdit(item); }
+    private async Task ChangeStatus(ReferralListItem item, string? value) { item.Status = value ?? ""; await PersistEdit(item); }
+    private async Task ChangeEdd(ReferralListItem item, string? value) { item.EstimatedDischargeDate = DateOnly.TryParse(value, out var date) ? date : null; await PersistEdit(item); }
+    private async Task ChangeSource(ReferralListItem item, string? value) { item.Source = value ?? ""; await PersistEdit(item); }
+    private async Task ChangeInsurance(ReferralListItem item, string? value) { item.Insurance = value ?? ""; await PersistEdit(item); }
+    private async Task ChangeSecondCall(ReferralListItem item, string? value) { item.SecondCoordinatorCall = value ?? ""; await PersistEdit(item); }
+    private async Task ChangeThirdCall(ReferralListItem item, string? value) { item.ThirdCoordinatorCall = value ?? ""; await PersistEdit(item); }
+    private async Task ChangeResolution(ReferralListItem item, string? value) { item.Resolution = value ?? ""; await PersistEdit(item); }
+
+    private async Task SaveBulkEntries()
+    {
+        BulkError = null;
+        var entries = Rows.Where(x => x.HasAnyValue).ToList();
+        if (entries.Count == 0) { BulkError = "Enter at least one referral before saving."; return; }
+        var invalid = entries.FindIndex(x => string.IsNullOrWhiteSpace(x.FirstName) || string.IsNullOrWhiteSpace(x.LastName) || !x.DateOfBirth.HasValue);
+        if (invalid >= 0) { BulkError = $"Referral row {Rows.IndexOf(entries[invalid]) + 1}: first name, last name, and date of birth are required."; return; }
+        var duplicateMrn = entries.Where(x => !string.IsNullOrWhiteSpace(x.MRN)).GroupBy(x => x.MRN.Trim(), StringComparer.OrdinalIgnoreCase).FirstOrDefault(g => g.Count() > 1);
+        if (duplicateMrn is not null) { BulkError = $"MRN {duplicateMrn.Key} appears more than once in this batch. Verify the patient records before saving."; return; }
+
+        IsSaving = true;
+        var saved = 0;
+        try
+        {
+            var trackerEntries = entries.Select(entry => new ReferralTrackerCreateRequest
+            {
+                FirstName = entry.FirstName.Trim(),
+                LastName = entry.LastName.Trim(),
+                DateOfBirth = entry.DateOfBirth,
+                Mrn = entry.MRN.Trim(),
+                ReferralDate = entry.ReferralDate ?? DateTime.Today,
+                PostedOn = string.IsNullOrWhiteSpace(entry.PostedOn) ? "Referral/Intake" : entry.PostedOn,
+                EstimatedDischargeDate = entry.Edd.HasValue ? DateOnly.FromDateTime(entry.Edd.Value) : null,
+                Status = entry.Status,
+                Source = entry.Source,
+                Insurance = entry.Insurance,
+                AssignedCoordinatorId = entry.AssignedCCId,
+                FirstMarketingCall = entry.FirstMarketingCall,
+                SecondCoordinatorCall = entry.SecondCoordinatorCall,
+                ThirdCoordinatorCall = entry.ThirdCoordinatorCall,
+                Resolution = entry.Resolution
+            }).ToList();
+
+            await ReferralIntakeService.CreateReferralTrackerEntriesAsync(trackerEntries);
+            saved = trackerEntries.Count;
+            await LoadAsync();
+            ShowBulkEntry = false;
+        }
+        catch (Exception ex)
+        {
+            BulkError = saved == 0 ? ex.Message : $"{saved} referral(s) were saved before an error occurred. Remaining entries were not submitted. Error: {ex.Message}";
+            await LoadAsync();
+        }
+        finally { IsSaving = false; }
+    }
+
+    private sealed class BulkReferralEntry
+    {
+        public DateTime? ReferralDate { get; set; } = DateTime.Today;
+        public string PostedOn { get; set; } = "Referral/Intake";
+        public DateTime? Edd { get; set; }
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public DateTime? DateOfBirth { get; set; }
+        public string MRN { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string Source { get; set; } = string.Empty;
+        public string Insurance { get; set; } = string.Empty;
+        public Guid? AssignedCCId { get; set; }
+        public string FirstMarketingCall { get; set; } = string.Empty;
+        public string SecondCoordinatorCall { get; set; } = string.Empty;
+        public string ThirdCoordinatorCall { get; set; } = string.Empty;
+        public string Resolution { get; set; } = string.Empty;
+        public bool HasAnyValue => !string.IsNullOrWhiteSpace(FirstName) || !string.IsNullOrWhiteSpace(LastName)
+            || DateOfBirth.HasValue || !string.IsNullOrWhiteSpace(MRN) || !string.IsNullOrWhiteSpace(Source)
+            || !string.IsNullOrWhiteSpace(Insurance) || AssignedCCId.HasValue || !string.IsNullOrWhiteSpace(FirstMarketingCall)
+            || !string.IsNullOrWhiteSpace(SecondCoordinatorCall) || !string.IsNullOrWhiteSpace(ThirdCoordinatorCall)
+            || !string.IsNullOrWhiteSpace(Resolution);
+    }
+}

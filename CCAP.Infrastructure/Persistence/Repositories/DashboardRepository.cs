@@ -1,4 +1,4 @@
-﻿using CCAP.Application.Abstractions.Persistence;
+using CCAP.Application.Abstractions.Persistence;
 using CCAP.Application.Features.Dashboard.DTOs;
 using CCAP.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -24,114 +24,74 @@ public sealed class DashboardRepository : IDashboardRepository
         var today = now.Date;
         var tomorrow = today.AddDays(1);
 
-        // =========================================================
-        // TASKS
-        // =========================================================
+        // Determine dashboard visibility from the application's own role table.
+        // Administrators can review all active patient tasks; other users see only
+        // tasks assigned to them (plus unassigned tasks for their own patients).
+        var roleName = await _db.ApplicationUsers
+            .Where(x => x.UserId == userId)
+            .Select(x => x.Role.RoleName)
+            .FirstOrDefaultAsync(cancellationToken);
 
-        var tasks = await _db.PatientTasks
+        var isAdministrator = string.Equals(
+            roleName, "Administrator", StringComparison.OrdinalIgnoreCase);
+
+        var visibleOpenTasks = _db.PatientTasks
             .AsNoTracking()
-            .Where(x =>
-                x.Status != PatientTaskStatus.Completed &&
-                x.Status != PatientTaskStatus.Cancelled &&
-                (x.AssignedUserId == null ||
-                 x.AssignedUserId == userId))
+            .Where(x => x.Status != PatientTaskStatus.Completed
+                && x.Status != PatientTaskStatus.Cancelled
+                && (isAdministrator
+                    || (x.Patient.Status != PatientStatus.Archived
+                        && x.Patient.Status != PatientStatus.Completed))
+                && (isAdministrator
+                    || x.AssignedUserId == userId
+                    || (x.AssignedUserId == null && x.Patient.CoordinatorId == userId)));
+
+        var taskDtos = await visibleOpenTasks
             .OrderBy(x => x.DueDate)
-            .Take(20)
-            .Select(x => new
+            .Select(x => new MyTaskDto
             {
-                x.TaskId,
-                x.PatientId,
-                x.Title,
-                x.Description,
-                x.DueDate,
-                x.PageRoute,
-                PatientName =
-                    x.Patient.FirstName + " " +
-                    x.Patient.LastName,
-                AssignedTo =
-                    x.AssignedUser == null
-                        ? ""
-                        : x.AssignedUser.FirstName + " " +
-                          x.AssignedUser.LastName
+                TransactionId = x.TaskId,
+                PatientId = x.PatientId,
+                Priority = x.DueDate < now ? "High" : "Medium",
+                TaskName = x.Title,
+                PatientName = (x.Patient.FirstName + " " + x.Patient.LastName).Trim(),
+                DueDate = x.DueDate,
+                AssignedTo = x.AssignedUser == null
+                    ? (x.Patient.Coordinator == null ? "Unassigned" : x.Patient.Coordinator.FirstName + " " + x.Patient.Coordinator.LastName)
+                    : x.AssignedUser.FirstName + " " + x.AssignedUser.LastName,
+                AssignedClinician = x.Patient.Clinician == null ? "Unassigned" : x.Patient.Clinician.FirstName + " " + x.Patient.Clinician.LastName,
+                CurrentStage = "Compliance",
+                PatientCoordinatorRole = isAdministrator
+                    ? "Admin View"
+                    : x.AssignedUserId == x.Patient.CoordinatorId
+                        ? "Primary CC"
+                        : x.AssignedUserId == x.Patient.SecondaryCoordinatorId
+                            ? "Secondary CC"
+                            : x.AssignedUserId == x.Patient.BackupCoordinatorId
+                                ? "Backup CC"
+                                : "Assigned User"
             })
             .ToListAsync(cancellationToken);
 
-        var taskDtos = tasks
-            .Select(x =>
-            {
-                // PatientTask currently has no Priority column.
-                // Calculate a dashboard priority from due date.
-                var priority =
-                    x.DueDate < now
-                        ? "High"
-                        : x.DueDate < today.AddDays(1)
-                            ? "Medium"
-                            : "Low";
+        // Statistics use exactly the same visibility and active-patient scope as the task list.
+        var myTaskCount = await visibleOpenTasks.CountAsync(cancellationToken);
+        var highPriorityCount = await visibleOpenTasks.CountAsync(x => x.DueDate < now, cancellationToken);
+        var dueTodayCount = await visibleOpenTasks.CountAsync(
+            x => x.DueDate >= today && x.DueDate < tomorrow, cancellationToken);
 
-                return new MyTaskDto
-                {
-                    TransactionId = x.TaskId,
-                    PatientId = x.PatientId,
-                    Priority = priority,
-                    TaskName = x.Title,
-                    PatientName = x.PatientName,
-                    DueDate = x.DueDate,
-                    AssignedTo = string.IsNullOrWhiteSpace(x.AssignedTo)
-                        ? "Unassigned"
-                        : x.AssignedTo,
-                    CurrentStage = "Patient Workflow"
-                };
-            })
-            .ToList();
-
-        // =========================================================
-        // TASK STATISTICS
-        // =========================================================
-
-        var myTaskCount = await _db.PatientTasks
+        var completedTasks = _db.PatientTasks
             .AsNoTracking()
-            .CountAsync(
-                x =>
-                    x.Status != PatientTaskStatus.Completed &&
-                    x.Status != PatientTaskStatus.Cancelled &&
-                    (x.AssignedUserId == null ||
-                     x.AssignedUserId == userId),
-                cancellationToken);
+            .Where(x => x.Status == PatientTaskStatus.Completed
+                && x.CompletedAt >= today
+                && x.CompletedAt < tomorrow
+                && (isAdministrator
+                    || (x.Patient.Status != PatientStatus.Archived
+                        && x.Patient.Status != PatientStatus.Completed))
+                && (isAdministrator
+                    || x.AssignedUserId == userId
+                    || (x.AssignedUserId == null && x.Patient.CoordinatorId == userId)));
 
-        var highPriorityCount = await _db.PatientTasks
-            .AsNoTracking()
-            .CountAsync(
-                x =>
-                    x.Status != PatientTaskStatus.Completed &&
-                    x.Status != PatientTaskStatus.Cancelled &&
-                    (x.AssignedUserId == null ||
-                     x.AssignedUserId == userId) &&
-                    x.DueDate < now,
-                cancellationToken);
-
-        var dueTodayCount = await _db.PatientTasks
-            .AsNoTracking()
-            .CountAsync(
-                x =>
-                    x.Status != PatientTaskStatus.Completed &&
-                    x.Status != PatientTaskStatus.Cancelled &&
-                    (x.AssignedUserId == null ||
-                     x.AssignedUserId == userId) &&
-                    x.DueDate >= today &&
-                    x.DueDate < tomorrow,
-                cancellationToken);
-
-        var completedTodayCount =
-            await _db.PatientTasks
-                .AsNoTracking()
-                .CountAsync(
-                    x =>
-                        x.Status == PatientTaskStatus.Completed &&
-                        x.CompletedAt >= today &&
-                        x.CompletedAt < tomorrow &&
-                        (x.AssignedUserId == null ||
-                         x.AssignedUserId == userId),
-                    cancellationToken);
+        var completedTodayCount = await completedTasks.CountAsync(cancellationToken);
 
         // =========================================================
         // RECENT REFERRALS
@@ -141,7 +101,6 @@ public sealed class DashboardRepository : IDashboardRepository
             .AsNoTracking()
             .Where(x => x.PatientId != null)
             .OrderByDescending(x => x.ReferralDate)
-            .Take(5)
             .Select(x => new ReferralSummaryDto
             {
                 PatientName =
@@ -169,7 +128,6 @@ public sealed class DashboardRepository : IDashboardRepository
                 x.ClinicianId == userId &&
                 x.PatientId.HasValue)
             .OrderBy(x => x.ScheduledDate)
-            .Take(5)
             .Select(x => new UpcomingVisitDto
             {
                 PatientName =
@@ -197,8 +155,11 @@ public sealed class DashboardRepository : IDashboardRepository
                     announcements
                         .Select(x => new AnnouncementDto
                         {
+                            AnnouncementId = x.AnnouncementId,
                             Title = x.Title,
-                            Message = x.Message
+                            Message = x.Message,
+                            PublishedAt = x.PublishedAt,
+                            ExpiresAt = x.ExpiresAt
                         })
                         .ToList();
 
@@ -225,4 +186,5 @@ public sealed class DashboardRepository : IDashboardRepository
             Announcements = dashboardAnnouncements
         };
     }
+
 }

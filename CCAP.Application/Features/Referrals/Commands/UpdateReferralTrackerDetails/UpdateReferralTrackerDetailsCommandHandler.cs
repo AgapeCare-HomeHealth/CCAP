@@ -1,0 +1,40 @@
+using CCAP.Application.Abstractions.Persistence;
+using MediatR;
+
+namespace CCAP.Application.Features.Referrals.Commands.UpdateReferralTrackerDetails;
+
+public sealed class UpdateReferralTrackerDetailsCommandHandler
+    : IRequestHandler<UpdateReferralTrackerDetailsCommand>
+{
+    private readonly IReferralRepository _referrals;
+    private readonly IUnitOfWork _unitOfWork;
+
+    public UpdateReferralTrackerDetailsCommandHandler(
+        IReferralRepository referrals,
+        IUnitOfWork unitOfWork)
+    {
+        _referrals = referrals;
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task Handle(
+        UpdateReferralTrackerDetailsCommand request,
+        CancellationToken cancellationToken)
+    {
+        var referral = await _referrals.GetByIdAsync(request.ReferralId, cancellationToken)
+            ?? throw new KeyNotFoundException("Referral was not found.");
+
+        referral.UpdateTrackerDetails(
+            request.PostedOn,
+            request.TrackerStatus,
+            request.EstimatedDischargeDate,
+            request.PrimaryInsurance,
+            request.Source,
+            request.SecondCoordinatorCall,
+            request.ThirdCoordinatorCall,
+            request.Resolution);
+
+        _referrals.Update(referral);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+}

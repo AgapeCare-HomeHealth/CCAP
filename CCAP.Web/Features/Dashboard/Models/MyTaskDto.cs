@@ -1,4 +1,4 @@
-﻿namespace CCAP.Web.Features.Dashboard.Models
+namespace CCAP.Web.Features.Dashboard.Models
 {
     public class MyTaskDto
     {
@@ -16,6 +16,9 @@
 
         public string AssignedTo { get; set; } = "";
 
+        public string AssignedClinician { get; set; } = "Unassigned";
+
         public string CurrentStage { get; set; } = "";
+    public string PatientCoordinatorRole { get; set; } = "Not Assigned";
     }
 }

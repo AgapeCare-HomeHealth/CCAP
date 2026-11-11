@@ -64,3 +64,39 @@
 .pre-auth-compliance-card .form-control {
     min-height: 42px;
 }
+
+
+/* Full-page feedback while a compliance dropdown update is being saved. */
+.compliance-loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 25000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(255, 255, 255, .78);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    cursor: wait;
+}
+
+.compliance-loading-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    max-width: 420px;
+    padding: 28px 36px;
+    text-align: center;
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, .12);
+}
+
+.compliance-loading-spinner {
+    width: 3rem;
+    height: 3rem;
+    border-width: .3em;
+}

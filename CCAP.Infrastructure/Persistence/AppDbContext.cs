@@ -21,6 +21,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<Patient> Patients => Set<Patient>();
     public DbSet<LookupOption> LookupOptions => Set<LookupOption>();
     public DbSet<Referral> Referrals => Set<Referral>();
+    public DbSet<ReferralTrackerEntry> ReferralTrackerEntries => Set<ReferralTrackerEntry>();
     public DbSet<CallNote> CallNotes => Set<CallNote>();
     public DbSet<Assessment> Assessments => Set<Assessment>();
     public DbSet<ComplianceRecord> ComplianceRecords => Set<ComplianceRecord>();
@@ -32,6 +33,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<ReferralDocument> ReferralDocuments => Set<ReferralDocument>();
     public DbSet<Location> Locations => Set<Location>();
     public DbSet<NotificationReadState> NotificationReadStates => Set<NotificationReadState>();
+    public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
     public DbSet<PatientAuditLog> PatientAuditLogs => Set<PatientAuditLog>();
     public DbSet<PatientCareLog> PatientCareLogs => Set<PatientCareLog>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -113,6 +115,18 @@ public sealed class AppDbContext : DbContext
                 x => x.UpdatedAt);
         });
 
+        modelBuilder.Entity<UserNotification>(e =>
+        {
+            e.ToTable("UserNotifications");
+            e.HasKey(x => x.NotificationId);
+            e.Property(x => x.PatientName).HasMaxLength(250).IsRequired();
+            e.Property(x => x.Type).HasMaxLength(50).IsRequired();
+            e.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Message).HasMaxLength(2000).IsRequired();
+            e.Property(x => x.Severity).HasMaxLength(30).IsRequired();
+            e.HasIndex(x => new { x.UserId, x.CreatedAt });
+        });
+
         modelBuilder.Entity<NotificationReadState>(e =>
         {
             e.ToTable("NotificationReadStates");
@@ -165,6 +179,7 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<Patient>(e =>
         {
             e.ToTable("Patients");
+            e.Property(x => x.EmergencyContactsJson).HasColumnType("nvarchar(max)");
 
             e.HasKey(x => x.PatientId);
 
@@ -198,6 +213,7 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.PreAuthDueDate).HasColumnType("date");
             e.Property(x => x.NumberOfVisits);
             e.Property(x => x.CaseMixType).HasMaxLength(200);
+            e.Property(x => x.HospitalDcSummaryNotes).HasMaxLength(2000);
             e.Property(x => x.DmeMedSupplyNotes).HasMaxLength(2000);
             e.Property(x => x.SocFeedbackFromPatient).HasMaxLength(2000);
             e.Property(x => x.TifDate).HasColumnType("date");
@@ -224,10 +240,43 @@ public sealed class AppDbContext : DbContext
                 .HasForeignKey(x => x.CoordinatorId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            e.HasOne(x => x.SecondaryCoordinator)
+                .WithMany()
+                .HasForeignKey(x => x.SecondaryCoordinatorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(x => x.BackupCoordinator)
+                .WithMany()
+                .HasForeignKey(x => x.BackupCoordinatorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             e.HasOne(x => x.Clinician)
                 .WithMany()
                 .HasForeignKey(x => x.ClinicianId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ReferralTrackerEntry>(e =>
+        {
+            e.ToTable("ReferralTrackerEntries");
+            e.HasKey(x => x.ReferralTrackerEntryId);
+            e.Property(x => x.ReferralNumber).HasMaxLength(50).IsRequired();
+            e.Property(x => x.FirstName).HasMaxLength(100).IsRequired();
+            e.Property(x => x.LastName).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Mrn).HasMaxLength(50);
+            e.Property(x => x.Status).HasMaxLength(100);
+            e.Property(x => x.Source).HasMaxLength(150);
+            e.Property(x => x.Insurance).HasMaxLength(150);
+            e.Property(x => x.PostedOn).HasMaxLength(50);
+            e.Property(x => x.AssignedCoordinatorName).HasMaxLength(200);
+            e.Property(x => x.EstimatedDischargeDate).HasColumnType("date");
+            e.Property(x => x.DateOfBirth).HasColumnType("date");
+            e.Property(x => x.FirstMarketingCall).HasMaxLength(2000);
+            e.Property(x => x.SecondCoordinatorCall).HasMaxLength(2000);
+            e.Property(x => x.ThirdCoordinatorCall).HasMaxLength(2000);
+            e.Property(x => x.Resolution).HasMaxLength(500);
+            e.HasIndex(x => x.ReferralNumber).IsUnique();
+            e.HasIndex(x => x.ReferralDate);
         });
 
         modelBuilder.Entity<Referral>(e =>
@@ -235,6 +284,16 @@ public sealed class AppDbContext : DbContext
             e.ToTable("Referrals");
 
             e.HasKey(x => x.ReferralId);
+
+            // Referral Tracker fields belong to Referrals, not Patients.
+            e.Property(x => x.PostedOn).HasMaxLength(50);
+            e.Property(x => x.TrackerCoordinatorName).HasMaxLength(150);
+            e.Property(x => x.TrackerStatus).HasMaxLength(100);
+            e.Property(x => x.EstimatedDischargeDate).HasColumnType("date");
+            e.Property(x => x.FirstMarketingCall).HasMaxLength(2000);
+            e.Property(x => x.SecondCoordinatorCall).HasMaxLength(2000);
+            e.Property(x => x.ThirdCoordinatorCall).HasMaxLength(2000);
+            e.Property(x => x.Resolution).HasMaxLength(500);
 
             e.Property(x => x.ReferralNumber)
                 .HasMaxLength(50)
@@ -325,7 +384,7 @@ public sealed class AppDbContext : DbContext
         {
             e.ToTable("PatientCareLogs"); e.HasKey(x=>x.PatientCareLogId);
             e.Property(x=>x.LogType).HasMaxLength(50).IsRequired(); e.Property(x=>x.Item).HasMaxLength(200).IsRequired();
-            e.Property(x=>x.Quantity).HasColumnType("decimal(18,2)"); e.Property(x=>x.Unit).HasMaxLength(50); e.Property(x=>x.Notes).HasMaxLength(2000);
+            e.Property(x=>x.Quantity).HasColumnType("decimal(18,2)"); e.Property(x=>x.Unit).HasMaxLength(50); e.Property(x=>x.Notes).HasMaxLength(2000); e.Property(x=>x.Status).HasMaxLength(50);
             e.HasOne(x=>x.Patient).WithMany().HasForeignKey(x=>x.PatientId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x=>x.RecordedByUser).WithMany().HasForeignKey(x=>x.RecordedByUserId).OnDelete(DeleteBehavior.Restrict); e.HasIndex(x=>new{x.PatientId,x.LogType,x.RecordedAt});
         });
@@ -395,6 +454,7 @@ public sealed class AppDbContext : DbContext
             e.ToTable("PatientServiceOrders");
             e.HasKey(x => x.PatientServiceOrderId);
             e.Property(x => x.Status).HasMaxLength(30).IsRequired();
+            e.Property(x => x.OrderDate).HasDefaultValueSql("GETUTCDATE()").IsRequired();
             e.Property(x => x.Frequency).HasMaxLength(100);
             e.Property(x => x.Duration).HasMaxLength(100);
             e.HasOne(x => x.Patient).WithMany().HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Cascade);
@@ -420,6 +480,16 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.CallNotes);
             e.Property(x => x.NotesFlag);
             e.Property(x => x.Location).HasMaxLength(500);
+            // Additional calendar scheduling fields used by the merged calendar feature.
+            e.Property(x => x.Skills).HasMaxLength(300);
+            e.Property(x => x.TreatmentAuthorizationCode).HasMaxLength(100);
+            e.Property(x => x.AttachmentsNeeded).HasMaxLength(1000);
+            e.Property(x => x.BillingRateCode).HasMaxLength(100);
+            e.Property(x => x.BillingRevenueCode).HasMaxLength(100);
+            e.Property(x => x.BillingAmount).HasPrecision(18, 2);
+            e.Property(x => x.BillingOvertimeAmount).HasPrecision(18, 2);
+            e.Property(x => x.VisitsEachDay).HasDefaultValue(1);
+            e.HasIndex(x => x.RecurrenceGroupId);
             e.HasOne(x => x.Patient).WithMany(x => x.Visits)
                 .HasForeignKey(x => x.PatientId)
                 .OnDelete(DeleteBehavior.Cascade)

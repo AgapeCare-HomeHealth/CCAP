@@ -155,3 +155,20 @@
     color: #777;
     font-size: 13px;
 }
+
+.notification-view-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    color: #1769d2;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+}
+.notification-view-all:hover { text-decoration: underline; }
+.notification-timestamp {
+    color: #8a9498;
+    font-size: 11px;
+    margin-top: 3px;
+}

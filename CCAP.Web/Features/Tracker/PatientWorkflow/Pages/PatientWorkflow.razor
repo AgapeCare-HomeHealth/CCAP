@@ -181,12 +181,16 @@ else
         }
     }
 
+    [SupplyParameterFromQuery(Name = "tab")] public string? RequestedTab { get; set; }
+
     protected override async Task OnParametersSetAsync()
     {
         IsLoading = true;
         try
         {
             await LoadPatientDataAsync();
+            if (!string.IsNullOrWhiteSpace(RequestedTab) && Tabs.Any(t => string.Equals(t.Title, RequestedTab, StringComparison.OrdinalIgnoreCase)))
+                OnTabChanged(Tabs.First(t => string.Equals(t.Title, RequestedTab, StringComparison.OrdinalIgnoreCase)).Title);
         }
         finally
         {

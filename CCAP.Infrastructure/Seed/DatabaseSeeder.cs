@@ -63,8 +63,7 @@ public static class DatabaseSeeder
         {
             ("Administrator", "Full system administration"),
             ("Care Coordinator", "Coordinates referrals and patient care"),
-            ("Clinician", "Provides and documents patient care"),
-            ("Scheduler", "Manages scheduling and visits")
+            ("Clinician", "Provides and documents patient care")
         };
 
         var roles = new Dictionary<string, Role>(StringComparer.OrdinalIgnoreCase);
@@ -112,8 +111,6 @@ public static class DatabaseSeeder
             ["dashboard.view", "patients.view", "patients.manage", "referrals.view", "scheduling.view", "fax.view", "fax.manage", "notifications.view", "notifications.manage",
              "notes.view", "notes.manage", "labs.view", "labs.manage", "supplies.view", "supplies.manage",
              "foley.view", "foley.manage", "orders.view", "orders.manage"],
-            ["Scheduler"] =
-            ["dashboard.view", "scheduling.view", "scheduling.manage"]
         };
 
         foreach (var pair in rolePermissionCodes)
@@ -134,6 +131,23 @@ public static class DatabaseSeeder
             {
                 if (!existingIds.Contains(permission.PermissionId))
                     context.RolePermissions.Add(new RolePermission(role.RoleId, permission.PermissionId));
+            }
+        }
+
+        // Scheduler is no longer a seeded role. Remove the legacy role only
+        // when no accounts are assigned to it; preserve existing user records
+        // rather than orphaning their role foreign keys.
+        var legacySchedulerRole = await context.Roles
+            .FirstOrDefaultAsync(x => x.RoleName == "Scheduler", cancellationToken);
+        if (legacySchedulerRole is not null)
+        {
+            var schedulerHasUsers = await context.ApplicationUsers
+                .AnyAsync(x => x.RoleId == legacySchedulerRole.RoleId, cancellationToken);
+            if (!schedulerHasUsers)
+            {
+                context.RolePermissions.RemoveRange(
+                    context.RolePermissions.Where(x => x.RoleId == legacySchedulerRole.RoleId));
+                context.Roles.Remove(legacySchedulerRole);
             }
         }
 
@@ -168,7 +182,8 @@ public static class DatabaseSeeder
             ("PT", "Physical Therapy", "bi bi-person-walking", "text-primary"),
             ("OT", "Occupational Therapy", "bi bi-universal-access", "text-success"),
             ("ST", "Speech Therapy", "bi bi-chat-dots", "text-info"),
-            ("HHA", "Home Health Aide", "bi bi-person-heart", "text-warning")
+            ("HHA", "Home Health Aide", "bi bi-person-heart", "text-warning"),
+            ("MSW", "Medical Social Worker (MSW)", "bi bi-people", "text-info")
         };
 
         // Remove any accidental empty additions from the first pass and use

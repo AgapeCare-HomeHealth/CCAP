@@ -95,6 +95,37 @@ namespace CCAP.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ReferralTrackerEntries",
+                schema: "dbo",
+                columns: table => new
+                {
+                    ReferralTrackerEntryId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    ReferralNumber = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    ReferralDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    FirstName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    LastName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    DateOfBirth = table.Column<DateOnly>(type: "date", nullable: false),
+                    Mrn = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    Status = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Source = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
+                    Insurance = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
+                    AssignedCoordinatorId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    AssignedCoordinatorName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
+                    PostedOn = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    EstimatedDischargeDate = table.Column<DateOnly>(type: "date", nullable: true),
+                    FirstMarketingCall = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: false),
+                    SecondCoordinatorCall = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: false),
+                    ThirdCoordinatorCall = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: false),
+                    Resolution = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ReferralTrackerEntries", x => x.ReferralTrackerEntryId);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Roles",
                 schema: "dbo",
                 columns: table => new
@@ -126,6 +157,27 @@ namespace CCAP.Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_ServiceTypes", x => x.ServiceTypeId);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "UserNotifications",
+                schema: "dbo",
+                columns: table => new
+                {
+                    NotificationId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    PatientId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    PatientName = table.Column<string>(type: "nvarchar(250)", maxLength: 250, nullable: false),
+                    Type = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    Title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Message = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: false),
+                    Severity = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
+                    DueDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_UserNotifications", x => x.NotificationId);
                 });
 
             migrationBuilder.CreateTable(
@@ -264,12 +316,14 @@ namespace CCAP.Infrastructure.Migrations
                     EmergencyContactName = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     EmergencyContactRelationship = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     EmergencyContactPhone = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    EmergencyContactsJson = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     PrimaryInsurance = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     InsuranceMemberId = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     AuthorizationDate = table.Column<DateOnly>(type: "date", nullable: true),
                     PreAuthDueDate = table.Column<DateOnly>(type: "date", nullable: true),
                     NumberOfVisits = table.Column<int>(type: "int", nullable: true),
                     CaseMixType = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
+                    HospitalDcSummaryNotes = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
                     DmeMedSupplyNotes = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
                     SocFeedbackFromPatient = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
                     TifDate = table.Column<DateOnly>(type: "date", nullable: true),
@@ -290,6 +344,8 @@ namespace CCAP.Infrastructure.Migrations
                     ReferralNotes = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Status = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
                     CoordinatorId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    SecondaryCoordinatorId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    BackupCoordinatorId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     ClinicianId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     SocDate = table.Column<DateOnly>(type: "date", nullable: true),
                     CareCompletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
@@ -302,6 +358,13 @@ namespace CCAP.Infrastructure.Migrations
                 {
                     table.PrimaryKey("PK_Patients", x => x.PatientId);
                     table.ForeignKey(
+                        name: "FK_Patients_ApplicationUsers_BackupCoordinatorId",
+                        column: x => x.BackupCoordinatorId,
+                        principalSchema: "dbo",
+                        principalTable: "ApplicationUsers",
+                        principalColumn: "UserId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
                         name: "FK_Patients_ApplicationUsers_ClinicianId",
                         column: x => x.ClinicianId,
                         principalSchema: "dbo",
@@ -311,6 +374,13 @@ namespace CCAP.Infrastructure.Migrations
                     table.ForeignKey(
                         name: "FK_Patients_ApplicationUsers_CoordinatorId",
                         column: x => x.CoordinatorId,
+                        principalSchema: "dbo",
+                        principalTable: "ApplicationUsers",
+                        principalColumn: "UserId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Patients_ApplicationUsers_SecondaryCoordinatorId",
+                        column: x => x.SecondaryCoordinatorId,
                         principalSchema: "dbo",
                         principalTable: "ApplicationUsers",
                         principalColumn: "UserId",
@@ -488,7 +558,8 @@ namespace CCAP.Infrastructure.Migrations
                     Quantity = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
                     Unit = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                     RecordedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Notes = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true)
+                    Notes = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
+                    Status = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -518,6 +589,7 @@ namespace CCAP.Infrastructure.Migrations
                     PatientId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     ServiceTypeId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Status = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
+                    OrderDate = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
                     Frequency = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     Duration = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     IsPrimaryDiscipline = table.Column<bool>(type: "bit", nullable: false)
@@ -607,7 +679,15 @@ namespace CCAP.Infrastructure.Migrations
                     PcosRegistered = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: true),
                     SecondaryDiagnosis = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     ReferralNotes = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    InternalNotes = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                    InternalNotes = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    PostedOn = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    TrackerCoordinatorName = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: true),
+                    TrackerStatus = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    EstimatedDischargeDate = table.Column<DateOnly>(type: "date", nullable: true),
+                    FirstMarketingCall = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
+                    SecondCoordinatorCall = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
+                    ThirdCoordinatorCall = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
+                    Resolution = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -660,6 +740,17 @@ namespace CCAP.Infrastructure.Migrations
                     CallNotes = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     NotesFlag = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Location = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    RecurrenceGroupId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    VisitsEachDay = table.Column<int>(type: "int", nullable: false, defaultValue: 1),
+                    Skills = table.Column<string>(type: "nvarchar(300)", maxLength: 300, nullable: true),
+                    TreatmentAuthorizationCode = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    FlexibleVisit = table.Column<bool>(type: "bit", nullable: false),
+                    OutsourcedVisit = table.Column<bool>(type: "bit", nullable: false),
+                    AttachmentsNeeded = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
+                    BillingRateCode = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    BillingRevenueCode = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    BillingAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
+                    BillingOvertimeAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
                     ScheduledDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     CompletedDate = table.Column<DateTime>(type: "datetime2", nullable: true),
                     Status = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -849,6 +940,12 @@ namespace CCAP.Infrastructure.Migrations
                 column: "RecordedByUserId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Patients_BackupCoordinatorId",
+                schema: "dbo",
+                table: "Patients",
+                column: "BackupCoordinatorId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Patients_ClinicianId",
                 schema: "dbo",
                 table: "Patients",
@@ -866,6 +963,12 @@ namespace CCAP.Infrastructure.Migrations
                 table: "Patients",
                 column: "MRN",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Patients_SecondaryCoordinatorId",
+                schema: "dbo",
+                table: "Patients",
+                column: "SecondaryCoordinatorId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PatientServiceOrders_PatientId_ServiceTypeId",
@@ -948,6 +1051,19 @@ namespace CCAP.Infrastructure.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_ReferralTrackerEntries_ReferralDate",
+                schema: "dbo",
+                table: "ReferralTrackerEntries",
+                column: "ReferralDate");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ReferralTrackerEntries_ReferralNumber",
+                schema: "dbo",
+                table: "ReferralTrackerEntries",
+                column: "ReferralNumber",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_RolePermissions_PermissionId",
                 schema: "dbo",
                 table: "RolePermissions",
@@ -966,6 +1082,12 @@ namespace CCAP.Infrastructure.Migrations
                 table: "ServiceTypes",
                 column: "Code",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserNotifications_UserId_CreatedAt",
+                schema: "dbo",
+                table: "UserNotifications",
+                columns: new[] { "UserId", "CreatedAt" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Visits_AssignedUserId",
@@ -990,6 +1112,12 @@ namespace CCAP.Infrastructure.Migrations
                 schema: "dbo",
                 table: "Visits",
                 column: "PatientId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Visits_RecurrenceGroupId",
+                schema: "dbo",
+                table: "Visits",
+                column: "RecurrenceGroupId");
         }
 
         /// <inheritdoc />
@@ -1048,7 +1176,15 @@ namespace CCAP.Infrastructure.Migrations
                 schema: "dbo");
 
             migrationBuilder.DropTable(
+                name: "ReferralTrackerEntries",
+                schema: "dbo");
+
+            migrationBuilder.DropTable(
                 name: "RolePermissions",
+                schema: "dbo");
+
+            migrationBuilder.DropTable(
+                name: "UserNotifications",
                 schema: "dbo");
 
             migrationBuilder.DropTable(

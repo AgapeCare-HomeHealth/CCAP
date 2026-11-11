@@ -56,7 +56,12 @@
             <button type="button" class="btn btn-outline-primary" @onclick="BeginEdit" disabled="@IsProcessing">
                 <i class="bi bi-pencil me-1"></i>Edit Information
             </button>
-
+            @if (!IsVerified)
+            {
+                <button type="button" class="btn btn-success" @onclick="VerifyInsurance" disabled="@IsProcessing">
+                    <i class="bi bi-shield-check me-1"></i>@(IsProcessing ? "Verifying..." : "Complete Insurance Verification")
+                </button>
+            }
         </div>
 
         @if (IsVerified)
@@ -168,6 +173,21 @@
         IsEditing = false;
         ErrorMessage = null;
         EditModel = new InsuranceEditModel();
+    }
+
+    private async Task VerifyInsurance()
+    {
+        if (Workflow is null || IsProcessing) return;
+        IsProcessing = true;
+        ErrorMessage = null;
+        try
+        {
+            await WorkflowService.CompleteInsuranceVerificationAsync(PatientId);
+            await ReloadWorkflow();
+            await OnCompleted.InvokeAsync();
+        }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { IsProcessing = false; }
     }
 
     private async Task SaveInsurance()

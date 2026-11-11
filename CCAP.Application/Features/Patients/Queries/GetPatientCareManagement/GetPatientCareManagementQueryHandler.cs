@@ -58,7 +58,7 @@ public sealed class GetPatientCareManagementQueryHandler
 
         var mappedCareLogs = careLogs.Select(x => new PatientCareLogResponseDto {
             PatientCareLogId = x.PatientCareLogId, LogType = x.LogType, Item = x.Item, Quantity = x.Quantity, Unit = x.Unit,
-            RecordedAt = x.RecordedAt, Notes = x.Notes, RecordedBy = x.RecordedByUser is null ? "System" : $"{x.RecordedByUser.FirstName} {x.RecordedByUser.LastName}".Trim()
+            RecordedAt = x.RecordedAt, Notes = x.Notes, Status = x.Status, RecordedBy = x.RecordedByUser is null ? "System" : $"{x.RecordedByUser.FirstName} {x.RecordedByUser.LastName}".Trim()
         }).ToList();
 
         var serviceOrders =
@@ -136,7 +136,8 @@ public sealed class GetPatientCareManagementQueryHandler
                     x.Duration ?? string.Empty,
 
                 IsPrimaryDiscipline =
-                    x.IsPrimaryDiscipline
+                    x.IsPrimaryDiscipline,
+                OrderDate = x.OrderDate
             })
             .ToList();
 
@@ -265,7 +266,8 @@ public sealed class GetPatientCareManagementQueryHandler
                 relatedNotes.Add(new PatientRelatedNoteResponseDto { Source = source, Title = title, Content = content.Trim(), Date = date });
         }
 
-        AddPatientFieldNote("Referral", "Patient Referral Notes", patient.ReferralNotes, null);
+        // ReferralNotes is already shown as the canonical "Referral Notes" entry in OverviewTab.
+        // Do not add it again here as "Patient Referral Notes".
         AddPatientFieldNote("Compliance", "DME / Medical Supply Notes", patient.DmeMedSupplyNotes);
         AddPatientFieldNote("Care", "SOC Feedback from Patient", patient.SocFeedbackFromPatient, patient.SocDate?.ToDateTime(TimeOnly.MinValue));
         AddPatientFieldNote("Discharge", "Discharge Feedback", patient.DischargeFeedback, patient.DischargeDate?.ToDateTime(TimeOnly.MinValue));

@@ -1,73 +1,9 @@
-﻿@using CCAP.Web.Features.Dashboard.Models
-
-<div class="widget-card">
-
-    <div class="widget-header">
-
-        Recent Referrals
-
-    </div>
-
-    <table class="table mb-0">
-
-        <tbody>
-            @if (Referrals.Any())
-            {
-                @foreach (var referral in Referrals)
-                {
-                    <tr>
-
-                        <td>
-
-                            <div class="fw-semibold">
-
-                                @referral.PatientName
-
-                            </div>
-
-                            <small>
-
-                                @referral.ReferralNumber
-
-                            </small>
-
-                        </td>
-
-                        <td class="text-end">
-
-                            @referral.ReferralDate.ToString("MM/dd/yyyy")
-
-                        </td>
-
-                    </tr>
-                }
-            }
-            else
-            {
-                <tr>
-
-                    <td colspan="2"
-                        class="text-center py-5">
-
-                        No data available.
-
-                    </td>
-
-                </tr>
-            }
-
-
-        </tbody>
-
-    </table>
-
+@using CCAP.Web.Features.Dashboard.Models
+@inject NavigationManager Navigation
+<div class="widget-card dashboard-list-card">
+  <div class="widget-header d-flex justify-content-between align-items-center"><span>Recent Referrals</span><button class="btn btn-sm btn-link" @onclick="ViewAll">View all (@Referrals.Count())</button></div>
+  <div class="dashboard-card-list">
+  @if (VisibleItems.Any()) { @foreach (var item in VisibleItems) { <div class="dashboard-list-row"><div><div class="fw-semibold">@item.PatientName</div><small class="text-muted">@item.ReferralNumber</small></div><small class="text-nowrap">@item.ReferralDate.ToString("MMM d, yyyy")</small></div> } } else { <div class="text-center text-muted py-4">No referrals available.</div> }
+  </div>
 </div>
-
-@code {
-
-    [Parameter]
-
-    public IEnumerable<ReferralSummaryDto> Referrals { get; set; }
-        = Enumerable.Empty<ReferralSummaryDto>();
-
-}
+@code { [Parameter] public IEnumerable<ReferralSummaryDto> Referrals { get; set; } = []; [Parameter] public int MaxItems { get; set; } = 5; private IEnumerable<ReferralSummaryDto> VisibleItems => Referrals.Take(MaxItems); private void ViewAll() => Navigation.NavigateTo("/dashboard/list/referrals"); }

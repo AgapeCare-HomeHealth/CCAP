@@ -1,60 +1,9 @@
-﻿@using CCAP.Web.Features.Dashboard.Models
-
-<div class="widget-card">
-
-    <div class="widget-header">
-
-        Announcements
-
-    </div>
-
-    <div class="announcement-list">
-        @if (Announcements.Any())
-        {
-            @foreach (var item in Announcements)
-            {
-
-                <div class="announcement-item">
-
-                    <div class="fw-semibold">
-
-                        @item.Title
-
-                    </div>
-
-                    <small>
-
-                        @item.Message
-
-                    </small>
-
-                </div>
-
-            }
-        }
-        else
-        {
-            <div class="announcement-item">
-
-                <div class="fw-semibold">
-
-                    <small>No announcement available</small>
-
-                </div>
-
-            </div>
-        }
-        
-
-    </div>
-
+@using CCAP.Web.Features.Dashboard.Models
+@inject NavigationManager Navigation
+<div class="widget-card dashboard-list-card">
+  <div class="widget-header d-flex justify-content-between align-items-center"><span>Announcements</span><button class="btn btn-sm btn-link" @onclick="ViewAll">View all (@Announcements.Count())</button></div>
+  <div class="dashboard-card-list">
+  @if (VisibleItems.Any()) { @foreach (var item in VisibleItems) { <div class="announcement-item"><div class="fw-semibold">@item.Title</div><div class="small text-muted announcement-message">@item.Message</div><div><small class="text-muted">@item.PublishedAt.ToString("MMM d, yyyy")</small></div></div> } } else { <div class="announcement-item text-muted">No announcement available.</div> }
+  </div>
 </div>
-
-@code {
-
-    [Parameter]
-
-    public IEnumerable<AnnouncementDto> Announcements { get; set; }
-        = Enumerable.Empty<AnnouncementDto>();
-
-}
+@code { [Parameter] public IEnumerable<AnnouncementDto> Announcements { get; set; } = []; [Parameter] public int MaxItems { get; set; } = 3; private IEnumerable<AnnouncementDto> VisibleItems => Announcements.Take(MaxItems); private void ViewAll() => Navigation.NavigateTo("/dashboard/list/announcements"); }

@@ -3,7 +3,7 @@ using MediatR;
 
 namespace CCAP.Application.Features.Scheduling.Commands.UpdateTrackerDetails;
 
-public sealed record UpdateTrackerDetailsCommand(Guid UserId, Guid VisitId, string ConfirmationStatus, string? CallNotes, Guid? ClinicianId) : IRequest;
+public sealed record UpdateTrackerDetailsCommand(Guid UserId, Guid VisitId, string ConfirmationStatus, string? CallNotes, Guid? ClinicianId, bool IsAdministrator = false) : IRequest;
 
 public sealed class UpdateTrackerDetailsCommandHandler : IRequestHandler<UpdateTrackerDetailsCommand>
 {
@@ -18,8 +18,9 @@ public sealed class UpdateTrackerDetailsCommandHandler : IRequestHandler<UpdateT
     public async Task Handle(UpdateTrackerDetailsCommand request, CancellationToken cancellationToken)
     {
         var visit = await _visits.GetByIdForUpdateAsync(request.VisitId, cancellationToken);
-        if (visit is null || visit.AssignedUserId != request.UserId)
-            throw new KeyNotFoundException("Visit not found.");
+        if (visit is null || visit.AssignedUserId != request.UserId ||
+            (request.IsAdministrator && visit.CareCoordinatorId.HasValue && visit.CareCoordinatorId != request.UserId))
+            throw new KeyNotFoundException("Visit not found or not accessible.");
         var allowed = await _lookups.GetAsync("ConfirmationStatus", true, cancellationToken);
         if (!allowed.Any(x => string.Equals(x.DisplayName, request.ConfirmationStatus, StringComparison.OrdinalIgnoreCase) ||
                               string.Equals(x.Code, request.ConfirmationStatus, StringComparison.OrdinalIgnoreCase)))

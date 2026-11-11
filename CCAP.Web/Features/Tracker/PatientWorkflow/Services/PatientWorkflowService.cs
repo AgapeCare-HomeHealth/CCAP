@@ -67,16 +67,33 @@ public sealed class PatientWorkflowService
             $"api/patients/{model.PatientId}",
             new
             {
-                model.MRN,
-                model.FirstName,
-                model.MiddleName,
-                model.LastName,
-                model.SocDate
+                model.MRN, model.FirstName, model.MiddleName, model.LastName, model.SocDate,
+                model.DateOfBirth, model.Gender, PrimaryPhone = model.PrimaryPhone, model.AlternatePhone,
+                StreetAddress = model.StreetAddress, model.City, model.State, model.ZipCode,
+                EmergencyContactName = model.EmergencyContacts.FirstOrDefault()?.Name ?? model.EmergencyContactName,
+                EmergencyContactRelationship = model.EmergencyContacts.FirstOrDefault()?.Relationship ?? model.EmergencyContactRelationship,
+                EmergencyContactPhone = model.EmergencyContacts.FirstOrDefault()?.Phone ?? model.EmergencyContactPhone,
+                EmergencyContactsJson = System.Text.Json.JsonSerializer.Serialize(model.EmergencyContacts.Where(c =>
+                    !string.IsNullOrWhiteSpace(c.Name) || !string.IsNullOrWhiteSpace(c.Relationship) || !string.IsNullOrWhiteSpace(c.Phone))),
+                model.ReferralDate, model.ReferralType, ReferralSource = model.ReferralSource,
+                model.ReferralChannel, model.Priority, model.ReferringPhysician, model.PhysicianPhone,
+                model.PhysicianFax, PhysicianNpi = model.PhysicianNpi, model.PcosRegistered,
+                model.PrimaryDiagnosis, model.SecondaryDiagnosis, model.ReferralNotes,
+                model.VisitPriority, model.CaseStatus, model.InternalNotes, PrimaryCoordinatorId = model.CoordinatorId, model.SecondaryCoordinatorId, model.BackupCoordinatorId
             },
             cancellationToken);
         await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 
+
+    public async Task CompleteInsuranceVerificationAsync(Guid patientId, CancellationToken cancellationToken = default)
+    {
+        var response = await _api.PostAsJsonAsync(
+            $"api/patients/{patientId}/insurance/verify",
+            new { },
+            cancellationToken);
+        await _api.EnsureSuccessAsync(response, cancellationToken);
+    }
 
     public async Task UpdateInsuranceAsync(
         Guid patientId,
@@ -141,8 +158,9 @@ public sealed class PatientWorkflowService
 
 
 
-    public async Task UpdateWorkflowDetailsAsync(Guid patientId, WorkflowDetailsDto model, CancellationToken cancellationToken = default)
+    public async Task UpdateWorkflowDetailsAsync(Guid patientId, WorkflowDetailsDto model, string section = "All", CancellationToken cancellationToken = default)
     {
+        model.Section = section;
         var response = await _api.PutAsJsonAsync($"api/patients/{patientId}/workflow-details", model, cancellationToken);
         await _api.EnsureSuccessAsync(response, cancellationToken);
     }

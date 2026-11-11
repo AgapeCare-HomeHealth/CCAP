@@ -72,6 +72,16 @@ public sealed class CcapApiClient
                 HttpMethod.Get,
                 requestUri);
 
+        // Dashboard reads are live data and must not be served from an
+        // intermediary cache after a browser reload.
+        request.Headers.CacheControl = new CacheControlHeaderValue
+        {
+            NoCache = true,
+            NoStore = true,
+            MustRevalidate = true
+        };
+        request.Headers.Pragma.ParseAdd("no-cache");
+
         await AddAuthorizationAsync(request);
 
         using var response =

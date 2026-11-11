@@ -10,4 +10,5 @@ public class PatientListItem
     public string AssignedClinician { get; set; } = string.Empty;
     public string NextVisit { get; set; } = string.Empty;
     public Guid? AssignedClinicianId { get; set; }
+    public string MyAssignmentRole { get; set; } = string.Empty;
 }

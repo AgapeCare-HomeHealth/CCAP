@@ -4,6 +4,8 @@ namespace CCAP.Web.Features.Tracker.PatientWorkflow.Models
     {
         public string PrimaryDiagnosis { get; set; } = string.Empty;
 
+        public string SecondaryDiagnosis { get; set; } = string.Empty;
+
         public string Insurance { get; set; } = string.Empty;
 
         public string InsuranceMemberId { get; set; } = string.Empty;

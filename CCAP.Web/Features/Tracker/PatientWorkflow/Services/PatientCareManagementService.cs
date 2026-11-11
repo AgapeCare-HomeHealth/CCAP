@@ -30,9 +30,21 @@ public sealed class PatientCareManagementService
         await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 
-    public async Task AddCareLogAsync(Guid patientId, string logType, string item, decimal? quantity, string? unit, string? notes, CancellationToken cancellationToken = default)
+    public async Task AddCareLogAsync(Guid patientId, string logType, string item, decimal? quantity, string? unit, string? notes, string? status = null, CancellationToken cancellationToken = default)
     {
-        var response = await _api.PostAsJsonAsync($"api/patients/{patientId}/care-logs", new { PatientId = patientId, LogType = logType, Item = item, Quantity = quantity, Unit = unit, Notes = notes }, cancellationToken);
+        var response = await _api.PostAsJsonAsync($"api/patients/{patientId}/care-logs", new { PatientId = patientId, LogType = logType, Item = item, Quantity = quantity, Unit = unit, Notes = notes, Status = status }, cancellationToken);
+        await _api.EnsureSuccessAsync(response, cancellationToken);
+    }
+
+    public async Task UpdateCareLogAsync(Guid patientId, Guid logId, string item, decimal? quantity, string? unit, string? notes, string? status, CancellationToken cancellationToken = default)
+    {
+        var response = await _api.PutAsJsonAsync($"api/patients/{patientId}/care-logs/{logId}", new { Item = item, Quantity = quantity, Unit = unit, Notes = notes, Status = status }, cancellationToken);
+        await _api.EnsureSuccessAsync(response, cancellationToken);
+    }
+
+    public async Task DeleteCareLogAsync(Guid patientId, Guid logId, CancellationToken cancellationToken = default)
+    {
+        var response = await _api.DeleteAsync($"api/patients/{patientId}/care-logs/{logId}", cancellationToken);
         await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 
@@ -45,6 +57,12 @@ public sealed class PatientCareManagementService
     public async Task AddServiceOrderAsync(Guid patientId, Guid serviceTypeId, string? frequency, string? duration, bool primary, CancellationToken cancellationToken = default)
     {
         var response = await _api.PostAsJsonAsync($"api/patients/{patientId}/service-orders", new { PatientId = patientId, ServiceTypeId = serviceTypeId, Frequency = frequency, Duration = duration, IsPrimaryDiscipline = primary }, cancellationToken);
+        await _api.EnsureSuccessAsync(response, cancellationToken);
+    }
+
+    public async Task DeleteServiceOrderAsync(Guid patientId, Guid orderId, CancellationToken cancellationToken = default)
+    {
+        var response = await _api.DeleteAsync($"api/patients/{patientId}/service-orders/{orderId}", cancellationToken);
         await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 

@@ -24,14 +24,30 @@
 
         <div class="row g-4">
             <div class="col-md-6">
-                <label class="form-label">Care Coordinator</label>
+                <label class="form-label">Primary Care Coordinator</label>
                 <select class="form-select" @bind="Model.CoordinatorId">
-                    <option value="">Select Coordinator</option>
+                    @if (!IsCareCoordinator)
+                    {
+                        <option value="">Select Primary CC</option>
+                    }
                     @foreach (var user in Coordinators)
+                    {
+                        <option value="@user.UserId" disabled="@(user.UserId == Model.SecondaryCoordinatorId)">@user.FullName</option>
+                    }
+                </select>
+                <div class="form-text">Defaults to the logged-in user. You may change the Primary CC if needed.</div>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Secondary Care Coordinator</label>
+                <select class="form-select" @bind="Model.SecondaryCoordinatorId">
+                    <option value="">Select Secondary CC (optional)</option>
+                    @foreach (var user in Coordinators.Where(x => x.UserId != Model.CoordinatorId))
                     {
                         <option value="@user.UserId">@user.FullName</option>
                     }
                 </select>
+                <div class="form-text">Backup coverage when the Primary CC is unavailable.</div>
             </div>
 
             <div class="col-md-6">
@@ -75,8 +91,8 @@
         <div class="row g-4">
             <div class="col-md-4">
                 <label class="form-label">Target SOC Date</label>
-                <input type="date" class="form-control" value="@Model.SocDate?.ToString("yyyy-MM-dd")" readonly />
-                <div class="form-text">Automatically calculated as 48 hours from the initial referral date.</div>
+                <input type="date" class="form-control" @bind="Model.SocDate" />
+                <div class="form-text">Set the planned Start of Care (SOC) date. You can adjust it as needed.</div>
             </div>
 
             <div class="col-md-4">
@@ -110,6 +126,12 @@
 @code {
     [Parameter]
     public ReferralIntakeModel Model { get; set; } = null!;
+
+    [Parameter]
+    public bool IsAdministrator { get; set; }
+
+    [Parameter]
+    public bool IsCareCoordinator { get; set; }
 
     [Parameter]
     public List<UserDto> Coordinators { get; set; } = [];

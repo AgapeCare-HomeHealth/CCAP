@@ -92,6 +92,7 @@ public sealed class ScheduleImportService : IScheduleImportService
             .ToList();
 
         var result = new List<ScheduleImportPreviewItem>(rows.Count);
+        var seenInFile = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var row in rows)
         {
@@ -158,6 +159,18 @@ public sealed class ScheduleImportService : IScheduleImportService
                         : $"{duplicate.Clinician.FirstName} {duplicate.Clinician.LastName}".Trim());
             }
 
+            // Detect repeated rows within the same upload, even before any rows are saved.
+            // Ambiguous same-slot visits are skipped pending future matching rules.
+            var key = DuplicateKey(row.PatientName, row.ScheduledDate, row.TimeBlock, row.VisitType);
+            if (!seenInFile.Add(key))
+            {
+                item.IsDuplicate = true;
+                item.CanImport = false;
+                item.HasWarning = true;
+                item.ValidationMessage = string.Join(" ", new[] { item.ValidationMessage,
+                    "Repeated visit within this file. This row will be skipped." }.Where(x => !string.IsNullOrWhiteSpace(x)));
+            }
+
             result.Add(item);
         }
 
@@ -173,59 +186,34 @@ public sealed class ScheduleImportService : IScheduleImportService
             throw new ArgumentException("No schedules were selected for import.");
 
         var added = 0;
-        var overwritten = 0;
         var kept = 0;
+        var seenInRequest = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var item in items)
         {
+            var key = DuplicateKey(item.PatientName, item.ScheduledDate, item.TimeBlock, item.VisitType);
+            if (!seenInRequest.Add(key))
+            {
+                kept++;
+                continue;
+            }
+
+            // Always recheck against the DB during commit, not only preview.
             var existing = await _visits.FindScheduleDuplicateAsync(
-                userId,
-                item.PatientName,
-                item.ScheduledDate,
-                item.TimeBlock,
-                item.VisitType,
-                cancellationToken);
+                userId, item.PatientName, item.ScheduledDate, item.TimeBlock,
+                item.VisitType, cancellationToken);
 
             if (existing is not null)
             {
-                if (!item.OverwriteExisting)
-                {
-                    kept++;
-                    continue;
-                }
-
-                existing.UpdateImportedSchedule(
-                    item.PatientName,
-                    item.ScheduledDate,
-                    item.TimeBlock,
-                    item.ConfirmationStatus,
-                    item.CallNotes,
-                    item.ClinicianName,
-                    item.PatientId,
-                    item.ClinicianId,
-                    userId,
-                    item.VisitType,
-                    item.VisitStatus,
-                    item.NotesFlag);
-
-                overwritten++;
+                kept++;
                 continue;
             }
 
             var importedVisit = Visit.CreateImportedSchedule(
-                item.PatientName,
-                item.ScheduledDate,
-                item.TimeBlock,
-                item.ConfirmationStatus,
-                item.CallNotes,
-                item.ClinicianName,
-                item.PatientId,
-                item.ClinicianId,
-                userId,
-                item.VisitType,
-                item.VisitStatus,
-                item.NotesFlag);
-
+                item.PatientName, item.ScheduledDate, item.TimeBlock,
+                item.ConfirmationStatus, item.CallNotes, item.ClinicianName,
+                item.PatientId, item.ClinicianId, userId,
+                item.VisitType, item.VisitStatus, item.NotesFlag);
             await _visits.AddAsync(importedVisit, cancellationToken);
             added++;
         }
@@ -235,11 +223,18 @@ public sealed class ScheduleImportService : IScheduleImportService
         return new ScheduleImportResult
         {
             Added = added,
-            Overwritten = overwritten,
+            Overwritten = 0,
             Kept = kept,
             Warnings = items.Count(x => x.HasWarning)
         };
     }
+
+    private static string DuplicateKey(string patientName, DateTime date, string timeBlock, string visitType) =>
+        $"{NormalizePersonName(patientName)}|{date.Date:yyyy-MM-dd}|{NormalizeToken(timeBlock)}|{NormalizeToken(visitType)}";
+
+    private static string NormalizeToken(string? text) =>
+        string.Join("", (text ?? "").Trim().ToUpperInvariant().Where(c => !char.IsWhiteSpace(c)))
+            .Replace('–', '-').Replace('—', '-');
 
     private static Patient? FindPatient(
         IEnumerable<Patient> patients,
@@ -355,10 +350,7 @@ public sealed class ScheduleImportService : IScheduleImportService
 
             var headerRow = rows.FirstOrDefault(r =>
                 r.Elements<Cell>().Any(c =>
-                    string.Equals(
-                        GetCellValue(c, sharedStrings)?.Trim(),
-                        "Patient Name",
-                        StringComparison.OrdinalIgnoreCase)));
+                    NormalizeHeader(GetCellValue(c, sharedStrings)) == NormalizeHeader("Patient Name")));
 
             // Ignore worksheets that are not schedule data sheets.
             // This allows the workbook to contain a blank "Template" sheet
@@ -446,22 +438,30 @@ public sealed class ScheduleImportService : IScheduleImportService
         if (stream.CanSeek)
             stream.Position = 0;
 
-        using var reader = new StreamReader(stream, leaveOpen: true);
+        using var parser = new Microsoft.VisualBasic.FileIO.TextFieldParser(stream,
+            System.Text.Encoding.UTF8, detectEncoding: true, leaveOpen: true);
+        parser.TextFieldType = Microsoft.VisualBasic.FileIO.FieldType.Delimited;
+        parser.SetDelimiters(",");
+        parser.HasFieldsEnclosedInQuotes = true;
 
         var rows = new List<List<string>>();
-
-        while (!reader.EndOfStream)
-            rows.Add(ParseCsvLine(reader.ReadLine() ?? string.Empty));
+        try
+        {
+            while (!parser.EndOfData)
+                rows.Add((parser.ReadFields() ?? Array.Empty<string>()).ToList());
+        }
+        catch (Microsoft.VisualBasic.FileIO.MalformedLineException ex)
+        {
+            throw new InvalidOperationException(
+                $"CSV contains an invalid quoted field near line {ex.LineNumber}. Please export the schedule again as CSV UTF-8.");
+        }
 
         if (rows.Count == 0)
             return [];
 
         var headerIndex = rows.FindIndex(row =>
             row.Any(cell =>
-                string.Equals(
-                    cell.Trim(),
-                    "Patient Name",
-                    StringComparison.OrdinalIgnoreCase)));
+                NormalizeHeader(cell) == NormalizeHeader("Patient Name")));
 
         if (headerIndex < 0)
             throw new InvalidOperationException(
@@ -598,6 +598,11 @@ public sealed class ScheduleImportService : IScheduleImportService
         string.Join(
             " ",
             (value ?? string.Empty)
+                .Replace("\uFEFF", "")
+                .Replace("\u200B", "")
+                .Replace("\u200C", "")
+                .Replace("\u200D", "")
+                .Replace('\u00A0', ' ')
                 .Trim()
                 .ToUpperInvariant()
                 .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
@@ -787,44 +792,5 @@ public sealed class ScheduleImportService : IScheduleImportService
             result = result * 26 + (c - 'A' + 1);
 
         return result;
-    }
-
-    private static List<string> ParseCsvLine(string line)
-    {
-        var values = new List<string>();
-        var current = new System.Text.StringBuilder();
-        var quoted = false;
-
-        for (var i = 0; i < line.Length; i++)
-        {
-            var ch = line[i];
-
-            if (ch == '"')
-            {
-                if (quoted &&
-                    i + 1 < line.Length &&
-                    line[i + 1] == '"')
-                {
-                    current.Append('"');
-                    i++;
-                }
-                else
-                {
-                    quoted = !quoted;
-                }
-            }
-            else if (ch == ',' && !quoted)
-            {
-                values.Add(current.ToString());
-                current.Clear();
-            }
-            else
-            {
-                current.Append(ch);
-            }
-        }
-
-        values.Add(current.ToString());
-        return values;
     }
 }

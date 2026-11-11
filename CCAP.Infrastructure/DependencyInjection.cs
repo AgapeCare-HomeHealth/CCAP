@@ -71,6 +71,8 @@ public static class DependencyInjection
             IReferralRepository,
             ReferralRepository>();
 
+        services.AddScoped<IReferralTrackerRepository, ReferralTrackerRepository>();
+
         services.AddScoped<
             IReferralDraftRepository,
             ReferralDraftRepository>();

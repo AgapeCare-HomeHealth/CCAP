@@ -1,5 +1,7 @@
 @using CCAP.Web.Features.Tracker.PatientWorkflow.Models
 
+@if (Items.Any())
+{
 <div class="card shadow-sm border-0 mb-4">
     <div class="card-header bg-white d-flex justify-content-between align-items-start gap-3 flex-wrap">
         <div>
@@ -30,12 +32,19 @@
                                 <select class="form-select form-select-sm @GetSelectClass(item)" aria-label="Compliance status for @item.RequirementName"
                                         value="@(item.ComplianceStatus ?? (item.IsCompleted ? "Yes" : ""))"
                                         @onchange="(e) => HandleStatusChanged(item, e.Value?.ToString())"
-                                        disabled="@(IsSaving && SavingCode == item.RequirementCode || IsUnmarking && UnmarkingCode == item.RequirementCode)">
+                                        disabled="@(IsSaving && SavingCode == item.RequirementCode)">
                                     <option value="">Select status...</option>
                                     <option value="Yes">Yes — Complete</option>
                                     <option value="No">No — Outstanding</option>
                                     <option value="N/A">N/A — Complete</option>
                                 </select>
+                                @if ((IsSaving && SavingCode == item.RequirementCode))
+                                {
+                                    <div class="small text-primary mt-2 d-flex align-items-center gap-2" role="status" aria-live="polite">
+                                        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                        <span>Saving status...</span>
+                                    </div>
+                                }
                             </div>
                         </div>
                         @if (item.IsCompleted && item.CompletedAt.HasValue)
@@ -51,6 +60,7 @@
         </div>
     </div>
 </div>
+}
 
 @code {
     [Parameter] public string Title { get; set; } = "";
@@ -58,8 +68,6 @@
     [Parameter] public IEnumerable<ComplianceItemDto> Items { get; set; } = [];
     [Parameter] public EventCallback<string> OnComplete { get; set; }
     [Parameter] public EventCallback<string> OnUnmark { get; set; }
-    [Parameter] public bool IsUnmarking { get; set; }
-    [Parameter] public string? UnmarkingCode { get; set; }
     [Parameter] public bool IsSaving { get; set; }
     [Parameter] public string? SavingCode { get; set; }
 

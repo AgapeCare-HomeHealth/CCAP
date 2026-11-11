@@ -27,12 +27,21 @@ public sealed class ReferralIntakeDraftData
     public string EmergencyContactName { get; set; } = string.Empty;
     public string EmergencyContactRelationship { get; set; } = string.Empty;
     public string EmergencyContactPhone { get; set; } = string.Empty;
+    public List<EmergencyContactModel> EmergencyContacts { get; set; } = [];
 
     public string ReferralNumber { get; set; } = string.Empty;
     public DateTime ReferralDate { get; set; } = DateTime.Today;
     public string ReferralSource { get; set; } = string.Empty;
     public string ReferralType { get; set; } = string.Empty;
     public string ReferralChannel { get; set; } = string.Empty;
+    public string PostedOn { get; set; } = "Referral/Intake";
+    public string TrackerStatus { get; set; } = string.Empty;
+    public DateOnly? EstimatedDischargeDate { get; set; }
+    public string TrackerCoordinatorName { get; set; } = string.Empty;
+    public string FirstMarketingCall { get; set; } = string.Empty;
+    public string SecondCoordinatorCall { get; set; } = string.Empty;
+    public string ThirdCoordinatorCall { get; set; } = string.Empty;
+    public string Resolution { get; set; } = string.Empty;
     public string Priority { get; set; } = "Routine";
 
     public string PrimaryInsurance { get; set; } = string.Empty;
@@ -54,6 +63,7 @@ public sealed class ReferralIntakeDraftData
     public string ReferralNotes { get; set; } = string.Empty;
 
     public Guid? CoordinatorId { get; set; }
+    public Guid? SecondaryCoordinatorId { get; set; }
     public Guid? ClinicianId { get; set; }
     public Guid? DisciplineId { get; set; }
     public DateOnly? SocDate { get; set; }

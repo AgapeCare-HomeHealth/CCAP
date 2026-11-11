@@ -12,15 +12,24 @@ public sealed class GetPatientWorkflowQueryHandler
     private readonly IPatientRepository _patients;
     private readonly IUserRepository _users;
     private readonly IPatientCareLogRepository _careLogs;
+    private readonly IPatientTaskRepository _tasks;
+    private readonly IComplianceRepository _compliance;
+    private readonly IUnitOfWork _unitOfWork;
 
     public GetPatientWorkflowQueryHandler(
         IPatientRepository patients,
         IUserRepository users,
-        IPatientCareLogRepository careLogs)
+        IPatientCareLogRepository careLogs,
+        IPatientTaskRepository tasks,
+        IComplianceRepository compliance,
+        IUnitOfWork unitOfWork)
     {
         _patients = patients;
         _users = users;
         _careLogs = careLogs;
+        _tasks = tasks;
+        _compliance = compliance;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<PatientWorkflowResponseDto?> Handle(
@@ -33,6 +42,11 @@ public sealed class GetPatientWorkflowQueryHandler
 
         if (patient is null)
             return null;
+
+        // Idempotent backfill: older patients receive missing compliance and insurance tasks
+        // the first time their workflow is opened. Existing tasks are never duplicated.
+        await PatientComplianceTaskSynchronizer.EnsureAllAsync(patient, _tasks, _compliance, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var referral = patient.Referrals
             .OrderByDescending(x => x.ReferralDate)
@@ -59,34 +73,14 @@ public sealed class GetPatientWorkflowQueryHandler
         var age = CalculateAge(patient.DateOfBirth);
 
         var activeComplianceRequirementCodes =
-            new HashSet<string>(
-                StringComparer.OrdinalIgnoreCase)
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "PRE_AUTH_RECEIVED",
-                "PRO_RECEIVED",
-                "H_AND_P_RECEIVED",
-                "F2F_RECEIVED",
-                "PCP_CONFIRMED",
-                "AVS_RECEIVED",
-                "SIGNED_CONSENTS",
-                "INSURANCE_VERIFICATION",
-
-                "SOC_COMPLIANT",
-                "DME_MED_SUPPLY",
-                "NOA_FILED",
-                "OASIS_SOC_COMPLETE",
-                "QA_APPROVAL",
-                "ORDERS_SIGNED",
-                "DOCS_UPLOADED",
-                                "CASE_MIX_IDENTIFIED",
-                "CASE_MIX_ORDERS_SIGNED",
-                "CASE_MIX_PLOTTED",
-                "PCP_PT_NOTIFIED",
-
-                "ROC",
-                "RECERTIFICATION",
-                "DISCHARGE_SUMMARY_SIGNED",
-                "NOMNC_SIGNED"
+                "PRE_AUTH_RECEIVED", "PRO_RECEIVED",
+                "H_AND_P_RECEIVED", "F2F_RECEIVED", "PCP_CONFIRMED",
+                "DME_MED_SUPPLY", "SIGNED_CONSENTS", "NOA_FILED", "OASIS_SOC_COMPLETE",
+                "ORDERS_SIGNED", "DOCS_UPLOADED", "SOC_FEEDBACK_FROM_PATIENT", "AVS_RECEIVED",
+                "CASE_MIX_IDENTIFIED", "CASE_MIX_PLOTTED", "QA_APPROVAL",
+                "PCP_PT_NOTIFIED", "DISCHARGE_SUMMARY_SIGNED", "NOMNC_SIGNED"
             };
 
         var pendingTask = patient.Tasks
@@ -332,9 +326,40 @@ public sealed class GetPatientWorkflowQueryHandler
                 SocDate = patient.SocDate,
 
                 Coordinator = coordinator,
-
+                CoordinatorId = patient.CoordinatorId,
+                SecondaryCoordinatorId = patient.SecondaryCoordinatorId,
+                BackupCoordinatorId = patient.BackupCoordinatorId,
+                SecondaryCoordinator = patient.SecondaryCoordinator is null ? string.Empty : $"{patient.SecondaryCoordinator.FirstName} {patient.SecondaryCoordinator.LastName}",
+                BackupCoordinator = patient.BackupCoordinator is null ? string.Empty : $"{patient.BackupCoordinator.FirstName} {patient.BackupCoordinator.LastName}",
+                DateOfBirth = patient.DateOfBirth,
+                Gender = patient.Gender ?? string.Empty,
+                PrimaryPhone = patient.PhoneNumber ?? string.Empty,
+                AlternatePhone = patient.AlternatePhone ?? string.Empty,
+                StreetAddress = patient.Address ?? string.Empty,
+                City = patient.City ?? string.Empty,
+                State = patient.State ?? string.Empty,
+                ZipCode = patient.ZipCode ?? string.Empty,
+                EmergencyContactName = patient.EmergencyContactName ?? string.Empty,
+                EmergencyContactRelationship = patient.EmergencyContactRelationship ?? string.Empty,
+                EmergencyContactPhone = patient.EmergencyContactPhone ?? string.Empty,
+                EmergencyContactsJson = patient.EmergencyContactsJson ?? string.Empty,
+                ReferralDate = referral?.ReferralDate,
+                ReferralType = referral?.ReferralType ?? string.Empty,
+                ReferralSource = referral?.Source ?? string.Empty,
+                ReferralChannel = referral?.ReferralChannel ?? string.Empty,
+                Priority = referral?.Priority ?? string.Empty,
+                ReferringPhysician = referral?.ReferringPhysician ?? patient.ReferringPhysician ?? string.Empty,
+                PhysicianPhone = referral?.PhysicianPhone ?? patient.PhysicianPhone ?? string.Empty,
+                PhysicianFax = referral?.PhysicianFax ?? string.Empty,
+                PhysicianNpi = referral?.PhysicianNpi ?? string.Empty,
+                PcosRegistered = referral?.PcosRegistered ?? string.Empty,
+                PrimaryDiagnosis = patient.PrimaryDiagnosis ?? string.Empty,
+                SecondaryDiagnosis = referral?.SecondaryDiagnosis ?? patient.SecondaryDiagnosis ?? string.Empty,
+                ReferralNotes = referral?.ReferralNotes ?? patient.ReferralNotes ?? string.Empty,
+                VisitPriority = referral?.VisitPriority ?? string.Empty,
+                CaseStatus = referral?.CaseStatus ?? string.Empty,
+                InternalNotes = referral?.InternalNotes ?? string.Empty,
                 Branch = referral?.Location?.Name ?? string.Empty,
-
                 EpisodeNumber = 1
 
             },
@@ -360,6 +385,11 @@ public sealed class GetPatientWorkflowQueryHandler
             KeyInformation = new KeyInformationResponseDto
             {
                 Coordinator = coordinator,
+                CoordinatorId = patient.CoordinatorId,
+                SecondaryCoordinatorId = patient.SecondaryCoordinatorId,
+                BackupCoordinatorId = patient.BackupCoordinatorId,
+                SecondaryCoordinator = patient.SecondaryCoordinator is null ? string.Empty : $"{patient.SecondaryCoordinator.FirstName} {patient.SecondaryCoordinator.LastName}",
+                BackupCoordinator = patient.BackupCoordinator is null ? string.Empty : $"{patient.BackupCoordinator.FirstName} {patient.BackupCoordinator.LastName}",
 
                 Clinician = clinician,
 
@@ -392,6 +422,9 @@ public sealed class GetPatientWorkflowQueryHandler
             {
                 PrimaryDiagnosis =
                     patient.PrimaryDiagnosis ?? string.Empty,
+
+                SecondaryDiagnosis =
+                    patient.SecondaryDiagnosis ?? string.Empty,
 
                 Insurance =
                     patient.PrimaryInsurance ??
@@ -459,6 +492,7 @@ public sealed class GetPatientWorkflowQueryHandler
                 PreAuthDueDate = patient.PreAuthDueDate,
                 NumberOfVisits = patient.NumberOfVisits,
                 CaseMixType = patient.CaseMixType ?? string.Empty,
+                HospitalDcSummaryNotes = patient.HospitalDcSummaryNotes ?? string.Empty,
                 DmeMedSupplyNotes = patient.DmeMedSupplyNotes ?? string.Empty,
                 SocFeedbackFromPatient = patient.SocFeedbackFromPatient ?? string.Empty,
                 TifDate = patient.TifDate,
@@ -508,63 +542,72 @@ public sealed class GetPatientWorkflowQueryHandler
     {
         return requirementCode.Trim().ToUpperInvariant() switch
         {
-            "PRE_AUTH_RECEIVED" or "PRO_RECEIVED" or "H_AND_P_RECEIVED" or "F2F_RECEIVED" or "PCP_CONFIRMED" or "AVS_RECEIVED" or "SIGNED_CONSENTS" or "INSURANCE_VERIFICATION" => 1,
-            "SOC_COMPLIANT" or "DME_MED_SUPPLY" or "NOA_FILED" or "OASIS_SOC_COMPLETE" or "QA_APPROVAL" or "ORDERS_SIGNED" or "DOCS_UPLOADED" or "CASE_MIX_IDENTIFIED" or "CASE_MIX_ORDERS_SIGNED" or "CASE_MIX_PLOTTED" => 2,
-            "ROC" or "RECERTIFICATION" or "PCP_PT_NOTIFIED" or "DISCHARGE_SUMMARY_SIGNED" or "NOMNC_SIGNED" => 3,
+            "PRE_AUTH_RECEIVED" or "PRO_RECEIVED"
+                or "H_AND_P_RECEIVED" or "F2F_RECEIVED" or "PCP_CONFIRMED" => 1,
+            "DME_MED_SUPPLY" or "SIGNED_CONSENTS" or "NOA_FILED" or "OASIS_SOC_COMPLETE"
+                or "ORDERS_SIGNED" or "DOCS_UPLOADED" or "SOC_FEEDBACK_FROM_PATIENT" or "AVS_RECEIVED" => 2,
+            "CASE_MIX_IDENTIFIED" or "CASE_MIX_PLOTTED" or "QA_APPROVAL" => 3,
+            "PCP_PT_NOTIFIED" => 4,
+            "DISCHARGE_SUMMARY_SIGNED" or "NOMNC_SIGNED" => 5,
             _ => 0
         };
     }
 
     private static List<WorkflowStageResponseDto> BuildWorkflowStages(Patient patient, Referral? referral)
     {
-        // Keep the Patient Workflow progress bar aligned with the established
-        // CCAP patient workflow presentation. Insurance is shown as the
-        // compliance checkpoint, followed by Admission and then SOC.
-        // Recertification remains a milestone shown in the progress bar; it is
-        // not a separate recertification workflow/module.
+        // Keep the original clinical workflow stages (Referral and Insurance)
+        // and show the five requested compliance groups after them.
+        // The five groups organize compliance requirements; they do not replace
+        // the existing Referral and Insurance milestones.
+        var admissionRequirementCodes = PatientWorkflowStageRules.Admission;
+        var socRequirementCodes = PatientWorkflowStageRules.Soc;
+        var ongoingCareRequirementCodes = PatientWorkflowStageRules.OngoingCare;
+        var recertRequirementCodes = PatientWorkflowStageRules.RecertOrDischarge;
+        var dischargeRequirementCodes = PatientWorkflowStageRules.Discharge;
+
+        static bool AllComplete(Patient p, IEnumerable<string> codes) =>
+            codes.All(code => IsComplianceCompleted(p, code));
+
         var referralCompleted = referral is not null;
-        var insuranceCompleted = IsComplianceCompleted(patient, "INSURANCE_VERIFICATION");
-        var socCompleted = IsComplianceCompleted(patient, "SOC_COMPLIANT");
-
-        var admissionRequirementCodes = new[]
-        {
-            "DME_MED_SUPPLY",
-            "NOA_FILED",
-            "OASIS_SOC_COMPLETE",
-            "QA_APPROVAL",
-            "ORDERS_SIGNED",
-            "DOCS_UPLOADED",
-            "CASE_MIX_IDENTIFIED",
-            "CASE_MIX_ORDERS_SIGNED",
-            "CASE_MIX_PLOTTED"
-        };
-
-        var admissionCompleted = admissionRequirementCodes.All(code => IsComplianceCompleted(patient, code));
-        var ongoingCareCompleted = patient.CareCompletedAt.HasValue;
-        var recertCompleted = patient.RecertDate.HasValue || IsComplianceCompleted(patient, "RECERTIFICATION");
-        var finalOutcomeCompleted = patient.CareCompletedAt.HasValue || patient.TransferDate.HasValue;
+        var insuranceCompleted = patient.InsuranceVerifiedAt.HasValue;
+        var admissionCompleted = referralCompleted && insuranceCompleted
+            && AllComplete(patient, admissionRequirementCodes);
+        var socCompleted = admissionCompleted && AllComplete(patient, socRequirementCodes);
+        var ongoingCareCompleted = socCompleted
+            && AllComplete(patient, ongoingCareRequirementCodes);
+        var recertCompleted = ongoingCareCompleted && AllComplete(patient, recertRequirementCodes);
+        // Discharge date is recorded separately from the final outcome action.
+        // The summary and NOMNC may be completed on different days after that date.
+        var dischargeCompleted = recertCompleted && AllComplete(patient, dischargeRequirementCodes);
 
         var stages = new List<WorkflowStageResponseDto>
         {
-            CreateWorkflowStage(patient, 1, "REFERRAL", "Referral", referralCompleted, referral?.ReferralDate),
-            CreateWorkflowStage(patient, 2, "INSURANCE", "Insurance", insuranceCompleted, GetComplianceCompletedDate(patient, "INSURANCE_VERIFICATION")),
-            CreateWorkflowStage(patient, 3, "ADMISSION", "Admission", admissionCompleted, admissionCompleted ? GetAdmissionCompletionDate(patient, admissionRequirementCodes) : null),
-            CreateWorkflowStage(patient, 4, "SOC", "SOC", socCompleted, GetSocCompletionDate(patient)),
-            CreateWorkflowStage(patient, 5, "ONGOING_CARE", "Ongoing Care", ongoingCareCompleted, patient.CareCompletedAt),
-            CreateWorkflowStage(patient, 6, "RECERTIFICATION", "Recertification", recertCompleted, patient.RecertDate?.ToDateTime(TimeOnly.MinValue) ?? GetComplianceCompletedDate(patient, "RECERTIFICATION")),
-            CreateWorkflowStage(patient, 7, "FINAL_OUTCOME", "Final Outcome", finalOutcomeCompleted, patient.CareCompletedAt ?? patient.TransferDate?.ToDateTime(TimeOnly.MinValue))
+            CreateWorkflowStage(patient, 1, "REFERRAL", "Referral", referralCompleted,
+                referralCompleted ? referral!.ReferralDate : null),
+            CreateWorkflowStage(patient, 2, "INSURANCE", "Insurance", insuranceCompleted,
+                insuranceCompleted ? patient.InsuranceVerifiedAt : null),
+            CreateWorkflowStage(patient, 3, "ADMISSION", "Admission", admissionCompleted,
+                admissionCompleted ? GetAdmissionCompletionDate(patient, admissionRequirementCodes) : null),
+            CreateWorkflowStage(patient, 4, "SOC", "SOC", socCompleted,
+                socCompleted ? GetAdmissionCompletionDate(patient, socRequirementCodes) : null),
+            CreateWorkflowStage(patient, 5, "ONGOING_CARE", "On-Going Care", ongoingCareCompleted,
+                ongoingCareCompleted ? (GetAdmissionCompletionDate(patient, ongoingCareRequirementCodes) ?? patient.TifDate?.ToDateTime(TimeOnly.MinValue)) : null),
+            CreateWorkflowStage(patient, 6, "RECERT_OR_DISCHARGE", "Recert or Discharge", recertCompleted,
+                recertCompleted ? GetAdmissionCompletionDate(patient, recertRequirementCodes) : null),
+            CreateWorkflowStage(patient, 7, "DISCHARGE", "Discharge", dischargeCompleted,
+                dischargeCompleted ? (GetAdmissionCompletionDate(patient, dischargeRequirementCodes) ?? patient.DischargeDate?.ToDateTime(TimeOnly.MinValue) ?? patient.TransferDate?.ToDateTime(TimeOnly.MinValue)) : null)
         };
 
-        SetWorkflowState(stages);
+        // Strict sequential progression: Referral -> Insurance -> the five
+        // compliance groups. Only the first incomplete stage is current.
+        var currentIndex = stages.FindIndex(stage => stage.Status != 2);
+        SetWorkflowState(stages, currentIndex);
         return stages;
     }
 
-    private static bool IsComplianceCompleted(Patient patient, string requirementCode)
-    {
-        return patient.ComplianceRecords.Any(x =>
-            x.IsCompleted &&
+    private static bool IsComplianceCompleted(Patient patient, string requirementCode) =>
+        patient.ComplianceRecords.Any(x => x.IsCompleted &&
             string.Equals(x.RequirementCode, requirementCode, StringComparison.OrdinalIgnoreCase));
-    }
 
     private static bool HasWorkflowHistory(Patient patient, params string[] terms)
     {
@@ -669,196 +712,95 @@ public sealed class GetPatientWorkflowQueryHandler
             .FirstOrDefault();
     }
 
-    private static void SetWorkflowState(List<WorkflowStageResponseDto> stages)
+    private static void SetWorkflowState(List<WorkflowStageResponseDto> stages, int currentIndex)
     {
-        var currentIndex = stages.FindIndex(x => x.Status != 2 && x.Status != 3);
-        if (currentIndex < 0) return;
-        for (var i=0;i<stages.Count;i++)
+        // Completed groups retain their completed state. Only the first
+        // incomplete group is current; all later groups remain pending.
+        for (var i = 0; i < stages.Count; i++)
         {
-            var stage=stages[i];
-            if(stage.Status==3) continue;
-            if(i<currentIndex){stage.Status=2;stage.Description="Completed";stage.IsClickable=true;}
-            else if(i==currentIndex){stage.Status=1;stage.Description="Current Stage";stage.IsClickable=true;}
-            else{stage.Status=0;stage.Description="Pending";stage.IsClickable=false;}
+            var stage = stages[i];
+            if (stage.Status == 3)
+            {
+                stage.Description = "Not applicable";
+                stage.IsClickable = false;
+                continue;
+            }
+
+            if (stage.Status == 2)
+            {
+                stage.Description = "Completed";
+                stage.IsClickable = true;
+                continue;
+            }
+
+            if (i == currentIndex)
+            {
+                stage.Status = 1;
+                stage.Description = "Current Stage";
+                stage.IsClickable = true;
+            }
+            else
+            {
+                stage.Status = 0;
+                stage.Description = "Pending";
+                stage.IsClickable = false;
+            }
         }
     }
 
-    private static string GetComplianceRequirementName(
-    string requirementCode)
+    private static string GetComplianceRequirementName(string requirementCode)
     {
-        return requirementCode
-            .Trim()
-            .ToUpperInvariant() switch
+        return requirementCode.Trim().ToUpperInvariant() switch
         {
-            // =====================================================
-            // PHASE 1 - INTAKE & ADMISSION PREPARATION
-            // =====================================================
-
-            "PRE_AUTH_RECEIVED" =>
-                "Pre-Auth Received",
-
-            "PRO_RECEIVED" =>
-                "PRO Received",
-
-            "H_AND_P_RECEIVED" =>
-                "H&P",
-
-            "F2F_RECEIVED" =>
-                "F2F Received",
-
-            "PCP_CONFIRMED" =>
-                "PCP Confirmed",
-
-            "AVS_RECEIVED" =>
-                "AVS Received",
-
-            "SIGNED_CONSENTS" =>
-                "Signed Consents",
-
-            // =====================================================
-            // PHASE 2 - CARE INITIATION & COMPLIANCE
-            // =====================================================
-
-            "SOC_COMPLIANT" =>
-                "SOC Compliant",
-
-            "DME_MED_SUPPLY" =>
-                "DME / Med Supply",
-
-            "NOA_FILED" =>
-                "NOA Filed",
-
-            "OASIS_SOC_COMPLETE" =>
-                "OASIS / SOC Complete",
-
-            "QA_APPROVAL" =>
-                "QA Approval – PO/POC Ready for Faxing",
-
-            "ORDERS_SIGNED" =>
-                "Orders Signed by Physician",
-
-            "DOCS_UPLOADED" =>
-                "Docs Uploaded",
-
-            "SOC_FEEDBACK_PATIENT" =>
-                "SOC Feedback from Patient",
-
-            "CASE_MIX_IDENTIFIED" =>
-                "Case Mix Identified",
-
-            "CASE_MIX_ORDERS_SIGNED" =>
-                "Case Mix Orders Signed",
-
-            "CASE_MIX_PLOTTED" =>
-                "Case Mix Plotted",
-
-            "FREQUENCY_PLOTTED" =>
-                "Frequency Plotted",
-
-            "PCP_PT_NOTIFIED" =>
-                "PCP & PT Notified",
-
-            // =====================================================
-            // PHASE 3 - ONGOING / TRANSITION / DISCHARGE
-            // =====================================================
-
-            "TRANSFERS" =>
-                "Transfers",
-
-            "ROC" =>
-                "ROC",
-
-            "RECERTIFICATION" =>
-                "Recertification",
-
-            "DISCHARGE_SUMMARY_SIGNED" =>
-                "Discharge Summary Signed",
-
-            "NOMNC_SIGNED" =>
-                "NOMNC Signed",
-
-
-            // =====================================================
-            // LEGACY REQUIREMENTS
-            // =====================================================
-            // These are retained only so existing records don't
-            // display raw requirement codes if old records still
-            // exist in the database.
-            // They are NOT created for new referrals.
-            // =====================================================
-
-            "REFERRAL_DOCUMENT" =>
-                "Referral Document",
-
-            "INSURANCE_VERIFICATION" =>
-                "Insurance Document Verification",
-
-            "PHYSICIAN_ORDERS" =>
-                "Physician Orders",
-
-            "SOC_SCHEDULING" =>
-                "SOC Scheduling",
-
-            _ =>
-                requirementCode
+            "PRE_AUTH_RECEIVED" => "Pre-Auth Received",
+            "PRE_AUTH_DUE" => "Pre-Auth Due",
+            "NUMBER_OF_VISITS" => "Number of Visits",
+            "PRO_RECEIVED" => "PRO Received",
+            "H_AND_P_RECEIVED" => "H&P",
+            "F2F_RECEIVED" => "F2F Received",
+            "PCP_CONFIRMED" => "PCP Confirmed",
+            "HOSPITAL_DC_SUMMARY" => "Hospital DC Summary",
+            "DME_MED_SUPPLY" => "DME / Med Supply",
+            "SIGNED_CONSENTS" => "Signed Consents",
+            "NOA_FILED" => "NOA",
+            "OASIS_SOC_COMPLETE" => "OASIS / SOC Compliant",
+            "ORDERS_SIGNED" => "Orders Signed by Physician",
+            "DOCS_UPLOADED" => "Docs Uploaded",
+            "SOC_FEEDBACK_FROM_PATIENT" => "SOC Feedback from Patient",
+            "AVS_RECEIVED" => "AVS Received",
+            "CASE_MIX_IDENTIFIED" => "Case Mix Identified",
+            "CASE_MIX_TYPE" => "Case Mix Type",
+            "CASE_MIX_PLOTTED" => "Case Mix Plotted",
+            "QA_APPROVAL" => "QA Approval — PO/POC Ready for Faxing",
+            "TIF_DATE" => "TIF",
+            "ROC" => "ROC",
+            "RECERTIFICATION_RECEIVED" => "Recertification Received",
+            "PCP_PT_NOTIFIED" => "PCP & PT Notified",
+            "DISCHARGE_DATE" => "Discharge Date",
+            "DC_FEEDBACK_FROM_PATIENT" => "DC Feedback From Patient",
+            "DISCHARGE_SUMMARY_SIGNED" => "DC Summary Signed",
+            "NOMNC_SIGNED" => "NOMNC Signed",
+            "INSURANCE_VERIFICATION" => "Insurance Verification",
+            _ => requirementCode
         };
     }
 
-    private static int GetComplianceOrder(
-    string requirementCode)
+    private static int GetComplianceOrder(string requirementCode)
     {
-        return requirementCode
-            .Trim()
-            .ToUpperInvariant() switch
+        return requirementCode.Trim().ToUpperInvariant() switch
         {
-            // =====================================================
-            // PHASE 1
-            // =====================================================
-
-            "PRE_AUTH_RECEIVED" => 1,
-            "PRO_RECEIVED" => 2,
-            "H_AND_P_RECEIVED" => 3,
-            "F2F_RECEIVED" => 4,
-            "PCP_CONFIRMED" => 5,
-            "AVS_RECEIVED" => 6,
-            "SIGNED_CONSENTS" => 7,
-            "INSURANCE_VERIFICATION" => 8,
-
-            // =====================================================
-            // PHASE 2
-            // =====================================================
-
-            "SOC_COMPLIANT" => 9,
-            "DME_MED_SUPPLY" => 10,
-            "NOA_FILED" => 11,
-            "OASIS_SOC_COMPLETE" => 12,
-            "QA_APPROVAL" => 13,
-            "ORDERS_SIGNED" => 14,
-            "DOCS_UPLOADED" => 15,
-            "SOC_FEEDBACK_PATIENT" => 16,
-            "CASE_MIX_IDENTIFIED" => 17,
-            "CASE_MIX_ORDERS_SIGNED" => 18,
-            "CASE_MIX_PLOTTED" => 19,
-
-            // =====================================================
-            // PHASE 3
-            // =====================================================
-
-            "TRANSFERS" => 19,
-            "ROC" => 20,
-            "RECERTIFICATION" => 21,
-            "DISCHARGE_SUMMARY_SIGNED" => 22,
-            "NOMNC_SIGNED" => 23,
-            "PCP_PT_NOTIFIED" => 24,
-
-            // =====================================================
-            // LEGACY REQUIREMENTS
-            // =====================================================
-
-            "REFERRAL_DOCUMENT" => 90,
-            "PHYSICIAN_ORDERS" => 92,
-            "SOC_SCHEDULING" => 93,
-
+            "PRE_AUTH_RECEIVED" => 1, "PRE_AUTH_DUE" => 2, "NUMBER_OF_VISITS" => 3,
+            "PRO_RECEIVED" => 4, "H_AND_P_RECEIVED" => 5, "F2F_RECEIVED" => 6,
+            "PCP_CONFIRMED" => 7, "HOSPITAL_DC_SUMMARY" => 8,
+            "DME_MED_SUPPLY" => 10, "SIGNED_CONSENTS" => 11, "NOA_FILED" => 12,
+            "OASIS_SOC_COMPLETE" => 13, "ORDERS_SIGNED" => 14, "DOCS_UPLOADED" => 15,
+            "SOC_FEEDBACK_FROM_PATIENT" => 16, "AVS_RECEIVED" => 17,
+            "CASE_MIX_IDENTIFIED" => 20, "CASE_MIX_TYPE" => 21, "CASE_MIX_PLOTTED" => 22,
+            "QA_APPROVAL" => 23, "TIF_DATE" => 24, "ROC" => 25,
+            "RECERTIFICATION_RECEIVED" => 30, "PCP_PT_NOTIFIED" => 31,
+            "DISCHARGE_DATE" => 40, "DC_FEEDBACK_FROM_PATIENT" => 41,
+            "DISCHARGE_SUMMARY_SIGNED" => 42, "NOMNC_SIGNED" => 43,
+            "INSURANCE_VERIFICATION" => 5,
             _ => 100
         };
     }
