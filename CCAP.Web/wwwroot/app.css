@@ -110,3 +110,116 @@ h1:focus {
 .empty-state__action {
     margin-top: 16px;
 }
+
+/* Dashboard bottom widgets: shared global styling so child components render consistently. */
+.mywork-page .row.g-4 > [class*="col-"] { min-width: 0; }
+.mywork-page .widget-card.dashboard-list-card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 260px;
+    max-height: 360px;
+    background: #fff;
+    border: 1px solid #e7edf4;
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(24, 39, 75, .06);
+    overflow: hidden;
+}
+.mywork-page .widget-card .widget-header {
+    min-height: 58px;
+    padding: 15px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: #fff;
+    border-bottom: 1px solid #edf1f5;
+    color: #172b4d;
+    font-weight: 700;
+    flex: 0 0 auto;
+}
+.mywork-page .widget-card .dashboard-card-list {
+    min-height: 0;
+    max-height: 300px;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 8px 16px;
+}
+.mywork-page .widget-card .dashboard-list-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 13px 4px;
+    border-bottom: 1px solid #edf1f5;
+}
+.mywork-page .widget-card .dashboard-list-row:last-child { border-bottom: 0; }
+.mywork-page .widget-card .dashboard-list-row > div { min-width: 0; overflow-wrap: anywhere; }
+.mywork-page .widget-card .dashboard-list-row > small { flex: 0 0 auto; }
+.mywork-page .widget-card .announcement-item {
+    padding: 12px 4px;
+    margin: 0;
+    border-bottom: 1px solid #edf1f5;
+    overflow-wrap: anywhere;
+}
+.mywork-page .widget-card .announcement-item:last-child { border-bottom: 0; }
+.mywork-page .widget-card .announcement-item .announcement-message {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    white-space: normal;
+    line-height: 1.45;
+}
+.mywork-page .widget-card .btn-link { white-space: nowrap; font-weight: 600; }
+@media (max-width: 991.98px) {
+    .mywork-page .widget-card.dashboard-list-card { max-height: 340px; }
+}
+
+
+/* Upcoming Appointments dashboard card and event details. */
+.upcoming-appointments-card { position: relative; }
+.upcoming-appointments-card .dashboard-card-list { padding: 4px 14px; }
+.appointment-preview-row {
+    width: 100%; display: flex; align-items: center; gap: 10px;
+    padding: 12px 2px; border: 0; border-bottom: 1px solid #edf1f5;
+    background: transparent; text-align: left; color: inherit;
+}
+.appointment-preview-row:hover { background: #f8fafc; }
+.appointment-icon {
+    width: 36px; height: 36px; flex: 0 0 36px; display: grid;
+    place-items: center; border-radius: 10px; color: #2563eb; background: #eff6ff;
+}
+.appointment-main { display: flex; flex: 1 1 auto; min-width: 0; flex-direction: column; gap: 2px; }
+.appointment-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.appointment-main small { font-size: 11px; color: #64748b; }
+.appointment-date { display: flex; flex: 0 0 auto; flex-direction: column; align-items: flex-end; font-size: 12px; }
+.appointment-date small { color: #64748b; }
+.appointment-card-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 16px 12px; border-top: 1px solid #edf1f5; }
+.appointment-detail-backdrop {
+    position: fixed; inset: 0; z-index: 1200; display: flex; align-items: center;
+    justify-content: center; padding: 20px; background: rgba(15, 23, 42, .48);
+}
+.appointment-detail-modal {
+    width: min(620px, 100%); max-height: min(85vh, 760px); display: flex;
+    flex-direction: column; overflow: hidden; background: #fff; border-radius: 16px;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, .25);
+}
+.appointment-detail-header, .appointment-detail-footer {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 16px 20px; border-bottom: 1px solid #edf1f5;
+}
+.appointment-detail-footer { justify-content: flex-end; border-top: 1px solid #edf1f5; border-bottom: 0; }
+.appointment-detail-body { padding: 20px; overflow-y: auto; }
+.appointment-detail-status { display: inline-flex; padding: 4px 10px; margin-bottom: 16px; border-radius: 20px; background: #eff6ff; color: #1d4ed8; font-size: 12px; font-weight: 600; }
+.appointment-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.appointment-detail-grid > div, .appointment-detail-notes { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.appointment-detail-grid small, .appointment-detail-notes small { color: #64748b; font-size: 11px; }
+.appointment-detail-grid strong { overflow-wrap: anywhere; font-size: 13px; font-weight: 600; }
+.appointment-detail-notes { margin-top: 16px; padding: 12px; border-radius: 10px; background: #f8fafc; }
+.appointment-detail-notes p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; }
+@media (max-width: 575.98px) {
+    .appointment-detail-grid { grid-template-columns: 1fr; }
+    .appointment-preview-row { gap: 7px; }
+    .appointment-date { font-size: 11px; }
+}

@@ -58,6 +58,7 @@ public sealed class Patient
     public DateOnly? PreAuthDueDate { get; private set; }
     public int? NumberOfVisits { get; private set; }
     public string? CaseMixType { get; private set; }
+    public string? HospitalDcSummaryNotes { get; private set; }
     public string? DmeMedSupplyNotes { get; private set; }
     public string? SocFeedbackFromPatient { get; private set; }
     public DateOnly? TifDate { get; private set; }
@@ -404,6 +405,7 @@ public sealed class Patient
         DateOnly? preAuthDueDate,
         int? numberOfVisits,
         string? caseMixType,
+        string? hospitalDcSummaryNotes,
         string? dmeMedSupplyNotes,
         string? socFeedbackFromPatient,
         DateOnly? tifDate,
@@ -422,6 +424,7 @@ public sealed class Patient
         PreAuthDueDate = preAuthDueDate;
         NumberOfVisits = numberOfVisits;
         CaseMixType = Normalize(caseMixType);
+        HospitalDcSummaryNotes = Normalize(hospitalDcSummaryNotes);
         DmeMedSupplyNotes = Normalize(dmeMedSupplyNotes);
         SocFeedbackFromPatient = Normalize(socFeedbackFromPatient);
         TifDate = tifDate;

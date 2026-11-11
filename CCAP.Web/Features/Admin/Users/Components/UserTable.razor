@@ -1,3 +1,4 @@
+@using Microsoft.AspNetCore.Components.Authorization
 @using CCAP.Web.Features.Admin.Users.Models
 
 <div class="user-table-card">
@@ -5,7 +6,7 @@
         <table class="table user-table">
             <thead>
                 <tr>
-                    <th>Employee No.</th>
+                    <th>Employee ID</th>
                     <th>Full Name</th>
                     <th>Email</th>
                     <th>Role</th>
@@ -53,6 +54,12 @@
                             </td>
                             <td>
                                 <div class="action-buttons">
+                                    <AuthorizeView Roles="Administrator">
+                                        <button type="button" title="Generate temporary password"
+                                                @onclick="() => OnGenerateTemporaryPassword.InvokeAsync(user)">
+                                            <i class="bi bi-key"></i>
+                                        </button>
+                                    </AuthorizeView>
                                     <button type="button"
                                             title="Edit"
                                             @onclick="() => OnEdit.InvokeAsync(user)">
@@ -100,4 +107,5 @@
     [Parameter] public EventCallback<UserDto> OnEdit { get; set; }
     [Parameter] public EventCallback<UserDto> OnActivate { get; set; }
     [Parameter] public EventCallback<UserDto> OnDeactivate { get; set; }
+    [Parameter] public EventCallback<UserDto> OnGenerateTemporaryPassword { get; set; }
 }

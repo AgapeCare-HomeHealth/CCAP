@@ -36,6 +36,7 @@ public sealed class ReferralIntakeService
     public async Task<ReferralDocumentExtractionDto> ExtractReferralPdfAsync(
         byte[] pdfBytes,
         string fileName,
+        Guid progressId,
         CancellationToken cancellationToken = default)
     {
         if (pdfBytes is null || pdfBytes.Length == 0)
@@ -45,29 +46,27 @@ public sealed class ReferralIntakeService
         using var fileContent = new ByteArrayContent(pdfBytes);
         fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
         content.Add(fileContent, "pdf", fileName);
+        content.Add(new StringContent(progressId.ToString()), "progressId");
 
-        using var response = await _api.PostMultipartAsync(
-            "api/referrals/extract",
-            content,
-            cancellationToken);
-
+        using var response = await _api.PostMultipartAsync("api/referrals/extract", content, cancellationToken);
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
-
         if (!response.IsSuccessStatusCode)
         {
             var message = TryExtractMessage(body);
-            throw new InvalidOperationException(
-                string.IsNullOrWhiteSpace(message)
-                    ? "Unable to extract values from the referral PDF."
-                    : message);
+            throw new InvalidOperationException(string.IsNullOrWhiteSpace(message)
+                ? "Unable to extract values from the referral PDF." : message);
         }
 
         return JsonSerializer.Deserialize<ReferralDocumentExtractionDto>(
-            body,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-            ?? throw new InvalidOperationException(
-                "The referral extraction service returned an empty response.");
+            body, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+            ?? throw new InvalidOperationException("The referral extraction service returned an empty response.");
     }
+
+    public Task<ReferralExtractionProgressDto?> GetExtractionProgressAsync(
+        Guid progressId,
+        CancellationToken cancellationToken = default)
+        => _api.GetFromJsonAsync<ReferralExtractionProgressDto>(
+            $"api/referrals/extract/progress/{progressId}", cancellationToken);
 
     // =========================================================
     // CREATE
@@ -785,6 +784,14 @@ public sealed class ReferralIntakeService
         if (!string.IsNullOrWhiteSpace(insurance)) query += $"&insurance={Uri.EscapeDataString(insurance)}";
         return await _api.GetFromJsonAsync<PagedResult<ReferralListItem>>(query, cancellationToken)
             ?? new PagedResult<ReferralListItem>();
+    }
+
+    public async Task CreateReferralTrackerEntriesAsync(
+        IReadOnlyCollection<CCAP.Web.Features.Tracker.ReferralList.Models.ReferralTrackerCreateRequest> entries,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await _api.PostAsJsonAsync("api/referrals/tracker", entries, cancellationToken);
+        await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async Task<List<CCAP.Web.Features.Admin.Users.Models.UserDto>> GetReferralAssignmentUsersAsync(

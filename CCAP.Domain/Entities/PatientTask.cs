@@ -49,6 +49,14 @@ public sealed class PatientTask
         CompletedAt = DateTime.UtcNow;
     }
 
+    public void Reopen()
+    {
+        if (Status == PatientTaskStatus.Cancelled)
+            throw new InvalidOperationException("A cancelled task cannot be reopened.");
+        Status = PatientTaskStatus.Pending;
+        CompletedAt = null;
+    }
+
     public void Cancel()
     {
         if (Status == PatientTaskStatus.Completed)

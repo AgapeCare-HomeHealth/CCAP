@@ -1,0 +1,178 @@
+@page "/dashboard/list/{ListType}"
+@attribute [CcapAuthorize(Policy = "dashboard.view")]
+@using CCAP.Web.Features.Dashboard.Models
+@using CCAP.Web.Features.Dashboard.Services
+@inject DashboardService DashboardService
+@inject NavigationManager Navigation
+
+<PageTitle>@PageTitle</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h3>@PageTitle</h3>
+            <p class="text-muted mb-0">Complete list of records available to your account.</p>
+        </div>
+        <button class="btn btn-outline-secondary" @onclick="BackToDashboard">
+            Back to dashboard
+        </button>
+    </div>
+
+    @if (Loading)
+    {
+        <div class="text-center py-5">
+            <span class="spinner-border" role="status"></span>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(Error))
+    {
+        <div class="alert alert-warning">@Error</div>
+    }
+    else
+    {
+        @if (ListType.Equals("referrals", StringComparison.OrdinalIgnoreCase))
+        {
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr><th>Patient</th><th>Referral #</th><th>Referral date</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in ReferralPage)
+                            {
+                                <tr>
+                                    <td>@item.PatientName</td>
+                                    <td>@item.ReferralNumber</td>
+                                    <td>@item.ReferralDate.ToString("MMM d, yyyy")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+        else if (ListType.Equals("visits", StringComparison.OrdinalIgnoreCase))
+        {
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr><th>Patient</th><th>Clinician</th><th>Scheduled date</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in VisitPage)
+                            {
+                                <tr>
+                                    <td>@item.PatientName</td>
+                                    <td>@item.Clinician</td>
+                                    <td>@item.VisitDate.ToString("MMM d, yyyy h:mm tt")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+        else if (ListType.Equals("announcements", StringComparison.OrdinalIgnoreCase))
+        {
+            <div class="row g-3">
+                @foreach (var item in AnnouncementPage)
+                {
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5>@item.Title</h5>
+                                <p class="mb-2">@item.Message</p>
+                                <small class="text-muted">Published @item.PublishedAt.ToString("MMM d, yyyy")</small>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-warning">Unknown list.</div>
+        }
+
+        @if (TotalItems > 0)
+        {
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <small class="text-muted">Page @Page of @TotalPages · @TotalItems records</small>
+                <div class="btn-group">
+                    <button class="btn btn-outline-secondary" disabled="@(Page <= 1)" @onclick="Previous">
+                        Previous
+                    </button>
+                    <button class="btn btn-outline-secondary" disabled="@(Page >= TotalPages)" @onclick="Next">
+                        Next
+                    </button>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string ListType { get; set; } = string.Empty;
+
+    private DashboardData Data = new();
+    private bool Loading = true;
+    private string? Error;
+    private int Page = 1;
+    private const int PageSize = 10;
+
+    private string PageTitle => ListType.ToLowerInvariant() switch
+    {
+        "referrals" => "All Referrals",
+        "visits" => "All Upcoming Visits",
+        "announcements" => "All Announcements",
+        _ => "Dashboard List"
+    };
+
+    private int TotalItems => ListType.ToLowerInvariant() switch
+    {
+        "referrals" => Data.RecentReferrals.Count,
+        "visits" => Data.UpcomingVisits.Count,
+        "announcements" => Data.Announcements.Count,
+        _ => 0
+    };
+
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(TotalItems / (double)PageSize));
+
+    private IEnumerable<ReferralSummaryDto> ReferralPage =>
+        Data.RecentReferrals.Skip((Page - 1) * PageSize).Take(PageSize);
+
+    private IEnumerable<UpcomingVisitDto> VisitPage =>
+        Data.UpcomingVisits.Skip((Page - 1) * PageSize).Take(PageSize);
+
+    private IEnumerable<AnnouncementDto> AnnouncementPage =>
+        Data.Announcements.Skip((Page - 1) * PageSize).Take(PageSize);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Loading = true;
+        Page = 1;
+
+        try
+        {
+            Data = await DashboardService.GetAsync();
+            Error = null;
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    private void BackToDashboard() => Navigation.NavigateTo("/dashboard");
+
+    private void Previous() => Page = Math.Max(1, Page - 1);
+
+    private void Next() => Page = Math.Min(TotalPages, Page + 1);
+}

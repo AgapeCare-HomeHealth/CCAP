@@ -44,19 +44,6 @@ public sealed class CreateUserCommandHandler
         }
 
         // =========================================================
-        // DUPLICATE EMPLOYEE NUMBER
-        // =========================================================
-
-        if (await _users.ExistsByEmployeeNoAsync(
-                request.EmployeeNo,
-                null,
-                cancellationToken))
-        {
-            throw new InvalidOperationException(
-                "Employee number already exists.");
-        }
-
-        // =========================================================
         // ROLE
         // =========================================================
 
@@ -75,8 +62,9 @@ public sealed class CreateUserCommandHandler
         // CREATE USER
         // =========================================================
 
+        var employeeNo = await _users.GetNextEmployeeNoAsync(cancellationToken);
         var user = new ApplicationUser(
-            request.EmployeeNo,
+            employeeNo,
             request.FirstName,
             request.LastName,
             request.Email,

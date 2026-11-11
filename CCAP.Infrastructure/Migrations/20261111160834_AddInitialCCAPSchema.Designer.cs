@@ -12,7 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CCAP.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
+<<<<<<<< HEAD:CCAP.Infrastructure/Migrations/20261028092217_AddInitialCCAPSchema.Designer.cs
     [Migration("20261028092217_AddInitialCCAPSchema")]
+========
+    [Migration("20261111160834_AddInitialCCAPSchema")]
+>>>>>>>> main:CCAP.Infrastructure/Migrations/20261111160834_AddInitialCCAPSchema.Designer.cs
     partial class AddInitialCCAPSchema
     {
         /// <inheritdoc />
@@ -416,6 +420,9 @@ namespace CCAP.Infrastructure.Migrations
                     b.Property<bool>("AuthorizationRequired")
                         .HasColumnType("bit");
 
+                    b.Property<Guid?>("BackupCoordinatorId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTime?>("CareCompletedAt")
                         .HasColumnType("datetime2");
 
@@ -455,6 +462,9 @@ namespace CCAP.Infrastructure.Migrations
                     b.Property<string>("EmergencyContactRelationship")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("EmergencyContactsJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("FinalStatus")
                         .HasColumnType("nvarchar(max)");
 
@@ -469,6 +479,10 @@ namespace CCAP.Infrastructure.Migrations
                     b.Property<string>("Gender")
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("HospitalDcSummaryNotes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<string>("InsuranceMemberId")
                         .HasColumnType("nvarchar(max)");
@@ -527,6 +541,9 @@ namespace CCAP.Infrastructure.Migrations
                     b.Property<DateOnly?>("RocDate")
                         .HasColumnType("date");
 
+                    b.Property<Guid?>("SecondaryCoordinatorId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("SecondaryDiagnosis")
                         .HasColumnType("nvarchar(max)");
 
@@ -566,12 +583,16 @@ namespace CCAP.Infrastructure.Migrations
 
                     b.HasKey("PatientId");
 
+                    b.HasIndex("BackupCoordinatorId");
+
                     b.HasIndex("ClinicianId");
 
                     b.HasIndex("CoordinatorId");
 
                     b.HasIndex("MRN")
                         .IsUnique();
+
+                    b.HasIndex("SecondaryCoordinatorId");
 
                     b.ToTable("Patients", "dbo");
                 });
@@ -817,6 +838,13 @@ namespace CCAP.Infrastructure.Migrations
                     b.Property<Guid?>("DisciplineId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateOnly?>("EstimatedDischargeDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("FirstMarketingCall")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
                     b.Property<string>("InsuranceMemberId")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -843,6 +871,10 @@ namespace CCAP.Infrastructure.Migrations
                         .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("PhysicianPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("PostedOn")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
@@ -877,6 +909,14 @@ namespace CCAP.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<string>("Resolution")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("SecondCoordinatorCall")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
                     b.Property<string>("SecondaryDiagnosis")
                         .HasColumnType("nvarchar(max)");
 
@@ -888,6 +928,18 @@ namespace CCAP.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(40)
                         .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("ThirdCoordinatorCall")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("TrackerCoordinatorName")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("TrackerStatus")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("VisitPriority")
                         .HasMaxLength(50)
@@ -976,6 +1028,104 @@ namespace CCAP.Infrastructure.Migrations
                     b.HasIndex("UpdatedAt");
 
                     b.ToTable("ReferralDrafts", "dbo");
+                });
+
+            modelBuilder.Entity("CCAP.Domain.Entities.ReferralTrackerEntry", b =>
+                {
+                    b.Property<Guid>("ReferralTrackerEntryId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("AssignedCoordinatorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AssignedCoordinatorName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateOnly>("DateOfBirth")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("EstimatedDischargeDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("FirstMarketingCall")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Insurance")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Mrn")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("PostedOn")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("ReferralDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReferralNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Resolution")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("SecondCoordinatorCall")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ThirdCoordinatorCall")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("ReferralTrackerEntryId");
+
+                    b.HasIndex("ReferralDate");
+
+                    b.HasIndex("ReferralNumber")
+                        .IsUnique();
+
+                    b.ToTable("ReferralTrackerEntries", "dbo");
                 });
 
             modelBuilder.Entity("CCAP.Domain.Entities.Role", b =>
@@ -1070,6 +1220,56 @@ namespace CCAP.Infrastructure.Migrations
                     b.ToTable("ServiceTypes", "dbo");
                 });
 
+            modelBuilder.Entity("CCAP.Domain.Entities.UserNotification", b =>
+                {
+                    b.Property<Guid>("NotificationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DueDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PatientName")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("NotificationId");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.ToTable("UserNotifications", "dbo");
+                });
+
             modelBuilder.Entity("CCAP.Domain.Entities.Visit", b =>
                 {
                     b.Property<Guid>("VisitId")
@@ -1078,6 +1278,26 @@ namespace CCAP.Infrastructure.Migrations
 
                     b.Property<Guid?>("AssignedUserId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AttachmentsNeeded")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<decimal?>("BillingAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("BillingOvertimeAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("BillingRateCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("BillingRevenueCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("CallNotes")
                         .HasColumnType("nvarchar(max)");
@@ -1099,6 +1319,9 @@ namespace CCAP.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<bool>("FlexibleVisit")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Location")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -1109,6 +1332,9 @@ namespace CCAP.Infrastructure.Migrations
                     b.Property<string>("NotesFlag")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("OutsourcedVisit")
+                        .HasColumnType("bit");
+
                     b.Property<Guid?>("PatientId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1117,8 +1343,15 @@ namespace CCAP.Infrastructure.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");
 
+                    b.Property<Guid?>("RecurrenceGroupId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTime>("ScheduledDate")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("Skills")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -1128,10 +1361,19 @@ namespace CCAP.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("TreatmentAuthorizationCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<string>("VisitType")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("VisitsEachDay")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
 
                     b.HasKey("VisitId");
 
@@ -1142,6 +1384,8 @@ namespace CCAP.Infrastructure.Migrations
                     b.HasIndex("ClinicianId");
 
                     b.HasIndex("PatientId");
+
+                    b.HasIndex("RecurrenceGroupId");
 
                     b.ToTable("Visits", "dbo");
                 });
@@ -1252,6 +1496,11 @@ namespace CCAP.Infrastructure.Migrations
 
             modelBuilder.Entity("CCAP.Domain.Entities.Patient", b =>
                 {
+                    b.HasOne("CCAP.Domain.Entities.ApplicationUser", "BackupCoordinator")
+                        .WithMany()
+                        .HasForeignKey("BackupCoordinatorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("CCAP.Domain.Entities.ApplicationUser", "Clinician")
                         .WithMany()
                         .HasForeignKey("ClinicianId")
@@ -1262,9 +1511,18 @@ namespace CCAP.Infrastructure.Migrations
                         .HasForeignKey("CoordinatorId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("CCAP.Domain.Entities.ApplicationUser", "SecondaryCoordinator")
+                        .WithMany()
+                        .HasForeignKey("SecondaryCoordinatorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("BackupCoordinator");
+
                     b.Navigation("Clinician");
 
                     b.Navigation("Coordinator");
+
+                    b.Navigation("SecondaryCoordinator");
                 });
 
             modelBuilder.Entity("CCAP.Domain.Entities.PatientAuditLog", b =>

@@ -31,6 +31,7 @@ public sealed class WorkflowDetailsResponseDto
     public DateOnly? PreAuthDueDate { get; set; }
     public int? NumberOfVisits { get; set; }
     public string CaseMixType { get; set; } = "";
+    public string HospitalDcSummaryNotes { get; set; } = "";
     public string DmeMedSupplyNotes { get; set; } = "";
     public string SocFeedbackFromPatient { get; set; } = "";
     public DateOnly? TifDate { get; set; }

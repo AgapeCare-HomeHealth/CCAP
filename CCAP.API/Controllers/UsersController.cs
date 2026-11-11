@@ -8,7 +8,12 @@ using CCAP.Application.Features.Users.Queries.GetUserById;
 using CCAP.Application.Features.Users.Queries.GetUsers;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
+using CCAP.Infrastructure.Persistence;
+using CCAP.Application.Abstractions.Identity;
+using System.Security.Claims;
+using System.Security.Cryptography;
 
 namespace CCAP.API.Controllers;
 
@@ -18,7 +23,10 @@ namespace CCAP.API.Controllers;
 public sealed class UsersController : ControllerBase
 {
     private readonly ISender _sender;
-    public UsersController(ISender sender) => _sender = sender;
+    private readonly AppDbContext _db;
+    private readonly IPasswordHasher _passwordHasher;
+    public UsersController(ISender sender, AppDbContext db, IPasswordHasher passwordHasher)
+    { _sender = sender; _db = db; _passwordHasher = passwordHasher; }
 
     [HttpGet]
     [Authorize(Policy = PermissionPolicies.UsersView)]
@@ -54,6 +62,39 @@ public sealed class UsersController : ControllerBase
             return BadRequest("Route ID and command UserId do not match.");
 
         await _sender.Send(command, cancellationToken);
+        return NoContent();
+    }
+
+
+    [HttpPost("{id:guid}/temporary-password")]
+    [Authorize(Policy = PermissionPolicies.UsersManage)]
+    public async Task<IActionResult> GenerateTemporaryPassword(Guid id, CancellationToken cancellationToken)
+    {
+        var user = await _db.ApplicationUsers.FirstOrDefaultAsync(x => x.UserId == id, cancellationToken);
+        if (user is null) return NotFound();
+        const string alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
+        var bytes = RandomNumberGenerator.GetBytes(14);
+        var password = new string(bytes.Select(b => alphabet[b % alphabet.Length]).ToArray());
+        user.SetPasswordHash(_passwordHasher.HashPassword(user, password));
+        await _db.SaveChangesAsync(cancellationToken);
+        return Ok(new { TemporaryPassword = password });
+    }
+
+    public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword(ChangePasswordRequest request, CancellationToken cancellationToken)
+    {
+        var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(idClaim, out var userId)) return Unauthorized();
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
+            return BadRequest("New password must be at least 8 characters.");
+        var user = await _db.ApplicationUsers.FirstOrDefaultAsync(x => x.UserId == userId, cancellationToken);
+        if (user is null) return NotFound();
+        if (!_passwordHasher.VerifyPassword(user, user.PasswordHash, request.CurrentPassword))
+            return BadRequest("Current password is incorrect.");
+        user.SetPasswordHash(_passwordHasher.HashPassword(user, request.NewPassword));
+        await _db.SaveChangesAsync(cancellationToken);
         return NoContent();
     }
 

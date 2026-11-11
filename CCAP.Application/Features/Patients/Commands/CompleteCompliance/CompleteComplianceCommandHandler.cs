@@ -1,3 +1,4 @@
+using CCAP.Application.Features.Patients;
 using CCAP.Application.Abstractions.Persistence;
 using CCAP.Domain.Enums;
 using CCAP.Domain.Entities;
@@ -44,6 +45,11 @@ public sealed class CompleteComplianceCommandHandler
         if (compliance.IsCompleted)
             return;
 
+        var allRecordsBeforeUpdate = await _compliance.GetByPatientAsync(request.PatientId, cancellationToken);
+        var prerequisiteError = PatientWorkflowStageRules.GetPrerequisiteError(patient, allRecordsBeforeUpdate, requirementCode);
+        if (!string.IsNullOrWhiteSpace(prerequisiteError))
+            throw new InvalidOperationException(prerequisiteError);
+
         if (string.Equals(requirementCode, "INSURANCE_VERIFICATION", StringComparison.OrdinalIgnoreCase) && !patient.InsuranceVerifiedAt.HasValue)
             patient.VerifyInsurance(request.CompletedByUserId);
 
@@ -51,46 +57,12 @@ public sealed class CompleteComplianceCommandHandler
         patient.Activities.Add(new CCAP.Domain.Entities.Activity(patient.PatientId, request.CompletedByUserId, "Compliance", "Compliance completed", $"{requirementCode} marked completed."));
         await _auditLogs.AddAsync(new CCAP.Domain.Entities.PatientAuditLog(patient.PatientId, request.CompletedByUserId, "Compliance", compliance.ComplianceRecordId.ToString(), "UPDATE", "Pending", "Completed", $"{requirementCode} completed."), cancellationToken);
 
-        // Admission readiness is independent from SOC. SOC-specific requirements
-        // (SOC_COMPLIANT and OASIS_SOC_COMPLETE) must not block Admission completion.
-        var admissionRequirements = new[]
-        {
-            "DME_MED_SUPPLY", "NOA_FILED",
-            "QA_APPROVAL", "ORDERS_SIGNED", "DOCS_UPLOADED",
-            "CASE_MIX_IDENTIFIED", "CASE_MIX_ORDERS_SIGNED", "CASE_MIX_PLOTTED"
-        };
-        var allAdmissionRequirementsComplete = true;
-        foreach (var admissionCode in admissionRequirements)
-        {
-            var admissionRecord = await _compliance.GetByPatientAndRequirementAsync(
-                request.PatientId, admissionCode, cancellationToken);
-            if (admissionRecord is null || !admissionRecord.IsCompleted)
-            {
-                allAdmissionRequirementsComplete = false;
-                break;
-            }
-        }
-
-        if (allAdmissionRequirementsComplete)
+        var allRecordsAfterUpdate = await _compliance.GetByPatientAsync(request.PatientId, cancellationToken);
+        if (PatientWorkflowStageRules.IsGroupComplete(patient, allRecordsAfterUpdate, PatientWorkflowStageRules.Admission))
             patient.ActivateAfterAdmission();
 
-        var taskTitle = GetMatchingTaskTitle(requirementCode);
-        if (!string.IsNullOrWhiteSpace(taskTitle))
-        {
-            var task = await _tasks.GetPendingByPatientAndTitleAsync(request.PatientId, taskTitle, cancellationToken);
-            task?.Complete();
-        }
-
+        await PatientComplianceTaskSynchronizer.EnsureAsync(patient, requirementCode, _tasks, _compliance, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    private static string? GetMatchingTaskTitle(string requirementCode)
-    {
-        return requirementCode switch
-        {
-            "INSURANCE_VERIFICATION" => "Verify Insurance",
-            "PHYSICIAN_ORDERS" or "ORDERS_SIGNED" => "Verify Physician Orders",
-            _ => null
-        };
-    }
 }

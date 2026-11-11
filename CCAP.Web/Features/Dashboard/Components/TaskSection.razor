@@ -43,14 +43,14 @@
             </div>
             <div class="ccap-task-modal-table-wrap">
                 <table class="table align-middle mb-0 ccap-task-modal-table">
-                    <thead><tr><th>Priority</th><th>Task</th><th>Patient</th><th>Due Date</th><th>Coordinator</th><th>CC Role</th><th>Assigned Clinician</th><th>Action</th></tr></thead>
+                    <thead><tr><th>Priority</th><th>Task</th><th>Patient</th><th>Due Date</th><th>Coordinator</th><th>View / CC Role</th><th>Assigned Clinician</th><th>Action</th></tr></thead>
                     <tbody>
                     @foreach (var task in PagedTasks)
                     {
                         <tr>
                             <td><span class="badge @(task.Priority == "High" ? "bg-danger" : task.Priority == "Medium" ? "bg-warning text-dark" : "bg-success")">@task.Priority</span></td>
                             <td><strong>@task.TaskName</strong><div class="small text-muted">Compliance</div></td>
-                            <td>@task.PatientName</td><td>@task.DueDate.ToString("MMM dd, yyyy")</td><td>@task.AssignedTo</td><td><span class="badge @(task.PatientCoordinatorRole == "Primary CC" ? "bg-success" : task.PatientCoordinatorRole == "Secondary CC" ? "bg-info text-dark" : task.PatientCoordinatorRole == "Backup CC" ? "bg-warning text-dark" : "bg-secondary")">@task.PatientCoordinatorRole</span></td><td>@task.AssignedClinician</td>
+                            <td>@task.PatientName</td><td>@task.DueDate.ToString("MMM dd, yyyy")</td><td>@task.AssignedTo</td><td><span class="badge @(task.PatientCoordinatorRole == "Primary CC" ? "bg-success" : task.PatientCoordinatorRole == "Secondary CC" ? "bg-info text-dark" : task.PatientCoordinatorRole == "Backup CC" ? "bg-warning text-dark" : task.PatientCoordinatorRole == "Admin View" ? "bg-dark" : "bg-secondary")">@task.PatientCoordinatorRole</span></td><td>@task.AssignedClinician</td>
                             <td><button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => OpenCompliance(task)">Open Compliance</button></td>
                         </tr>
                     }

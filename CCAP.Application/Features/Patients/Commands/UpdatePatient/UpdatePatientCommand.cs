@@ -9,6 +9,6 @@ public sealed record UpdatePatientCommand(
     string? Priority, string? ReferringPhysician, string? PhysicianPhone, string? PhysicianFax,
     string? PhysicianNpi, string? PcosRegistered, string? PrimaryDiagnosis, string? SecondaryDiagnosis,
     string? ReferralNotes, string? VisitPriority, string? CaseStatus, string? InternalNotes,
-    Guid? BackupCoordinatorId,
+    Guid? PrimaryCoordinatorId, Guid? SecondaryCoordinatorId, Guid? BackupCoordinatorId,
     bool CanManageBackupCoordinator,
     Guid UpdatedByUserId) : IRequest;

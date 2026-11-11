@@ -6,7 +6,7 @@
 @using CCAP.Web.Features.Admin.Users.Models
 @inject ReferralIntakeService ReferralIntakeService
 
-<PageTitle>Referral List</PageTitle>
+<PageTitle>Referral Tracker</PageTitle>
 
 <div class="referral-list-page">
     <div class="referral-list-header">
@@ -54,12 +54,12 @@
 
     @if (IsLoading)
     {
-        <div class="py-5 text-center">Loading referrals...</div>
+        <div class="py-5 text-center">Loading referral tracker...</div>
     }
     else
     {
         <div class="referral-table-heading">
-            <div><strong>All Referrals</strong><span>@TotalCount records</span></div>
+            <div><strong>All Tracker Entries</strong><span>@TotalCount records</span></div>
             <span class="table-hint"><i class="bi bi-pencil-square me-1"></i>Editable fields save automatically</span>
         </div>
         <div class="referral-table-wrap">
@@ -84,7 +84,7 @@
                 <tbody>
                     @if (Items.Count == 0)
                     {
-                        <tr><td colspan="13" class="text-center py-5 text-muted">No referrals found.</td></tr>
+                        <tr><td colspan="13" class="text-center py-5 text-muted">No referral tracker entries found.</td></tr>
                     }
                     else
                     {
@@ -332,30 +332,27 @@
         var saved = 0;
         try
         {
-            foreach (var entry in entries)
+            var trackerEntries = entries.Select(entry => new ReferralTrackerCreateRequest
             {
-                var model = new ReferralIntakeModel
-                {
-                    FirstName = entry.FirstName.Trim(),
-                    LastName = entry.LastName.Trim(),
-                    DateOfBirth = DateOnly.FromDateTime(entry.DateOfBirth!.Value),
-                    MRN = entry.MRN.Trim(),
-                    ReferralDate = entry.ReferralDate ?? DateTime.Today,
-                    PostedOn = string.IsNullOrWhiteSpace(entry.PostedOn) ? "Referral/Intake" : entry.PostedOn,
-                    TrackerStatus = entry.Status,
-                    EstimatedDischargeDate = entry.Edd.HasValue ? DateOnly.FromDateTime(entry.Edd.Value) : null,
-                    ReferralSource = entry.Source,
-                    PrimaryInsurance = entry.Insurance,
-                    CoordinatorId = entry.AssignedCCId,
-                    FirstMarketingCall = entry.FirstMarketingCall,
-                    SecondCoordinatorCall = entry.SecondCoordinatorCall,
-                    ThirdCoordinatorCall = entry.ThirdCoordinatorCall,
-                    Resolution = entry.Resolution,
-                    ReferralNumber = $"REF-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..25]
-                };
-                await ReferralIntakeService.CreateAsync(model);
-                saved++;
-            }
+                FirstName = entry.FirstName.Trim(),
+                LastName = entry.LastName.Trim(),
+                DateOfBirth = entry.DateOfBirth,
+                Mrn = entry.MRN.Trim(),
+                ReferralDate = entry.ReferralDate ?? DateTime.Today,
+                PostedOn = string.IsNullOrWhiteSpace(entry.PostedOn) ? "Referral/Intake" : entry.PostedOn,
+                EstimatedDischargeDate = entry.Edd.HasValue ? DateOnly.FromDateTime(entry.Edd.Value) : null,
+                Status = entry.Status,
+                Source = entry.Source,
+                Insurance = entry.Insurance,
+                AssignedCoordinatorId = entry.AssignedCCId,
+                FirstMarketingCall = entry.FirstMarketingCall,
+                SecondCoordinatorCall = entry.SecondCoordinatorCall,
+                ThirdCoordinatorCall = entry.ThirdCoordinatorCall,
+                Resolution = entry.Resolution
+            }).ToList();
+
+            await ReferralIntakeService.CreateReferralTrackerEntriesAsync(trackerEntries);
+            saved = trackerEntries.Count;
             await LoadAsync();
             ShowBulkEntry = false;
         }

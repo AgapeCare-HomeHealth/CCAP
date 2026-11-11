@@ -1,4 +1,5 @@
 @page "/dashboard"
+@implements IAsyncDisposable
 @attribute [CcapAuthorize(Policy = "dashboard.view")]
 
 @using CCAP.Web.Features.Dashboard.Components
@@ -9,6 +10,7 @@
 
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject DashboardService DashboardService
+@inject CCAP.Web.Features.Notifications.Services.NotificationRealtimeService Realtime
 
 <PageTitle>My Work</PageTitle>
 
@@ -26,7 +28,7 @@ else
         <HeaderSection UserName="@UserName" />
         <StatisticsSection Statistics="@Data.Statistics" />
         <TaskSection Tasks="@Data.Tasks" />
-        <BottomWidgets Referrals="@Data.RecentReferrals" Visits="@Data.UpcomingVisits" Announcements="@Data.Announcements" />
+        <BottomWidgets Referrals="@Data.RecentReferrals" Announcements="@Data.Announcements" />
     </div>
 }
 
@@ -35,35 +37,124 @@ else
     private string UserName = string.Empty;
 
     private bool IsLoading = true;
+    private bool IsRefreshing;
     private string? ErrorMessage;
+    private CancellationTokenSource? _refreshCts;
+    private Task? _refreshLoop;
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        UserName = user.FindFirst(ClaimTypes.Name)?.Value
+            ?? user.Identity?.Name
+            ?? "Unknown User";
+    }
+
+    // ProtectedLocalStorage-backed authentication is restored by Routes after
+    // the interactive circuit starts. Defer the first API request until after
+    // this component's first render so it cannot race browser storage startup.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        Realtime.NotificationReceived += OnNotificationReceived;
         try
         {
-            // Get currently logged-in user
-            var authState =
-                await AuthenticationStateProvider
-                    .GetAuthenticationStateAsync();
-
-            var user = authState.User;
-
-            UserName =
-                user.FindFirst(ClaimTypes.Name)?.Value
-                ?? user.Identity?.Name
-                ?? "Unknown User";
-
-            // Load dashboard data
-            Data = await DashboardService.GetAsync();
+            await Realtime.StartAsync();
+            await RefreshDashboardAsync();
         }
-        catch (Exception ex)
+        catch
         {
-            ErrorMessage =
-                $"Unable to load dashboard data: {ex.Message}";
+            // API polling remains a fallback if realtime transport is unavailable.
+            await RefreshDashboardAsync();
         }
         finally
         {
             IsLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+
+        _refreshCts = new CancellationTokenSource();
+        _refreshLoop = RunDashboardRefreshLoopAsync(_refreshCts.Token);
+    }
+
+    private async void OnNotificationReceived()
+    {
+        try
+        {
+            await InvokeAsync(async () =>
+            {
+                await RefreshDashboardAsync();
+                StateHasChanged();
+            });
+        }
+        catch (ObjectDisposedException) { }
+    }
+
+    private async Task RefreshDashboardAsync()
+    {
+        if (IsRefreshing)
+            return;
+
+        IsRefreshing = true;
+        try
+        {
+            var latest = await DashboardService.GetAsync();
+            Data = latest;
+            ErrorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            // Keep the last successfully loaded dashboard data during transient
+            // polling failures instead of replacing the page with an error.
+            if (Data.Tasks.Count == 0 && Data.RecentReferrals.Count == 0)
+                ErrorMessage = $"Unable to refresh dashboard data: {ex.Message}";
+        }
+        finally
+        {
+            IsRefreshing = false;
+        }
+    }
+
+    private async Task RunDashboardRefreshLoopAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                await InvokeAsync(async () =>
+                {
+                    await RefreshDashboardAsync();
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Expected when the dashboard component is disposed.
+        }
+        catch (ObjectDisposedException)
+        {
+            // Component disposed while a refresh was in flight.
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Realtime.NotificationReceived -= OnNotificationReceived;
+        if (_refreshCts is not null)
+        {
+            await _refreshCts.CancelAsync();
+            _refreshCts.Dispose();
+        }
+
+        if (_refreshLoop is not null)
+        {
+            try { await _refreshLoop; }
+            catch (OperationCanceledException) { }
         }
     }
 }

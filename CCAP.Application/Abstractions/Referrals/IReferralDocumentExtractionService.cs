@@ -6,5 +6,6 @@ public interface IReferralDocumentExtractionService
 {
     Task<ReferralDocumentExtractionResult> ExtractAsync(
         Stream pdfStream,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        IProgress<ReferralExtractionProgress>? progress = null);
 }

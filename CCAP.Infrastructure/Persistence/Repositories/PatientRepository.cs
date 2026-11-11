@@ -69,6 +69,8 @@ public sealed class PatientRepository : IPatientRepository
         // Load the related referrals before the update handler edits the latest one.
         return await _context.Patients
             .Include(x => x.Referrals)
+            .Include(x => x.Tasks)
+            .Include(x => x.ComplianceRecords)
             .FirstOrDefaultAsync(
                 x => x.PatientId == patientId,
                 cancellationToken);

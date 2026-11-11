@@ -10,6 +10,9 @@ public sealed class AddServiceOrderCommandHandler : IRequestHandler<AddServiceOr
  public async Task<Guid> Handle(AddServiceOrderCommand r,CancellationToken ct){
   var patient=await _patients.GetByIdForWorkflowUpdateAsync(r.PatientId,ct)??throw new KeyNotFoundException("Patient not found.");
   var types=await _serviceTypes.GetActiveAsync(ct); var type=types.FirstOrDefault(x=>x.ServiceTypeId==r.ServiceTypeId)??throw new KeyNotFoundException("Service type not found.");
+  var existingOrders = await _serviceTypes.GetOrdersByPatientIdAsync(r.PatientId, ct);
+  if (existingOrders.Any(x => x.ServiceTypeId == r.ServiceTypeId))
+   throw new InvalidOperationException("This discipline already has an order for the patient. Edit the existing order instead.");
   var order=new PatientServiceOrder(r.PatientId,r.ServiceTypeId,r.Frequency,r.Duration,r.IsPrimaryDiscipline); await _serviceTypes.AddOrderAsync(order,ct);
   patient.Activities.Add(new Activity(patient.PatientId,r.RecordedByUserId,"Order","Service order created",$"{type.Name} order was added."));
   await _audit.AddAsync(new PatientAuditLog(patient.PatientId,r.RecordedByUserId,"PatientServiceOrder",order.PatientServiceOrderId.ToString(),"CREATE",null,JsonSerializer.Serialize(new{order.PatientServiceOrderId,ServiceType=type.Name,r.Frequency,r.Duration,r.IsPrimaryDiscipline,Status=order.Status}),"Service order created."),ct);

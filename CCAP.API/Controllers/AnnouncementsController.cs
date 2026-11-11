@@ -35,6 +35,7 @@ public sealed class AnnouncementsController
     }
 
     [HttpPost]
+    [Authorize(Roles = "Administrator")]
     public async Task<IActionResult> Create(
         CreateAnnouncementRequest request,
         CancellationToken cancellationToken)

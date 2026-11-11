@@ -24,7 +24,11 @@
                     <div class="display-5 text-success mb-3">✓</div>
                     <h4 class="text-success">Patient Journey Closed</h4>
                     <p class="text-muted mb-1">The final outcome has been completed.</p>
-                    <p class="text-muted">All required closing information is retained in the patient history and audit trail.</p>
+                    <p class="text-muted">The episode outcome has been recorded. Any outstanding discharge compliance items can still be completed in the Compliance tab.</p>
+                    @if (!DischargeStageComplete)
+                    {
+                        <div class="alert alert-warning mt-3">Discharge compliance is still outstanding. Complete the Discharge group in the Compliance tab before archiving this patient.</div>
+                    }
                     @if (!string.IsNullOrWhiteSpace(ErrorMessage))
                     {
                         <div class="alert alert-danger mt-3">@ErrorMessage</div>
@@ -36,8 +40,8 @@
                         }
                         else
                         {
-                            <button type="button" class="btn btn-success" @onclick="ArchiveJourneyAsync" disabled="@IsSaving">
-                                @(IsSaving ? "Discharging..." : "Close & Discharge Patient Journey")
+                            <button type="button" class="btn btn-success" @onclick="ArchiveJourneyAsync" disabled="@(IsSaving || !DischargeStageComplete)">
+                                @(IsSaving ? "Archiving..." : "Archive Patient Journey")
                             </button>
                         }
                         <button type="button" class="btn btn-outline-primary" @onclick="GoToPatients">Back to Active Patients</button>
@@ -58,7 +62,7 @@
 
             @if (!CanCloseEpisode)
             {
-                <div class="alert alert-warning">Complete all Admission compliance requirements before closing the episode.</div>
+                <div class="alert alert-warning">Complete Admission, SOC, On-Going Care, and Recert or Discharge requirements before recording the final outcome.</div>
             }
 
             <div class="card border mb-3">
@@ -74,10 +78,13 @@
                                 }
                             </select>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label">@(IsTransfer ? "Transfer Date" : "Discharge Date")</label>
-                            <InputDate class="form-control" @bind-Value="OutcomeDate" />
-                        </div>
+                        @if (IsTransfer)
+                        {
+                            <div class="col-md-4">
+                                <label class="form-label">Transfer Date</label>
+                                <InputDate class="form-control" @bind-Value="OutcomeDate" />
+                            </div>
+                        }
                         @if (IsTransfer)
                         {
                             <div class="col-md-4">
@@ -89,54 +96,11 @@
                                 <InputText class="form-control" @bind-Value="TransferReason" />
                             </div>
                         }
-                        else
-                        {
-                            <div class="col-12">
-                                <label class="form-label">Discharge Feedback</label>
-                                <InputText class="form-control" @bind-Value="DischargeFeedback" />
-                            </div>
-                        }
+
                     </div>
                 </div>
             </div>
 
-            @if (!IsTransfer)
-            {
-                <div class="card border mb-3">
-                    <div class="card-header bg-light">
-                        <strong>Discharge Requirements</strong>
-                        <div class="small text-muted">Confirm the closing documents before completing discharge.</div>
-                    </div>
-                    <div class="card-body">
-                        @foreach (var item in DischargeRequirements)
-                        {
-                            <div class="d-flex align-items-center justify-content-between border rounded p-3 mb-2">
-                                <div>
-                                    <div class="fw-semibold">@item.RequirementName</div>
-                                    @if (!string.IsNullOrWhiteSpace(item.Description))
-                                    {
-                                        <div class="small text-muted">@item.Description</div>
-                                    }
-                                    @if (item.IsCompleted && item.CompletedAt.HasValue)
-                                    {
-                                        <div class="small text-success">Completed @item.CompletedAt.Value.ToLocalTime().ToString("g")</div>
-                                    }
-                                </div>
-                                @if (item.IsCompleted)
-                                {
-                                    <span class="badge text-bg-success">Complete</span>
-                                }
-                                else
-                                {
-                                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => CompleteComplianceAsync(item.RequirementCode)" disabled="@(IsSaving || SavingRequirementCode == item.RequirementCode)">
-                                        @(SavingRequirementCode == item.RequirementCode ? "Saving..." : "Mark Complete")
-                                    </button>
-                                }
-                            </div>
-                        }
-                    </div>
-                </div>
-            }
 
             <div class="d-flex justify-content-end">
                 <button type="button" class="btn btn-danger" @onclick="CompleteCareAsync" disabled="@(IsSaving || !CanCloseEpisode || !CanSubmitOutcome)">
@@ -155,23 +119,23 @@
     private DateOnly? OutcomeDate = DateOnly.FromDateTime(DateTime.Today);
     private string TransferDestination = "";
     private string TransferReason = "";
-    private string DischargeFeedback = "";
     private bool IsSaving;
     private string? ErrorMessage;
     private string? SavingRequirementCode;
     private List<LookupOptionDto> FinalStatusOptions = [];
 
     private bool IsTransfer => string.Equals(FinalStatus, "Transferred", StringComparison.OrdinalIgnoreCase);
-    private bool JourneyCompleted => Workflow?.WorkflowStages.FirstOrDefault(x => x.StageCode == "FINAL_OUTCOME")?.Status == WorkflowStatus.Completed;
+    private bool JourneyCompleted => string.Equals(Workflow?.Header.Status, "Completed", StringComparison.OrdinalIgnoreCase) || JourneyArchived;
     private bool JourneyArchived => string.Equals(Workflow?.Header.Status, "Archived", StringComparison.OrdinalIgnoreCase);
-    // Admission and SOC are tracked as separate workflow stages.
-    // There is no separate ADMISSION stage in BuildWorkflowStages, so checking
-    // ADMISSION here permanently disables discharge even when SOC is complete.
+    private bool DischargeStageComplete => Workflow?.WorkflowStages.FirstOrDefault(x =>
+        string.Equals(x.StageCode, "DISCHARGE", StringComparison.OrdinalIgnoreCase))?.Status == WorkflowStatus.Completed;
+    // The episode outcome is available after the Recert or Discharge group.
+    // Discharge documents remain independently completable after the episode closes.
     private bool CanCloseEpisode => Workflow?.WorkflowStages.FirstOrDefault(x =>
-        string.Equals(x.StageCode, "SOC", StringComparison.OrdinalIgnoreCase))?.Status == WorkflowStatus.Completed;
-    private bool DischargeSummaryComplete => Workflow?.ComplianceItems.Any(x => string.Equals(x.RequirementCode, "DISCHARGE_SUMMARY_SIGNED", StringComparison.OrdinalIgnoreCase) && x.IsCompleted) == true;
-    private bool CanSubmitOutcome => OutcomeDate.HasValue && (IsTransfer ? !string.IsNullOrWhiteSpace(TransferDestination) : DischargeSummaryComplete);
-    private List<ComplianceItemDto> DischargeRequirements => Workflow?.ComplianceItems.Where(x => string.Equals(x.RequirementCode, "DISCHARGE_SUMMARY_SIGNED", StringComparison.OrdinalIgnoreCase) || string.Equals(x.RequirementCode, "NOMNC_SIGNED", StringComparison.OrdinalIgnoreCase)).OrderBy(x => x.RequirementCode).ToList() ?? [];
+        string.Equals(x.StageCode, "RECERT_OR_DISCHARGE", StringComparison.OrdinalIgnoreCase))?.Status == WorkflowStatus.Completed;
+    private bool CanSubmitOutcome => IsTransfer
+        ? OutcomeDate.HasValue && !string.IsNullOrWhiteSpace(TransferDestination)
+        : Workflow?.WorkflowDetails.DischargeDate.HasValue == true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -196,7 +160,7 @@
         IsSaving = true; ErrorMessage = null;
         try
         {
-            await WorkflowService.CompleteCareAsync(Workflow.Header.PatientId, FinalStatus, IsTransfer ? TransferDestination : null, OutcomeDate, IsTransfer ? TransferReason : null, IsTransfer ? null : DischargeFeedback);
+            await WorkflowService.CompleteCareAsync(Workflow.Header.PatientId, FinalStatus, IsTransfer ? TransferDestination : null, IsTransfer ? OutcomeDate : Workflow.WorkflowDetails.DischargeDate, IsTransfer ? TransferReason : null, IsTransfer ? null : Workflow.WorkflowDetails.DischargeFeedback);
             await OnCompleted.InvokeAsync();
         }
         catch (Exception ex) { ErrorMessage = ex.Message; }
@@ -205,7 +169,7 @@
 
     private async Task ArchiveJourneyAsync()
     {
-        if (Workflow is null || IsSaving || !JourneyCompleted || JourneyArchived) return;
+        if (Workflow is null || IsSaving || !JourneyCompleted || !DischargeStageComplete || JourneyArchived) return;
         IsSaving = true; ErrorMessage = null;
         try
         {

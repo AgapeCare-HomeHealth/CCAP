@@ -48,6 +48,23 @@
                             </div>
                             @if (IsAdministrator)
                             {
+                                <div class="col-12"><hr/><h6>Care Coordinator Assignments</h6></div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Primary CC</label>
+                                    <select class="form-select" @bind="Model.CoordinatorId">
+                                        <option value="">No Primary CC assigned</option>
+                                        @foreach (var user in Coordinators.Where(x => x.UserId != Model.SecondaryCoordinatorId && x.UserId != Model.BackupCoordinatorId))
+                                        { <option value="@user.UserId">@user.FullName</option> }
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Secondary CC</label>
+                                    <select class="form-select" @bind="Model.SecondaryCoordinatorId">
+                                        <option value="">No Secondary CC assigned</option>
+                                        @foreach (var user in Coordinators.Where(x => x.UserId != Model.CoordinatorId && x.UserId != Model.BackupCoordinatorId))
+                                        { <option value="@user.UserId">@user.FullName</option> }
+                                    </select>
+                                </div>
                                 <div class="col-12"><hr/><h6>Backup Care Coordinator</h6></div>
                                 <div class="col-md-6">
                                     <label class="form-label">Backup CC</label>

@@ -35,5 +35,7 @@ public sealed class UpdatePatientRequest
     public string? VisitPriority { get; set; }
     public string? CaseStatus { get; set; }
     public string? InternalNotes { get; set; }
+    public Guid? PrimaryCoordinatorId { get; set; }
+    public Guid? SecondaryCoordinatorId { get; set; }
     public Guid? BackupCoordinatorId { get; set; }
 }

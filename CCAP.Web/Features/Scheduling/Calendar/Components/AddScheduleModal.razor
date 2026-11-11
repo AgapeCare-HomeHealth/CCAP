@@ -153,12 +153,8 @@
                         </select>
                     </label>
                     <label class="schedule-field field-span-2">
-                        <span>Notes / Flag</span>
-                        <textarea rows="2" maxlength="4000" @bind="Form.NotesFlag" placeholder="Add a scheduling note or flag"></textarea>
-                    </label>
-                    <label class="schedule-field field-span-2">
-                        <span>Call Notes</span>
-                        <textarea rows="3" maxlength="4000" @bind="Form.CallNotes" placeholder="Record call notes"></textarea>
+                        <span>CC Notes</span>
+                        <textarea rows="3" maxlength="4000" @bind="Form.NotesFlag" placeholder="Record care-coordination notes, call updates, or flags"></textarea>
                     </label>
                 </div>
             </section>
@@ -187,8 +183,8 @@
 
     private static readonly string[] Weekdays = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
     private static readonly string[] TimeBlockOptions = ["09:00AM–11:00AM", "10:00AM–12:00PM", "11:00AM–01:00PM", "12:00PM–02:00PM", "01:00PM–03:00PM", "02:00PM–04:00PM", "03:00PM–05:00PM"];
-    private static readonly string[] ConfirmationStatusChoices = ["Confirmed", "Left VM", "Sent SMS", "No Answer", "Rescheduled", "Transferred/TIF", "Cancelled Visit", "Non-Visit Discharge", "Missed Visit", "Refused Visit", "labs"];
-    private static readonly string[] VisitTypeOptions = ["SOC", "ROC", "LVN", "PT EVAL", "BATH", "RE-EVAL", "RECERT", "OT", "ST", "MSW", "DC", "PTA", "PT RE-EVAL", "SN VISIT", "SN RE-EVAL", "SUPERVISORY", "PRN", "PICC LINE CHANGE", "BLOOD DRAW", "WOUND VAC", "SN", "INR", "LAB DRAW", "URINALYSIS", "SN DC", "FOLEY/CATHETER CHANGE", "PRN VISIT"];
+    private static readonly string[] ConfirmationStatusChoices = ["Confirmed", "Left VM", "Sent SMS", "No Answer", "Rescheduled", "Transferred/TIF", "Cancelled Visit", "Non-visit DC", "Missed Visit", "Refused Visit", "labs"];
+    private static readonly string[] VisitTypeOptions = ["SOC", "ROC", "LVN", "PT EVAL", "BATH", "RE-EVAL", "RECERT", "OT", "ST", "MSW", "DCA", "PTA", "PT RE-EVAL", "SN VISIT", "SN RE-EVAL", "SUPERVISORY", "PRN", "PICC LINE CHANGE", "BLOOD DRAW", "WOUND VAC", "INR", "LAB DRAW", "URINALYSIS", "SN DC", "FOLEY/CATHETER CHANGE", "PRN VISIT"];
     private DateTime FirstVisibleMonth = new(DateTime.Today.Year, DateTime.Today.Month, 1);
     private DateTime? InitializedForDate;
     private readonly HashSet<DateTime> SelectedDates = [];
@@ -278,7 +274,7 @@
             TimeBlock = normalizedTimeBlock,
             PatientName = Form.PatientName.Trim(),
             ConfirmationStatus = Form.ConfirmationStatus,
-            CallNotes = Form.CallNotes,
+            CallNotes = null,
             AssignedClinicianId = clinicianId,
             VisitType = Form.VisitType,
             VisitStatus = string.IsNullOrWhiteSpace(Form.VisitStatus) ? "Scheduled" : Form.VisitStatus,

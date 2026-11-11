@@ -30,7 +30,8 @@ public sealed class ReferralDocumentExtractionService : IReferralDocumentExtract
 
     public async Task<ReferralDocumentExtractionResult> ExtractAsync(
         Stream pdfStream,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IProgress<ReferralExtractionProgress>? progress = null)
     {
         if (pdfStream is null)
             throw new ArgumentNullException(nameof(pdfStream));
@@ -45,8 +46,17 @@ public sealed class ReferralDocumentExtractionService : IReferralDocumentExtract
         var digitalText = new StringBuilder();
         var imagePayloads = new List<byte[]>();
 
+        int totalPages;
         using (var document = PdfDocument.Open(bytes))
         {
+            totalPages = document.NumberOfPages;
+            progress?.Report(new ReferralExtractionProgress
+            {
+                TotalPages = totalPages,
+                PagesProcessed = 0,
+                Stage = "Preparing pages"
+            });
+
             foreach (var page in document.GetPages())
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -81,7 +91,7 @@ public sealed class ReferralDocumentExtractionService : IReferralDocumentExtract
         string? renderingFailure = null;
         try
         {
-            var renderedPages = RenderPdfPagesToPng(bytes, cancellationToken);
+            var renderedPages = RenderPdfPagesToPng(bytes, cancellationToken, progress, totalPages);
             if (renderedPages.Count > 0)
             {
                 // Always prefer full-page renders: Tesseract needs a complete,
@@ -120,7 +130,7 @@ public sealed class ReferralDocumentExtractionService : IReferralDocumentExtract
         {
             // Do not silently report "text layer read directly" when OCR failed.
             // The upload UI catches this exception and can show a useful message.
-            var ocr = await RunOcrAsync(imagePayloads, cancellationToken);
+            var ocr = await RunOcrAsync(imagePayloads, cancellationToken, progress, totalPages);
             if (!string.IsNullOrWhiteSpace(ocr.Text))
             {
                 var ocrResult = ReferralDocumentFieldParser.Parse(ocr.Text, true, ocr.Confidence, profiles);
@@ -202,7 +212,11 @@ public sealed class ReferralDocumentExtractionService : IReferralDocumentExtract
         return output.ToString();
     }
 
-    private static List<byte[]> RenderPdfPagesToPng(byte[] pdfBytes, CancellationToken cancellationToken)
+    private static List<byte[]> RenderPdfPagesToPng(
+        byte[] pdfBytes,
+        CancellationToken cancellationToken,
+        IProgress<ReferralExtractionProgress>? progress,
+        int totalPages)
     {
         var rendered = new List<byte[]>();
         using var document = DocLib.Instance.GetDocReader(pdfBytes, new PageDimensions(1700, 2300));
@@ -212,6 +226,12 @@ public sealed class ReferralDocumentExtractionService : IReferralDocumentExtract
         {
             cancellationToken.ThrowIfCancellationRequested();
             using var page = document.GetPageReader(pageIndex);
+            progress?.Report(new ReferralExtractionProgress
+            {
+                TotalPages = totalPages,
+                PagesProcessed = 0,
+                Stage = $"Preparing page {pageIndex + 1} of {totalPages}"
+            });
             var width = page.GetPageWidth();
             var height = page.GetPageHeight();
             var pixels = page.GetImage();
@@ -231,7 +251,9 @@ public sealed class ReferralDocumentExtractionService : IReferralDocumentExtract
 
     private Task<(string Text, double Confidence)> RunOcrAsync(
         IReadOnlyCollection<byte[]> images,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IProgress<ReferralExtractionProgress>? progress,
+        int totalPages)
     {
         var text = new StringBuilder();
         var confidenceTotal = 0d;
@@ -261,6 +283,7 @@ public sealed class ReferralDocumentExtractionService : IReferralDocumentExtract
         using var engine = new RapidOcr();
         engine.InitModels(detectorModel, classifierModel, recognizerModel, dictionaryFile);
 
+        var pagesProcessed = 0;
         foreach (var imageBytes in images)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -270,6 +293,13 @@ public sealed class ReferralDocumentExtractionService : IReferralDocumentExtract
                 continue;
 
             var pageResult = engine.Detect(bitmap, RapidOcrOptions.Default);
+            pagesProcessed++;
+            progress?.Report(new ReferralExtractionProgress
+            {
+                TotalPages = totalPages,
+                PagesProcessed = pagesProcessed,
+                Stage = $"Reading page {pagesProcessed} of {totalPages}"
+            });
             if (pageResult is null)
                 continue;
 
