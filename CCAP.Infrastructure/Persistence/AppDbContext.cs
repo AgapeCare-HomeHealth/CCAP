@@ -21,6 +21,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<Patient> Patients => Set<Patient>();
     public DbSet<LookupOption> LookupOptions => Set<LookupOption>();
     public DbSet<Referral> Referrals => Set<Referral>();
+    public DbSet<ReferralTrackerEntry> ReferralTrackerEntries => Set<ReferralTrackerEntry>();
     public DbSet<CallNote> CallNotes => Set<CallNote>();
     public DbSet<Assessment> Assessments => Set<Assessment>();
     public DbSet<ComplianceRecord> ComplianceRecords => Set<ComplianceRecord>();
@@ -32,6 +33,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<ReferralDocument> ReferralDocuments => Set<ReferralDocument>();
     public DbSet<Location> Locations => Set<Location>();
     public DbSet<NotificationReadState> NotificationReadStates => Set<NotificationReadState>();
+    public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
     public DbSet<PatientAuditLog> PatientAuditLogs => Set<PatientAuditLog>();
     public DbSet<PatientCareLog> PatientCareLogs => Set<PatientCareLog>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -111,6 +113,18 @@ public sealed class AppDbContext : DbContext
 
             entity.HasIndex(
                 x => x.UpdatedAt);
+        });
+
+        modelBuilder.Entity<UserNotification>(e =>
+        {
+            e.ToTable("UserNotifications");
+            e.HasKey(x => x.NotificationId);
+            e.Property(x => x.PatientName).HasMaxLength(250).IsRequired();
+            e.Property(x => x.Type).HasMaxLength(50).IsRequired();
+            e.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Message).HasMaxLength(2000).IsRequired();
+            e.Property(x => x.Severity).HasMaxLength(30).IsRequired();
+            e.HasIndex(x => new { x.UserId, x.CreatedAt });
         });
 
         modelBuilder.Entity<NotificationReadState>(e =>
@@ -199,6 +213,7 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.PreAuthDueDate).HasColumnType("date");
             e.Property(x => x.NumberOfVisits);
             e.Property(x => x.CaseMixType).HasMaxLength(200);
+            e.Property(x => x.HospitalDcSummaryNotes).HasMaxLength(2000);
             e.Property(x => x.DmeMedSupplyNotes).HasMaxLength(2000);
             e.Property(x => x.SocFeedbackFromPatient).HasMaxLength(2000);
             e.Property(x => x.TifDate).HasColumnType("date");
@@ -239,6 +254,29 @@ public sealed class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(x => x.ClinicianId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ReferralTrackerEntry>(e =>
+        {
+            e.ToTable("ReferralTrackerEntries");
+            e.HasKey(x => x.ReferralTrackerEntryId);
+            e.Property(x => x.ReferralNumber).HasMaxLength(50).IsRequired();
+            e.Property(x => x.FirstName).HasMaxLength(100).IsRequired();
+            e.Property(x => x.LastName).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Mrn).HasMaxLength(50);
+            e.Property(x => x.Status).HasMaxLength(100);
+            e.Property(x => x.Source).HasMaxLength(150);
+            e.Property(x => x.Insurance).HasMaxLength(150);
+            e.Property(x => x.PostedOn).HasMaxLength(50);
+            e.Property(x => x.AssignedCoordinatorName).HasMaxLength(200);
+            e.Property(x => x.EstimatedDischargeDate).HasColumnType("date");
+            e.Property(x => x.DateOfBirth).HasColumnType("date");
+            e.Property(x => x.FirstMarketingCall).HasMaxLength(2000);
+            e.Property(x => x.SecondCoordinatorCall).HasMaxLength(2000);
+            e.Property(x => x.ThirdCoordinatorCall).HasMaxLength(2000);
+            e.Property(x => x.Resolution).HasMaxLength(500);
+            e.HasIndex(x => x.ReferralNumber).IsUnique();
+            e.HasIndex(x => x.ReferralDate);
         });
 
         modelBuilder.Entity<Referral>(e =>

@@ -46,7 +46,7 @@ public sealed class UpdateCalendarVisitDetailsCommandHandler : IRequestHandler<U
             throw new KeyNotFoundException("Visit not found or not accessible.");
 
         var confirmationStatuses = await _lookups.GetAsync("ConfirmationStatus", true, cancellationToken);
-        var allowedConfirmationStatuses = new[] { "Confirmed", "Left VM", "Sent SMS", "No Answer", "Rescheduled", "Transferred/TIF", "Cancelled Visit", "Non-Visit Discharge", "Missed Visit", "Refused Visit", "labs" };
+        var allowedConfirmationStatuses = new[] { "Confirmed", "Left VM", "Sent SMS", "No Answer", "Rescheduled", "Transferred/TIF", "Cancelled Visit", "Non-visit DC", "Missed Visit", "Refused Visit", "labs" };
         if (!confirmationStatuses.Any(x =>
                 string.Equals(x.DisplayName, request.ConfirmationStatus, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(x.Code, request.ConfirmationStatus, StringComparison.OrdinalIgnoreCase)) &&

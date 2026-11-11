@@ -1,16 +1,4 @@
-.widget-card {
-    background: white;
-    border-radius: 16px;
-    box-shadow: 0 4px 16px rgba(0,0,0,.05);
-    overflow: hidden;
-}
-
-.widget-header {
-    padding: 18px 20px;
-    font-weight: 700;
-    border-bottom: 1px solid #f1f5f9;
-}
-
-.widget-card table td {
-    padding: 14px 20px;
-}
+.dashboard-list-card { min-height: 250px; }
+.dashboard-card-list { max-height: 300px; overflow-y: auto; }
+.dashboard-list-row { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 14px; border-bottom:1px solid var(--bs-border-color,#e5e7eb); }
+.dashboard-list-row:last-child { border-bottom:0; }

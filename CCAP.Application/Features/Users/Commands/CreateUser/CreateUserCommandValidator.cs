@@ -7,17 +7,6 @@ public sealed class CreateUserCommandValidator
 {
     public void Validate(CreateUserCommand request)
     {
-        if (string.IsNullOrWhiteSpace(request.EmployeeNo))
-        {
-            throw new ArgumentException(
-                "Employee number is required.");
-        }
-
-        if (request.EmployeeNo.Length > 50)
-        {
-            throw new ArgumentException(
-                "Employee number cannot exceed 50 characters.");
-        }
 
         if (string.IsNullOrWhiteSpace(request.FirstName))
         {

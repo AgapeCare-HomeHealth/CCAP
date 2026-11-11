@@ -1,4 +1,4 @@
-﻿using CCAP.Application.Abstractions.Persistence;
+using CCAP.Application.Abstractions.Persistence;
 using CCAP.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -37,7 +37,21 @@ public sealed class ComplianceRepository
                 cancellationToken);
     }
 
-    public Task<List<ComplianceRecord>> GetByPatientAsync(Guid patientId, CancellationToken cancellationToken) =>
-        _context.ComplianceRecords.Where(x => x.PatientId == patientId).ToListAsync(cancellationToken);
+    public async Task<List<ComplianceRecord>> GetByPatientAsync(Guid patientId, CancellationToken cancellationToken)
+    {
+        // Include newly Added records in the current unit of work as well as persisted rows.
+        // EF database queries do not return Added entities until SaveChanges is called.
+        var persisted = await _context.ComplianceRecords
+            .Where(x => x.PatientId == patientId)
+            .ToListAsync(cancellationToken);
+
+        var tracked = _context.ComplianceRecords.Local
+            .Where(x => x.PatientId == patientId);
+
+        return persisted
+            .Concat(tracked)
+            .DistinctBy(x => x.ComplianceRecordId)
+            .ToList();
+    }
 
 }

@@ -69,7 +69,18 @@ public sealed class NotificationRepository
                 false))
             .ToListAsync(cancellationToken);
 
-        var notifications = tasks.Concat(visits)
+        var persisted = await _db.UserNotifications.AsNoTracking()
+            .Where(x => x.UserId == userId)
+            .OrderByDescending(x => x.CreatedAt)
+            .Take(50)
+            .Select(x => new NotificationDto(
+                x.NotificationId, x.PatientId, x.PatientName, x.Type,
+                x.Title, x.Message, x.Severity, x.DueDate, x.CreatedAt, false))
+            .ToListAsync(cancellationToken);
+
+        var notifications = tasks.Concat(visits).Concat(persisted)
+            .GroupBy(x => new { x.Type, x.NotificationId })
+            .Select(x => x.First())
             .OrderBy(x => x.Severity == "Critical" ? 0 : x.Severity == "Warning" ? 1 : 2)
             .ThenBy(x => x.DueDate ?? DateTime.MaxValue)
             .Take(50).ToList();

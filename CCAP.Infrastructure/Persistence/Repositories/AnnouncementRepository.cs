@@ -28,7 +28,6 @@ public sealed class AnnouncementRepository
                 (!x.ExpiresAt.HasValue ||
                  x.ExpiresAt > now))
             .OrderByDescending(x => x.PublishedAt)
-            .Take(10)
             .Select(x => new AnnouncementDto(
                 x.AnnouncementId,
                 x.Title,

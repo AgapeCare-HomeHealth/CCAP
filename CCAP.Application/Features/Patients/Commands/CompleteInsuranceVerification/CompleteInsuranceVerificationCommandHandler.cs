@@ -33,8 +33,7 @@ public sealed class CompleteInsuranceVerificationCommandHandler : IRequestHandle
         }
         if (!compliance.IsCompleted) compliance.Complete(request.VerifiedByUserId);
 
-        var task = await _tasks.GetPendingByPatientAndTitleAsync(request.PatientId, "Verify Insurance", cancellationToken);
-        task?.Complete();
+        await PatientComplianceTaskSynchronizer.EnsureAllAsync(patient, _tasks, _compliance, cancellationToken);
 
         patient.Activities.Add(new Activity(patient.PatientId, request.VerifiedByUserId, "Insurance", "Insurance verification completed", "Insurance was verified."));
         await _auditLogs.AddAsync(new PatientAuditLog(patient.PatientId, request.VerifiedByUserId, "Insurance", patient.PatientId.ToString(), "UPDATE", "Unverified", "Verified", "Insurance verification completed."), cancellationToken);

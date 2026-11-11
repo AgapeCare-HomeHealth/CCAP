@@ -1,4 +1,4 @@
-﻿@using CCAP.Web.Features.Dashboard.Models
+@using CCAP.Web.Features.Dashboard.Models
 
 <div class="row g-4">
 
@@ -11,8 +11,7 @@
 
     <div class="col-lg-4">
 
-        <UpcomingSocCard
-            Visits="Visits"/>
+        <UpcomingSocCard />
 
     </div>
 
@@ -32,10 +31,6 @@
     public IEnumerable<ReferralSummaryDto> Referrals { get; set; }
         = Enumerable.Empty<ReferralSummaryDto>();
 
-    [Parameter]
-
-    public IEnumerable<UpcomingVisitDto> Visits { get; set; }
-        = Enumerable.Empty<UpcomingVisitDto>();
 
     [Parameter]
 

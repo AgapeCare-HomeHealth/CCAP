@@ -4,6 +4,8 @@ namespace CCAP.Application.Abstractions.Persistence;
 
 public interface IUserRepository
 {
+    Task<string> GetNextEmployeeNoAsync(CancellationToken cancellationToken);
+
     Task<ApplicationUser?> GetByIdAsync(
         Guid id,
         CancellationToken cancellationToken);

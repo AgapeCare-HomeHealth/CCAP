@@ -154,11 +154,11 @@ public sealed class AddSchedulesCommandHandler : IRequestHandler<AddSchedulesCom
 
         var confirmationNames = confirmationStatuses
             .Select(x => x.DisplayName)
-            .Concat(new[] { "Confirmed", "Left VM", "Sent SMS", "No Answer", "Rescheduled", "Transferred/TIF", "Cancelled Visit", "Non-Visit Discharge", "Missed Visit", "Refused Visit", "labs" })
+            .Concat(new[] { "Confirmed", "Left VM", "Sent SMS", "No Answer", "Rescheduled", "Transferred/TIF", "Cancelled Visit", "Non-visit DC", "Missed Visit", "Refused Visit", "labs" })
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var visitTypeNames = visitTypes
             .Select(x => x.DisplayName)
-            .Concat(new[] { "SOC", "ROC", "LVN", "PT EVAL", "BATH", "RE-EVAL", "RECERT", "OT", "ST", "MSW", "DC", "PTA", "PT RE-EVAL", "SN VISIT", "SN RE-EVAL", "SUPERVISORY", "PRN", "PICC LINE CHANGE", "BLOOD DRAW", "WOUND VAC", "SN", "INR", "LAB DRAW", "URINALYSIS", "SN DC", "FOLEY/CATHETER CHANGE", "PRN VISIT" })
+            .Concat(new[] { "SOC", "ROC", "LVN", "PT EVAL", "BATH", "RE-EVAL", "RECERT", "OT", "ST", "MSW", "DCA", "PTA", "PT RE-EVAL", "SN VISIT", "SN RE-EVAL", "SUPERVISORY", "PRN", "PICC LINE CHANGE", "BLOOD DRAW", "WOUND VAC", "INR", "LAB DRAW", "URINALYSIS", "SN DC", "FOLEY/CATHETER CHANGE", "PRN VISIT" })
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var visitStatusNames = visitStatuses
             .Select(x => x.DisplayName)

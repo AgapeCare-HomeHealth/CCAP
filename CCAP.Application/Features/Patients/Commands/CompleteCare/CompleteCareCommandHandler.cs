@@ -1,25 +1,24 @@
 using CCAP.Application.Abstractions.Persistence;
+using CCAP.Application.Features.Patients;
 using MediatR;
 
 namespace CCAP.Application.Features.Patients.Commands.CompleteCare;
 
 public sealed class CompleteCareCommandHandler : IRequestHandler<CompleteCareCommand>
 {
-    private static readonly string[] AdmissionRequirements =
-    [
-        "PHYSICIAN_ORDERS", "DME_MED_SUPPLY", "NOA_FILED",
-        "QA_APPROVAL", "ORDERS_SIGNED", "DOCS_UPLOADED",
-        "CASE_MIX_IDENTIFIED", "CASE_MIX_ORDERS_SIGNED", "CASE_MIX_PLOTTED"
-    ];
-
-    private static readonly string[] SocRequirements = ["SOC_COMPLIANT", "OASIS_SOC_COMPLETE"];
-
     private readonly IPatientRepository _patients;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IComplianceRepository _compliance;
 
-    public CompleteCareCommandHandler(IPatientRepository patients, IUnitOfWork unitOfWork, IComplianceRepository compliance)
-    { _patients = patients; _unitOfWork = unitOfWork; _compliance = compliance; }
+    public CompleteCareCommandHandler(
+        IPatientRepository patients,
+        IUnitOfWork unitOfWork,
+        IComplianceRepository compliance)
+    {
+        _patients = patients;
+        _unitOfWork = unitOfWork;
+        _compliance = compliance;
+    }
 
     public async Task Handle(CompleteCareCommand request, CancellationToken cancellationToken)
     {
@@ -27,36 +26,49 @@ public sealed class CompleteCareCommandHandler : IRequestHandler<CompleteCareCom
             ?? throw new KeyNotFoundException("Patient not found.");
 
         var complianceRecords = await _compliance.GetByPatientAsync(request.PatientId, cancellationToken);
-        var admissionComplete = AdmissionRequirements.All(code =>
-            complianceRecords.Any(x => string.Equals(x.RequirementCode, code, StringComparison.OrdinalIgnoreCase) && x.IsCompleted));
-        var socComplete = SocRequirements.All(code =>
-            complianceRecords.Any(x => string.Equals(x.RequirementCode, code, StringComparison.OrdinalIgnoreCase) && x.IsCompleted));
 
-        if (!admissionComplete || !socComplete)
-            throw new InvalidOperationException("Admission and SOC compliance must each be completed before discharge.");
+        // Use the same canonical Yes/No/N/A compliance groups as the workflow progress UI.
+        // Informational dates, numbers, notes, and dropdowns do not gate the final outcome.
+        var admissionComplete = PatientWorkflowStageRules.IsGroupComplete(
+            patient, complianceRecords, PatientWorkflowStageRules.Admission);
+        var socComplete = PatientWorkflowStageRules.IsGroupComplete(
+            patient, complianceRecords, PatientWorkflowStageRules.Soc);
+        var ongoingCareComplete = PatientWorkflowStageRules.IsGroupComplete(
+            patient, complianceRecords, PatientWorkflowStageRules.OngoingCare);
+        var recertOrDischargeComplete = PatientWorkflowStageRules.IsGroupComplete(
+            patient, complianceRecords, PatientWorkflowStageRules.RecertOrDischarge);
+        if (!admissionComplete || !socComplete || !ongoingCareComplete ||
+            !recertOrDischargeComplete)
+        {
+            throw new InvalidOperationException(
+                "Complete the applicable Admission, SOC, On-Going Care, and Recert or Discharge compliance requirements before recording the final outcome.");
+        }
 
         var isTransfer = string.Equals(request.FinalStatus, "Transferred", StringComparison.OrdinalIgnoreCase);
 
         if (isTransfer && string.IsNullOrWhiteSpace(request.TransferDestination))
             throw new InvalidOperationException("Transfer destination is required when the final outcome is Transferred.");
 
-        if (!isTransfer)
-        {
-            var dischargeSummarySigned = complianceRecords.Any(x =>
-                string.Equals(x.RequirementCode, "DISCHARGE_SUMMARY_SIGNED", StringComparison.OrdinalIgnoreCase) && x.IsCompleted);
-
-            if (!dischargeSummarySigned)
-                throw new InvalidOperationException("Discharge Summary Signed must be completed before completing discharge.");
-        }
-
+        // A transfer date is a valid alternative to a discharge date. Preserve
+        // the existing discharge date for transfers and use the outcome date as
+        // the transfer date instead.
         patient.UpdateWorkflowDetails(
-            patient.PreAuthDueDate, patient.NumberOfVisits, patient.CaseMixType, patient.DmeMedSupplyNotes,
-            patient.SocFeedbackFromPatient, patient.TifDate, patient.RocDate, patient.RecertDate, patient.PcpPtNotified,
+            patient.PreAuthDueDate,
+            patient.NumberOfVisits,
+            patient.CaseMixType,
+            patient.HospitalDcSummaryNotes,
+            patient.DmeMedSupplyNotes,
+            patient.SocFeedbackFromPatient,
+            patient.TifDate,
+            patient.RocDate,
+            patient.RecertDate,
+            patient.PcpPtNotified,
             !isTransfer ? request.OutcomeDate ?? patient.DischargeDate : patient.DischargeDate,
             !isTransfer ? request.DischargeFeedback ?? patient.DischargeFeedback : patient.DischargeFeedback,
             isTransfer ? request.TransferDestination ?? patient.TransferDestination : patient.TransferDestination,
             isTransfer ? request.OutcomeDate ?? patient.TransferDate : patient.TransferDate,
             isTransfer ? request.TransferReason ?? patient.TransferReason : patient.TransferReason);
+
         patient.CompleteCare(request.FinalStatus, request.FinalizedByUserId);
         _patients.Update(patient);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

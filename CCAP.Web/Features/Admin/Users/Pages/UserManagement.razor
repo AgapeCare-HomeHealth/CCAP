@@ -7,6 +7,7 @@
 @inject UserServices UserService
 @inject AdminLookupService LookupService
 @inject CCAP.Web.Features.Admin.Roles.Services.RoleService RoleService
+@inject IJSRuntime JS
 
 <PageTitle>User Management</PageTitle>
 
@@ -27,6 +28,11 @@
 
     <UserToolbar Filter="Filter" Roles="Roles" Disciplines="Disciplines" OnFilter="FilterUsers"/>
 
+    @if (!string.IsNullOrWhiteSpace(TemporaryPasswordNotice))
+    {
+        <div class="alert alert-warning"><strong>Temporary password for @TemporaryPasswordUser:</strong> <code>@TemporaryPasswordNotice</code><button class="btn btn-sm btn-outline-secondary ms-2" @onclick="CopyTemporaryPassword">Copy</button><div class="small mt-1">Share this securely. The user can change it after signing in.</div></div>
+    }
+
     @if (IsLoading)
     {
         <div class="py-5 text-center">Loading users...</div>
@@ -40,7 +46,8 @@
         <UserTable Users="PagedUsers"
                    OnEdit="OpenEdit"
                    OnActivate="Activate"
-                   OnDeactivate="Deactivate" />
+                   OnDeactivate="Deactivate"
+                   OnGenerateTemporaryPassword="GenerateTemporaryPassword" />
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
             <div class="small text-muted">Showing @(FilteredUsers.Count == 0 ? 0 : ((CurrentPage - 1) * PageSize) + 1)–@Math.Min(CurrentPage * PageSize, FilteredUsers.Count) of @FilteredUsers.Count users</div>
             <div class="d-flex align-items-center gap-2">
@@ -76,11 +83,20 @@
                         }
 
                         <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Employee No.</label>
-                                <InputText class="form-control" @bind-Value="Editor.EmployeeNo" />
-                                <ValidationMessage For="() => Editor.EmployeeNo" />
-                            </div>
+                            @if (!IsNew)
+                            {
+                                <div class="col-md-6">
+                                    <label class="form-label">Employee ID</label>
+                                    <input class="form-control" value="@SelectedEmployeeNo" readonly />
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="col-md-6">
+                                    <label class="form-label">Employee ID</label>
+                                    <input class="form-control" value="Generated automatically (EMP-XXXX)" readonly />
+                                </div>
+                            }
 
                             <div class="col-md-6">
                                 <label class="form-label">Email</label>
@@ -171,6 +187,9 @@
     private List<LookupDto> Disciplines = [];
 
     private UserEditModel Editor = new();
+    private string SelectedEmployeeNo = string.Empty;
+    private string TemporaryPasswordNotice = string.Empty;
+    private string TemporaryPasswordUser = string.Empty;
     private bool IsLoading;
     private bool IsSaving;
     private bool ShowEditor;
@@ -299,6 +318,7 @@
     {
         IsNew = true;
         EditorError = null;
+        SelectedEmployeeNo = "Generated automatically";
         Editor = new UserEditModel
         {
             RoleId = Roles.FirstOrDefault(x => x.IsActive)?.RoleId ?? Guid.Empty,
@@ -311,6 +331,7 @@
     {
         IsNew = false;
         EditorError = null;
+        SelectedEmployeeNo = user.EmployeeNo;
         Editor = new UserEditModel
         {
             UserId = user.UserId,
@@ -376,6 +397,21 @@
         {
             IsSaving = false;
         }
+    }
+
+    private async Task GenerateTemporaryPassword(UserDto user)
+    {
+        try
+        {
+            TemporaryPasswordNotice = await UserService.GenerateTemporaryPasswordAsync(user.UserId);
+            TemporaryPasswordUser = user.FullName;
+        }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+    }
+
+    private async Task CopyTemporaryPassword()
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", TemporaryPasswordNotice);
     }
 
     private async Task Activate(UserDto user)

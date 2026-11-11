@@ -24,116 +24,74 @@ public sealed class DashboardRepository : IDashboardRepository
         var today = now.Date;
         var tomorrow = today.AddDays(1);
 
-        // =========================================================
-        // TASKS — derive outstanding work from the same compliance records
-        // that the patient's Compliance tab edits. This prevents the dashboard
-        // from showing a separate task that cannot be completed in Compliance.
-        // =========================================================
-        var activeComplianceRequirementCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "PRE_AUTH_RECEIVED", "PRO_RECEIVED", "H_AND_P_RECEIVED", "F2F_RECEIVED",
-            "PCP_CONFIRMED", "AVS_RECEIVED", "SIGNED_CONSENTS", "INSURANCE_VERIFICATION",
-            "PHYSICIAN_ORDERS", "SOC_COMPLIANT", "DME_MED_SUPPLY", "NOA_FILED", "OASIS_SOC_COMPLETE",
-            "QA_APPROVAL", "ORDERS_SIGNED", "DOCS_UPLOADED", "CASE_MIX_IDENTIFIED",
-            "CASE_MIX_ORDERS_SIGNED", "CASE_MIX_PLOTTED", "PCP_PT_NOTIFIED",
-            // ROC is a workflow event tracked by the ROC Date, not a
-            // standing compliance requirement. It is intentionally excluded
-            // from dashboard outstanding tasks because there is no ROC
-            // compliance control in the Compliance tab to complete.
-            "RECERTIFICATION", "DISCHARGE_SUMMARY_SIGNED", "NOMNC_SIGNED"
-        };
+        // Determine dashboard visibility from the application's own role table.
+        // Administrators can review all active patient tasks; other users see only
+        // tasks assigned to them (plus unassigned tasks for their own patients).
+        var roleName = await _db.ApplicationUsers
+            .Where(x => x.UserId == userId)
+            .Select(x => x.Role.RoleName)
+            .FirstOrDefaultAsync(cancellationToken);
 
-        var complianceRecords = await _db.ComplianceRecords
+        var isAdministrator = string.Equals(
+            roleName, "Administrator", StringComparison.OrdinalIgnoreCase);
+
+        var visibleOpenTasks = _db.PatientTasks
             .AsNoTracking()
-            .Where(x => !x.IsCompleted && x.Patient.Status != PatientStatus.Archived
-                && x.Patient.Status != PatientStatus.Completed)
-            .Select(x => new
+            .Where(x => x.Status != PatientTaskStatus.Completed
+                && x.Status != PatientTaskStatus.Cancelled
+                && (isAdministrator
+                    || (x.Patient.Status != PatientStatus.Archived
+                        && x.Patient.Status != PatientStatus.Completed))
+                && (isAdministrator
+                    || x.AssignedUserId == userId
+                    || (x.AssignedUserId == null && x.Patient.CoordinatorId == userId)));
+
+        var taskDtos = await visibleOpenTasks
+            .OrderBy(x => x.DueDate)
+            .Select(x => new MyTaskDto
             {
-                x.PatientId,
-                x.RequirementCode,
-                x.Patient.FirstName,
-                x.Patient.LastName,
-                x.Patient.SocDate,
-                x.Patient.CoordinatorId,
-                x.Patient.SecondaryCoordinatorId,
-                x.Patient.BackupCoordinatorId,
-                Clinician = x.Patient.Clinician == null ? "" : x.Patient.Clinician.FirstName + " " + x.Patient.Clinician.LastName,
-                Coordinator = x.Patient.Coordinator == null ? "" : x.Patient.Coordinator.FirstName + " " + x.Patient.Coordinator.LastName
+                TransactionId = x.TaskId,
+                PatientId = x.PatientId,
+                Priority = x.DueDate < now ? "High" : "Medium",
+                TaskName = x.Title,
+                PatientName = (x.Patient.FirstName + " " + x.Patient.LastName).Trim(),
+                DueDate = x.DueDate,
+                AssignedTo = x.AssignedUser == null
+                    ? (x.Patient.Coordinator == null ? "Unassigned" : x.Patient.Coordinator.FirstName + " " + x.Patient.Coordinator.LastName)
+                    : x.AssignedUser.FirstName + " " + x.AssignedUser.LastName,
+                AssignedClinician = x.Patient.Clinician == null ? "Unassigned" : x.Patient.Clinician.FirstName + " " + x.Patient.Clinician.LastName,
+                CurrentStage = "Compliance",
+                PatientCoordinatorRole = isAdministrator
+                    ? "Admin View"
+                    : x.AssignedUserId == x.Patient.CoordinatorId
+                        ? "Primary CC"
+                        : x.AssignedUserId == x.Patient.SecondaryCoordinatorId
+                            ? "Secondary CC"
+                            : x.AssignedUserId == x.Patient.BackupCoordinatorId
+                                ? "Backup CC"
+                                : "Assigned User"
             })
             .ToListAsync(cancellationToken);
 
-        var taskDtos = complianceRecords
-            .Where(x => activeComplianceRequirementCodes.Contains(x.RequirementCode))
-            .Select(x => new MyTaskDto
-            {
-                TransactionId = Guid.Empty,
-                PatientId = x.PatientId,
-                Priority = x.SocDate.HasValue && x.SocDate.Value.ToDateTime(TimeOnly.MinValue) < now ? "High" : "Medium",
-                TaskName = ComplianceTaskName(x.RequirementCode),
-                PatientName = (x.FirstName + " " + x.LastName).Trim(),
-                DueDate = x.SocDate.HasValue ? x.SocDate.Value.ToDateTime(TimeOnly.MinValue) : tomorrow,
-                AssignedTo = string.IsNullOrWhiteSpace(x.Coordinator) ? "Unassigned" : x.Coordinator,
-                AssignedClinician = string.IsNullOrWhiteSpace(x.Clinician) ? "Unassigned" : x.Clinician,
-                CurrentStage = "Compliance",
-                PatientCoordinatorRole = x.CoordinatorId == userId
-                    ? "Primary CC"
-                    : x.SecondaryCoordinatorId == userId
-                        ? "Secondary CC"
-                        : x.BackupCoordinatorId == userId
-                            ? "Backup CC"
-                            : "Not Assigned"
-            })
-            .OrderBy(x => x.DueDate)
-            .ToList();
+        // Statistics use exactly the same visibility and active-patient scope as the task list.
+        var myTaskCount = await visibleOpenTasks.CountAsync(cancellationToken);
+        var highPriorityCount = await visibleOpenTasks.CountAsync(x => x.DueDate < now, cancellationToken);
+        var dueTodayCount = await visibleOpenTasks.CountAsync(
+            x => x.DueDate >= today && x.DueDate < tomorrow, cancellationToken);
 
-        // =========================================================
-        // TASK STATISTICS
-        // =========================================================
-
-        var myTaskCount = await _db.PatientTasks
+        var completedTasks = _db.PatientTasks
             .AsNoTracking()
-            .CountAsync(
-                x =>
-                    x.Status != PatientTaskStatus.Completed &&
-                    x.Status != PatientTaskStatus.Cancelled &&
-                    (x.AssignedUserId == null ||
-                     x.AssignedUserId == userId),
-                cancellationToken);
+            .Where(x => x.Status == PatientTaskStatus.Completed
+                && x.CompletedAt >= today
+                && x.CompletedAt < tomorrow
+                && (isAdministrator
+                    || (x.Patient.Status != PatientStatus.Archived
+                        && x.Patient.Status != PatientStatus.Completed))
+                && (isAdministrator
+                    || x.AssignedUserId == userId
+                    || (x.AssignedUserId == null && x.Patient.CoordinatorId == userId)));
 
-        var highPriorityCount = await _db.PatientTasks
-            .AsNoTracking()
-            .CountAsync(
-                x =>
-                    x.Status != PatientTaskStatus.Completed &&
-                    x.Status != PatientTaskStatus.Cancelled &&
-                    (x.AssignedUserId == null ||
-                     x.AssignedUserId == userId) &&
-                    x.DueDate < now,
-                cancellationToken);
-
-        var dueTodayCount = await _db.PatientTasks
-            .AsNoTracking()
-            .CountAsync(
-                x =>
-                    x.Status != PatientTaskStatus.Completed &&
-                    x.Status != PatientTaskStatus.Cancelled &&
-                    (x.AssignedUserId == null ||
-                     x.AssignedUserId == userId) &&
-                    x.DueDate >= today &&
-                    x.DueDate < tomorrow,
-                cancellationToken);
-
-        var completedTodayCount =
-            await _db.PatientTasks
-                .AsNoTracking()
-                .CountAsync(
-                    x =>
-                        x.Status == PatientTaskStatus.Completed &&
-                        x.CompletedAt >= today &&
-                        x.CompletedAt < tomorrow &&
-                        (x.AssignedUserId == null ||
-                         x.AssignedUserId == userId),
-                    cancellationToken);
+        var completedTodayCount = await completedTasks.CountAsync(cancellationToken);
 
         // =========================================================
         // RECENT REFERRALS
@@ -143,7 +101,6 @@ public sealed class DashboardRepository : IDashboardRepository
             .AsNoTracking()
             .Where(x => x.PatientId != null)
             .OrderByDescending(x => x.ReferralDate)
-            .Take(5)
             .Select(x => new ReferralSummaryDto
             {
                 PatientName =
@@ -171,7 +128,6 @@ public sealed class DashboardRepository : IDashboardRepository
                 x.ClinicianId == userId &&
                 x.PatientId.HasValue)
             .OrderBy(x => x.ScheduledDate)
-            .Take(5)
             .Select(x => new UpcomingVisitDto
             {
                 PatientName =
@@ -199,8 +155,11 @@ public sealed class DashboardRepository : IDashboardRepository
                     announcements
                         .Select(x => new AnnouncementDto
                         {
+                            AnnouncementId = x.AnnouncementId,
                             Title = x.Title,
-                            Message = x.Message
+                            Message = x.Message,
+                            PublishedAt = x.PublishedAt,
+                            ExpiresAt = x.ExpiresAt
                         })
                         .ToList();
 
@@ -212,9 +171,9 @@ public sealed class DashboardRepository : IDashboardRepository
         {
             Statistics = new WorkStatisticsDto
             {
-                MyTasks = taskDtos.Count,
-                HighPriority = taskDtos.Count(x => x.Priority == "High"),
-                DueToday = taskDtos.Count(x => x.DueDate.Date == today),
+                MyTasks = myTaskCount,
+                HighPriority = highPriorityCount,
+                DueToday = dueTodayCount,
                 CompletedToday = completedTodayCount
             },
 
@@ -228,31 +187,4 @@ public sealed class DashboardRepository : IDashboardRepository
         };
     }
 
-    private static string ComplianceTaskName(string code) => code switch
-    {
-        "PRE_AUTH_RECEIVED" => "Confirm Pre-Authorization Received",
-        "PRO_RECEIVED" => "Upload Required Documents",
-        "H_AND_P_RECEIVED" => "Confirm H&P Received",
-        "F2F_RECEIVED" => "Confirm Face-to-Face Documentation",
-        "PCP_CONFIRMED" => "Confirm PCP",
-        "AVS_RECEIVED" => "Confirm AVS Received",
-        "SIGNED_CONSENTS" => "Confirm Signed Consents",
-        "INSURANCE_VERIFICATION" => "Complete Insurance Verification",
-        "SOC_COMPLIANT" => "Complete SOC Compliance",
-        "DME_MED_SUPPLY" => "Confirm DME / Medical Supplies",
-        "NOA_FILED" => "Confirm NOA Filed",
-        "OASIS_SOC_COMPLETE" => "Complete OASIS / SOC",
-        "QA_APPROVAL" => "Confirm QA Approval",
-        "ORDERS_SIGNED" => "Confirm Orders Signed",
-        "PHYSICIAN_ORDERS" => "Verify Physician Orders",
-        "DOCS_UPLOADED" => "Upload Required Documents",
-        "CASE_MIX_IDENTIFIED" => "Identify Case Mix",
-        "CASE_MIX_ORDERS_SIGNED" => "Confirm Case Mix Orders Signed",
-        "CASE_MIX_PLOTTED" => "Confirm Case Mix Plotted",
-        "PCP_PT_NOTIFIED" => "Confirm PCP & PT Notified",
-        "RECERTIFICATION" => "Complete Recertification",
-        "DISCHARGE_SUMMARY_SIGNED" => "Complete Compliance: DISCHARGE SUMMARY SIGNED",
-        "NOMNC_SIGNED" => "Complete Compliance: NOMNC SIGNED",
-        _ => code.Replace('_', ' ')
-    };
 }

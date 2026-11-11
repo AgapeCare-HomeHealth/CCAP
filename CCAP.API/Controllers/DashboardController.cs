@@ -19,6 +19,7 @@ public sealed class DashboardController : ControllerBase
     }
 
     [HttpGet]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<IActionResult> GetDashboard(
         CancellationToken cancellationToken)
     {

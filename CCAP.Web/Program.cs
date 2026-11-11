@@ -43,6 +43,7 @@ builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<PatientWorkflowService>();
 builder.Services.AddScoped<PatientCareManagementService>();
 builder.Services.AddScoped<NotificationCenterService>();
+builder.Services.AddScoped<NotificationRealtimeService>();
 builder.Services.AddScoped<CalendarService>();
 builder.Services.AddScoped<ReferralIntakeService>();
 

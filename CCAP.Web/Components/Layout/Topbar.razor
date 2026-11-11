@@ -5,6 +5,7 @@
 @using CCAP.Web.Features.Notifications.Services
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NotificationCenterService NotificationCenter
+@inject NotificationRealtimeService Realtime
 @inject NavigationManager Navigation
 @implements IDisposable
 
@@ -82,9 +83,14 @@
 
     private int UnreadCount => notifications.Count(x => !x.IsRead);
 
+    private CancellationTokenSource? _notificationRefreshCts;
+    private Task? _notificationRefreshLoop;
+
     protected override void OnInitialized()
     {
         AuthenticationStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+        _notificationRefreshCts = new CancellationTokenSource();
+        _notificationRefreshLoop = RefreshNotificationsPeriodicallyAsync(_notificationRefreshCts.Token);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -92,8 +98,23 @@
         if (!firstRender)
             return;
 
+        Realtime.NotificationReceived += OnNotificationReceived;
+        try { await Realtime.StartAsync(); } catch { /* polling fallback */ }
         await LoadNotificationsAsync();
         await InvokeAsync(StateHasChanged);
+    }
+
+    private async void OnNotificationReceived()
+    {
+        try
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadNotificationsAsync();
+                StateHasChanged();
+            });
+        }
+        catch (ObjectDisposedException) { }
     }
 
     private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
@@ -113,6 +134,27 @@
     public void Dispose()
     {
         AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+        Realtime.NotificationReceived -= OnNotificationReceived;
+        _notificationRefreshCts?.Cancel();
+        _notificationRefreshCts?.Dispose();
+    }
+
+    private async Task RefreshNotificationsPeriodicallyAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(20));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                await InvokeAsync(async () =>
+                {
+                    await LoadNotificationsAsync();
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (ObjectDisposedException) { }
     }
 
     private async Task LoadNotificationsAsync()

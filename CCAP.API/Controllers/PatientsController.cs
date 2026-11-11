@@ -8,6 +8,7 @@ using CCAP.Application.Features.Patients.Commands.CompleteCare;
 using CCAP.Application.Features.Patients.Commands.CompleteSoc;
 using CCAP.Application.Features.Patients.Commands.ScheduleSoc;
 using CCAP.Application.Features.Patients.Commands.UpdateInsurance;
+using CCAP.Application.Features.Patients.Commands.CompleteInsuranceVerification;
 using CCAP.Application.Features.Patients.Commands.UpdatePatient;
 using CCAP.Application.Features.Patients.Commands.UpdateWorkflowDetails;
 using CCAP.Application.Features.Patients.Queries.GetPatientCareManagement;
@@ -214,10 +215,21 @@ public sealed class PatientsController : ControllerBase
         if (!await CanAccessPatientAsync(patientId, cancellationToken))
             return NotFound();
         if (patientId != command.PatientId) return BadRequest("Route ID and command PatientId do not match.");
-        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
-        var id = await _sender.Send(new AddServiceOrderCommand(command.PatientId, command.ServiceTypeId, command.Frequency, command.Duration, command.IsPrimaryDiscipline, currentUserId), cancellationToken);
-        return Ok(new { PatientServiceOrderId = id });
+        var resolvedUserId = await ResolveCurrentUserIdAsync(cancellationToken);
+        if (!resolvedUserId.HasValue) return Unauthorized();
+        try
+        {
+            var id = await _sender.Send(new AddServiceOrderCommand(command.PatientId, command.ServiceTypeId, command.Frequency, command.Duration, command.IsPrimaryDiscipline, resolvedUserId.Value), cancellationToken);
+            return Ok(new { PatientServiceOrderId = id });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict(new { message = "A discipline order for this patient could not be saved because it conflicts with an existing order. Refresh the patient profile and review the current discipline orders." });
+        }
     }
 
     [HttpDelete("{patientId:guid}/service-orders/{orderId:guid}")]
@@ -286,15 +298,18 @@ public sealed class PatientsController : ControllerBase
         var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
 
-        if (request.BackupCoordinatorId.HasValue && User.IsInRole("Administrator"))
+        if (User.IsInRole("Administrator"))
         {
-            var backupIsValid = await _db.ApplicationUsers
-                .Include(u => u.Role)
-                .AnyAsync(u => u.UserId == request.BackupCoordinatorId.Value
-                    && u.IsActive
-                    && u.Role.RoleName == "Care Coordinator", cancellationToken);
-            if (!backupIsValid)
-                return BadRequest("Backup CC must be an active Care Coordinator.");
+            var coordinatorIds = new[] { request.PrimaryCoordinatorId, request.SecondaryCoordinatorId, request.BackupCoordinatorId }
+                .Where(x => x.HasValue).Select(x => x!.Value).Distinct().ToArray();
+            var validCount = await _db.ApplicationUsers.Include(u => u.Role)
+                .CountAsync(u => coordinatorIds.Contains(u.UserId) && u.IsActive && u.Role.RoleName == "Care Coordinator", cancellationToken);
+            if (validCount != coordinatorIds.Length)
+                return BadRequest("Primary, Secondary, and Backup CC assignments must be active Care Coordinators.");
+            if (request.PrimaryCoordinatorId.HasValue && request.PrimaryCoordinatorId == request.SecondaryCoordinatorId)
+                return BadRequest("Primary and Secondary CC must be different users.");
+            if (request.BackupCoordinatorId.HasValue && (request.BackupCoordinatorId == request.PrimaryCoordinatorId || request.BackupCoordinatorId == request.SecondaryCoordinatorId))
+                return BadRequest("Backup CC must be different from Primary and Secondary CC.");
         }
 
         await _sender.Send(
@@ -305,7 +320,7 @@ public sealed class PatientsController : ControllerBase
                 request.ReferralChannel, request.Priority, request.ReferringPhysician, request.PhysicianPhone,
                 request.PhysicianFax, request.PhysicianNpi, request.PcosRegistered, request.PrimaryDiagnosis,
                 request.SecondaryDiagnosis, request.ReferralNotes, request.VisitPriority, request.CaseStatus,
-                request.InternalNotes, request.BackupCoordinatorId, User.IsInRole("Administrator"), currentUserId), cancellationToken);
+                request.InternalNotes, request.PrimaryCoordinatorId, request.SecondaryCoordinatorId, request.BackupCoordinatorId, User.IsInRole("Administrator"), currentUserId), cancellationToken);
         return NoContent();
     }
 
@@ -317,7 +332,21 @@ public sealed class PatientsController : ControllerBase
             return NotFound();
         var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
-        await _sender.Send(new UpdateWorkflowDetailsCommand(patientId, request.PreAuthDueDate, request.NumberOfVisits, request.CaseMixType, request.DmeMedSupplyNotes, request.SocFeedbackFromPatient, request.TifDate, request.RocDate, request.RecertDate, request.PcpPtNotified, request.DischargeDate, request.DischargeFeedback, request.TransferDestination, request.TransferDate, request.TransferReason, currentUserId), cancellationToken);
+        await _sender.Send(new UpdateWorkflowDetailsCommand(patientId, request.PreAuthDueDate, request.NumberOfVisits, request.CaseMixType, request.HospitalDcSummaryNotes, request.DmeMedSupplyNotes, request.SocFeedbackFromPatient, request.TifDate, request.RocDate, request.RecertDate, request.PcpPtNotified, request.DischargeDate, request.DischargeFeedback, request.TransferDestination, request.TransferDate, request.TransferReason, request.Section, currentUserId), cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{patientId:guid}/insurance/verify")]
+    [Authorize(Policy = PermissionPolicies.PatientsManage)]
+    public async Task<IActionResult> CompleteInsuranceVerification(Guid patientId, CancellationToken cancellationToken)
+    {
+        if (!await CanAccessPatientAsync(patientId, cancellationToken))
+            return NotFound();
+        var resolvedUserId = await ResolveCurrentUserIdAsync(cancellationToken);
+        if (!resolvedUserId.HasValue)
+            return Unauthorized(new { message = "Your login is no longer linked to an active CCAP user. Please sign out and sign in again." });
+
+        await _sender.Send(new CompleteInsuranceVerificationCommand(patientId, resolvedUserId.Value), cancellationToken);
         return NoContent();
     }
 

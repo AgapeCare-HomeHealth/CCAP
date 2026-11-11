@@ -36,7 +36,10 @@ public sealed class UpdatePatientCommandHandler : IRequestHandler<UpdatePatientC
             request.EmergencyContactPhone, request.ReferringPhysician, request.PhysicianPhone, request.ReferralNotes);
         patient.SetEmergencyContactsJson(request.EmergencyContactsJson);
         if (request.CanManageBackupCoordinator)
+        {
+            patient.SetCoordinatorAssignments(request.PrimaryCoordinatorId, request.SecondaryCoordinatorId);
             patient.SetBackupCoordinator(request.BackupCoordinatorId);
+        }
 
         var referral = patient.Referrals.OrderByDescending(x => x.ReferralDate).FirstOrDefault();
         referral?.UpdateEditableDetails(request.ReferralDate, request.ReferralSource, request.ReferralType,

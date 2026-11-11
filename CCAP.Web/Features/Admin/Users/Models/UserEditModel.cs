@@ -6,7 +6,7 @@ public sealed class UserEditModel
 {
     public Guid UserId { get; set; }
 
-    [Required]
+
     public string EmployeeNo { get; set; } = "";
 
     [Required]
