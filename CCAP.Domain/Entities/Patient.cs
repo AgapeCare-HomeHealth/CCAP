@@ -65,6 +65,8 @@ public sealed class Patient
     public DateOnly? RocDate { get; private set; }
     public DateOnly? RecertDate { get; private set; }
     public bool? PcpPtNotified { get; private set; }
+    public string RecertificationRecordsJson { get; private set; } = "[]";
+    public void SetRecertificationRecordsJson(string value) => RecertificationRecordsJson = string.IsNullOrWhiteSpace(value) ? "[]" : value;
     public DateOnly? DischargeDate { get; private set; }
     public string? DischargeFeedback { get; private set; }
     public string? TransferDestination { get; private set; }

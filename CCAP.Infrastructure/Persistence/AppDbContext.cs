@@ -220,6 +220,7 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.RocDate).HasColumnType("date");
             e.Property(x => x.RecertDate).HasColumnType("date");
             e.Property(x => x.PcpPtNotified);
+            e.Property(x => x.RecertificationRecordsJson).HasColumnType("nvarchar(max)").IsRequired().HasDefaultValue("[]");
             e.Property(x => x.DischargeDate).HasColumnType("date");
             e.Property(x => x.DischargeFeedback).HasMaxLength(2000);
             e.Property(x => x.TransferDestination).HasMaxLength(300);

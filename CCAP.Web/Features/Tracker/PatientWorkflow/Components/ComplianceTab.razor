@@ -66,15 +66,79 @@
       </div></div>
     </div>
 
-    <ComplianceGroup Title="Recert or Discharge" Description="Recertification and required PCP/PT notifications before the episode transitions to its final outcome." Items="RecertificationStageItems" OnComplete="CompleteComplianceAsync" OnUnmark="UnmarkComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" />
-
-    <div class="card shadow-sm border-0 mb-4">
-      <div class="card-header bg-white d-flex justify-content-between align-items-center"><div><h5 class="mb-1">Recertification Details</h5><small class="text-muted">Record the recertification date and notification status.</small></div><button class="btn btn-sm btn-primary" @onclick='() => SaveDetailsAsync("Recertification")' disabled="@IsSavingDetails">@(IsSavingDetails ? "Updating..." : "Update")</button></div>
-      <div class="card-body"><div class="row g-3">
-        <DateField Label="Recertification Received Date" Value="@Workflow.WorkflowDetails.RecertDate" ValueChanged="@(v => Workflow.WorkflowDetails.RecertDate = v)" />
-        <div class="col-md-6"><label class="form-label">PCP &amp; PT Notified</label><select class="form-select" @bind="PcpPtNotified"><option value="">Select status...</option><option value="true">Yes — Notified</option><option value="false">No — Pending</option></select></div>
-      </div></div>
-    </div>
+    <section class="recertification-panel card shadow-sm border-0 mb-4" aria-labelledby="recertification-heading">
+      <div class="card-header bg-white">
+        <div class="recertification-heading-row">
+          <div class="recertification-title-group">
+            <div class="recertification-icon"><i class="bi bi-arrow-repeat" aria-hidden="true"></i></div>
+            <div>
+              <div class="d-flex align-items-center flex-wrap gap-2">
+                <h5 id="recertification-heading" class="mb-0">Recertification History</h5>
+                <span class="recertification-count" title="Total recertification records">@RecertificationCount @(RecertificationCount == 1 ? "record" : "records")</span>
+              </div>
+              <small class="text-muted">Track each recertification separately, including its received date and PCP/PT notification status.</small>
+            </div>
+          </div>
+          <div class="recertification-actions">
+            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="AddRecertificationRow">
+              <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add recertification
+            </button>
+            <button type="button" class="btn btn-sm btn-primary" @onclick='() => SaveDetailsAsync("Recertification")' disabled="@IsSavingDetails">
+              <i class="bi bi-check2 me-1" aria-hidden="true"></i>@(IsSavingDetails ? "Saving..." : "Save records")
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="recertification-summary" aria-label="Recertification record status summary">
+          <span class="badge rounded-pill ccap-status-count-badge bg-success">Complete: @RecertificationCompleteCount</span>
+          <span class="badge rounded-pill ccap-status-count-badge bg-danger">Outstanding: @RecertificationOutstandingCount</span>
+          <span class="badge rounded-pill ccap-status-count-badge bg-secondary">Pending: @RecertificationPendingCount</span>
+        </div>
+        @if (RecertificationCount == 0)
+        {
+          <div class="recertification-empty-state">
+            <div class="recertification-empty-icon"><i class="bi bi-clipboard2-plus" aria-hidden="true"></i></div>
+            <div class="fw-semibold">No recertifications recorded yet</div>
+            <div class="small text-muted mt-1">Add a record when a recertification is received. Each entry keeps its own date and notification status.</div>
+            <button type="button" class="btn btn-sm btn-outline-primary mt-3" @onclick="AddRecertificationRow">
+              <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add first recertification
+            </button>
+          </div>
+        }
+        else
+        {
+          <div class="recertification-table-wrap">
+            <table class="table align-middle mb-0 recertification-table">
+              <thead>
+                <tr><th scope="col" class="recertification-number-col">#</th><th scope="col">Recertification Received Date</th><th scope="col">PCP &amp; PT Notified</th><th scope="col" class="recertification-action-col">Action</th></tr>
+              </thead>
+              <tbody>
+                @for (var index = 0; index < Workflow.WorkflowDetails.RecertificationRecords.Count; index++)
+                {
+                  var row = Workflow.WorkflowDetails.RecertificationRecords[index];
+                  <tr @key="row.Id">
+                    <td><span class="recertification-row-number">@(index + 1)</span></td>
+                    <td>
+                      <InputDate class="form-control recertification-date-input" @bind-Value="row.ReceivedDate" />
+                    </td>
+                    <td>
+                      <select class="form-select recertification-status-input" @bind="row.PcpPtNotified" aria-label="PCP and PT notification status for recertification @(index + 1)">
+                        <option value="">Select status...</option><option value="YES">Yes — Complete</option><option value="NO">No — Outstanding</option><option value="N/A">N/A — Complete</option>
+                      </select>
+                    </td>
+                    <td class="text-center">
+                      <button type="button" class="btn btn-sm btn-outline-danger recertification-remove-btn" title="Remove this record" aria-label="Remove recertification @(index + 1)" @onclick="() => RemoveRecertificationRow(row.Id)"><i class="bi bi-trash" aria-hidden="true"></i></button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <div class="recertification-footer-note"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>Records are listed in entry order. Save records after adding or editing entries.</div>
+        }
+      </div>
+    </section>
 
     <ComplianceGroup Title="Discharge" Description="Discharge date, patient feedback, and closing documents. Each requirement can be completed on a different date." Items="DischargeStageItems" OnComplete="CompleteComplianceAsync" OnUnmark="UnmarkComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" />
 
@@ -91,20 +155,25 @@
 @code {
  [Parameter] public Guid PatientId {get;set;} [Parameter] public PatientWorkflowDto Workflow {get;set;} = new(); [Parameter] public EventCallback OnCompleted {get;set;}
  private bool IsSaving; private bool IsSavingDetails; private List<LookupOptionDto> CaseMixOptions = []; private string? ErrorMessage; private string? SavingRequirementCode;
+ private List<RecertificationRecordDto> RecertificationRecords => Workflow?.WorkflowDetails?.RecertificationRecords ?? [];
+ private int RecertificationCount => RecertificationRecords.Count;
+ // Counts represent actual records only. No record is created or counted when another recertification was not needed.
+ private int RecertificationCompleteCount => RecertificationRecords.Count(x => x.ReceivedDate.HasValue && IsCompleteRecertificationStatus(x.PcpPtNotified));
+ private int RecertificationOutstandingCount => RecertificationRecords.Count(x => string.Equals(x.PcpPtNotified, "NO", StringComparison.OrdinalIgnoreCase));
+ private int RecertificationPendingCount => RecertificationCount - RecertificationCompleteCount - RecertificationOutstandingCount;
+ private static bool IsCompleteRecertificationStatus(string? status) => string.Equals(status, "YES", StringComparison.OrdinalIgnoreCase) || string.Equals(status, "N/A", StringComparison.OrdinalIgnoreCase);
  protected override async Task OnInitializedAsync(){ try{ CaseMixOptions = await LookupService.GetAsync("CaseMixType", true); } catch { CaseMixOptions = []; } }
  private IEnumerable<ComplianceItemDto> Items => Workflow.ComplianceItems ?? [];
  private static readonly string[] AdmissionRequirementCodes = ["PRE_AUTH_RECEIVED", "PRO_RECEIVED", "H_AND_P_RECEIVED", "F2F_RECEIVED", "PCP_CONFIRMED"];
  private static readonly string[] SocRequirementCodes = ["DME_MED_SUPPLY", "SIGNED_CONSENTS", "NOA_FILED", "OASIS_SOC_COMPLETE", "ORDERS_SIGNED", "DOCS_UPLOADED", "AVS_RECEIVED"];
  private static readonly string[] OngoingCareRequirementCodes = ["CASE_MIX_IDENTIFIED", "CASE_MIX_PLOTTED", "QA_APPROVAL"];
- private static readonly string[] RecertificationRequirementCodes = ["RECERTIFICATION_RECEIVED", "PCP_PT_NOTIFIED"];
+
  private static readonly string[] DischargeRequirementCodes = ["DISCHARGE_SUMMARY_SIGNED", "NOMNC_SIGNED"];
  private IEnumerable<ComplianceItemDto> ByCodes(IEnumerable<string> codes) => Items.Where(x => codes.Contains(x.RequirementCode, StringComparer.OrdinalIgnoreCase));
  private IEnumerable<ComplianceItemDto> AdmissionStageItems => ByCodes(AdmissionRequirementCodes);
  private IEnumerable<ComplianceItemDto> SocStageItems => ByCodes(SocRequirementCodes);
  private IEnumerable<ComplianceItemDto> OngoingCareStageItems => ByCodes(OngoingCareRequirementCodes);
- private IEnumerable<ComplianceItemDto> RecertificationStageItems => ByCodes(RecertificationRequirementCodes);
  private IEnumerable<ComplianceItemDto> DischargeStageItems => ByCodes(DischargeRequirementCodes);
- private string PcpPtNotified { get => Workflow.WorkflowDetails.PcpPtNotified.HasValue ? Workflow.WorkflowDetails.PcpPtNotified.Value.ToString().ToLowerInvariant() : ""; set => Workflow.WorkflowDetails.PcpPtNotified = string.IsNullOrEmpty(value) ? null : bool.Parse(value); }
  private async Task HandleComplianceStatusChanged(string code, string? status)
  {
      if (status is "Yes" or "No" or "N/A") await SaveComplianceStatusAsync(code, status);
@@ -133,6 +202,14 @@
          SavingRequirementCode = null;
          await InvokeAsync(StateHasChanged);
      }
+ }
+ private void AddRecertificationRow()
+ {
+     Workflow.WorkflowDetails.RecertificationRecords.Add(new RecertificationRecordDto { Id = Guid.NewGuid() });
+ }
+ private void RemoveRecertificationRow(Guid id)
+ {
+     Workflow.WorkflowDetails.RecertificationRecords.RemoveAll(x => x.Id == id);
  }
  private async Task SaveDetailsAsync(string section){if(IsSavingDetails)return;IsSavingDetails=true;ErrorMessage=null;try{await WorkflowService.UpdateWorkflowDetailsAsync(PatientId,Workflow.WorkflowDetails,section);await OnCompleted.InvokeAsync();}catch(Exception ex){ErrorMessage=ex.Message;}finally{IsSavingDetails=false;}}
 }

@@ -370,9 +370,6 @@ public sealed class CreateReferralIntakeCommandHandler
         await AddCompliance(patient.PatientId, "CASE_MIX_PLOTTED", "Confirm case mix has been plotted.", cancellationToken);
         await AddCompliance(patient.PatientId, "QA_APPROVAL", "Confirm QA approval and PO/POC readiness for faxing.", cancellationToken);
 
-        // RECERT OR DISCHARGE
-        await AddCompliance(patient.PatientId, "PCP_PT_NOTIFIED", "Confirm PCP and PT have been notified.", cancellationToken);
-
         // DISCHARGE
         await AddCompliance(patient.PatientId, "DISCHARGE_SUMMARY_SIGNED", "Confirm the discharge summary is signed.", cancellationToken);
         await AddCompliance(patient.PatientId, "NOMNC_SIGNED", "Confirm NOMNC is signed.", cancellationToken);

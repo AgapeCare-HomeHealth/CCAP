@@ -46,23 +46,29 @@ public sealed class UpdateWorkflowDetailsCommandHandler : IRequestHandler<Update
             all || Is("Discharge") ? r.TransferDate : p.TransferDate,
             all || Is("Discharge") ? r.TransferReason : p.TransferReason);
 
-        // Dates, numbers, notes, and dropdowns saved in this section are informational
-        // patient details. They do not create compliance records, tasks, or progression gates.
-        // PCP/PT notification is the one explicit Yes/No checklist value also stored as a typed field.
         if (all || Is("Recertification"))
         {
-            const string code = "PCP_PT_NOTIFIED";
-            var record = p.ComplianceRecords.FirstOrDefault(x =>
-                string.Equals(x.RequirementCode, code, StringComparison.OrdinalIgnoreCase));
-            if (record is not null)
+            if (r.RecertificationRecords is not null)
             {
-                var desired = p.PcpPtNotified == true ? "Yes" : "No";
-                if (!string.Equals(record.ComplianceStatus, desired, StringComparison.OrdinalIgnoreCase))
-                    record.SetStatus(desired, r.UpdatedByUserId);
-                await PatientComplianceTaskSynchronizer.EnsureAsync(p, code, _tasks, _compliance, ct);
+                foreach (var item in r.RecertificationRecords)
+                {
+                    if (item.PcpPtNotified is not null &&
+                        item.PcpPtNotified is not ("YES" or "NO" or "N/A"))
+                        throw new InvalidOperationException("PCP & PT Notified must be YES, NO, or N/A.");
+                }
+
+                p.SetRecertificationRecordsJson(System.Text.Json.JsonSerializer.Serialize(
+                    r.RecertificationRecords.Select(x => new
+                    {
+                        x.Id,
+                        x.ReceivedDate,
+                        PcpPtNotified = string.IsNullOrWhiteSpace(x.PcpPtNotified) ? null : x.PcpPtNotified.Trim().ToUpperInvariant()
+                    })));
             }
         }
 
+        // Dates, numbers, notes, and dropdowns saved in this section are informational
+        // patient details. They do not create compliance records, tasks, or progression gates.
         p.Activities.Add(new Activity(p.PatientId, r.UpdatedByUserId, "Workflow", "Workflow details updated", $"{section} workflow details updated."));
         await _auditLogs.AddAsync(new PatientAuditLog(p.PatientId, r.UpdatedByUserId, "PatientWorkflow", p.PatientId.ToString(), "UPDATE", null, "Workflow details updated", $"{section} workflow details updated."), ct);
         await _unitOfWork.SaveChangesAsync(ct);

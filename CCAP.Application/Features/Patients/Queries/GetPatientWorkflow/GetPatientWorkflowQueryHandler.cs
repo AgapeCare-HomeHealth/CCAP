@@ -80,7 +80,7 @@ public sealed class GetPatientWorkflowQueryHandler
                 "DME_MED_SUPPLY", "SIGNED_CONSENTS", "NOA_FILED", "OASIS_SOC_COMPLETE",
                 "ORDERS_SIGNED", "DOCS_UPLOADED", "SOC_FEEDBACK_FROM_PATIENT", "AVS_RECEIVED",
                 "CASE_MIX_IDENTIFIED", "CASE_MIX_PLOTTED", "QA_APPROVAL",
-                "PCP_PT_NOTIFIED", "DISCHARGE_SUMMARY_SIGNED", "NOMNC_SIGNED"
+                "DISCHARGE_SUMMARY_SIGNED", "NOMNC_SIGNED"
             };
 
         var pendingTask = patient.Tasks
@@ -489,6 +489,7 @@ public sealed class GetPatientWorkflowQueryHandler
 
             WorkflowDetails = new WorkflowDetailsResponseDto
             {
+                RecertificationRecords = System.Text.Json.JsonSerializer.Deserialize<List<RecertificationRecordResponseDto>>(patient.RecertificationRecordsJson) ?? [],
                 PreAuthDueDate = patient.PreAuthDueDate,
                 NumberOfVisits = patient.NumberOfVisits,
                 CaseMixType = patient.CaseMixType ?? string.Empty,
@@ -547,7 +548,6 @@ public sealed class GetPatientWorkflowQueryHandler
             "DME_MED_SUPPLY" or "SIGNED_CONSENTS" or "NOA_FILED" or "OASIS_SOC_COMPLETE"
                 or "ORDERS_SIGNED" or "DOCS_UPLOADED" or "SOC_FEEDBACK_FROM_PATIENT" or "AVS_RECEIVED" => 2,
             "CASE_MIX_IDENTIFIED" or "CASE_MIX_PLOTTED" or "QA_APPROVAL" => 3,
-            "PCP_PT_NOTIFIED" => 4,
             "DISCHARGE_SUMMARY_SIGNED" or "NOMNC_SIGNED" => 5,
             _ => 0
         };
@@ -775,7 +775,6 @@ public sealed class GetPatientWorkflowQueryHandler
             "TIF_DATE" => "TIF",
             "ROC" => "ROC",
             "RECERTIFICATION_RECEIVED" => "Recertification Received",
-            "PCP_PT_NOTIFIED" => "PCP & PT Notified",
             "DISCHARGE_DATE" => "Discharge Date",
             "DC_FEEDBACK_FROM_PATIENT" => "DC Feedback From Patient",
             "DISCHARGE_SUMMARY_SIGNED" => "DC Summary Signed",
@@ -797,7 +796,7 @@ public sealed class GetPatientWorkflowQueryHandler
             "SOC_FEEDBACK_FROM_PATIENT" => 16, "AVS_RECEIVED" => 17,
             "CASE_MIX_IDENTIFIED" => 20, "CASE_MIX_TYPE" => 21, "CASE_MIX_PLOTTED" => 22,
             "QA_APPROVAL" => 23, "TIF_DATE" => 24, "ROC" => 25,
-            "RECERTIFICATION_RECEIVED" => 30, "PCP_PT_NOTIFIED" => 31,
+            "RECERTIFICATION_RECEIVED" => 30,
             "DISCHARGE_DATE" => 40, "DC_FEEDBACK_FROM_PATIENT" => 41,
             "DISCHARGE_SUMMARY_SIGNED" => 42, "NOMNC_SIGNED" => 43,
             "INSURANCE_VERIFICATION" => 5,

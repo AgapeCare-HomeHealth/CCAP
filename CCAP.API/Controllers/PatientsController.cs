@@ -332,7 +332,13 @@ public sealed class PatientsController : ControllerBase
             return NotFound();
         var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userIdValue, out var currentUserId)) return Unauthorized();
-        await _sender.Send(new UpdateWorkflowDetailsCommand(patientId, request.PreAuthDueDate, request.NumberOfVisits, request.CaseMixType, request.HospitalDcSummaryNotes, request.DmeMedSupplyNotes, request.SocFeedbackFromPatient, request.TifDate, request.RocDate, request.RecertDate, request.PcpPtNotified, request.DischargeDate, request.DischargeFeedback, request.TransferDestination, request.TransferDate, request.TransferReason, request.Section, currentUserId), cancellationToken);
+        await _sender.Send(new UpdateWorkflowDetailsCommand(patientId, request.PreAuthDueDate, request.NumberOfVisits, request.CaseMixType, request.HospitalDcSummaryNotes, request.DmeMedSupplyNotes, request.SocFeedbackFromPatient, request.TifDate, request.RocDate, request.RecertDate, request.PcpPtNotified, request.DischargeDate, request.DischargeFeedback, request.TransferDestination, request.TransferDate, request.TransferReason, request.Section, currentUserId,
+            request.RecertificationRecords?.Select(x => new RecertificationRecordCommandDto
+            {
+                Id = x.Id == Guid.Empty ? Guid.NewGuid() : x.Id,
+                ReceivedDate = x.ReceivedDate,
+                PcpPtNotified = x.PcpPtNotified
+            }).ToList()), cancellationToken);
         return NoContent();
     }
 

@@ -28,6 +28,7 @@ public sealed class PatientWorkflowResponseDto
 
 public sealed class WorkflowDetailsResponseDto
 {
+    public List<RecertificationRecordResponseDto> RecertificationRecords { get; set; } = [];
     public DateOnly? PreAuthDueDate { get; set; }
     public int? NumberOfVisits { get; set; }
     public string CaseMixType { get; set; } = "";
@@ -264,3 +265,10 @@ public sealed class ComplianceItemResponseDto
     public int Phase { get; set; }
 }
 
+
+public sealed class RecertificationRecordResponseDto
+{
+    public Guid Id { get; set; }
+    public DateOnly? ReceivedDate { get; set; }
+    public string? PcpPtNotified { get; set; }
+}

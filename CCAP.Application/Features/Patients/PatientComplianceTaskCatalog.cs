@@ -21,7 +21,6 @@ public static class PatientComplianceTaskCatalog
         ["CASE_MIX_IDENTIFIED"] = ("Case Mix Identified", "Confirm case mix has been identified."),
         ["CASE_MIX_PLOTTED"] = ("Case Mix Plotted", "Confirm case mix has been plotted."),
         ["QA_APPROVAL"] = ("QA Approval — PO/POC Ready for Faxing", "Confirm QA approval and PO/POC readiness for faxing."),
-        ["PCP_PT_NOTIFIED"] = ("PCP & PT Notified", "Confirm PCP and PT have been notified."),
         ["DISCHARGE_SUMMARY_SIGNED"] = ("DC Summary Signed", "Confirm the discharge summary is signed."),
         ["NOMNC_SIGNED"] = ("NOMNC Signed", "Confirm NOMNC is signed.")
     };

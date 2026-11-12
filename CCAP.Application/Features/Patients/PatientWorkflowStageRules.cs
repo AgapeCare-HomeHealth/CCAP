@@ -24,11 +24,12 @@ internal static class PatientWorkflowStageRules
     [
         "CASE_MIX_IDENTIFIED", "CASE_MIX_PLOTTED", "QA_APPROVAL"
     ];
-
-    internal static readonly string[] RecertOrDischarge =
-    [
-        "PCP_PT_NOTIFIED"
-    ];
+    // Recertification is now tracked as repeatable records on the patient workflow
+    // details, rather than as a single Yes/No compliance requirement. This legacy
+    // stage remains a transition checkpoint after Ongoing Care; it must not require
+    // a recertification record before a patient can receive a final outcome (for
+    // example, when the patient is discharged before another recertification).
+    internal static readonly string[] RecertOrDischarge = [];
 
     internal static readonly string[] Discharge =
     [
@@ -70,13 +71,7 @@ internal static class PatientWorkflowStageRules
             return null;
 
         if (!IsGroupComplete(patient, items, OngoingCare))
-            return "Complete the On-Going Care compliance requirements before moving to Recert or Discharge.";
-
-        if (RecertOrDischarge.Contains(code, StringComparer.OrdinalIgnoreCase))
-            return null;
-
-        if (!IsGroupComplete(patient, items, RecertOrDischarge))
-            return "Complete the Recert or Discharge requirements before completing Discharge items.";
+            return "Complete the On-Going Care compliance requirements before completing Discharge requirements.";
 
         return null;
     }
