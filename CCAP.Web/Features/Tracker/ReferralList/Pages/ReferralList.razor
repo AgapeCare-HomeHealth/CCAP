@@ -4,7 +4,10 @@
 @using CCAP.Web.Features.Tracker.ReferralIntake.Services
 @using CCAP.Web.Features.Tracker.ReferralList.Models
 @using CCAP.Web.Features.Admin.Users.Models
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
 @inject ReferralIntakeService ReferralIntakeService
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Referral Tracker</PageTitle>
 
@@ -15,9 +18,12 @@
             <h2>Referral Tracker</h2>
             <p>Manage incoming referrals, follow-ups, and outcomes in one place.</p>
         </div>
-        <button class="btn btn-primary referral-add-button" @onclick="OpenBulkEntry" disabled="@IsLoading">
-            <i class="bi bi-plus-lg me-2"></i>Add Referrals
-        </button>
+        @if (CanCreate)
+        {
+            <button class="btn btn-primary referral-add-button" @onclick="OpenBulkEntry" disabled="@IsLoading">
+                <i class="bi bi-plus-lg me-2"></i>Add Referrals
+            </button>
+        }
     </div>
 
     <section class="referral-filter-panel">
@@ -60,7 +66,7 @@
     {
         <div class="referral-table-heading">
             <div><strong>All Tracker Entries</strong><span>@TotalCount records</span></div>
-            <span class="table-hint"><i class="bi bi-pencil-square me-1"></i>Editable fields save automatically</span>
+            <span class="table-hint"><i class="bi bi-eye me-1"></i>All users can view referrals. Only Administrators or the assigned staff can edit; changes save automatically.</span>
         </div>
         <div class="referral-table-wrap">
             <table class="table align-middle referral-table">
@@ -91,35 +97,35 @@
                         @for (var i = 0; i < Items.Count; i++)
                         {
                             var item = Items[i];
-                            <tr>
+                            <tr class="@GetStatusRowClass(item.Status)">
                                 <td><span class="row-number">@(((CurrentPage - 1) * PageSize) + i + 1)</span></td>
                                 <td>@item.ReferralDate.ToString("MM/dd/yyyy")</td>
                                 <td>
                                     <select class="form-select form-select-sm tracker-edit" value="@item.PostedOn"
-                                            @onchange="e => ChangePostedOn(item, e.Value?.ToString())">
+                                            @onchange="e => ChangePostedOn(item, e.Value?.ToString())" disabled="@(!CanEdit(item))">
                                         @foreach (var option in ReferralTrackerOptions.PostedOn) { <option value="@option">@option</option> }
                                     </select>
                                 </td>
                                 <td><input class="form-control form-control-sm tracker-edit" type="date"
                                            value="@item.EstimatedDischargeDate?.ToString("yyyy-MM-dd")"
-                                           @onchange="e => ChangeEdd(item, e.Value?.ToString())" /></td>
+                                           @onchange="e => ChangeEdd(item, e.Value?.ToString())" disabled="@(!CanEdit(item))" /></td>
                                 <td class="referral-patient-name">@item.PatientName</td>
                                 <td>
                                     <select class="form-select form-select-sm tracker-edit" value="@item.Status"
-                                            @onchange="e => ChangeStatus(item, e.Value?.ToString())">
+                                            @onchange="e => ChangeStatus(item, e.Value?.ToString())" disabled="@(!CanEdit(item))">
                                         @foreach (var option in ReferralTrackerOptions.Statuses) { <option value="@option">@option</option> }
                                     </select>
                                 </td>
                                 <td>
                                     <select class="form-select form-select-sm tracker-edit" value="@item.Source"
-                                            @onchange="e => ChangeSource(item, e.Value?.ToString())">
+                                            @onchange="e => ChangeSource(item, e.Value?.ToString())" disabled="@(!CanEdit(item))">
                                         <option value="">Select source</option>
                                         @foreach (var option in ReferralTrackerOptions.ReferralSources) { <option value="@option">@option</option> }
                                     </select>
                                 </td>
                                 <td>
                                     <select class="form-select form-select-sm tracker-edit" value="@item.Insurance"
-                                            @onchange="e => ChangeInsurance(item, e.Value?.ToString())">
+                                            @onchange="e => ChangeInsurance(item, e.Value?.ToString())" disabled="@(!CanEdit(item))">
                                         <option value="">Select payor</option>
                                         @foreach (var option in ReferralTrackerOptions.Payors) { <option value="@option">@option</option> }
                                     </select>
@@ -127,11 +133,11 @@
                                 <td>@Display(item.CareCoordinator)</td>
                                 <td class="referral-call-cell" title="@item.FirstMarketingCall">@Display(item.FirstMarketingCall)</td>
                                 <td><input maxlength="2000" class="form-control form-control-sm tracker-edit tracker-text" value="@item.SecondCoordinatorCall"
-                                           @onchange="e => ChangeSecondCall(item, e.Value?.ToString())" /></td>
+                                           @onchange="e => ChangeSecondCall(item, e.Value?.ToString())" disabled="@(!CanEdit(item))" /></td>
                                 <td><input maxlength="2000" class="form-control form-control-sm tracker-edit tracker-text" value="@item.ThirdCoordinatorCall"
-                                           @onchange="e => ChangeThirdCall(item, e.Value?.ToString())" /></td>
+                                           @onchange="e => ChangeThirdCall(item, e.Value?.ToString())" disabled="@(!CanEdit(item))" /></td>
                                 <td><input maxlength="500" class="form-control form-control-sm tracker-edit tracker-text" value="@item.Resolution"
-                                           @onchange="e => ChangeResolution(item, e.Value?.ToString())" /></td>
+                                           @onchange="e => ChangeResolution(item, e.Value?.ToString())" disabled="@(!CanEdit(item))" /></td>
                             </tr>
                         }
                     }
@@ -284,8 +290,28 @@
     private List<BulkReferralEntry> Rows = [];
     private List<UserDto> AssignmentUsers = [];
     private bool AssignmentUsersLoading;
+    private Guid? CurrentUserId;
+    private bool IsAdministrator;
+    private bool CanCreate;
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var principal = authState.User;
+        IsAdministrator = principal.IsInRole("Administrator");
+        CanCreate = IsAdministrator || principal.HasClaim("permission", "referrals.manage");
+        var userIdValue = principal.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? principal.FindFirstValue("sub")
+            ?? principal.FindFirstValue("userId");
+        if (Guid.TryParse(userIdValue, out var userId))
+            CurrentUserId = userId;
+        await LoadAsync();
+    }
+
+    private bool CanEdit(ReferralListItem item) =>
+        IsAdministrator || (CurrentUserId.HasValue &&
+            item.AssignedCoordinatorId.HasValue &&
+            item.AssignedCoordinatorId.Value == CurrentUserId.Value);
 
     private async Task LoadAsync()
     {
@@ -326,6 +352,45 @@
     private void CloseBulkEntry() { if (!IsSaving) ShowBulkEntry = false; }
     private void AddRow() { if (Rows.Count < 100) Rows.Add(new()); }
     private void RemoveRow(BulkReferralEntry row) => Rows.Remove(row);
+    private static string GetStatusRowClass(string? status)
+    {
+        var value = (status ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(value) ||
+            value.Equals("New Ref", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("New Referral", StringComparison.OrdinalIgnoreCase))
+            return "status-row status-none";
+
+        if (value.Equals("Discharged From Hospital/SNF", StringComparison.OrdinalIgnoreCase))
+            return "status-row status-discharge";
+        if (value.Equals("SOC", StringComparison.OrdinalIgnoreCase))
+            return "status-row status-soc";
+        if (value.Equals("Ready For SOC", StringComparison.OrdinalIgnoreCase))
+            return "status-row status-ready-soc";
+        if (value.Equals("Non-admit/Declined", StringComparison.OrdinalIgnoreCase))
+            return "status-row status-declined";
+        if (value.Equals("Went To A Different HH", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("Went to Different HH", StringComparison.OrdinalIgnoreCase))
+            return "status-row status-different-hh";
+        if (value.Equals("Non-admit Insurance", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("Non-admit/Insurance", StringComparison.OrdinalIgnoreCase))
+            return "status-row status-non-admit-insurance";
+        if (value.Equals("Non-admit Clinicals", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("Non-admit/Clinical", StringComparison.OrdinalIgnoreCase))
+            return "status-row status-non-admit-clinical";
+        if (value.Equals("Dead Referral", StringComparison.OrdinalIgnoreCase))
+            return "status-row status-dead";
+        if (value.Equals("Expired And Need New Referral", StringComparison.OrdinalIgnoreCase))
+            return "status-row status-expired";
+        if (value.Equals("Still At The Hospital", StringComparison.OrdinalIgnoreCase))
+            return "status-row status-hospital";
+        if (value.Equals("Pro Bono", StringComparison.OrdinalIgnoreCase))
+            return "status-row status-pro-bono";
+        if (value.Equals("Waiting for Pre-Auth", StringComparison.OrdinalIgnoreCase))
+            return "status-row status-preauth";
+
+        return "status-row status-none";
+    }
+
     private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
 
     private async Task PersistEdit(ReferralListItem item)

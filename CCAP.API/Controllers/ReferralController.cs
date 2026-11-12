@@ -92,7 +92,7 @@ public sealed class ReferralController : ControllerBase
     }
 
     [HttpPut("{referralId:guid}/tracker")]
-    [Authorize(Policy = PermissionPolicies.ReferralsManage)]
+    [Authorize(Policy = PermissionPolicies.ReferralsView)]
     public async Task<IActionResult> UpdateTrackerDetails(
         Guid referralId,
         [FromBody] UpdateReferralTrackerDetailsCommand request,
@@ -100,6 +100,31 @@ public sealed class ReferralController : ControllerBase
     {
         if (referralId != request.ReferralId)
             return BadRequest(new { message = "Tracker identifier does not match the request." });
+
+        // Referral tracker entries are visible to every user with referrals.view.
+        // Editing is restricted to Administrators and the staff member assigned
+        // to this specific tracker entry.
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue("sub")
+            ?? User.FindFirstValue("userId");
+        if (!Guid.TryParse(userIdValue, out var currentUserId))
+            return Unauthorized(new { message = "Unable to determine the authenticated user." });
+
+        var assignedCoordinatorId = await _db.ReferralTrackerEntries
+            .AsNoTracking()
+            .Where(x => x.ReferralTrackerEntryId == referralId)
+            .Select(x => (Guid?)x.AssignedCoordinatorId)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (assignedCoordinatorId is null &&
+            !await _db.ReferralTrackerEntries.AnyAsync(x => x.ReferralTrackerEntryId == referralId, cancellationToken))
+            return NotFound(new { message = "Referral tracker entry was not found." });
+
+        var isAdministrator = User.IsInRole("Administrator");
+        var isAssignedStaff = assignedCoordinatorId.HasValue && assignedCoordinatorId.Value == currentUserId;
+        if (!isAdministrator && !isAssignedStaff)
+            return Forbid();
+
         await _sender.Send(request, cancellationToken);
         return NoContent();
     }

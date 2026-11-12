@@ -60,3 +60,52 @@
 .referral-modal-footer{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.9rem 1.5rem;background:#fff;border-top:1px solid var(--ref-border);font-size:.72rem;color:#758196}.referral-modal-footer>span i{color:#29966a}.referral-modal-footer>div{display:flex;gap:.55rem}.referral-modal-footer .btn{border-radius:8px;padding:.58rem .95rem;font-size:.78rem;font-weight:650}
 @media(max-width:1100px){.referral-list-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.referral-clear-button{justify-self:start}}
 @media(max-width:650px){.referral-list-page{padding:.8rem;border-radius:10px}.referral-list-header{align-items:flex-start}.referral-list-header h2{font-size:1.3rem}.referral-list-header p{font-size:.78rem}.referral-add-button{white-space:nowrap;padding:.55rem .7rem;font-size:.78rem}.referral-list-filters{grid-template-columns:1fr}.referral-table-heading{align-items:flex-start;flex-direction:column;gap:.3rem}.table-hint{font-size:.67rem}.referral-bulk-modal{max-height:96vh;border-radius:12px}.referral-modal-header{padding:1rem}.referral-bulk-toolbar{padding:.75rem 1rem;align-items:flex-start}.referral-bulk-toolbar small{display:block;margin-top:.2rem}.referral-bulk-rows{max-height:calc(96vh - 250px);padding:0 .5rem .5rem}.referral-modal-footer{align-items:flex-start;flex-direction:column;padding:.8rem 1rem}.referral-modal-footer>div{width:100%;justify-content:flex-end}.referral-list-footer{flex-wrap:wrap}}
+
+/* Referral tracker status rows: stronger reference-based hues with bold black text. */
+.referral-table tbody tr.status-row > td{
+    transition:background-color .15s ease, filter .15s ease;
+    color:#111111 !important;
+    font-weight:800;
+}
+
+/* Status palette: keep all Non-admit outcomes in the red family.
+   Pro Bono is the only purple status. */
+.referral-table tbody tr.status-discharge > td{background:#F0B866}
+.referral-table tbody tr.status-soc > td{background:#78B58B}
+.referral-table tbody tr.status-ready-soc > td{background:#B8D995}
+.referral-table tbody tr.status-declined > td{background:#D87880}
+.referral-table tbody tr.status-different-hh > td{background:#C95F69}
+.referral-table tbody tr.status-non-admit-insurance > td{background:#E99AA0}
+.referral-table tbody tr.status-non-admit-clinical > td{background:#F0B5B8}
+.referral-table tbody tr.status-dead > td{background:#8FB2DF}
+.referral-table tbody tr.status-expired > td{background:#B88A68}
+.referral-table tbody tr.status-hospital > td{background:#CBD2D9}
+.referral-table tbody tr.status-pro-bono > td{background:#C4A9E2}
+.referral-table tbody tr.status-preauth > td{background:#E8CD63}
+.referral-table tbody tr.status-none > td{background:#BFC6CE}
+
+/* Keep editable controls white and readable against every row color. */
+.referral-table tbody tr.status-row > td .tracker-edit{
+    background-color:#fff !important;
+    color:#111827 !important;
+    font-weight:700;
+    opacity:1;
+}
+.referral-table tbody tr.status-row > td .tracker-edit:disabled{
+    background-color:#F3F4F6 !important;
+    color:#374151 !important;
+    border-color:#D1D5DB;
+    cursor:not-allowed;
+    opacity:1;
+}
+.referral-table tbody tr.status-row > td .tracker-edit:focus{
+    background:#fff !important;
+    color:#111827 !important;
+}
+.referral-table tbody tr.status-row .row-number{
+    background:rgba(255,255,255,.86);
+    color:#111111 !important;
+    font-weight:800;
+}
+.referral-table tbody tr.status-row:hover > td{filter:brightness(.96)}
+.referral-table tbody tr.status-row:focus-within > td{filter:brightness(.985)}

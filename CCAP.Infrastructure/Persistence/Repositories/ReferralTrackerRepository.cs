@@ -37,6 +37,7 @@ public sealed class ReferralTrackerRepository(AppDbContext context) : IReferralT
                 Insurance = x.Insurance,
                 CareCoordinator = x.AssignedCoordinatorName ?? string.Empty,
                 TrackerCoordinatorName = x.AssignedCoordinatorName ?? string.Empty,
+                AssignedCoordinatorId = x.AssignedCoordinatorId,
                 PostedOn = x.PostedOn,
                 EstimatedDischargeDate = x.EstimatedDischargeDate,
                 FirstMarketingCall = x.FirstMarketingCall,

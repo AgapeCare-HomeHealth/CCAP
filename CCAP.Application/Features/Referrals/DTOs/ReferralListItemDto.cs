@@ -12,6 +12,7 @@ public sealed class ReferralListItemDto
     public string Insurance { get; set; } = string.Empty;
     public string CareCoordinator { get; set; } = string.Empty;
     public string TrackerCoordinatorName { get; set; } = string.Empty;
+    public Guid? AssignedCoordinatorId { get; set; }
     public string PostedOn { get; set; } = string.Empty;
     public DateOnly? EstimatedDischargeDate { get; set; }
     public string FirstMarketingCall { get; set; } = string.Empty;
