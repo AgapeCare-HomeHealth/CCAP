@@ -145,6 +145,12 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Name).HasMaxLength(100).IsRequired();
         });
 
+        modelBuilder.HasSequence<long>(
+            "EmployeeNoSequence",
+            "dbo")
+            .StartsAt(1)
+            .IncrementsBy(1);
+
         modelBuilder.Entity<ApplicationUser>(e =>
         {
             e.ToTable("ApplicationUsers");

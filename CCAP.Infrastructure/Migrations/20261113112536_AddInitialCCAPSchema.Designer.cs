@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CCAP.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261111171610_AddInitialCCAPSchema")]
+    [Migration("20261113112536_AddInitialCCAPSchema")]
     partial class AddInitialCCAPSchema
     {
         /// <inheritdoc />
@@ -25,6 +25,8 @@ namespace CCAP.Infrastructure.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.HasSequence("EmployeeNoSequence", "dbo");
 
             modelBuilder.Entity("CCAP.Domain.Entities.Activity", b =>
                 {
@@ -527,6 +529,12 @@ namespace CCAP.Infrastructure.Migrations
 
                     b.Property<DateOnly?>("RecertDate")
                         .HasColumnType("date");
+
+                    b.Property<string>("RecertificationRecordsJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("nvarchar(max)")
+                        .HasDefaultValue("[]");
 
                     b.Property<string>("ReferralNotes")
                         .HasColumnType("nvarchar(max)");

@@ -14,6 +14,10 @@ namespace CCAP.Infrastructure.Migrations
             migrationBuilder.EnsureSchema(
                 name: "dbo");
 
+            migrationBuilder.CreateSequence(
+                name: "EmployeeNoSequence",
+                schema: "dbo");
+
             migrationBuilder.CreateTable(
                 name: "Disciplines",
                 schema: "dbo",
@@ -330,6 +334,7 @@ namespace CCAP.Infrastructure.Migrations
                     RocDate = table.Column<DateOnly>(type: "date", nullable: true),
                     RecertDate = table.Column<DateOnly>(type: "date", nullable: true),
                     PcpPtNotified = table.Column<bool>(type: "bit", nullable: true),
+                    RecertificationRecordsJson = table.Column<string>(type: "nvarchar(max)", nullable: false, defaultValue: "[]"),
                     DischargeDate = table.Column<DateOnly>(type: "date", nullable: true),
                     DischargeFeedback = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
                     TransferDestination = table.Column<string>(type: "nvarchar(300)", maxLength: 300, nullable: true),
@@ -1221,6 +1226,10 @@ namespace CCAP.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "Roles",
+                schema: "dbo");
+
+            migrationBuilder.DropSequence(
+                name: "EmployeeNoSequence",
                 schema: "dbo");
         }
     }

@@ -13,12 +13,38 @@ public sealed class UserRepository : IUserRepository
         _context = context;
     }
 
-    public async Task<string> GetNextEmployeeNoAsync(CancellationToken cancellationToken)
+
+    public async Task<string> GetNextEmployeeNoAsync(
+        CancellationToken cancellationToken)
     {
-        var next = await _context.Database.SqlQueryRaw<long>("SELECT NEXT VALUE FOR dbo.EmployeeNoSequence AS [Value]")
-            .SingleAsync(cancellationToken);
-        return $"EMP-{next:0000}";
+        var connection = _context.Database.GetDbConnection();
+
+        var shouldCloseConnection =
+            connection.State != System.Data.ConnectionState.Open;
+
+        if (shouldCloseConnection)
+            await connection.OpenAsync(cancellationToken);
+
+        try
+        {
+            await using var command = connection.CreateCommand();
+
+            command.CommandText =
+                "SELECT NEXT VALUE FOR dbo.EmployeeNoSequence;";
+
+            var result = await command.ExecuteScalarAsync(cancellationToken);
+
+            var next = Convert.ToInt64(result);
+
+            return $"EMP-{next:0000}";
+        }
+        finally
+        {
+            if (shouldCloseConnection)
+                await connection.CloseAsync();
+        }
     }
+
 
     public Task<ApplicationUser?> GetByIdAsync(
         Guid id,
