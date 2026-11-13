@@ -265,6 +265,7 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.FirstName).HasMaxLength(100).IsRequired();
             e.Property(x => x.LastName).HasMaxLength(100).IsRequired();
             e.Property(x => x.Mrn).HasMaxLength(50);
+            e.Property(x => x.TypeOfReferral).HasMaxLength(50);
             e.Property(x => x.Status).HasMaxLength(100);
             e.Property(x => x.Source).HasMaxLength(150);
             e.Property(x => x.Insurance).HasMaxLength(150);

@@ -32,6 +32,7 @@ public sealed class ReferralTrackerRepository(AppDbContext context) : IReferralT
                 ReferralDate = x.ReferralDate,
                 PatientName = (x.FirstName + " " + x.LastName).Trim(),
                 Mrn = x.Mrn,
+                TypeOfReferral = x.TypeOfReferral,
                 Status = x.Status,
                 Source = x.Source,
                 Insurance = x.Insurance,

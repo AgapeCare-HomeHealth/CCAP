@@ -7,6 +7,7 @@ public sealed class ReferralListItem
     public DateTime ReferralDate { get; set; }
     public string PatientName { get; set; } = string.Empty;
     public string Mrn { get; set; } = string.Empty;
+    public string? TypeOfReferral { get; set; }
     public string Status { get; set; } = string.Empty;
     public string Source { get; set; } = string.Empty;
     public string Insurance { get; set; } = string.Empty;

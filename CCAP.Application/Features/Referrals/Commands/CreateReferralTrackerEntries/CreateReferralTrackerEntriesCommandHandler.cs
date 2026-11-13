@@ -35,18 +35,10 @@ public sealed class CreateReferralTrackerEntriesCommandHandler
         var invalidIndex = entries.FindIndex(entry =>
             string.IsNullOrWhiteSpace(entry.FirstName) ||
             string.IsNullOrWhiteSpace(entry.LastName) ||
-            !entry.DateOfBirth.HasValue);
+            !ReferralTrackerEntry.IsValidTypeOfReferral(entry.TypeOfReferral));
         if (invalidIndex >= 0)
             throw new ArgumentException(
-                $"Referral row {invalidIndex + 1}: first name, last name, and date of birth are required.");
-
-        var duplicateMrn = entries
-            .Where(entry => !string.IsNullOrWhiteSpace(entry.Mrn))
-            .GroupBy(entry => entry.Mrn!.Trim(), StringComparer.OrdinalIgnoreCase)
-            .FirstOrDefault(group => group.Count() > 1);
-        if (duplicateMrn is not null)
-            throw new ArgumentException(
-                $"MRN {duplicateMrn.Key} appears more than once in this batch. Verify the patient records before saving.");
+                $"Referral row {invalidIndex + 1}: first name, last name, and a valid type of referral are required.");
 
         var coordinatorIds = entries
             .Where(entry => entry.AssignedCoordinatorId.HasValue)
@@ -81,8 +73,7 @@ public sealed class CreateReferralTrackerEntriesCommandHandler
                 entry.ReferralDate ?? DateTime.Today,
                 entry.FirstName,
                 entry.LastName,
-                DateOnly.FromDateTime(entry.DateOfBirth!.Value),
-                entry.Mrn,
+                entry.TypeOfReferral,
                 entry.PostedOn,
                 entry.EstimatedDischargeDate,
                 entry.Status,

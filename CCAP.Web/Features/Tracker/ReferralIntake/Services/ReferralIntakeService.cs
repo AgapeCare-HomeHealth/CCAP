@@ -808,6 +808,7 @@ public sealed class ReferralIntakeService
         {
             item.ReferralId,
             item.PostedOn,
+            item.TypeOfReferral,
             TrackerStatus = item.Status,
             item.EstimatedDischargeDate,
             PrimaryInsurance = item.Insurance,
