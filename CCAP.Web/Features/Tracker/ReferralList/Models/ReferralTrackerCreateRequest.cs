@@ -5,8 +5,7 @@ public sealed class ReferralTrackerCreateRequest
     public DateTime? ReferralDate { get; set; }
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
-    public DateTime? DateOfBirth { get; set; }
-    public string? Mrn { get; set; }
+    public string TypeOfReferral { get; set; } = string.Empty;
     public string? PostedOn { get; set; }
     public DateOnly? EstimatedDischargeDate { get; set; }
     public string? Status { get; set; }

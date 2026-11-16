@@ -338,7 +338,7 @@ public sealed class PatientsController : ControllerBase
                 Id = x.Id == Guid.Empty ? Guid.NewGuid() : x.Id,
                 ReceivedDate = x.ReceivedDate,
                 PcpPtNotified = x.PcpPtNotified
-            }).ToList()), cancellationToken);
+            }).ToList(), request.HighLevelOfCareSpecialNeeds), cancellationToken);
         return NoContent();
     }
 

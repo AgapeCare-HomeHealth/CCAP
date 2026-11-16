@@ -77,6 +77,7 @@
                         <th>Posted On</th>
                         <th>EDD</th>
                         <th>Name</th>
+                        <th>Type of Referral</th>
                         <th>Status</th>
                         <th>Referral Source</th>
                         <th>Payor / Insurance</th>
@@ -90,7 +91,7 @@
                 <tbody>
                     @if (Items.Count == 0)
                     {
-                        <tr><td colspan="13" class="text-center py-5 text-muted">No referral tracker entries found.</td></tr>
+                        <tr><td colspan="14" class="text-center py-5 text-muted">No referral tracker entries found.</td></tr>
                     }
                     else
                     {
@@ -110,6 +111,13 @@
                                            value="@item.EstimatedDischargeDate?.ToString("yyyy-MM-dd")"
                                            @onchange="e => ChangeEdd(item, e.Value?.ToString())" disabled="@(!CanEdit(item))" /></td>
                                 <td class="referral-patient-name">@item.PatientName</td>
+                                <td>
+                                    <select class="form-select form-select-sm tracker-edit" value="@item.TypeOfReferral"
+                                            @onchange="e => ChangeTypeOfReferral(item, e.Value?.ToString())" disabled="@(!CanEdit(item))">
+                                        <option value="">Select type</option>
+                                        @foreach (var option in ReferralTrackerOptions.TypesOfReferral) { <option value="@option">@option</option> }
+                                    </select>
+                                </td>
                                 <td>
                                     <select class="form-select form-select-sm tracker-edit" value="@item.Status"
                                             @onchange="e => ChangeStatus(item, e.Value?.ToString())" disabled="@(!CanEdit(item))">
@@ -170,7 +178,7 @@
             </header>
 
             <div class="referral-bulk-toolbar">
-                <div><strong>@Rows.Count</strong> <span>referral entries</span><small> · Required: first name, last name and date of birth</small></div>
+                <div><strong>@Rows.Count</strong> <span>referral entries</span><small> · Required: first name, last name and type of referral</small></div>
                 <button class="btn btn-outline-primary" @onclick="AddRow" disabled="@(IsSaving || Rows.Count >= 100)" title="Up to 100 referrals per batch"><i class="bi bi-plus-lg me-1"></i>Add another referral</button>
             </div>
 
@@ -189,8 +197,7 @@
                         <col style="width: 52px" />
                         <col style="width: 180px" />
                         <col style="width: 180px" />
-                        <col style="width: 150px" />
-                        <col style="width: 190px" />
+                        <col style="width: 180px" />
                         <col style="width: 150px" />
                         <col style="width: 155px" />
                         <col style="width: 145px" />
@@ -207,8 +214,8 @@
                     <thead>
                         <tr class="preview-group-row">
                             <th rowspan="2" class="preview-index-header">#</th>
-                            <th colspan="4" scope="colgroup">Patient Information</th>
-                            <th colspan="6" scope="colgroup">Referral Information</th>
+                            <th colspan="2" scope="colgroup">Patient Information</th>
+                            <th colspan="7" scope="colgroup">Referral Information</th>
                             <th colspan="1" scope="colgroup">Assignment</th>
                             <th colspan="4" scope="colgroup">Follow-up and Resolution</th>
                             <th rowspan="2" class="preview-actions-header">Actions</th>
@@ -216,8 +223,7 @@
                         <tr class="preview-column-row">
                             <th scope="col">First name <b>*</b></th>
                             <th scope="col">Last name <b>*</b></th>
-                            <th scope="col">Date of birth <b>*</b></th>
-                            <th scope="col">MRN</th>
+                            <th scope="col">Type of referral <b>*</b></th>
                             <th scope="col">Referral date</th>
                             <th scope="col">Posted on</th>
                             <th scope="col">EDD</th>
@@ -239,8 +245,7 @@
                                 <th scope="row" class="preview-row-number">@(i + 1)</th>
                                 <td><input class="form-control" aria-label="Referral @(i + 1) first name" autocomplete="off" @bind="row.FirstName" placeholder="First name" disabled="@IsSaving" /></td>
                                 <td><input class="form-control" aria-label="Referral @(i + 1) last name" autocomplete="off" @bind="row.LastName" placeholder="Last name" disabled="@IsSaving" /></td>
-                                <td><input class="form-control" aria-label="Referral @(i + 1) date of birth" type="date" @bind="row.DateOfBirth" disabled="@IsSaving" /></td>
-                                <td><input class="form-control" aria-label="Referral @(i + 1) medical record number" @bind="row.MRN" placeholder="Medical record number" disabled="@IsSaving" /></td>
+                                <td><select class="form-select" aria-label="Referral @(i + 1) type of referral" @bind="row.TypeOfReferral" disabled="@IsSaving"><option value="">Select type</option>@foreach (var v in ReferralTrackerOptions.TypesOfReferral) { <option value="@v">@v</option> }</select></td>
                                 <td><input class="form-control" aria-label="Referral @(i + 1) referral date" type="date" @bind="row.ReferralDate" disabled="@IsSaving" /></td>
                                 <td><select class="form-select" aria-label="Referral @(i + 1) posted on" @bind="row.PostedOn" disabled="@IsSaving"><option value="">Select</option>@foreach (var v in ReferralTrackerOptions.PostedOn) { <option value="@v">@v</option> }</select></td>
                                 <td><input class="form-control" aria-label="Referral @(i + 1) estimated discharge date" type="date" @bind="row.Edd" disabled="@IsSaving" /></td>
@@ -406,6 +411,7 @@
     private async Task ChangePostedOn(ReferralListItem item, string? value) { item.PostedOn = value ?? ""; await PersistEdit(item); }
     private async Task ChangeStatus(ReferralListItem item, string? value) { item.Status = value ?? ""; await PersistEdit(item); }
     private async Task ChangeEdd(ReferralListItem item, string? value) { item.EstimatedDischargeDate = DateOnly.TryParse(value, out var date) ? date : null; await PersistEdit(item); }
+    private async Task ChangeTypeOfReferral(ReferralListItem item, string? value) { item.TypeOfReferral = value; await PersistEdit(item); }
     private async Task ChangeSource(ReferralListItem item, string? value) { item.Source = value ?? ""; await PersistEdit(item); }
     private async Task ChangeInsurance(ReferralListItem item, string? value) { item.Insurance = value ?? ""; await PersistEdit(item); }
     private async Task ChangeSecondCall(ReferralListItem item, string? value) { item.SecondCoordinatorCall = value ?? ""; await PersistEdit(item); }
@@ -417,10 +423,8 @@
         BulkError = null;
         var entries = Rows.Where(x => x.HasAnyValue).ToList();
         if (entries.Count == 0) { BulkError = "Enter at least one referral before saving."; return; }
-        var invalid = entries.FindIndex(x => string.IsNullOrWhiteSpace(x.FirstName) || string.IsNullOrWhiteSpace(x.LastName) || !x.DateOfBirth.HasValue);
-        if (invalid >= 0) { BulkError = $"Referral row {Rows.IndexOf(entries[invalid]) + 1}: first name, last name, and date of birth are required."; return; }
-        var duplicateMrn = entries.Where(x => !string.IsNullOrWhiteSpace(x.MRN)).GroupBy(x => x.MRN.Trim(), StringComparer.OrdinalIgnoreCase).FirstOrDefault(g => g.Count() > 1);
-        if (duplicateMrn is not null) { BulkError = $"MRN {duplicateMrn.Key} appears more than once in this batch. Verify the patient records before saving."; return; }
+        var invalid = entries.FindIndex(x => string.IsNullOrWhiteSpace(x.FirstName) || string.IsNullOrWhiteSpace(x.LastName) || string.IsNullOrWhiteSpace(x.TypeOfReferral));
+        if (invalid >= 0) { BulkError = $"Referral row {Rows.IndexOf(entries[invalid]) + 1}: first name, last name, and type of referral are required."; return; }
 
         IsSaving = true;
         var saved = 0;
@@ -430,8 +434,7 @@
             {
                 FirstName = entry.FirstName.Trim(),
                 LastName = entry.LastName.Trim(),
-                DateOfBirth = entry.DateOfBirth,
-                Mrn = entry.MRN.Trim(),
+                TypeOfReferral = entry.TypeOfReferral,
                 ReferralDate = entry.ReferralDate ?? DateTime.Today,
                 PostedOn = string.IsNullOrWhiteSpace(entry.PostedOn) ? "Referral/Intake" : entry.PostedOn,
                 EstimatedDischargeDate = entry.Edd.HasValue ? DateOnly.FromDateTime(entry.Edd.Value) : null,
@@ -465,8 +468,7 @@
         public DateTime? Edd { get; set; }
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
-        public DateTime? DateOfBirth { get; set; }
-        public string MRN { get; set; } = string.Empty;
+        public string TypeOfReferral { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public string Source { get; set; } = string.Empty;
         public string Insurance { get; set; } = string.Empty;
@@ -476,7 +478,7 @@
         public string ThirdCoordinatorCall { get; set; } = string.Empty;
         public string Resolution { get; set; } = string.Empty;
         public bool HasAnyValue => !string.IsNullOrWhiteSpace(FirstName) || !string.IsNullOrWhiteSpace(LastName)
-            || DateOfBirth.HasValue || !string.IsNullOrWhiteSpace(MRN)
+            || !string.IsNullOrWhiteSpace(TypeOfReferral)
             || (ReferralDate.HasValue && ReferralDate.Value.Date != DateTime.Today)
             || (!string.IsNullOrWhiteSpace(PostedOn) && PostedOn != "Referral/Intake") || Edd.HasValue
             || !string.IsNullOrWhiteSpace(Status) || !string.IsNullOrWhiteSpace(Source)

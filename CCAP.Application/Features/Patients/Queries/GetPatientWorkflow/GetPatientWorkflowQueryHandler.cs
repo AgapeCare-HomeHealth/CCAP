@@ -496,6 +496,7 @@ public sealed class GetPatientWorkflowQueryHandler
                 HospitalDcSummaryNotes = patient.HospitalDcSummaryNotes ?? string.Empty,
                 DmeMedSupplyNotes = patient.DmeMedSupplyNotes ?? string.Empty,
                 SocFeedbackFromPatient = patient.SocFeedbackFromPatient ?? string.Empty,
+                HighLevelOfCareSpecialNeeds = patient.HighLevelOfCareSpecialNeeds ?? string.Empty,
                 TifDate = patient.TifDate,
                 RocDate = patient.RocDate,
                 RecertDate = patient.RecertDate,
@@ -592,7 +593,7 @@ public sealed class GetPatientWorkflowQueryHandler
                 socCompleted ? GetAdmissionCompletionDate(patient, socRequirementCodes) : null),
             CreateWorkflowStage(patient, 5, "ONGOING_CARE", "On-Going Care", ongoingCareCompleted,
                 ongoingCareCompleted ? (GetAdmissionCompletionDate(patient, ongoingCareRequirementCodes) ?? patient.TifDate?.ToDateTime(TimeOnly.MinValue)) : null),
-            CreateWorkflowStage(patient, 6, "RECERT_OR_DISCHARGE", "Recert or Discharge", recertCompleted,
+            CreateWorkflowStage(patient, 6, "RECERTIFICATION", "Recertification", recertCompleted,
                 recertCompleted ? GetAdmissionCompletionDate(patient, recertRequirementCodes) : null),
             CreateWorkflowStage(patient, 7, "DISCHARGE", "Discharge", dischargeCompleted,
                 dischargeCompleted ? (GetAdmissionCompletionDate(patient, dischargeRequirementCodes) ?? patient.DischargeDate?.ToDateTime(TimeOnly.MinValue) ?? patient.TransferDate?.ToDateTime(TimeOnly.MinValue)) : null)

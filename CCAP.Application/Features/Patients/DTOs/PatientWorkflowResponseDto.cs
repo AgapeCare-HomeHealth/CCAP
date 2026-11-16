@@ -35,6 +35,7 @@ public sealed class WorkflowDetailsResponseDto
     public string HospitalDcSummaryNotes { get; set; } = "";
     public string DmeMedSupplyNotes { get; set; } = "";
     public string SocFeedbackFromPatient { get; set; } = "";
+    public string HighLevelOfCareSpecialNeeds { get; set; } = "";
     public DateOnly? TifDate { get; set; }
     public DateOnly? RocDate { get; set; }
     public DateOnly? RecertDate { get; set; }

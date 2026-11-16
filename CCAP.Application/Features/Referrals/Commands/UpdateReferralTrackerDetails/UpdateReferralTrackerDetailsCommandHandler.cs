@@ -35,7 +35,8 @@ public sealed class UpdateReferralTrackerDetailsCommandHandler
             referral.FirstMarketingCall,
             request.SecondCoordinatorCall,
             request.ThirdCoordinatorCall,
-            request.Resolution);
+            request.Resolution,
+            request.TypeOfReferral);
 
         _referrals.Update(referral);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

@@ -11,4 +11,5 @@ public sealed record UpdateReferralTrackerDetailsCommand(
     string? Source,
     string? SecondCoordinatorCall,
     string? ThirdCoordinatorCall,
-    string? Resolution) : IRequest;
+    string? Resolution,
+    string? TypeOfReferral) : IRequest;

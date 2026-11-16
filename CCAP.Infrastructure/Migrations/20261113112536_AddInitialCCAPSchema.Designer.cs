@@ -12,7 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CCAP.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
+<<<<<<<< HEAD:CCAP.Infrastructure/Migrations/20261113112536_AddInitialCCAPSchema.Designer.cs
     [Migration("20261113112536_AddInitialCCAPSchema")]
+========
+    [Migration("20261115193337_AddInitialCCAPSchema")]
+>>>>>>>> origin/development:CCAP.Infrastructure/Migrations/20261115193337_AddInitialCCAPSchema.Designer.cs
     partial class AddInitialCCAPSchema
     {
         /// <inheritdoc />
@@ -477,6 +481,9 @@ namespace CCAP.Infrastructure.Migrations
                     b.Property<string>("Gender")
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("HighLevelOfCareSpecialNeeds")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("HospitalDcSummaryNotes")
                         .HasMaxLength(2000)
@@ -1050,7 +1057,7 @@ namespace CCAP.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateOnly>("DateOfBirth")
+                    b.Property<DateOnly?>("DateOfBirth")
                         .HasColumnType("date");
 
                     b.Property<DateOnly?>("EstimatedDischargeDate")
@@ -1118,6 +1125,10 @@ namespace CCAP.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("TypeOfReferral")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");

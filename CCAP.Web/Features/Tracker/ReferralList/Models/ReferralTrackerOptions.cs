@@ -2,6 +2,12 @@ namespace CCAP.Web.Features.Tracker.ReferralList.Models;
 
 public static class ReferralTrackerOptions
 {
+    public static readonly IReadOnlyList<string> TypesOfReferral =
+    [
+        "New Patient",
+        "Previous Patient"
+    ];
+
 public static readonly IReadOnlyList<string> Statuses =
     [
         "Discharged From Hospital/SNF",

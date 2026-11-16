@@ -61,6 +61,7 @@ public sealed class Patient
     public string? HospitalDcSummaryNotes { get; private set; }
     public string? DmeMedSupplyNotes { get; private set; }
     public string? SocFeedbackFromPatient { get; private set; }
+    public string? HighLevelOfCareSpecialNeeds { get; private set; }
     public DateOnly? TifDate { get; private set; }
     public DateOnly? RocDate { get; private set; }
     public DateOnly? RecertDate { get; private set; }
@@ -418,7 +419,8 @@ public sealed class Patient
         string? dischargeFeedback,
         string? transferDestination,
         DateOnly? transferDate,
-        string? transferReason)
+        string? transferReason,
+        string? highLevelOfCareSpecialNeeds = null)
     {
         if (numberOfVisits.HasValue && numberOfVisits.Value < 0)
             throw new ArgumentException("Number of visits cannot be negative.", nameof(numberOfVisits));
@@ -429,6 +431,7 @@ public sealed class Patient
         HospitalDcSummaryNotes = Normalize(hospitalDcSummaryNotes);
         DmeMedSupplyNotes = Normalize(dmeMedSupplyNotes);
         SocFeedbackFromPatient = Normalize(socFeedbackFromPatient);
+        HighLevelOfCareSpecialNeeds = Normalize(highLevelOfCareSpecialNeeds);
         TifDate = tifDate;
         RocDate = rocDate;
         RecertDate = recertDate;

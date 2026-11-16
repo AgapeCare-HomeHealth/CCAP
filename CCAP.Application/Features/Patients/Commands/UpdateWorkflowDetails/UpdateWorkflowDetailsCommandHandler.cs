@@ -44,7 +44,8 @@ public sealed class UpdateWorkflowDetailsCommandHandler : IRequestHandler<Update
             all || Is("Discharge") ? r.DischargeFeedback : p.DischargeFeedback,
             all || Is("Discharge") ? r.TransferDestination : p.TransferDestination,
             all || Is("Discharge") ? r.TransferDate : p.TransferDate,
-            all || Is("Discharge") ? r.TransferReason : p.TransferReason);
+            all || Is("Discharge") ? r.TransferReason : p.TransferReason,
+            Is("SOC") || all ? r.HighLevelOfCareSpecialNeeds : p.HighLevelOfCareSpecialNeeds);
 
         if (all || Is("Recertification"))
         {

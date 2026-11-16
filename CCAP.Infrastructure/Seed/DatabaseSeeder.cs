@@ -213,7 +213,11 @@ public static class DatabaseSeeder
         if (adminUser is null)
         {
             adminUser = new ApplicationUser(
+<<<<<<< HEAD
                 "CCAP-0001",
+=======
+                "EMP-0001",
+>>>>>>> origin/development
                 "CCAP",
                 "Administrator",
                 adminEmail,
@@ -243,7 +247,11 @@ public static class DatabaseSeeder
         if (careCoordinatorUser is null)
         {
             careCoordinatorUser = new ApplicationUser(
+<<<<<<< HEAD
                 "CCAP-0002",
+=======
+                "EMP-0002",
+>>>>>>> origin/development
                 "CCAP",
                 "Care Coordinator",
                 careCoordinatorEmail,
@@ -275,7 +283,11 @@ public static class DatabaseSeeder
         if (clinicianUser is null)
         {
             clinicianUser = new ApplicationUser(
+<<<<<<< HEAD
                 "CCAP-0003",
+=======
+                "EMP-0003",
+>>>>>>> origin/development
                 "CCAP",
                 "Clinician",
                 clinicianEmail,
