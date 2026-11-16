@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CCAP.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261111171610_AddInitialCCAPSchema")]
+    [Migration("20261115193337_AddInitialCCAPSchema")]
     partial class AddInitialCCAPSchema
     {
         /// <inheritdoc />
@@ -476,6 +476,9 @@ namespace CCAP.Infrastructure.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
+                    b.Property<string>("HighLevelOfCareSpecialNeeds")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("HospitalDcSummaryNotes")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
@@ -527,6 +530,12 @@ namespace CCAP.Infrastructure.Migrations
 
                     b.Property<DateOnly?>("RecertDate")
                         .HasColumnType("date");
+
+                    b.Property<string>("RecertificationRecordsJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("nvarchar(max)")
+                        .HasDefaultValue("[]");
 
                     b.Property<string>("ReferralNotes")
                         .HasColumnType("nvarchar(max)");
@@ -1042,7 +1051,7 @@ namespace CCAP.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateOnly>("DateOfBirth")
+                    b.Property<DateOnly?>("DateOfBirth")
                         .HasColumnType("date");
 
                     b.Property<DateOnly?>("EstimatedDischargeDate")
@@ -1110,6 +1119,10 @@ namespace CCAP.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("TypeOfReferral")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");

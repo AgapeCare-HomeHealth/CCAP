@@ -22,9 +22,9 @@
             <div class="card border-success shadow-sm">
                 <div class="card-body text-center py-5">
                     <div class="display-5 text-success mb-3">✓</div>
-                    <h4 class="text-success">Patient Journey Closed</h4>
-                    <p class="text-muted mb-1">The final outcome has been completed.</p>
-                    <p class="text-muted">The episode outcome has been recorded. Any outstanding discharge compliance items can still be completed in the Compliance tab.</p>
+                    <h4 class="text-success">Completed</h4>
+                    <p class="text-muted mb-1">Patient workflow has been completed.</p>
+                    @* <p class="text-muted">The episode outcome has been recorded. Any outstanding discharge compliance items can still be completed in the Compliance tab.</p> *@
                     @if (!DischargeStageComplete)
                     {
                         <div class="alert alert-warning mt-3">Discharge compliance is still outstanding. Complete the Discharge group in the Compliance tab before archiving this patient.</div>
@@ -41,14 +41,14 @@
                         else
                         {
                             <button type="button" class="btn btn-success" @onclick="ArchiveJourneyAsync" disabled="@(IsSaving || !DischargeStageComplete)">
-                                @(IsSaving ? "Archiving..." : "Archive Patient Journey")
+                                @(IsSaving ? "Archiving..." : "Archive Patient Workflow")
                             </button>
                         }
                         <button type="button" class="btn btn-outline-primary" @onclick="GoToPatients">Back to Active Patients</button>
                     </div>
                     @if (JourneyArchived)
                     {
-                        <div class="alert alert-success mt-4 mb-0">Patient journey is closed and discharged. The patient no longer belongs in the active patient list.</div>
+                        <div class="alert alert-success mt-4 mb-0">Patient Workflow is closed and discharged. The patient no longer belongs in the active patient list.</div>
                     }
                 </div>
             </div>
@@ -129,10 +129,10 @@
     private bool JourneyArchived => string.Equals(Workflow?.Header.Status, "Archived", StringComparison.OrdinalIgnoreCase);
     private bool DischargeStageComplete => Workflow?.WorkflowStages.FirstOrDefault(x =>
         string.Equals(x.StageCode, "DISCHARGE", StringComparison.OrdinalIgnoreCase))?.Status == WorkflowStatus.Completed;
-    // The episode outcome is available after the Recert or Discharge group.
+    // The episode outcome is available after the Recertification group.
     // Discharge documents remain independently completable after the episode closes.
     private bool CanCloseEpisode => Workflow?.WorkflowStages.FirstOrDefault(x =>
-        string.Equals(x.StageCode, "RECERT_OR_DISCHARGE", StringComparison.OrdinalIgnoreCase))?.Status == WorkflowStatus.Completed;
+        string.Equals(x.StageCode, "RECERTIFICATION", StringComparison.OrdinalIgnoreCase))?.Status == WorkflowStatus.Completed;
     private bool CanSubmitOutcome => IsTransfer
         ? OutcomeDate.HasValue && !string.IsNullOrWhiteSpace(TransferDestination)
         : Workflow?.WorkflowDetails.DischargeDate.HasValue == true;

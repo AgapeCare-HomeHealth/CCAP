@@ -67,7 +67,8 @@ public sealed class CompleteCareCommandHandler : IRequestHandler<CompleteCareCom
             !isTransfer ? request.DischargeFeedback ?? patient.DischargeFeedback : patient.DischargeFeedback,
             isTransfer ? request.TransferDestination ?? patient.TransferDestination : patient.TransferDestination,
             isTransfer ? request.OutcomeDate ?? patient.TransferDate : patient.TransferDate,
-            isTransfer ? request.TransferReason ?? patient.TransferReason : patient.TransferReason);
+            isTransfer ? request.TransferReason ?? patient.TransferReason : patient.TransferReason,
+            patient.HighLevelOfCareSpecialNeeds);
 
         patient.CompleteCare(request.FinalStatus, request.FinalizedByUserId);
         _patients.Update(patient);

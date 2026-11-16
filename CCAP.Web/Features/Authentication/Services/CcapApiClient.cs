@@ -2,11 +2,13 @@ using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace CCAP.Web.Features.Authentication.Services;
 
 public sealed class CcapApiClient
 {
+    private readonly ILogger<CcapApiClient> _logger;
     private readonly HttpClient _client;
     private readonly TokenStore _tokenStore;
     private readonly SessionExpirationService _sessionExpirationService;
@@ -22,7 +24,8 @@ public sealed class CcapApiClient
     public CcapApiClient(
     IHttpClientFactory httpClientFactory,
     TokenStore tokenStore,
-    SessionExpirationService sessionExpirationService)
+    SessionExpirationService sessionExpirationService,
+    ILogger<CcapApiClient> logger)
     {
         _client =
             httpClientFactory.CreateClient("CCAP.Api");
@@ -31,6 +34,8 @@ public sealed class CcapApiClient
 
         _sessionExpirationService =
             sessionExpirationService;
+
+        _logger = logger;
     }
 
     private async Task AddAuthorizationAsync(
@@ -190,31 +195,63 @@ public sealed class CcapApiClient
             cancellationToken);
     }
 
+    //public async Task<HttpResponseMessage> PostMultipartAsync(
+    //    string requestUri,
+    //    MultipartFormDataContent content,
+    //    CancellationToken cancellationToken = default)
+    //{
+    //    using var request =
+    //        new HttpRequestMessage(
+    //            HttpMethod.Post,
+    //            requestUri);
+
+    //    request.Content = content;
+
+    //    await AddAuthorizationAsync(request);
+
+    //    var fullUrl =
+    //    new Uri(
+    //        _client.BaseAddress!,
+    //        requestUri);
+
+    //    Debug.WriteLine(
+    //        $"CCAP API REQUEST: POST {fullUrl}");
+
+    //    return await SendAsync(
+    //        request,
+    //        cancellationToken);
+    //}
     public async Task<HttpResponseMessage> PostMultipartAsync(
-        string requestUri,
-        MultipartFormDataContent content,
-        CancellationToken cancellationToken = default)
+    string requestUri,
+    MultipartFormDataContent content,
+    CancellationToken cancellationToken = default)
     {
-        using var request =
-            new HttpRequestMessage(
-                HttpMethod.Post,
-                requestUri);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            requestUri);
 
         request.Content = content;
 
         await AddAuthorizationAsync(request);
 
-        var fullUrl =
-        new Uri(
+        var fullUrl = new Uri(
             _client.BaseAddress!,
             requestUri);
 
-        Debug.WriteLine(
-            $"CCAP API REQUEST: POST {fullUrl}");
+        _logger.LogInformation(
+            "CCAP API REQUEST: POST {Url}",
+            fullUrl);
 
-        return await SendAsync(
+        var response = await SendAsync(
             request,
             cancellationToken);
+
+        _logger.LogInformation(
+            "CCAP API RESPONSE: POST {Url}, Status: {StatusCode}",
+            fullUrl,
+            (int)response.StatusCode);
+
+        return response;
     }
 
     public async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken = default)

@@ -28,6 +28,7 @@ namespace CCAP.API.Controllers;
 public sealed class ReferralController : ControllerBase
 {
     private readonly ISender _sender;
+    private readonly ILogger<ReferralController> _logger;
     private readonly IReferralDocumentExtractionService _documentExtraction;
     private readonly IUserRepository _users;
     private readonly AppDbContext _db;
@@ -40,13 +41,15 @@ public sealed class ReferralController : ControllerBase
     public ReferralController(
         ISender sender,
         IReferralDocumentExtractionService documentExtraction,
-        IUserRepository users, AppDbContext db, IHubContext<NotificationsHub> notificationsHub)
+        IUserRepository users, AppDbContext db, IHubContext<NotificationsHub> notificationsHub,
+        ILogger<ReferralController> logger)
     {
         _sender = sender;
         _documentExtraction = documentExtraction;
         _users = users;
         _db = db;
         _notificationsHub = notificationsHub;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -259,7 +262,7 @@ public sealed class ReferralController : ControllerBase
             ExtractionProgress[progressId] = new ReferralExtractionProgressResponse
             {
                 TotalPages = current?.TotalPages ?? 0,
-                PagesProcessed = current?.TotalPages ?? 0,
+                PagesProcessed = current?.PagesProcessed ?? 0,
                 Stage = "Extraction complete",
                 IsComplete = true
             };
@@ -270,8 +273,52 @@ public sealed class ReferralController : ControllerBase
             ExtractionProgress.TryRemove(progressId, out _);
             return UnprocessableEntity(new { message = ex.Message });
         }
-        catch
+        //catch
+        //{
+        //    ExtractionProgress.TryRemove(progressId, out _);
+        //    throw;
+        //}
+        catch (Exception ex)
         {
+            try
+            {
+                var logPath = Path.Combine(
+                    AppContext.BaseDirectory,
+                    "ocr-error.log"
+                );
+
+                var errorMessage = $"""
+            ========================================
+            Date: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC
+            File: {pdf.FileName}
+            Size: {pdf.Length} bytes
+
+            Exception:
+            {ex}
+
+            ========================================
+
+            """;
+
+                await System.IO.File.AppendAllTextAsync(
+                    logPath,
+                    errorMessage,
+                    cancellationToken
+                );
+            }
+            catch (Exception logEx)
+            {
+                _logger.LogError(logEx, "Failed to write OCR diagnostic file.");
+            }
+
+            _logger.LogError(
+                ex,
+                "Referral OCR failed. ProgressId: {ProgressId}, FileName: {FileName}, FileSize: {FileSize}",
+                progressId,
+                pdf.FileName,
+                pdf.Length
+            );
+
             ExtractionProgress.TryRemove(progressId, out _);
             throw;
         }

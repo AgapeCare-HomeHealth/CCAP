@@ -15,8 +15,19 @@ public sealed class UserRepository : IUserRepository
 
     public async Task<string> GetNextEmployeeNoAsync(CancellationToken cancellationToken)
     {
-        var next = await _context.Database.SqlQueryRaw<long>("SELECT NEXT VALUE FOR dbo.EmployeeNoSequence AS [Value]")
+        // Generate the next employee number from existing EMP-#### records.
+        // This avoids requiring a SQL Server sequence or a sequence-backed
+        // DEFAULT constraint on the hosting database.
+        var next = await _context.Database.SqlQueryRaw<long>(
+                """
+                SELECT COALESCE(
+                    MAX(TRY_CONVERT(bigint, SUBSTRING(EmployeeNo, 5, 46))),
+                    0) + 1 AS [Value]
+                FROM dbo.ApplicationUsers
+                WHERE EmployeeNo LIKE N'EMP-%'
+                """)
             .SingleAsync(cancellationToken);
+
         return $"EMP-{next:0000}";
     }
 
