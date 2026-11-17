@@ -36,11 +36,62 @@ public sealed class AppDbContext : DbContext
     public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
     public DbSet<PatientAuditLog> PatientAuditLogs => Set<PatientAuditLog>();
     public DbSet<PatientCareLog> PatientCareLogs => Set<PatientCareLog>();
+    public DbSet<PatientImportBatch> PatientImportBatches => Set<PatientImportBatch>();
+    public DbSet<PatientImportRow> PatientImportRows => Set<PatientImportRow>();
+    public DbSet<ReferralImportBatch> ReferralImportBatches => Set<ReferralImportBatch>();
+    public DbSet<ReferralImportRow> ReferralImportRows => Set<ReferralImportRow>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.HasDefaultSchema("dbo");
+
+        modelBuilder.Entity<PatientImportBatch>(e =>
+        {
+            e.ToTable("PatientImportBatches");
+            e.HasKey(x => x.PatientImportBatchId);
+            e.Property(x => x.FileName).HasMaxLength(260).IsRequired();
+            e.Property(x => x.FileFingerprint).HasMaxLength(64).IsRequired();
+            e.Property(x => x.Status).HasMaxLength(30).IsRequired();
+            e.Property(x => x.Summary).HasMaxLength(2000);
+            e.HasIndex(x => x.UploadedAt);
+            e.HasIndex(x => x.Status);
+        });
+
+        modelBuilder.Entity<PatientImportRow>(e =>
+        {
+            e.ToTable("PatientImportRows");
+            e.HasKey(x => x.PatientImportRowId);
+            e.Property(x => x.RecordFingerprint).HasMaxLength(64).IsRequired();
+            e.Property(x => x.RawDataJson).HasColumnType("nvarchar(max)").IsRequired();
+            e.Property(x => x.Status).HasMaxLength(30).IsRequired();
+            e.Property(x => x.ErrorMessage).HasMaxLength(2000);
+            e.Property(x => x.GeneratedMrn).HasMaxLength(80);
+            e.Property(x => x.GeneratedReferralNumber).HasMaxLength(80);
+            e.HasIndex(x => new { x.PatientImportBatchId, x.RowNumber }).IsUnique();
+            e.HasIndex(x => new { x.RecordFingerprint, x.Status });
+            e.HasOne<PatientImportBatch>().WithMany().HasForeignKey(x => x.PatientImportBatchId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ReferralImportBatch>(e =>
+        {
+            e.ToTable("ReferralImportBatches");
+            e.HasKey(x => x.ReferralImportBatchId);
+            e.Property(x => x.FileName).HasMaxLength(260).IsRequired();
+            e.Property(x => x.Status).HasMaxLength(30).IsRequired();
+            e.HasIndex(x => x.UploadedAt);
+        });
+        modelBuilder.Entity<ReferralImportRow>(e =>
+        {
+            e.ToTable("ReferralImportRows");
+            e.HasKey(x => x.ReferralImportRowId);
+            e.Property(x => x.PatientName).HasMaxLength(250).IsRequired();
+            e.Property(x => x.Status).HasMaxLength(30).IsRequired();
+            e.Property(x => x.ErrorMessage).HasMaxLength(2000);
+            e.Property(x => x.RawDataJson).HasColumnType("nvarchar(max)").IsRequired();
+            e.HasIndex(x => new { x.ReferralImportBatchId, x.RowNumber }).IsUnique();
+            e.HasOne<ReferralImportBatch>().WithMany().HasForeignKey(x => x.ReferralImportBatchId).OnDelete(DeleteBehavior.Cascade);
+        });
 
         modelBuilder.Entity<Announcement>(e =>
         {

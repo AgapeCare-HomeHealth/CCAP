@@ -467,7 +467,12 @@ public sealed class Patient
         if (!string.Equals(FinalStatus, "Transferred", StringComparison.OrdinalIgnoreCase))
             DischargeDate ??= DateOnly.FromDateTime(DateTime.UtcNow);
 
-        Status = PatientStatus.Completed;
+        // A recorded final outcome closes the episode and moves the patient
+        // out of the active list immediately. FinalStatus remains the visible
+        // outcome; Archived is the internal list-membership state.
+        ArchivedByUserId = finalizedByUserId;
+        ArchivedAt = DateTime.UtcNow;
+        Status = PatientStatus.Archived;
     }
 
     public void Archive(Guid archivedByUserId)

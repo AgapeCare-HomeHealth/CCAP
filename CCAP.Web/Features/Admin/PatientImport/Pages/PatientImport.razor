@@ -1,0 +1,174 @@
+@page "/admin/patient-import"
+@attribute [CcapAuthorize(Policy = "users.view")]
+@using CCAP.Web.Features.Admin.PatientImport.Models
+@using CCAP.Web.Features.Admin.PatientImport.Services
+@inject PatientImportService ImportService
+@inject IJSRuntime JS
+<PageTitle>Patient Import</PageTitle>
+
+<div class="container-fluid py-3 patient-import-page">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-4">
+        <div><h2 class="mb-1">Patient Import</h2><p class="text-muted mb-0">Upload a CSV, review validation, then queue a resumable background import.</p></div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary" @onclick="DownloadTemplateAsync" disabled="@IsBusy"><i class="bi bi-download me-1"></i> Download CSV template</button>
+            <button class="btn btn-outline-secondary" @onclick="LoadHistoryAsync" disabled="@IsBusy"><i class="bi bi-arrow-clockwise me-1"></i> Refresh history</button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <div class="alert alert-danger">@ErrorMessage</div> }
+    @if (!string.IsNullOrWhiteSpace(SuccessMessage)) { <div class="alert alert-success">@SuccessMessage</div> }
+
+    <div class="card shadow-sm mb-4"><div class="card-body">
+        <h5 class="card-title">Upload patient CSV</h5>
+        <p class="text-muted small">Required columns: FirstName, LastName, CoordinatorEmail. The import recognizes the columns in the supplied PatientImport template.</p>
+        <div class="d-flex flex-wrap align-items-center gap-3">
+            <InputFile OnChange="SelectFileAsync" accept=".csv,text/csv" disabled="@IsBusy" />
+            @if (!string.IsNullOrWhiteSpace(SelectedFileName)) { <span class="small text-muted">@SelectedFileName</span> }
+            <button class="btn btn-primary" @onclick="PreviewAsync" disabled="@(SelectedFile is null || IsBusy)"><i class="bi bi-eye me-1"></i> Validate &amp; preview</button>
+        </div>
+    </div></div>
+
+    @if (Preview is not null)
+    {
+        <div class="card shadow-sm mb-4"><div class="card-body">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3"><div><h5 class="mb-1">Import preview</h5><div class="small text-muted">@Preview.FileName · @Preview.TotalRows records</div></div>
+                <button class="btn btn-success" @onclick="ConfirmImportAsync" disabled="@(IsBusy || !Preview.Rows.Any(x => x.Status == "Ready"))"><i class="bi bi-cloud-upload me-1"></i> Confirm import</button></div>
+            <div class="row g-2 mb-3">
+                <div class="col-md-3"><div class="border rounded p-3"><div class="small text-muted">Ready</div><strong>@Preview.Rows.Count(x => x.Status == "Ready")</strong></div></div>
+                <div class="col-md-3"><div class="border rounded p-3"><div class="small text-muted">Duplicates</div><strong>@Preview.Rows.Count(x => x.Status == "Duplicate")</strong></div></div>
+                <div class="col-md-3"><div class="border rounded p-3"><div class="small text-muted">Validation errors</div><strong>@Preview.Rows.Count(x => x.Status == "Failed")</strong></div></div>
+                <div class="col-md-3"><div class="border rounded p-3"><div class="small text-muted">DOB fallback</div><strong>Current server date</strong></div></div>
+            </div>
+            <div class="table-responsive"><table class="table table-sm table-striped align-middle"><thead><tr><th>CSV row</th><th>Status</th><th>Validation / duplicate details</th></tr></thead><tbody>
+            @foreach (var row in Preview.Rows) { <tr><td>@row.RowNumber</td><td><span class="badge @BadgeClass(row.Status)">@row.Status</span></td><td>@row.ErrorMessage</td></tr> }
+            </tbody></table></div>
+        </div></div>
+    }
+
+    @if (ActiveBatch is not null)
+    {
+        <div class="card shadow-sm mb-4"><div class="card-body">
+            <div class="d-flex justify-content-between flex-wrap gap-2"><div><h5 class="mb-1">Import progress</h5><div class="small text-muted">@ActiveBatch.FileName · @ActiveBatch.Status</div></div><strong>@(ActiveBatch.InsertedRows + ActiveBatch.DuplicateRows + ActiveBatch.FailedRows) / @ActiveBatch.TotalRows processed</strong></div>
+            <div class="progress my-3" role="progressbar"><div class="progress-bar" style="width:@ProgressPercent%"></div></div>
+            <div class="d-flex flex-wrap gap-4 small"><span>Inserted: <b>@ActiveBatch.InsertedRows</b></span><span>Duplicates: <b>@ActiveBatch.DuplicateRows</b></span><span>Failed: <b>@ActiveBatch.FailedRows</b></span></div>
+            @if (IsBusy) { <div class="small text-muted mt-2"><span class="spinner-border spinner-border-sm me-1"></span> Processing in the background. Keep this page open for the automatic error report download; you can also retrieve it from Import History later.</div> }
+        </div></div>
+    }
+
+    <div class="card shadow-sm"><div class="card-body"><h5 class="mb-3">Import history</h5>
+        @if (History.Count == 0) { <div class="text-muted">No imports have been uploaded yet.</div> }
+        else { <div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Uploaded</th><th>Uploaded by</th><th>File</th><th>Total</th><th>Inserted</th><th>Duplicates</th><th>Failed</th><th>Status</th><th></th></tr></thead><tbody>
+            @foreach (var item in History) { <tr><td>@item.UploadedAt.ToLocalTime().ToString("g")</td><td>@item.UploadedBy</td><td>@item.FileName</td><td>@item.TotalRows</td><td>@item.InsertedRows</td><td>@item.DuplicateRows</td><td>@item.FailedRows</td><td><span class="badge @BadgeClass(item.Status)">@item.Status</span></td><td><button class="btn btn-sm btn-outline-secondary" @onclick="() => LoadLogsAsync(item.PatientImportBatchId)">View logs</button></td></tr> }
+        </tbody></table></div> }
+        @if (LogBatch is not null) { <hr /><div class="d-flex justify-content-between align-items-center"><h6 class="mb-2">Row logs — @LogBatch.FileName</h6><button class="btn btn-sm btn-link" @onclick="CloseLogs">Close</button></div><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Row</th><th>Status</th><th>Details</th></tr></thead><tbody>@foreach (var row in LogBatch.Rows) { <tr><td>@row.RowNumber</td><td><span class="badge @BadgeClass(row.Status)">@row.Status</span></td><td>@row.ErrorMessage</td></tr> }</tbody></table></div> }
+    </div></div>
+</div>
+
+@code {
+    private IBrowserFile? SelectedFile;
+    private string? SelectedFileName;
+    private PatientImportBatchDto? Preview;
+    private PatientImportBatchDto? ActiveBatch;
+    private PatientImportBatchDto? LogBatch;
+    private List<PatientImportBatchDto> History = [];
+    private bool IsBusy;
+    private string? ErrorMessage;
+    private string? SuccessMessage;
+    private readonly HashSet<Guid> AutoDownloaded = [];
+    private int ProgressPercent => ActiveBatch is null || ActiveBatch.TotalRows == 0 ? 0 : Math.Clamp((ActiveBatch.InsertedRows + ActiveBatch.DuplicateRows + ActiveBatch.FailedRows) * 100 / ActiveBatch.TotalRows, 0, 100);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadHistoryAsync();
+        if (History.Any(x => x.Status is "Queued" or "Processing")) _ = MonitorPendingBatchesAsync();
+    }
+    private Task SelectFileAsync(InputFileChangeEventArgs e) { SelectedFile = e.File; SelectedFileName = SelectedFile.Name; Preview = null; ErrorMessage = null; return Task.CompletedTask; }
+
+    private async Task DownloadTemplateAsync()
+    {
+        const string csv = "FirstName,LastName,DateOfBirth,CoordinatorEmail,AssignedClinician,PayorInsurance,PatientStatus,NotesRemarks,CaseMixType,DMEMedSupply,SOCFeedbackFromPatient,TIF,ROC,Recert,PCPPTNotified,DischargeDate,DCFeedbackFromPatient,PreAuthReceived,PROReceived,AVSReceived,HPReceived,F2FReceived,PCPConfirmed,SignedConsents,NOA,OASISSOCCompliant,OrdersSignedByPhysician,DocsUploaded,CaseMixIdentified,CaseMixPlotted,QAApprovalPOPOCReadyForFaxing,DCSummarySigned,NOMNCSigned\r\n";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetPreamble().Concat(System.Text.Encoding.UTF8.GetBytes(csv)).ToArray());
+        using var reference = new DotNetStreamReference(stream);
+        await JS.InvokeVoidAsync("ccapDownloadStream", "CCAP_Patient_Import_Template.csv", "text/csv;charset=utf-8", reference);
+    }
+
+    private async Task PreviewAsync()
+    {
+        IsBusy = true; ErrorMessage = null; SuccessMessage = null;
+        try { using var stream = SelectedFile!.OpenReadStream(20 * 1024 * 1024); using var ms = new MemoryStream(); await stream.CopyToAsync(ms); Preview = await ImportService.PreviewAsync(ms.ToArray(), SelectedFile.Name); await LoadHistoryAsync(); if (!Preview.Rows.Any(x => x.Status == "Ready") && Preview.Rows.Any(x => x.Status is "Failed" or "Duplicate")) await DownloadErrorsAsync(Preview.PatientImportBatchId); }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { IsBusy = false; }
+    }
+
+    private async Task ConfirmImportAsync()
+    {
+        if (Preview is null) return;
+        IsBusy = true; ErrorMessage = null; SuccessMessage = null;
+        try
+        {
+            ActiveBatch = await ImportService.ConfirmAsync(Preview.PatientImportBatchId);
+            Preview = null;
+            while (ActiveBatch.Status is "Queued" or "Processing")
+            {
+                await Task.Delay(2500);
+                ActiveBatch = await ImportService.GetAsync(ActiveBatch.PatientImportBatchId) ?? ActiveBatch;
+                await InvokeAsync(StateHasChanged);
+            }
+            SuccessMessage = $"Import finished: {ActiveBatch.InsertedRows} inserted, {ActiveBatch.DuplicateRows} skipped as duplicates, {ActiveBatch.FailedRows} failed.";
+            if ((ActiveBatch.FailedRows > 0 || ActiveBatch.DuplicateRows > 0) && AutoDownloaded.Add(ActiveBatch.PatientImportBatchId)) await DownloadErrorsAsync(ActiveBatch.PatientImportBatchId);
+            await LoadHistoryAsync();
+        }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { IsBusy = false; await InvokeAsync(StateHasChanged); }
+    }
+
+    private async Task LoadHistoryAsync()
+    {
+        try { History = await ImportService.HistoryAsync(); }
+        catch (Exception ex) { if (History.Count == 0) ErrorMessage = ex.Message; }
+    }
+
+    private async Task MonitorPendingBatchesAsync()
+    {
+        if (IsBusy) return;
+        IsBusy = true;
+        try
+        {
+            while (true)
+            {
+                await LoadHistoryAsync();
+                var pending = History.Where(x => x.Status is "Queued" or "Processing").OrderBy(x => x.UploadedAt).FirstOrDefault();
+                if (pending is null) break;
+                ActiveBatch = await ImportService.GetAsync(pending.PatientImportBatchId);
+                if (ActiveBatch is null) break;
+                while (ActiveBatch.Status is "Queued" or "Processing")
+                {
+                    await Task.Delay(2500);
+                    ActiveBatch = await ImportService.GetAsync(ActiveBatch.PatientImportBatchId) ?? ActiveBatch;
+                    await InvokeAsync(StateHasChanged);
+                }
+                if ((ActiveBatch.FailedRows > 0 || ActiveBatch.DuplicateRows > 0) && AutoDownloaded.Add(ActiveBatch.PatientImportBatchId))
+                    await DownloadErrorsAsync(ActiveBatch.PatientImportBatchId);
+            }
+            await LoadHistoryAsync();
+        }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { IsBusy = false; await InvokeAsync(StateHasChanged); }
+    }
+
+    private async Task LoadLogsAsync(Guid id)
+    {
+        try { LogBatch = await ImportService.GetAsync(id); if (LogBatch is not null) LogBatch.Rows = await ImportService.GetLogsAsync(id); }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+    }
+
+    private void CloseLogs() => LogBatch = null;
+
+    private async Task DownloadErrorsAsync(Guid id)
+    {
+        try { var file = await ImportService.DownloadErrorsAsync(id); using var stream = new MemoryStream(file.Bytes); using var streamReference = new DotNetStreamReference(stream); await JS.InvokeVoidAsync("ccapDownloadStream", file.FileName, "text/csv;charset=utf-8", streamReference); }
+        catch (Exception ex) { ErrorMessage = $"Unable to download the error report: {ex.Message}"; }
+    }
+
+    private static string BadgeClass(string status) => status switch { "Completed" => "bg-success", "Partial" => "bg-warning text-dark", "Failed" => "bg-danger", "Processing" or "Queued" => "bg-primary", "Inserted" or "Ready" => "bg-success", "Duplicate" => "bg-secondary", _ => "bg-secondary" };
+}

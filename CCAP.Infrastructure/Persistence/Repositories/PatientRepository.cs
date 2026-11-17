@@ -127,8 +127,21 @@ public sealed class PatientRepository : IPatientRepository
                 (x.PrimaryDiagnosis != null && x.PrimaryDiagnosis.Contains(term)));
         }
 
-        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<CCAP.Domain.Enums.PatientStatus>(status, true, out var parsedStatus))
-            query = query.Where(x => x.Status == parsedStatus);
+        if (!string.IsNullOrWhiteSpace(status) &&
+            Enum.TryParse<CCAP.Domain.Enums.PatientStatus>(status, true, out var parsedStatus))
+        {
+            if (parsedStatus == CCAP.Domain.Enums.PatientStatus.Active)
+                query = query.Where(x => x.Status == CCAP.Domain.Enums.PatientStatus.Active ||
+                                         x.Status == CCAP.Domain.Enums.PatientStatus.Pending);
+            else
+                query = query.Where(x => x.Status == parsedStatus);
+        }
+        else
+        {
+            // The default patient list must never include terminal outcomes.
+            query = query.Where(x => x.Status == CCAP.Domain.Enums.PatientStatus.Active ||
+                                     x.Status == CCAP.Domain.Enums.PatientStatus.Pending);
+        }
 
         if (clinicianId.HasValue && clinicianId.Value != Guid.Empty)
             query = query.Where(x => x.ClinicianId == clinicianId.Value);

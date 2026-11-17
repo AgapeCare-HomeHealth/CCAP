@@ -62,6 +62,30 @@ namespace CCAP.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "PatientImportBatches",
+                schema: "dbo",
+                columns: table => new
+                {
+                    PatientImportBatchId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    FileName = table.Column<string>(type: "nvarchar(260)", maxLength: 260, nullable: false),
+                    FileFingerprint = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    Status = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
+                    TotalRows = table.Column<int>(type: "int", nullable: false),
+                    InsertedRows = table.Column<int>(type: "int", nullable: false),
+                    DuplicateRows = table.Column<int>(type: "int", nullable: false),
+                    FailedRows = table.Column<int>(type: "int", nullable: false),
+                    UploadedByUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UploadedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    StartedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    CompletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    Summary = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PatientImportBatches", x => x.PatientImportBatchId);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Permissions",
                 schema: "dbo",
                 columns: table => new
@@ -92,6 +116,26 @@ namespace CCAP.Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_ReferralDrafts", x => x.ReferralDraftId);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ReferralImportBatches",
+                schema: "dbo",
+                columns: table => new
+                {
+                    ReferralImportBatchId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    FileName = table.Column<string>(type: "nvarchar(260)", maxLength: 260, nullable: false),
+                    UploadedByUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UploadedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    TotalRows = table.Column<int>(type: "int", nullable: false),
+                    InsertedRows = table.Column<int>(type: "int", nullable: false),
+                    DuplicateRows = table.Column<int>(type: "int", nullable: false),
+                    FailedRows = table.Column<int>(type: "int", nullable: false),
+                    Status = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ReferralImportBatches", x => x.ReferralImportBatchId);
                 });
 
             migrationBuilder.CreateTable(
@@ -179,6 +223,62 @@ namespace CCAP.Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_UserNotifications", x => x.NotificationId);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PatientImportRows",
+                schema: "dbo",
+                columns: table => new
+                {
+                    PatientImportRowId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    PatientImportBatchId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    RowNumber = table.Column<int>(type: "int", nullable: false),
+                    RecordFingerprint = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    RawDataJson = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Status = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
+                    ErrorMessage = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
+                    GeneratedMrn = table.Column<string>(type: "nvarchar(80)", maxLength: 80, nullable: true),
+                    GeneratedReferralNumber = table.Column<string>(type: "nvarchar(80)", maxLength: 80, nullable: true),
+                    PatientId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    ReferralId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    AttemptCount = table.Column<int>(type: "int", nullable: false),
+                    ProcessedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PatientImportRows", x => x.PatientImportRowId);
+                    table.ForeignKey(
+                        name: "FK_PatientImportRows_PatientImportBatches_PatientImportBatchId",
+                        column: x => x.PatientImportBatchId,
+                        principalSchema: "dbo",
+                        principalTable: "PatientImportBatches",
+                        principalColumn: "PatientImportBatchId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ReferralImportRows",
+                schema: "dbo",
+                columns: table => new
+                {
+                    ReferralImportRowId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    ReferralImportBatchId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    RowNumber = table.Column<int>(type: "int", nullable: false),
+                    PatientName = table.Column<string>(type: "nvarchar(250)", maxLength: 250, nullable: false),
+                    Status = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
+                    ErrorMessage = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
+                    RawDataJson = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ReferralImportRows", x => x.ReferralImportRowId);
+                    table.ForeignKey(
+                        name: "FK_ReferralImportRows_ReferralImportBatches_ReferralImportBatchId",
+                        column: x => x.ReferralImportBatchId,
+                        principalSchema: "dbo",
+                        principalTable: "ReferralImportBatches",
+                        principalColumn: "ReferralImportBatchId",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -943,6 +1043,31 @@ namespace CCAP.Infrastructure.Migrations
                 column: "RecordedByUserId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_PatientImportBatches_Status",
+                schema: "dbo",
+                table: "PatientImportBatches",
+                column: "Status");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PatientImportBatches_UploadedAt",
+                schema: "dbo",
+                table: "PatientImportBatches",
+                column: "UploadedAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PatientImportRows_PatientImportBatchId_RowNumber",
+                schema: "dbo",
+                table: "PatientImportRows",
+                columns: new[] { "PatientImportBatchId", "RowNumber" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PatientImportRows_RecordFingerprint_Status",
+                schema: "dbo",
+                table: "PatientImportRows",
+                columns: new[] { "RecordFingerprint", "Status" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Patients_BackupCoordinatorId",
                 schema: "dbo",
                 table: "Patients",
@@ -1021,6 +1146,19 @@ namespace CCAP.Infrastructure.Migrations
                 schema: "dbo",
                 table: "ReferralDrafts",
                 column: "UpdatedAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ReferralImportBatches_UploadedAt",
+                schema: "dbo",
+                table: "ReferralImportBatches",
+                column: "UploadedAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ReferralImportRows_ReferralImportBatchId_RowNumber",
+                schema: "dbo",
+                table: "ReferralImportRows",
+                columns: new[] { "ReferralImportBatchId", "RowNumber" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Referrals_AssignedUserId",
@@ -1163,6 +1301,10 @@ namespace CCAP.Infrastructure.Migrations
                 schema: "dbo");
 
             migrationBuilder.DropTable(
+                name: "PatientImportRows",
+                schema: "dbo");
+
+            migrationBuilder.DropTable(
                 name: "PatientServiceOrders",
                 schema: "dbo");
 
@@ -1176,6 +1318,10 @@ namespace CCAP.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "ReferralDrafts",
+                schema: "dbo");
+
+            migrationBuilder.DropTable(
+                name: "ReferralImportRows",
                 schema: "dbo");
 
             migrationBuilder.DropTable(
@@ -1195,11 +1341,19 @@ namespace CCAP.Infrastructure.Migrations
                 schema: "dbo");
 
             migrationBuilder.DropTable(
+                name: "PatientImportBatches",
+                schema: "dbo");
+
+            migrationBuilder.DropTable(
                 name: "ServiceTypes",
                 schema: "dbo");
 
             migrationBuilder.DropTable(
                 name: "Referrals",
+                schema: "dbo");
+
+            migrationBuilder.DropTable(
+                name: "ReferralImportBatches",
                 schema: "dbo");
 
             migrationBuilder.DropTable(

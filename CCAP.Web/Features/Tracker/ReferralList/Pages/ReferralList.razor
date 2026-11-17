@@ -298,7 +298,6 @@
     private Guid? CurrentUserId;
     private bool IsAdministrator;
     private bool CanCreate;
-
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
@@ -468,7 +467,7 @@
         public DateTime? Edd { get; set; }
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
-        public string TypeOfReferral { get; set; } = string.Empty;
+        public string TypeOfReferral { get; set; } = "New Patient";
         public string Status { get; set; } = string.Empty;
         public string Source { get; set; } = string.Empty;
         public string Insurance { get; set; } = string.Empty;
