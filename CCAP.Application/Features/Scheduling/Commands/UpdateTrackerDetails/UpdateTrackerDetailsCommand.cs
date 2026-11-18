@@ -18,8 +18,7 @@ public sealed class UpdateTrackerDetailsCommandHandler : IRequestHandler<UpdateT
     public async Task Handle(UpdateTrackerDetailsCommand request, CancellationToken cancellationToken)
     {
         var visit = await _visits.GetByIdForUpdateAsync(request.VisitId, cancellationToken);
-        if (visit is null || visit.AssignedUserId != request.UserId ||
-            (request.IsAdministrator && visit.CareCoordinatorId.HasValue && visit.CareCoordinatorId != request.UserId))
+        if (visit is null || (!request.IsAdministrator && visit.AssignedUserId != request.UserId))
             throw new KeyNotFoundException("Visit not found or not accessible.");
         var allowed = await _lookups.GetAsync("ConfirmationStatus", true, cancellationToken);
         if (!allowed.Any(x => string.Equals(x.DisplayName, request.ConfirmationStatus, StringComparison.OrdinalIgnoreCase) ||

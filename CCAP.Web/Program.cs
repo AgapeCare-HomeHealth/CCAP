@@ -1,4 +1,4 @@
-using CCAP.Web.Components;
+﻿using CCAP.Web.Components;
 using CCAP.Web.Features.Authentication.Services;
 using CCAP.Web.Features.Authentication.State;
 using CCAP.Web.Features.Dashboard.Services;
@@ -58,6 +58,8 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     CCAP.Web.Features.Admin.LookupOptions.Services.LookupOptionService>();
 builder.Services.AddScoped<CCAP.Web.Features.Admin.ServiceTypes.Services.ServiceTypeAdminService>();
+builder.Services.AddScoped<CCAP.Web.Features.Admin.PatientImport.Services.PatientImportService>();
+builder.Services.AddScoped<CCAP.Web.Features.Admin.CalendarImport.Services.CalendarImportService>();
 
 builder.Services.AddScoped<
     CCAP.Web.Features.Patients.Services.PatientService>();

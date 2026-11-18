@@ -29,7 +29,7 @@ public sealed class GetPatientsQueryHandler
             x.PatientId,
             $"{x.FirstName} {x.MiddleName} {x.LastName}".Replace("  ", " ").Trim(),
             x.MRN,
-            x.Status.ToString(),
+            !string.IsNullOrWhiteSpace(x.FinalStatus) ? x.FinalStatus : x.Status.ToString(),
             x.PrimaryDiagnosis ?? string.Empty,
             x.Clinician is null ? string.Empty : $"{x.Clinician.FirstName} {x.Clinician.LastName}",
             null,

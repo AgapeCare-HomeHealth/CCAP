@@ -38,6 +38,21 @@ public sealed class ScheduleImportService : IScheduleImportService
         Stream fileStream,
         string fileName,
         CancellationToken cancellationToken)
+        => await PreviewCoreAsync(userId, fileStream, fileName, false, cancellationToken);
+
+    public async Task<IReadOnlyList<ScheduleImportPreviewItem>> PreviewForAdministratorAsync(
+        Guid userId,
+        Stream fileStream,
+        string fileName,
+        CancellationToken cancellationToken)
+        => await PreviewCoreAsync(userId, fileStream, fileName, true, cancellationToken);
+
+    private async Task<IReadOnlyList<ScheduleImportPreviewItem>> PreviewCoreAsync(
+        Guid userId,
+        Stream fileStream,
+        string fileName,
+        bool administratorImport,
+        CancellationToken cancellationToken)
     {
         var extension = Path.GetExtension(fileName);
 
@@ -93,15 +108,31 @@ public sealed class ScheduleImportService : IScheduleImportService
 
         var result = new List<ScheduleImportPreviewItem>(rows.Count);
         var seenInFile = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        IReadOnlyList<Visit> existingVisits = [];
+        if (administratorImport && rows.Any(x => x.ScheduledDate != default))
+        {
+            var dates = rows.Where(x => x.ScheduledDate != default).Select(x => x.ScheduledDate.Date).ToList();
+            existingVisits = await _visits.GetScheduleImportCandidatesAsync(
+                dates.Min(), dates.Max().AddDays(1), cancellationToken);
+        }
+        var existingByDate = existingVisits.GroupBy(x => x.ScheduledDate.Date)
+            .ToDictionary(x => x.Key, x => x.ToList());
+        var rowsByDate = rows.Where(x => x.ScheduledDate != default).GroupBy(x => x.ScheduledDate.Date)
+            .ToDictionary(x => x.Key, x => x.ToList());
 
         foreach (var row in rows)
         {
             var patient = FindPatient(patients, row.PatientName);
             var clinician = FindClinician(clinicians, row.AssignedClinician);
+            var dayExisting = row.ScheduledDate != default && existingByDate.TryGetValue(row.ScheduledDate.Date, out var matchedExisting)
+                ? matchedExisting : [];
+            var dayRows = row.ScheduledDate != default && rowsByDate.TryGetValue(row.ScheduledDate.Date, out var matchedRows)
+                ? matchedRows : [];
 
             var item = new ScheduleImportPreviewItem
             {
                 RowNumber = row.RowNumber,
+                SheetName = row.SheetName,
                 PatientName = row.PatientName,
                 PatientId = patient?.PatientId,
                 ScheduledDate = row.ScheduledDate,
@@ -113,10 +144,12 @@ public sealed class ScheduleImportService : IScheduleImportService
                 VisitType = row.VisitType,
                 VisitStatus = row.VisitStatus,
                 NotesFlag = row.NotesFlag,
-                CanImport = true
+                CanImport = string.IsNullOrWhiteSpace(row.RowError)
             };
 
             var warnings = new List<string>();
+            if (!string.IsNullOrWhiteSpace(row.RowError))
+                item.ValidationMessage = row.RowError;
 
             if (patient is null)
                 warnings.Add("Patient was not found in CCAP. The original patient name will be stored on the schedule.");
@@ -128,24 +161,38 @@ public sealed class ScheduleImportService : IScheduleImportService
                     $"Assigned clinician '{row.AssignedClinician}' was not matched to an active CCAP clinician. The original name will be retained.");
 
             if (string.IsNullOrWhiteSpace(row.ConfirmationStatus))
-                warnings.Add("Confirmation Status is blank.");
+            {
+                if (administratorImport)
+                {
+                    item.CanImport = false;
+                    item.ValidationMessage = JoinMessages(item.ValidationMessage, "Confirmation Status is required.");
+                }
+                else warnings.Add("Confirmation Status is blank.");
+            }
 
             if (string.IsNullOrWhiteSpace(row.VisitType))
-                warnings.Add("Type of Visit is blank.");
+            {
+                if (administratorImport)
+                {
+                    item.CanImport = false;
+                    item.ValidationMessage = JoinMessages(item.ValidationMessage, "Type of Visit is required.");
+                }
+                else warnings.Add("Type of Visit is blank.");
+            }
 
             if (warnings.Count > 0)
             {
                 item.HasWarning = true;
-                item.ValidationMessage = string.Join(" ", warnings);
+                item.ValidationMessage = JoinMessages(item.ValidationMessage, string.Join(" ", warnings));
             }
 
-            var duplicate = await _visits.FindScheduleDuplicateAsync(
-                userId,
-                row.PatientName,
-                row.ScheduledDate,
-                row.TimeBlock,
-                row.VisitType,
-                cancellationToken);
+            var duplicate = administratorImport
+                ? dayExisting.FirstOrDefault(x =>
+                    SamePatient(x.PatientId, x.PatientName, patient?.PatientId, row.PatientName) &&
+                    NormalizeTimeBlock(x.TimeBlock) == NormalizeTimeBlock(row.TimeBlock) &&
+                    NormalizeToken(x.VisitType) == NormalizeToken(row.VisitType))
+                : row.ScheduledDate == default ? null : await _visits.FindScheduleDuplicateAsync(
+                    userId, row.PatientName, row.ScheduledDate, row.TimeBlock, row.VisitType, cancellationToken);
 
             if (duplicate is not null)
             {
@@ -159,16 +206,37 @@ public sealed class ScheduleImportService : IScheduleImportService
                         : $"{duplicate.Clinician.FirstName} {duplicate.Clinician.LastName}".Trim());
             }
 
+            if (administratorImport && row.ScheduledDate != default &&
+                (dayExisting.Any(x =>
+                     SamePatient(x.PatientId, x.PatientName, patient?.PatientId, row.PatientName) &&
+                     !NormalizeToken(x.VisitType).Equals(NormalizeToken(row.VisitType), StringComparison.OrdinalIgnoreCase)) ||
+                 dayRows.Any(other => !ReferenceEquals(other, row) &&
+                     SamePatient(FindPatient(patients, other.PatientName)?.PatientId, other.PatientName, patient?.PatientId, row.PatientName) &&
+                     !NormalizeToken(other.VisitType).Equals(NormalizeToken(row.VisitType), StringComparison.OrdinalIgnoreCase))))
+            {
+                item.HasWarning = true;
+                item.ValidationMessage = JoinMessages(item.ValidationMessage,
+                    "This patient has another visit type or discipline on the same day. Review before importing.");
+            }
+
             // Detect repeated rows within the same upload, even before any rows are saved.
             // Ambiguous same-slot visits are skipped pending future matching rules.
-            var key = DuplicateKey(row.PatientName, row.ScheduledDate, row.TimeBlock, row.VisitType);
-            if (!seenInFile.Add(key))
+            var key = row.ScheduledDate == default ? string.Empty : administratorImport
+                ? AdminDuplicateKey(patient?.PatientId, row.PatientName, row.ScheduledDate, row.TimeBlock, row.VisitType)
+                : DuplicateKey(row.PatientName, row.ScheduledDate, row.TimeBlock, row.VisitType);
+            if (key.Length > 0 && !seenInFile.Add(key))
             {
                 item.IsDuplicate = true;
                 item.CanImport = false;
-                item.HasWarning = true;
-                item.ValidationMessage = string.Join(" ", new[] { item.ValidationMessage,
-                    "Repeated visit within this file. This row will be skipped." }.Where(x => !string.IsNullOrWhiteSpace(x)));
+                item.ValidationMessage = JoinMessages(item.ValidationMessage,
+                    "Exact duplicate in this file. This row will be skipped.");
+            }
+
+            if (administratorImport && item.IsDuplicate)
+            {
+                item.CanImport = false;
+                item.ValidationMessage = JoinMessages(item.ValidationMessage,
+                    "An exact patient, date, time, and visit type already exists. This row will be skipped.");
             }
 
             result.Add(item);
@@ -230,11 +298,30 @@ public sealed class ScheduleImportService : IScheduleImportService
     }
 
     private static string DuplicateKey(string patientName, DateTime date, string timeBlock, string visitType) =>
-        $"{NormalizePersonName(patientName)}|{date.Date:yyyy-MM-dd}|{NormalizeToken(timeBlock)}|{NormalizeToken(visitType)}";
+        $"{NormalizePersonName(patientName)}|{date.Date:yyyy-MM-dd}|{NormalizeTimeBlock(timeBlock)}|{NormalizeToken(visitType)}";
+
+    private static string AdminDuplicateKey(Guid? patientId, string patientName, DateTime date, string timeBlock, string visitType) =>
+        $"{patientId?.ToString("N") ?? NormalizePersonName(patientName)}|{date.Date:yyyy-MM-dd}|{NormalizeTimeBlock(timeBlock)}|{NormalizeToken(visitType)}";
+
+    private static bool SamePatient(Guid? firstPatientId, string firstName, Guid? secondPatientId, string secondName) =>
+        firstPatientId.HasValue && secondPatientId.HasValue
+            ? firstPatientId.Value == secondPatientId.Value
+            : NormalizePersonName(firstName) == NormalizePersonName(secondName);
+
+    private static string JoinMessages(string? first, string? second) =>
+        string.Join(" ", new[] { first, second }.Where(x => !string.IsNullOrWhiteSpace(x)));
 
     private static string NormalizeToken(string? text) =>
         string.Join("", (text ?? "").Trim().ToUpperInvariant().Where(c => !char.IsWhiteSpace(c)))
             .Replace('–', '-').Replace('—', '-');
+
+    private static string NormalizeTimeBlock(string? value)
+    {
+        var parts = (value ?? string.Empty).Trim().Replace('–', '-').Replace('—', '-').Split('-', 2, StringSplitOptions.TrimEntries);
+        if (parts.Length == 2 && TryParseTime(parts[0], out var start) && TryParseTime(parts[1], out var end))
+            return $"{(int)start.TotalMinutes:D4}|{(int)end.TotalMinutes:D4}";
+        return NormalizeToken(value);
+    }
 
     private static Patient? FindPatient(
         IEnumerable<Patient> patients,
@@ -298,17 +385,18 @@ public sealed class ScheduleImportService : IScheduleImportService
         return NormalizePersonName(string.Join(" ", tokens));
     }
 
-    private static string NormalizePersonName(string value) =>
-        string.Join(
-            " ",
-            value
-                .Trim()
-                .ToUpperInvariant()
-                .Replace(",", " ")
-                .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+    private static string NormalizePersonName(string value)
+    {
+        var trimmed = value.Trim().ToUpperInvariant();
+        var comma = trimmed.IndexOf(',');
+        if (comma > 0) trimmed = $"{trimmed[(comma + 1)..]} {trimmed[..comma]}";
+        return string.Join(" ", trimmed.Replace(',', ' ')
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+    }
 
     private sealed record ParsedRow(
         int RowNumber,
+        string SheetName,
         string PatientName,
         DateTime ScheduledDate,
         string TimeBlock,
@@ -317,7 +405,8 @@ public sealed class ScheduleImportService : IScheduleImportService
         string AssignedClinician,
         string VisitType,
         string VisitStatus,
-        string? NotesFlag);
+        string? NotesFlag,
+        string? RowError);
 
     private static List<ParsedRow> ReadExcelSchedule(Stream stream)
     {
@@ -370,28 +459,12 @@ public sealed class ScheduleImportService : IScheduleImportService
 
                 var patientName = GetMappedCell(
                     row, columns, "Patient Name", sharedStrings)?.Trim();
-
-                if (string.IsNullOrWhiteSpace(patientName))
-                    continue;
-
                 var rowNumber = (int)(row.RowIndex?.Value ?? 0);
 
                 var dateText = GetMappedCell(
                     row, columns, "Date", sharedStrings);
-
-                if (!TryParseScheduleDate(dateText, out var date))
-                    throw new InvalidOperationException(
-                        $"Sheet '{sheet.Name?.Value}' row {rowNumber}: Date is missing or invalid.");
-
                 var timeBlock = GetMappedCell(
                     row, columns, "Time Block", sharedStrings)?.Trim();
-
-                if (string.IsNullOrWhiteSpace(timeBlock))
-                    throw new InvalidOperationException(
-                        $"Sheet '{sheet.Name?.Value}' row {rowNumber}: Time Block is required.");
-
-                ValidateTimeBlock(timeBlock);
-
                 var confirmationStatus = GetMappedCell(
                     row, columns, "Confirmation Status", sharedStrings)?.Trim()
                     ?? string.Empty;
@@ -412,17 +485,44 @@ public sealed class ScheduleImportService : IScheduleImportService
                 var notesFlag = GetMappedCell(
                     row, columns, "Notes / Flag", sharedStrings)?.Trim();
 
+                if (new[] { patientName, dateText, timeBlock, confirmationStatus, callNotes, assignedClinician, visitType, visitStatus, notesFlag }
+                    .All(string.IsNullOrWhiteSpace))
+                    continue;
+
+                DateTime date = default;
+                string? rowError = null;
+                if (string.IsNullOrWhiteSpace(patientName))
+                    rowError = "Patient Name is required.";
+                try
+                {
+                    if (string.IsNullOrWhiteSpace(dateText) || !TryParseScheduleDate(dateText, out date))
+                        rowError = JoinMessages(rowError, "Date is missing or invalid.");
+                }
+                catch (InvalidOperationException ex)
+                {
+                    rowError = JoinMessages(rowError, ex.Message);
+                }
+                if (string.IsNullOrWhiteSpace(timeBlock))
+                    rowError = JoinMessages(rowError, "Time Block is required.");
+                else
+                {
+                    try { ValidateTimeBlock(timeBlock); }
+                    catch (InvalidOperationException ex) { rowError = JoinMessages(rowError, ex.Message); }
+                }
+
                 output.Add(new ParsedRow(
                     rowNumber,
-                    patientName,
-                    date.Date,
-                    timeBlock,
+                    sheet.Name?.Value ?? "Sheet",
+                    patientName ?? string.Empty,
+                    date == default ? default : date.Date,
+                    timeBlock ?? string.Empty,
                     confirmationStatus,
                     NullIfEmpty(callNotes),
                     assignedClinician,
-                    string.IsNullOrWhiteSpace(visitType) ? "Visit" : visitType,
+                    visitType ?? string.Empty,
                     string.IsNullOrWhiteSpace(visitStatus) ? string.Empty : visitStatus,
-                    NullIfEmpty(notesFlag)));
+                    NullIfEmpty(notesFlag),
+                    rowError));
             }
         }
 
@@ -478,24 +578,8 @@ public sealed class ScheduleImportService : IScheduleImportService
 
             var patientName = GetMappedCell(
                 row, columns, "Patient Name")?.Trim();
-
-            if (string.IsNullOrWhiteSpace(patientName))
-                continue;
-
             var dateText = GetMappedCell(row, columns, "Date");
-
-            if (!TryParseScheduleDate(dateText, out var date))
-                throw new InvalidOperationException(
-                    $"Row {i + 1}: Date is missing or invalid.");
-
             var timeBlock = GetMappedCell(row, columns, "Time Block")?.Trim();
-
-            if (string.IsNullOrWhiteSpace(timeBlock))
-                throw new InvalidOperationException(
-                    $"Row {i + 1}: Time Block is required.");
-
-            ValidateTimeBlock(timeBlock);
-
             var confirmationStatus =
                 GetMappedCell(row, columns, "Confirmation Status")?.Trim() ?? string.Empty;
 
@@ -514,17 +598,44 @@ public sealed class ScheduleImportService : IScheduleImportService
             var notesFlag =
                 GetMappedCell(row, columns, "Notes / Flag")?.Trim();
 
+            if (new[] { patientName, dateText, timeBlock, confirmationStatus, callNotes, assignedClinician, visitType, visitStatus, notesFlag }
+                .All(string.IsNullOrWhiteSpace))
+                continue;
+
+            DateTime date = default;
+            string? rowError = null;
+            if (string.IsNullOrWhiteSpace(patientName))
+                rowError = "Patient Name is required.";
+            try
+            {
+                if (string.IsNullOrWhiteSpace(dateText) || !TryParseScheduleDate(dateText, out date))
+                    rowError = JoinMessages(rowError, "Date is missing or invalid.");
+            }
+            catch (InvalidOperationException ex)
+            {
+                rowError = JoinMessages(rowError, ex.Message);
+            }
+            if (string.IsNullOrWhiteSpace(timeBlock))
+                rowError = JoinMessages(rowError, "Time Block is required.");
+            else
+            {
+                try { ValidateTimeBlock(timeBlock); }
+                catch (InvalidOperationException ex) { rowError = JoinMessages(rowError, ex.Message); }
+            }
+
             output.Add(new ParsedRow(
                 i + 1,
-                patientName,
-                date.Date,
-                timeBlock,
+                "CSV",
+                patientName ?? string.Empty,
+                date == default ? default : date.Date,
+                timeBlock ?? string.Empty,
                 confirmationStatus,
                 NullIfEmpty(callNotes),
                 assignedClinician,
-                string.IsNullOrWhiteSpace(visitType) ? "Visit" : visitType,
+                visitType ?? string.Empty,
                 string.IsNullOrWhiteSpace(visitStatus) ? string.Empty : visitStatus,
-                NullIfEmpty(notesFlag)));
+                NullIfEmpty(notesFlag),
+                rowError));
         }
 
         return output;

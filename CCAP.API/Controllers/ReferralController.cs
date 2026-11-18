@@ -5,7 +5,12 @@ using CCAP.Application.Features.Referrals.Commands.CreateReferralIntake;
 using CCAP.Application.Features.Referrals.Commands.CreateReferralTrackerEntries;
 using CCAP.Application.Features.Referrals.Commands.SaveReferralDraft;
 using CCAP.Application.Features.Referrals.Commands.UpdateReferralTrackerDetails;
+using CCAP.Application.Features.Referrals.Commands.UpdateReferralTrackerEntry;
+using CCAP.Application.Features.Referrals.Commands.ArchiveReferralTrackerEntry;
+using CCAP.Application.Features.Referrals.Commands.ArchiveReferralTrackerEntries;
 using CCAP.Application.Features.Referrals.Queries.GetReferralList;
+using CCAP.Application.Features.Referrals.Queries.GetReferralListForExport;
+using CCAP.Application.Features.Referrals.Queries.GetReferralCoordinatorFilterOptions;
 using CCAP.Application.Abstractions.Referrals;
 using CCAP.Application.Abstractions.Persistence;
 using CCAP.Infrastructure.Persistence;
@@ -53,7 +58,7 @@ public sealed class ReferralController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Policy = PermissionPolicies.ReferralsView)]
+    [Authorize(Policy = PermissionPolicies.ReferralTrackerView)]
     public async Task<IActionResult> GetReferralList(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
@@ -69,13 +74,29 @@ public sealed class ReferralController : ControllerBase
         var page = Math.Max(1, pageNumber);
         var size = Math.Clamp(pageSize, 1, 100);
         var result = await _sender.Send(
-            new GetReferralListQuery(page, size, search, status, source, insurance),
+            new GetReferralListQuery(page, size, search, status, source, insurance, coordinatorId),
+            cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpGet("export")]
+    [Authorize(Policy = PermissionPolicies.ReferralTrackerView)]
+    public async Task<IActionResult> ExportReferralList(
+        [FromQuery] string? search = null,
+        [FromQuery] string? status = null,
+        [FromQuery] string? source = null,
+        [FromQuery] string? insurance = null,
+        [FromQuery] Guid? coordinatorId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _sender.Send(
+            new GetReferralListForExportQuery(search, status, source, insurance, coordinatorId),
             cancellationToken);
         return Ok(result);
     }
 
     [HttpGet("assignment-users")]
-    [Authorize(Policy = PermissionPolicies.ReferralsView)]
+    [Authorize(Policy = PermissionPolicies.ReferralTrackerView)]
     public async Task<IActionResult> GetReferralAssignmentUsers(CancellationToken cancellationToken)
     {
         var users = await _users.GetAllAsync(cancellationToken);
@@ -94,46 +115,114 @@ public sealed class ReferralController : ControllerBase
         return Ok(coordinators);
     }
 
+    [HttpGet("assigned-coordinators")]
+    [Authorize(Policy = PermissionPolicies.ReferralTrackerView)]
+    public async Task<IActionResult> GetAssignedCoordinatorFilterOptions(CancellationToken cancellationToken)
+    {
+        var options = await _sender.Send(new GetReferralCoordinatorFilterOptionsQuery(), cancellationToken);
+        return Ok(options);
+    }
+
     [HttpPut("{referralId:guid}/tracker")]
-    [Authorize(Policy = PermissionPolicies.ReferralsView)]
+    [Authorize(Policy = PermissionPolicies.ReferralTrackerView)]
     public async Task<IActionResult> UpdateTrackerDetails(
         Guid referralId,
-        [FromBody] UpdateReferralTrackerDetailsCommand request,
+        [FromBody] UpdateReferralTrackerDetailsRequest request,
         CancellationToken cancellationToken)
     {
         if (referralId != request.ReferralId)
             return BadRequest(new { message = "Tracker identifier does not match the request." });
 
-        // Referral tracker entries are visible to every user with referrals.view.
-        // Editing is restricted to Administrators and the staff member assigned
-        // to this specific tracker entry.
         var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier)
             ?? User.FindFirstValue("sub")
             ?? User.FindFirstValue("userId");
         if (!Guid.TryParse(userIdValue, out var currentUserId))
             return Unauthorized(new { message = "Unable to determine the authenticated user." });
 
-        var assignedCoordinatorId = await _db.ReferralTrackerEntries
-            .AsNoTracking()
-            .Where(x => x.ReferralTrackerEntryId == referralId)
-            .Select(x => (Guid?)x.AssignedCoordinatorId)
-            .SingleOrDefaultAsync(cancellationToken);
+        await _sender.Send(new UpdateReferralTrackerDetailsCommand(
+            request.ReferralId,
+            currentUserId,
+            User.IsInRole("Administrator"),
+            request.PostedOn,
+            request.TrackerStatus,
+            request.EstimatedDischargeDate,
+            request.PrimaryInsurance,
+            request.Source,
+            request.SecondCoordinatorCall,
+            request.ThirdCoordinatorCall,
+            request.Resolution,
+            request.TypeOfReferral), cancellationToken);
+        return NoContent();
+    }
 
-        if (assignedCoordinatorId is null &&
-            !await _db.ReferralTrackerEntries.AnyAsync(x => x.ReferralTrackerEntryId == referralId, cancellationToken))
-            return NotFound(new { message = "Referral tracker entry was not found." });
+    [HttpPut("{referralId:guid}/tracker/full")]
+    [Authorize(Policy = PermissionPolicies.ReferralTrackerAdmin)]
+    public async Task<IActionResult> UpdateAllTrackerDetails(
+        Guid referralId,
+        [FromBody] UpdateReferralTrackerEntryRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (referralId != request.ReferralId)
+            return BadRequest(new { message = "Tracker identifier does not match the request." });
 
-        var isAdministrator = User.IsInRole("Administrator");
-        var isAssignedStaff = assignedCoordinatorId.HasValue && assignedCoordinatorId.Value == currentUserId;
-        if (!isAdministrator && !isAssignedStaff)
-            return Forbid();
+        await _sender.Send(new UpdateReferralTrackerEntryCommand(
+            request.ReferralId,
+            request.ReferralDate,
+            request.FirstName,
+            request.LastName,
+            request.Mrn,
+            request.TypeOfReferral,
+            request.PostedOn,
+            request.EstimatedDischargeDate,
+            request.Status,
+            request.Source,
+            request.Insurance,
+            request.AssignedCoordinatorId,
+            request.FirstMarketingCall,
+            request.SecondCoordinatorCall,
+            request.ThirdCoordinatorCall,
+            request.Resolution), cancellationToken);
+        return NoContent();
+    }
 
-        await _sender.Send(request, cancellationToken);
+    [HttpDelete("{referralId:guid}/tracker")]
+    [Authorize(Policy = PermissionPolicies.ReferralTrackerAdmin)]
+    public async Task<IActionResult> ArchiveTrackerEntry(
+        Guid referralId,
+        CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue("sub")
+            ?? User.FindFirstValue("userId");
+        if (!Guid.TryParse(userIdValue, out var currentUserId))
+            return Unauthorized(new { message = "Unable to determine the authenticated user." });
+
+        await _sender.Send(
+            new ArchiveReferralTrackerEntryCommand(referralId, currentUserId),
+            cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("tracker/archive")]
+    [Authorize(Policy = PermissionPolicies.ReferralTrackerAdmin)]
+    public async Task<IActionResult> ArchiveTrackerEntries(
+        [FromBody] ArchiveReferralTrackerEntriesRequest request,
+        CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue("sub")
+            ?? User.FindFirstValue("userId");
+        if (!Guid.TryParse(userIdValue, out var currentUserId))
+            return Unauthorized(new { message = "Unable to determine the authenticated user." });
+
+        await _sender.Send(
+            new ArchiveReferralTrackerEntriesCommand(request.ReferralIds, currentUserId),
+            cancellationToken);
         return NoContent();
     }
 
     [HttpPost("tracker")]
-    [Authorize(Policy = PermissionPolicies.ReferralsManage)]
+    [Authorize(Policy = PermissionPolicies.ReferralTrackerManage)]
     public async Task<IActionResult> CreateTrackerEntries(
         [FromBody] List<CCAP.Application.Features.Referrals.DTOs.CreateReferralTrackerEntryRequest> requests,
         CancellationToken cancellationToken)

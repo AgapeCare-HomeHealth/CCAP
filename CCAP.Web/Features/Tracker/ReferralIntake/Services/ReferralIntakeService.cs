@@ -775,15 +775,37 @@ public sealed class ReferralIntakeService
 
     public async Task<PagedResult<ReferralListItem>> GetReferralListAsync(
         int pageNumber, int pageSize, string? search = null, string? status = null,
-        string? source = null, string? insurance = null, CancellationToken cancellationToken = default)
+        string? source = null, string? insurance = null, Guid? assignedCoordinatorId = null,
+        CancellationToken cancellationToken = default)
     {
         var query = $"api/referrals?pageNumber={pageNumber}&pageSize={pageSize}";
         if (!string.IsNullOrWhiteSpace(search)) query += $"&search={Uri.EscapeDataString(search.Trim())}";
         if (!string.IsNullOrWhiteSpace(status)) query += $"&status={Uri.EscapeDataString(status)}";
         if (!string.IsNullOrWhiteSpace(source)) query += $"&source={Uri.EscapeDataString(source)}";
         if (!string.IsNullOrWhiteSpace(insurance)) query += $"&insurance={Uri.EscapeDataString(insurance)}";
+        if (assignedCoordinatorId.HasValue) query += $"&coordinatorId={assignedCoordinatorId.Value}";
         return await _api.GetFromJsonAsync<PagedResult<ReferralListItem>>(query, cancellationToken)
             ?? new PagedResult<ReferralListItem>();
+    }
+
+    public async Task<List<ReferralListItem>> GetReferralListForExportAsync(
+        string? search = null,
+        string? status = null,
+        string? source = null,
+        string? insurance = null,
+        Guid? assignedCoordinatorId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = "api/referrals/export";
+        var parameters = new List<string>();
+        if (!string.IsNullOrWhiteSpace(search)) parameters.Add($"search={Uri.EscapeDataString(search.Trim())}");
+        if (!string.IsNullOrWhiteSpace(status)) parameters.Add($"status={Uri.EscapeDataString(status)}");
+        if (!string.IsNullOrWhiteSpace(source)) parameters.Add($"source={Uri.EscapeDataString(source)}");
+        if (!string.IsNullOrWhiteSpace(insurance)) parameters.Add($"insurance={Uri.EscapeDataString(insurance)}");
+        if (assignedCoordinatorId.HasValue) parameters.Add($"coordinatorId={assignedCoordinatorId.Value}");
+        if (parameters.Count > 0) query += $"?{string.Join("&", parameters)}";
+
+        return await _api.GetFromJsonAsync<List<ReferralListItem>>(query, cancellationToken) ?? [];
     }
 
     public async Task CreateReferralTrackerEntriesAsync(
@@ -799,6 +821,13 @@ public sealed class ReferralIntakeService
     {
         return await _api.GetFromJsonAsync<List<CCAP.Web.Features.Admin.Users.Models.UserDto>>(
             "api/referrals/assignment-users", cancellationToken) ?? [];
+    }
+
+    public async Task<List<CCAP.Web.Features.Tracker.ReferralList.Models.ReferralCoordinatorFilterOption>>
+        GetReferralCoordinatorFilterOptionsAsync(CancellationToken cancellationToken = default)
+    {
+        return await _api.GetFromJsonAsync<List<CCAP.Web.Features.Tracker.ReferralList.Models.ReferralCoordinatorFilterOption>>(
+            "api/referrals/assigned-coordinators", cancellationToken) ?? [];
     }
 
     public async Task UpdateReferralTrackerDetailsAsync(
@@ -819,6 +848,76 @@ public sealed class ReferralIntakeService
         };
         using var response = await _api.PutAsJsonAsync(
             $"api/referrals/{item.ReferralId}/tracker", request, cancellationToken);
+        await _api.EnsureSuccessAsync(response, cancellationToken);
+    }
+
+    public async Task UpdateReferralTrackerEntryAsync(
+        CCAP.Web.Features.Tracker.ReferralList.Models.ReferralTrackerAdminEditModel model,
+        CancellationToken cancellationToken = default)
+    {
+        var request = new
+        {
+            model.ReferralId,
+            model.ReferralDate,
+            model.FirstName,
+            model.LastName,
+            model.Mrn,
+            model.TypeOfReferral,
+            model.PostedOn,
+            model.EstimatedDischargeDate,
+            model.Status,
+            model.Source,
+            model.Insurance,
+            model.AssignedCoordinatorId,
+            model.FirstMarketingCall,
+            model.SecondCoordinatorCall,
+            model.ThirdCoordinatorCall,
+            model.Resolution
+        };
+        using var response = await _api.PutAsJsonAsync(
+            $"api/referrals/{model.ReferralId}/tracker/full", request, cancellationToken);
+        await _api.EnsureSuccessAsync(response, cancellationToken);
+    }
+
+    public async Task ArchiveReferralTrackerEntryAsync(
+        Guid referralId,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await _api.DeleteAsync(
+            $"api/referrals/{referralId}/tracker", cancellationToken);
+        await _api.EnsureSuccessAsync(response, cancellationToken);
+    }
+
+    public async Task ArchiveReferralTrackerEntriesAsync(
+        IReadOnlyCollection<Guid> referralIds,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await _api.PostAsJsonAsync(
+            "api/referrals/tracker/archive",
+            new { ReferralIds = referralIds },
+            cancellationToken);
+        await _api.EnsureSuccessAsync(response, cancellationToken);
+    }
+
+    public async Task UpdateReferralTrackerDetailsAsync(
+        CCAP.Web.Features.Tracker.ReferralList.Models.ReferralTrackerCoordinatorEditModel model,
+        CancellationToken cancellationToken = default)
+    {
+        var request = new
+        {
+            model.ReferralId,
+            model.PostedOn,
+            model.TypeOfReferral,
+            TrackerStatus = model.Status,
+            model.EstimatedDischargeDate,
+            PrimaryInsurance = model.Insurance,
+            model.Source,
+            model.SecondCoordinatorCall,
+            model.ThirdCoordinatorCall,
+            model.Resolution
+        };
+        using var response = await _api.PutAsJsonAsync(
+            $"api/referrals/{model.ReferralId}/tracker", request, cancellationToken);
         await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 

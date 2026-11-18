@@ -30,15 +30,12 @@ public sealed class RescheduleVisitCommandHandler : IRequestHandler<RescheduleVi
             throw new ArgumentException("A valid target date is required.", nameof(request.TargetDate));
 
         var visit = await _visits.GetByIdForUpdateAsync(request.VisitId, cancellationToken);
-        var isAssignedToCoordinator = visit is not null &&
-            (visit.CareCoordinatorId == request.UserId ||
-             (!visit.CareCoordinatorId.HasValue && visit.AssignedUserId == request.UserId));
         var canAccessVisit = visit is not null &&
-            (request.IsAdministrator
-                ? isAssignedToCoordinator
-                : request.CanManageAllSchedules ||
-                  (request.IsCareCoordinator && isAssignedToCoordinator) ||
-                  (!request.IsCareCoordinator && visit.AssignedUserId == request.UserId));
+            (request.IsAdministrator || request.CanManageAllSchedules ||
+             (request.IsCareCoordinator
+                 ? visit.CareCoordinatorId == request.UserId ||
+                   (!visit.CareCoordinatorId.HasValue && visit.AssignedUserId == request.UserId)
+                 : visit.AssignedUserId == request.UserId));
 
         if (!canAccessVisit || visit is null)
             throw new KeyNotFoundException("Visit not found or not accessible.");

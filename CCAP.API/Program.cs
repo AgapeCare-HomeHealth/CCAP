@@ -1,9 +1,10 @@
-using CCAP.API.Authorization;
+﻿using CCAP.API.Authorization;
 using CCAP.Application;
 using CCAP.Application.Common.Validation;
 using CCAP.Infrastructure;
 using CCAP.Infrastructure.Identity;
 using CCAP.Infrastructure.Persistence;
+using CCAP.API.Services;
 using CCAP.Infrastructure.Seed;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using CCAP.API.Hubs;
@@ -21,6 +22,8 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddHostedService<PatientImportBackgroundService>();
+builder.Services.AddHostedService<CalendarImportBackgroundService>();
 
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()
     ?? throw new InvalidOperationException("Jwt configuration is missing.");

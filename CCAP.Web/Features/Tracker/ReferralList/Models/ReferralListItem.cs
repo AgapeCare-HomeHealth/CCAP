@@ -5,6 +5,8 @@ public sealed class ReferralListItem
     public Guid ReferralId { get; set; }
     public string ReferralNumber { get; set; } = string.Empty;
     public DateTime ReferralDate { get; set; }
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
     public string PatientName { get; set; } = string.Empty;
     public string Mrn { get; set; } = string.Empty;
     public string? TypeOfReferral { get; set; }

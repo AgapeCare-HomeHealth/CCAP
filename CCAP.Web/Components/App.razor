@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -40,6 +40,17 @@
 
     <Routes @rendermode="new InteractiveServerRenderMode(prerender: false)" />
 
+
+    <script>
+        window.ccapDownloadStream = async function (fileName, contentType, streamReference) {
+            const bytes = await streamReference.arrayBuffer();
+            const blob = new Blob([bytes], { type: contentType || 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url; link.download = fileName; document.body.appendChild(link); link.click();
+            link.remove(); URL.revokeObjectURL(url);
+        };
+    </script>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 

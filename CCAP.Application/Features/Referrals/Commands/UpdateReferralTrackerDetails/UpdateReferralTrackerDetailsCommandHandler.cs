@@ -21,8 +21,14 @@ public sealed class UpdateReferralTrackerDetailsCommandHandler
         UpdateReferralTrackerDetailsCommand request,
         CancellationToken cancellationToken)
     {
+        if (request.ActorUserId == Guid.Empty)
+            throw new UnauthorizedAccessException("Unable to determine the authenticated user.");
+
         var referral = await _referrals.GetByIdAsync(request.ReferralId, cancellationToken)
             ?? throw new KeyNotFoundException("Referral tracker entry was not found.");
+
+        if (!request.IsAdministrator && referral.AssignedCoordinatorId != request.ActorUserId)
+            throw new UnauthorizedAccessException("Only the assigned Care Coordinator or an Administrator can edit this referral.");
 
         referral.Update(
             request.PostedOn,
