@@ -23,6 +23,10 @@ using CCAP.Application.Features.Patients.Commands.UpdatePatient;
 using CCAP.Application.Features.Patients.Commands.UpdateWorkflowDetails;
 using CCAP.Application.Features.Patients.Commands.CompleteTask;
 using CCAP.Application.Features.Referrals.Commands.CreateReferralIntake;
+using CCAP.Application.Features.Referrals.Commands.ArchiveReferralTrackerEntry;
+using CCAP.Application.Features.Referrals.Commands.ArchiveReferralTrackerEntries;
+using CCAP.Application.Features.Referrals.Commands.UpdateReferralTrackerEntry;
+using CCAP.Application.Features.Referrals.Commands.UpdateReferralTrackerDetails;
 using CCAP.Application.Features.Scheduling.Commands.AddSchedules;
 using CCAP.Application.Features.Users.Commands.ActivateUser;
 using CCAP.Application.Features.Users.Commands.CreateUser;
@@ -168,6 +172,19 @@ public static class DependencyInjection
         services.AddTransient<
             IRequestValidator<CreateReferralIntakeCommand>,
             CreateReferralIntakeValidator>();
+
+        services.AddTransient<
+            IRequestValidator<UpdateReferralTrackerEntryCommand>,
+            UpdateReferralTrackerEntryCommandValidator>();
+        services.AddTransient<
+            IRequestValidator<UpdateReferralTrackerDetailsCommand>,
+            UpdateReferralTrackerDetailsCommandValidator>();
+        services.AddTransient<
+            IRequestValidator<ArchiveReferralTrackerEntryCommand>,
+            ArchiveReferralTrackerEntryCommandValidator>();
+        services.AddTransient<
+            IRequestValidator<ArchiveReferralTrackerEntriesCommand>,
+            ArchiveReferralTrackerEntriesCommandValidator>();
 
         // =========================================================
         // DASHBOARD

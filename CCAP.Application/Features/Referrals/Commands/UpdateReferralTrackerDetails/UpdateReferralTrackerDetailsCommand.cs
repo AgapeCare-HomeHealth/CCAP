@@ -4,6 +4,8 @@ namespace CCAP.Application.Features.Referrals.Commands.UpdateReferralTrackerDeta
 
 public sealed record UpdateReferralTrackerDetailsCommand(
     Guid ReferralId,
+    Guid ActorUserId,
+    bool IsAdministrator,
     string? PostedOn,
     string? TrackerStatus,
     DateOnly? EstimatedDischargeDate,

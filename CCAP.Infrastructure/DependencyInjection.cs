@@ -64,6 +64,8 @@ public static class DependencyInjection
             VisitRepository>();
 
         services.AddScoped<IScheduleImportService, ScheduleImportService>();
+        services.AddScoped<ICalendarImportApplicationService, CalendarImportApplicationService>();
+        services.AddScoped<ICalendarImportProcessor, CalendarImportProcessor>();
 
         services.AddScoped<IReferralDocumentExtractionService, ReferralDocumentExtractionService>();
 

@@ -79,12 +79,9 @@ public sealed class UpdateCalendarVisitDetailsCommandHandler : IRequestHandler<U
 
     private static bool CanEditVisit(Visit visit, UpdateCalendarVisitDetailsCommand request)
     {
-        // Admins can view all schedules, but cannot edit another CC's patients.
+        // Administrators can manage every calendar schedule.
         if (request.IsAdministrator)
-        {
-            return visit.CareCoordinatorId == request.UserId ||
-                   (!visit.CareCoordinatorId.HasValue && visit.AssignedUserId == request.UserId);
-        }
+            return true;
 
         if (request.CanViewAllSchedules)
             return true;

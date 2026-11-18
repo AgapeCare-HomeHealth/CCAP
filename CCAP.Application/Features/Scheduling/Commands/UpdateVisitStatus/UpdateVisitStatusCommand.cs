@@ -22,8 +22,7 @@ public sealed class UpdateVisitStatusCommandHandler : IRequestHandler<UpdateVisi
             throw new ArgumentException("A valid user and visit are required.");
 
         var visit = await _visits.GetByIdForUpdateAsync(request.VisitId, cancellationToken);
-        if (visit is null || visit.AssignedUserId != request.UserId ||
-            (request.IsAdministrator && visit.CareCoordinatorId.HasValue && visit.CareCoordinatorId != request.UserId))
+        if (visit is null || (!request.IsAdministrator && visit.AssignedUserId != request.UserId))
             throw new KeyNotFoundException("Visit not found or not accessible.");
 
         visit.ChangeVisitStatus(request.Status);

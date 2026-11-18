@@ -57,13 +57,17 @@
                 }
             </NavLink>
 
-            <NavLink href="/referrals/list" Match="NavLinkMatch.All" class="nav-item">
-                <i class="bi bi-list-ul"></i>
-                @if (!IsCollapsed)
-                {
-                    <span>Referral Tracker</span>
-                }
-            </NavLink>
+            <AuthorizeView Roles="Administrator,Care Coordinator">
+                <Authorized>
+                    <NavLink href="/referrals/list" Match="NavLinkMatch.All" class="nav-item">
+                        <i class="bi bi-list-ul"></i>
+                        @if (!IsCollapsed)
+                        {
+                            <span>Referral Tracker</span>
+                        }
+                    </NavLink>
+                </Authorized>
+            </AuthorizeView>
 
         </div>
 
@@ -244,7 +248,7 @@
         <!-- Admin -->
         <!-- ======================= -->
 
-        <AuthorizeView Roles="Administrator">
+        <AuthorizeView Roles="Administrator,Admin">
             <Authorized>
                 <details class="menu-dropdown" name="ccap-sidebar-menu">
 
@@ -280,6 +284,10 @@
 
                 <NavLink href="/admin/referral-import" class="submenu-item">
                     <i class="bi bi-file-earmark-arrow-up me-2"></i>Referral Tracker Import
+                </NavLink>
+
+                <NavLink href="/admin/calendar-import" class="submenu-item">
+                    <i class="bi bi-calendar2-plus me-2"></i>Calendar Import
                 </NavLink>
 
                 <NavLink href="/admin/lookup-options" class="submenu-item">

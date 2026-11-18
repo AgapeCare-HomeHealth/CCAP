@@ -979,7 +979,7 @@
 .calendar-hint-plus { display: inline-grid; place-items: center; width: 1.35rem; height: 1.35rem; border: 1px solid #b8e2e9; border-radius: 6px; color: #087f95; background: #f0fcfd; font-size: 1.1rem; font-weight: 750; line-height: 1; }
 
 
-/* Calendar patient cards with creator-only delete action. */
+/* Calendar patient cards with role-scoped delete actions. */
 .schedule-event-wrapper { position: relative; display: flex; align-items: stretch; gap: 3px; min-width: 0; }
 .schedule-event-wrapper .schedule-event { flex: 1 1 auto; min-width: 0; width: auto; }
 .schedule-card-delete { flex: 0 0 25px; align-self: stretch; border: 1px solid #fecaca; border-radius: 7px; color: #b91c1c; background: #fff; font-size: 19px; font-weight: 700; line-height: 1; cursor: pointer; }

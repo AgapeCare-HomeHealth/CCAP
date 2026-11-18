@@ -238,7 +238,7 @@
                        ConfirmationOptions="ConfirmationOptions"
                        VisitStatusOptions="VisitStatusOptions"
                        CanEdit="@(SelectedSchedule is not null && CanModifySchedule(SelectedSchedule))"
-                       CurrentUserId="CurrentUserId"
+                       CanDelete="@(SelectedSchedule is not null && CanDeleteSchedule(SelectedSchedule))"
                        OnClose="CloseEditScheduleModal"
                        OnSaved="HandleScheduleDetailsSavedAsync"
                        OnDeleted="HandleScheduleDeletedAsync" />
@@ -509,7 +509,7 @@
 
     private async Task DeleteScheduleFromCardAsync(CalendarVisitDto schedule)
     {
-        if (schedule.AssignedUserId != CurrentUserId || !(CanManageScheduling || IsCareCoordinator))
+        if (!CanDeleteSchedule(schedule))
             return;
 
         var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Delete the schedule for {schedule.PatientName} on {schedule.ScheduledDate:MMMM d, yyyy}? This cannot be undone.");
@@ -529,7 +529,7 @@
         }
         catch
         {
-            StatusError = "Could not delete this schedule. Only the user who created this calendar entry can delete it.";
+            StatusError = "Could not delete this schedule. Check your access and try again.";
             StatusMessage = null;
         }
     }
@@ -552,10 +552,8 @@
         if (CurrentUserId == Guid.Empty)
             return false;
 
-        // Administrators may view all CC schedules, but may only modify entries
-        // assigned to themselves (or their own legacy, unassigned entries).
         if (IsAdministrator)
-            return IsAssignedToCurrentCoordinator(schedule);
+            return true;
 
         // Care Coordinators stay inside their own assignment scope.
         if (IsCareCoordinator)
@@ -567,14 +565,16 @@
 
     private bool CanDeleteSchedule(CalendarVisitDto schedule)
     {
-        if ((!CanManageScheduling && !IsCareCoordinator) || CurrentUserId == Guid.Empty || schedule.AssignedUserId != CurrentUserId)
+        if (CurrentUserId == Guid.Empty)
             return false;
 
-        // Do not let Admin delete a visit belonging to another Care Coordinator.
-        if (IsAdministrator && schedule.CareCoordinatorId.HasValue && schedule.CareCoordinatorId != CurrentUserId)
-            return false;
+        if (IsAdministrator)
+            return true;
 
-        return true;
+        if (IsCareCoordinator)
+            return schedule.AssignedUserId == CurrentUserId || schedule.CareCoordinatorId == CurrentUserId;
+
+        return CanManageScheduling && schedule.AssignedUserId == CurrentUserId;
     }
 
     private void BeginDragging(CalendarVisitDto schedule)

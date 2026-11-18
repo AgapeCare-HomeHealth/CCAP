@@ -40,6 +40,8 @@ public sealed class AppDbContext : DbContext
     public DbSet<PatientImportRow> PatientImportRows => Set<PatientImportRow>();
     public DbSet<ReferralImportBatch> ReferralImportBatches => Set<ReferralImportBatch>();
     public DbSet<ReferralImportRow> ReferralImportRows => Set<ReferralImportRow>();
+    public DbSet<CalendarImportBatch> CalendarImportBatches => Set<CalendarImportBatch>();
+    public DbSet<CalendarImportRow> CalendarImportRows => Set<CalendarImportRow>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -91,6 +93,30 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.RawDataJson).HasColumnType("nvarchar(max)").IsRequired();
             e.HasIndex(x => new { x.ReferralImportBatchId, x.RowNumber }).IsUnique();
             e.HasOne<ReferralImportBatch>().WithMany().HasForeignKey(x => x.ReferralImportBatchId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CalendarImportBatch>(e =>
+        {
+            e.ToTable("CalendarImportBatches");
+            e.HasKey(x => x.CalendarImportBatchId);
+            e.Property(x => x.FileName).HasMaxLength(260).IsRequired();
+            e.Property(x => x.Status).HasMaxLength(30).IsRequired();
+            e.HasIndex(x => x.UploadedAt);
+            e.HasIndex(x => x.Status);
+            e.HasIndex(x => x.CareCoordinatorId);
+            e.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.CareCoordinatorId).OnDelete(DeleteBehavior.Restrict).IsRequired(false);
+        });
+        modelBuilder.Entity<CalendarImportRow>(e =>
+        {
+            e.ToTable("CalendarImportRows");
+            e.HasKey(x => x.CalendarImportRowId);
+            e.Property(x => x.SheetName).HasMaxLength(200).IsRequired();
+            e.Property(x => x.RawDataJson).HasColumnType("nvarchar(max)").IsRequired();
+            e.Property(x => x.Status).HasMaxLength(30).IsRequired();
+            e.Property(x => x.ErrorMessage).HasMaxLength(2000);
+            e.HasIndex(x => new { x.CalendarImportBatchId, x.SheetName, x.RowNumber }).IsUnique();
+            e.HasIndex(x => new { x.CalendarImportBatchId, x.Status });
+            e.HasOne<CalendarImportBatch>().WithMany().HasForeignKey(x => x.CalendarImportBatchId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Announcement>(e =>
@@ -328,6 +354,7 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.SecondCoordinatorCall).HasMaxLength(2000);
             e.Property(x => x.ThirdCoordinatorCall).HasMaxLength(2000);
             e.Property(x => x.Resolution).HasMaxLength(500);
+            e.Property(x => x.ArchivedAt).HasColumnType("datetime2");
             e.HasIndex(x => x.ReferralNumber).IsUnique();
             e.HasIndex(x => x.ReferralDate);
         });
@@ -543,6 +570,7 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.BillingOvertimeAmount).HasPrecision(18, 2);
             e.Property(x => x.VisitsEachDay).HasDefaultValue(1);
             e.HasIndex(x => x.RecurrenceGroupId);
+            e.HasIndex(x => x.ScheduledDate);
             e.HasOne(x => x.Patient).WithMany(x => x.Visits)
                 .HasForeignKey(x => x.PatientId)
                 .OnDelete(DeleteBehavior.Cascade)

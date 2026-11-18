@@ -3,6 +3,7 @@ namespace CCAP.Application.Features.Scheduling.Import;
 public sealed class ScheduleImportPreviewItem
 {
     public int RowNumber { get; set; }
+    public string SheetName { get; set; } = "CSV";
     public string PatientName { get; set; } = string.Empty;
     public Guid? PatientId { get; set; }
 

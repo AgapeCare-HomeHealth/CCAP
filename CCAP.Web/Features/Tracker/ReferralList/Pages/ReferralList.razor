@@ -1,13 +1,15 @@
 @page "/referrals/list"
-@attribute [CcapAuthorize(Policy = "referrals.view")]
+@attribute [CcapAuthorize(Roles = "Administrator,Care Coordinator", Policy = "referrals.view")]
 @using CCAP.Web.Features.Tracker.ReferralIntake.Models
 @using CCAP.Web.Features.Tracker.ReferralIntake.Services
 @using CCAP.Web.Features.Tracker.ReferralList.Models
 @using CCAP.Web.Features.Admin.Users.Models
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Security.Claims
+@using Microsoft.JSInterop
 @inject ReferralIntakeService ReferralIntakeService
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime JS
 
 <PageTitle>Referral Tracker</PageTitle>
 
@@ -24,6 +26,9 @@
                 <i class="bi bi-plus-lg me-2"></i>Add Referrals
             </button>
         }
+        <button class="btn btn-outline-primary referral-print-button" @onclick="PrintFilteredListAsync" disabled="@(IsLoading || IsExporting)">
+            <i class="bi bi-file-earmark-pdf me-2"></i>@(IsExporting ? "Preparing PDF..." : "Print / Save as PDF")
+        </button>
     </div>
 
     <section class="referral-filter-panel">
@@ -44,6 +49,10 @@
             <label><span>Payor / Insurance</span><select class="form-select" @bind="Insurance" @bind:after="ApplyFilters">
                 <option value="">All payors</option>
                 @foreach (var payor in ReferralTrackerOptions.Payors) { <option value="@payor">@payor</option> }
+            </select></label>
+            <label><span>Assigned CC</span><select class="form-select" @bind="AssignedCoordinatorId" @bind:after="ApplyFilters" disabled="@AssignmentUsersLoading">
+                <option value="">All Care Coordinators</option>
+                @foreach (var user in FilterCoordinatorOptions) { <option value="@user.UserId">@user.FullName</option> }
             </select></label>
             <button class="btn btn-light referral-clear-button" @onclick="ClearFilters"><i class="bi bi-arrow-counterclockwise me-1"></i>Clear</button>
         </div>
@@ -66,12 +75,25 @@
     {
         <div class="referral-table-heading">
             <div><strong>All Tracker Entries</strong><span>@TotalCount records</span></div>
-            <span class="table-hint"><i class="bi bi-eye me-1"></i>All users can view referrals. Only Administrators or the assigned staff can edit; changes save automatically.</span>
+            <div class="referral-table-tools">
+                <span class="table-hint"><i class="bi bi-eye me-1"></i>Select a patient name to view details. Use Edit to make changes.</span>
+                @if (IsAdministrator)
+                {
+                    <span class="referral-selection-count">@SelectedReferralIds.Count selected</span>
+                    <button type="button" class="btn btn-outline-danger" disabled="@(SelectedReferralIds.Count == 0 || IsSaving)" @onclick="RequestArchiveSelected">
+                        <i class="bi bi-archive me-1"></i>Archive selected (@SelectedReferralIds.Count)
+                    </button>
+                }
+            </div>
         </div>
         <div class="referral-table-wrap">
             <table class="table align-middle referral-table">
                 <thead>
                     <tr>
+                        @if (IsAdministrator)
+                        {
+                            <th class="referral-select-column"><input type="checkbox" aria-label="Select all referrals on this page" checked="@IsPageFullySelected" @onchange="ToggleSelectPage" /></th>
+                        }
                         <th>#</th>
                         <th>Referral Date</th>
                         <th>Posted On</th>
@@ -86,12 +108,13 @@
                         <th>2nd Call - CC</th>
                         <th>3rd Call - CC</th>
                         <th>Resolution</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @if (Items.Count == 0)
                     {
-                        <tr><td colspan="14" class="text-center py-5 text-muted">No referral tracker entries found.</td></tr>
+                        <tr><td colspan="@(IsAdministrator ? 16 : 15)" class="text-center py-5 text-muted">No referral tracker entries found.</td></tr>
                     }
                     else
                     {
@@ -99,53 +122,31 @@
                         {
                             var item = Items[i];
                             <tr class="@GetStatusRowClass(item.Status)">
+                                @if (IsAdministrator)
+                                {
+                                    <td class="referral-select-column"><input type="checkbox" aria-label="Select referral for @item.PatientName" checked="@SelectedReferralIds.Contains(item.ReferralId)" @onchange="e => ToggleReferralSelection(item.ReferralId, e)" /></td>
+                                }
                                 <td><span class="row-number">@(((CurrentPage - 1) * PageSize) + i + 1)</span></td>
                                 <td>@item.ReferralDate.ToString("MM/dd/yyyy")</td>
-                                <td>
-                                    <select class="form-select form-select-sm tracker-edit" value="@item.PostedOn"
-                                            @onchange="e => ChangePostedOn(item, e.Value?.ToString())" disabled="@(!CanEdit(item))">
-                                        @foreach (var option in ReferralTrackerOptions.PostedOn) { <option value="@option">@option</option> }
-                                    </select>
-                                </td>
-                                <td><input class="form-control form-control-sm tracker-edit" type="date"
-                                           value="@item.EstimatedDischargeDate?.ToString("yyyy-MM-dd")"
-                                           @onchange="e => ChangeEdd(item, e.Value?.ToString())" disabled="@(!CanEdit(item))" /></td>
-                                <td class="referral-patient-name">@item.PatientName</td>
-                                <td>
-                                    <select class="form-select form-select-sm tracker-edit" value="@item.TypeOfReferral"
-                                            @onchange="e => ChangeTypeOfReferral(item, e.Value?.ToString())" disabled="@(!CanEdit(item))">
-                                        <option value="">Select type</option>
-                                        @foreach (var option in ReferralTrackerOptions.TypesOfReferral) { <option value="@option">@option</option> }
-                                    </select>
-                                </td>
-                                <td>
-                                    <select class="form-select form-select-sm tracker-edit" value="@item.Status"
-                                            @onchange="e => ChangeStatus(item, e.Value?.ToString())" disabled="@(!CanEdit(item))">
-                                        @foreach (var option in ReferralTrackerOptions.Statuses) { <option value="@option">@option</option> }
-                                    </select>
-                                </td>
-                                <td>
-                                    <select class="form-select form-select-sm tracker-edit" value="@item.Source"
-                                            @onchange="e => ChangeSource(item, e.Value?.ToString())" disabled="@(!CanEdit(item))">
-                                        <option value="">Select source</option>
-                                        @foreach (var option in ReferralTrackerOptions.ReferralSources) { <option value="@option">@option</option> }
-                                    </select>
-                                </td>
-                                <td>
-                                    <select class="form-select form-select-sm tracker-edit" value="@item.Insurance"
-                                            @onchange="e => ChangeInsurance(item, e.Value?.ToString())" disabled="@(!CanEdit(item))">
-                                        <option value="">Select payor</option>
-                                        @foreach (var option in ReferralTrackerOptions.Payors) { <option value="@option">@option</option> }
-                                    </select>
-                                </td>
+                                <td>@Display(item.PostedOn)</td>
+                                <td>@(item.EstimatedDischargeDate?.ToString("MM/dd/yyyy") ?? "—")</td>
+                                <td class="referral-patient-name"><button type="button" class="referral-patient-link" aria-label="View referral details for @item.PatientName" @onclick="() => OpenPreview(item)">@item.PatientName</button></td>
+                                <td>@Display(item.TypeOfReferral)</td>
+                                <td>@Display(item.Status)</td>
+                                <td>@Display(item.Source)</td>
+                                <td>@Display(item.Insurance)</td>
                                 <td>@Display(item.CareCoordinator)</td>
                                 <td class="referral-call-cell" title="@item.FirstMarketingCall">@Display(item.FirstMarketingCall)</td>
-                                <td><input maxlength="2000" class="form-control form-control-sm tracker-edit tracker-text" value="@item.SecondCoordinatorCall"
-                                           @onchange="e => ChangeSecondCall(item, e.Value?.ToString())" disabled="@(!CanEdit(item))" /></td>
-                                <td><input maxlength="2000" class="form-control form-control-sm tracker-edit tracker-text" value="@item.ThirdCoordinatorCall"
-                                           @onchange="e => ChangeThirdCall(item, e.Value?.ToString())" disabled="@(!CanEdit(item))" /></td>
-                                <td><input maxlength="500" class="form-control form-control-sm tracker-edit tracker-text" value="@item.Resolution"
-                                           @onchange="e => ChangeResolution(item, e.Value?.ToString())" disabled="@(!CanEdit(item))" /></td>
+                                <td class="referral-call-cell">@Display(item.SecondCoordinatorCall)</td>
+                                <td class="referral-call-cell">@Display(item.ThirdCoordinatorCall)</td>
+                                <td class="referral-call-cell">@Display(item.Resolution)</td>
+                                <td class="referral-row-actions">
+                                    @if (CanEdit(item))
+                                    {
+                                        <button type="button" class="btn btn-primary referral-edit-button" aria-label="Edit referral for @item.PatientName" @onclick="() => OpenEdit(item)"><i class="bi bi-pencil-square me-1"></i>Edit</button>
+                                    }
+                                    else { <span class="text-muted">—</span> }
+                                </td>
                             </tr>
                         }
                     }
@@ -163,6 +164,134 @@
         </div>
     }
 </div>
+
+@if (ShowPrintView)
+{
+    <section class="referral-print-only" aria-label="Referral tracker print preview">
+        <h1>Referral Tracker</h1>
+        <p class="print-generated">Generated @PrintGeneratedAt.ToString("MM/dd/yyyy h:mm tt") · @PrintItems.Count records</p>
+        <p class="print-filters">@GetPrintFilterSummary()</p>
+        <table class="referral-print-table">
+            <thead>
+                <tr>
+                    <th>#</th><th>Referral Date</th><th>Posted On</th><th>EDD</th><th>Name</th>
+                    <th>Type</th><th>Status</th><th>Source</th><th>Payor / Insurance</th><th>Assigned CC</th>
+                    <th>1st Call - Marketing</th><th>2nd Call - CC</th><th>3rd Call - CC</th><th>Resolution</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (var i = 0; i < PrintItems.Count; i++)
+                {
+                    var item = PrintItems[i];
+                    <tr>
+                        <td>@(i + 1)</td><td>@item.ReferralDate.ToString("MM/dd/yyyy")</td><td>@Display(item.PostedOn)</td>
+                        <td>@(item.EstimatedDischargeDate?.ToString("MM/dd/yyyy") ?? "—")</td><td>@item.PatientName</td>
+                        <td>@Display(item.TypeOfReferral)</td><td>@Display(item.Status)</td><td>@Display(item.Source)</td>
+                        <td>@Display(item.Insurance)</td><td>@Display(item.CareCoordinator)</td>
+                        <td>@Display(item.FirstMarketingCall)</td><td>@Display(item.SecondCoordinatorCall)</td>
+                        <td>@Display(item.ThirdCoordinatorCall)</td><td>@Display(item.Resolution)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </section>
+}
+
+@if (PreviewItem is not null)
+{
+    <div class="referral-modal-backdrop" @onclick="ClosePreview">
+        <section class="referral-detail-modal" role="dialog" aria-modal="true" aria-labelledby="referral-preview-title" @onclick:stopPropagation="true">
+            <header class="referral-modal-header">
+                <div><div class="referral-eyebrow">REFERRAL TRACKER</div><h3 id="referral-preview-title">@PreviewItem.PatientName</h3><p>Referral @PreviewItem.ReferralNumber</p></div>
+                <button class="modal-close" aria-label="Close preview" @onclick="ClosePreview"><i class="bi bi-x-lg"></i></button>
+            </header>
+            <div class="referral-detail-grid">
+                <div><span>Referral date</span><strong>@PreviewItem.ReferralDate.ToString("MM/dd/yyyy")</strong></div>
+                <div><span>MRN</span><strong>@Display(PreviewItem.Mrn)</strong></div>
+                <div><span>Type of referral</span><strong>@Display(PreviewItem.TypeOfReferral)</strong></div>
+                <div><span>Posted on</span><strong>@Display(PreviewItem.PostedOn)</strong></div>
+                <div><span>Estimated discharge date</span><strong>@(PreviewItem.EstimatedDischargeDate?.ToString("MM/dd/yyyy") ?? "—")</strong></div>
+                <div><span>Status</span><strong>@Display(PreviewItem.Status)</strong></div>
+                <div><span>Referral source</span><strong>@Display(PreviewItem.Source)</strong></div>
+                <div><span>Payor / Insurance</span><strong>@Display(PreviewItem.Insurance)</strong></div>
+                <div><span>Assigned CC</span><strong>@Display(PreviewItem.CareCoordinator)</strong></div>
+                <div class="detail-wide"><span>1st Call - Marketing</span><strong>@Display(PreviewItem.FirstMarketingCall)</strong></div>
+                <div class="detail-wide"><span>2nd Call - CC</span><strong>@Display(PreviewItem.SecondCoordinatorCall)</strong></div>
+                <div class="detail-wide"><span>3rd Call - CC</span><strong>@Display(PreviewItem.ThirdCoordinatorCall)</strong></div>
+                <div class="detail-wide"><span>Resolution</span><strong>@Display(PreviewItem.Resolution)</strong></div>
+            </div>
+            <footer class="referral-modal-footer"><span>Read-only referral preview</span><div><button class="btn btn-light" @onclick="ClosePreview">Close</button></div></footer>
+        </section>
+    </div>
+}
+
+@if (Editing is not null)
+{
+    <div class="referral-modal-backdrop" @onclick="CloseAdminEdit">
+        <section class="referral-detail-modal referral-edit-modal" role="dialog" aria-modal="true" aria-labelledby="referral-edit-title" @onclick:stopPropagation="true">
+            <header class="referral-modal-header">
+                <div><div class="referral-eyebrow">ADMINISTRATOR EDIT</div><h3 id="referral-edit-title">Edit referral tracker entry</h3><p>Referral @Editing.ReferralNumber</p></div>
+                <button class="modal-close" aria-label="Close edit" @onclick="CloseAdminEdit" disabled="@IsSaving"><i class="bi bi-x-lg"></i></button>
+            </header>
+            <div class="referral-edit-grid">
+                <label><span>First name *</span><input class="form-control" maxlength="100" @bind="Editing.FirstName" disabled="@IsSaving" /></label>
+                <label><span>Last name *</span><input class="form-control" maxlength="100" @bind="Editing.LastName" disabled="@IsSaving" /></label>
+                <label><span>MRN</span><input class="form-control" maxlength="50" @bind="Editing.Mrn" disabled="@IsSaving" /></label>
+                <label><span>Referral date</span><input class="form-control" type="date" @bind="Editing.ReferralDate" disabled="@IsSaving" /></label>
+                <label><span>Type of referral *</span><select class="form-select" @bind="Editing.TypeOfReferral" disabled="@IsSaving"><option value="">Select type</option>@foreach (var v in ReferralTrackerOptions.TypesOfReferral) { <option value="@v">@v</option> }</select></label>
+                <label><span>Posted on</span><select class="form-select" @bind="Editing.PostedOn" disabled="@IsSaving"><option value="">Select</option>@foreach (var v in ReferralTrackerOptions.PostedOn) { <option value="@v">@v</option> }</select></label>
+                <label><span>Estimated discharge date</span><input class="form-control" type="date" @bind="Editing.EstimatedDischargeDate" disabled="@IsSaving" /></label>
+                <label><span>Status</span><select class="form-select" @bind="Editing.Status" disabled="@IsSaving"><option value="">Select status</option>@foreach (var v in ReferralTrackerOptions.Statuses) { <option value="@v">@v</option> }</select></label>
+                <label><span>Referral source</span><select class="form-select" @bind="Editing.Source" disabled="@IsSaving"><option value="">Select source</option>@foreach (var v in ReferralTrackerOptions.ReferralSources) { <option value="@v">@v</option> }</select></label>
+                <label><span>Payor / Insurance</span><select class="form-select" @bind="Editing.Insurance" disabled="@IsSaving"><option value="">Select payor</option>@foreach (var v in ReferralTrackerOptions.Payors) { <option value="@v">@v</option> }</select></label>
+                <label><span>Assigned CC</span><select class="form-select" @bind="Editing.AssignedCoordinatorId" disabled="@IsSaving"><option value="">Unassigned</option>@if (Editing.AssignedCoordinatorId.HasValue && !AssignmentUsers.Any(x => x.UserId == Editing.AssignedCoordinatorId.Value)) { <option value="@Editing.AssignedCoordinatorId" disabled>@(string.IsNullOrWhiteSpace(Editing.AssignedCoordinatorName) ? "Current coordinator" : $"{Editing.AssignedCoordinatorName} (inactive)")</option> }@foreach (var user in AssignmentUsers) { <option value="@user.UserId">@user.FullName</option> }</select></label>
+                <label class="edit-wide"><span>1st Call - Marketing</span><textarea class="form-control" maxlength="2000" rows="2" @bind="Editing.FirstMarketingCall" disabled="@IsSaving"></textarea></label>
+                <label class="edit-wide"><span>2nd Call - CC</span><textarea class="form-control" maxlength="2000" rows="2" @bind="Editing.SecondCoordinatorCall" disabled="@IsSaving"></textarea></label>
+                <label class="edit-wide"><span>3rd Call - CC</span><textarea class="form-control" maxlength="2000" rows="2" @bind="Editing.ThirdCoordinatorCall" disabled="@IsSaving"></textarea></label>
+                <label class="edit-wide"><span>Resolution</span><textarea class="form-control" maxlength="500" rows="2" @bind="Editing.Resolution" disabled="@IsSaving"></textarea></label>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(EditError)) { <div class="alert alert-danger mx-4 mb-0">@EditError</div> }
+            <footer class="referral-modal-footer"><span>Referral number is system-generated and remains unchanged.</span><div><button class="btn btn-light" disabled="@IsSaving" @onclick="CloseAdminEdit">Cancel</button><button class="btn btn-primary" disabled="@IsSaving" @onclick="SaveAdminEditAsync">@(IsSaving ? "Saving..." : "Save changes")</button></div></footer>
+        </section>
+    </div>
+}
+
+@if (CoordinatorEditing is not null)
+{
+    <div class="referral-modal-backdrop" @onclick="CloseCoordinatorEdit">
+        <section class="referral-detail-modal referral-edit-modal" role="dialog" aria-modal="true" aria-labelledby="referral-coordinator-edit-title" @onclick:stopPropagation="true">
+            <header class="referral-modal-header">
+                <div><div class="referral-eyebrow">CARE COORDINATOR EDIT</div><h3 id="referral-coordinator-edit-title">Edit referral</h3><p>@CoordinatorEditing.PatientName</p></div>
+                <button class="modal-close" aria-label="Close edit" @onclick="CloseCoordinatorEdit" disabled="@IsSaving"><i class="bi bi-x-lg"></i></button>
+            </header>
+            <div class="referral-edit-grid">
+                <label><span>Type of referral</span><select class="form-select" @bind="CoordinatorEditing.TypeOfReferral" disabled="@IsSaving"><option value="">Select type</option>@foreach (var v in ReferralTrackerOptions.TypesOfReferral) { <option value="@v">@v</option> }</select></label>
+                <label><span>Posted on</span><select class="form-select" @bind="CoordinatorEditing.PostedOn" disabled="@IsSaving"><option value="">Select</option>@foreach (var v in ReferralTrackerOptions.PostedOn) { <option value="@v">@v</option> }</select></label>
+                <label><span>Estimated discharge date</span><input class="form-control" type="date" @bind="CoordinatorEditing.EstimatedDischargeDate" disabled="@IsSaving" /></label>
+                <label><span>Status</span><select class="form-select" @bind="CoordinatorEditing.Status" disabled="@IsSaving"><option value="">Select status</option>@foreach (var v in ReferralTrackerOptions.Statuses) { <option value="@v">@v</option> }</select></label>
+                <label><span>Referral source</span><select class="form-select" @bind="CoordinatorEditing.Source" disabled="@IsSaving"><option value="">Select source</option>@foreach (var v in ReferralTrackerOptions.ReferralSources) { <option value="@v">@v</option> }</select></label>
+                <label><span>Payor / Insurance</span><select class="form-select" @bind="CoordinatorEditing.Insurance" disabled="@IsSaving"><option value="">Select payor</option>@foreach (var v in ReferralTrackerOptions.Payors) { <option value="@v">@v</option> }</select></label>
+                <label class="edit-wide"><span>2nd Call - CC</span><textarea class="form-control" maxlength="2000" rows="3" @bind="CoordinatorEditing.SecondCoordinatorCall" disabled="@IsSaving"></textarea></label>
+                <label class="edit-wide"><span>3rd Call - CC</span><textarea class="form-control" maxlength="2000" rows="3" @bind="CoordinatorEditing.ThirdCoordinatorCall" disabled="@IsSaving"></textarea></label>
+                <label class="edit-wide"><span>Resolution</span><textarea class="form-control" maxlength="500" rows="3" @bind="CoordinatorEditing.Resolution" disabled="@IsSaving"></textarea></label>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(EditError)) { <div class="alert alert-danger mx-4 mb-0">@EditError</div> }
+            <footer class="referral-modal-footer"><span>You can update the assigned referral details.</span><div><button class="btn btn-light" disabled="@IsSaving" @onclick="CloseCoordinatorEdit">Cancel</button><button class="btn btn-primary" disabled="@IsSaving" @onclick="SaveCoordinatorEditAsync">@(IsSaving ? "Saving..." : "Save changes")</button></div></footer>
+        </section>
+    </div>
+}
+
+@if (PendingArchiveItems.Count > 0)
+{
+    <div class="referral-modal-backdrop" @onclick="CancelArchive">
+        <section class="referral-detail-modal referral-confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="archive-referral-title" @onclick:stopPropagation="true">
+            <header class="referral-modal-header"><div><div class="referral-eyebrow">ADMINISTRATOR ACTION</div><h3 id="archive-referral-title">Archive @PendingArchiveItems.Count selected referral@(PendingArchiveItems.Count == 1 ? "" : "s")?</h3><p>@string.Join(", ", PendingArchiveItems.Select(x => x.PatientName))</p></div><button class="modal-close" aria-label="Close confirmation" @onclick="CancelArchive"><i class="bi bi-x-lg"></i></button></header>
+            <p class="archive-confirm-copy">These referrals will be removed from the active tracker. Their records and archive timestamps will be retained.</p>
+            @if (!string.IsNullOrWhiteSpace(ArchiveError)) { <div class="alert alert-danger mx-4 mb-0">@ArchiveError</div> }
+            <footer class="referral-modal-footer"><span>Only Administrators can archive tracker entries.</span><div><button class="btn btn-light" disabled="@IsSaving" @onclick="CancelArchive">Cancel</button><button class="btn btn-danger" disabled="@IsSaving" @onclick="ConfirmArchiveAsync">@(IsSaving ? "Archiving..." : $"Archive {PendingArchiveItems.Count} referral(s)")</button></div></footer>
+        </section>
+    </div>
+}
 
 @if (ShowBulkEntry)
 {
@@ -285,15 +414,30 @@
     private string Status = string.Empty;
     private string Source = string.Empty;
     private string Insurance = string.Empty;
+    private Guid? AssignedCoordinatorId;
     private bool IsLoading;
     private bool IsSaving;
+    private bool IsExporting;
     private bool ShowBulkEntry;
+    private bool ShowPrintView;
+    private bool PrintAfterRender;
+    private DateTime PrintGeneratedAt;
     private string? ErrorMessage;
     private string? BulkError;
     private string? SaveMessage;
+    private string? EditError;
+    private string? ArchiveError;
     private List<ReferralListItem> Items = [];
+    private List<ReferralListItem> PrintItems = [];
     private List<BulkReferralEntry> Rows = [];
     private List<UserDto> AssignmentUsers = [];
+    private List<ReferralCoordinatorFilterOption> FilterCoordinatorOptions = [];
+    private ReferralListItem? PreviewItem;
+    private ReferralTrackerAdminEditModel? Editing;
+    private ReferralTrackerCoordinatorEditModel? CoordinatorEditing;
+    private List<ReferralListItem> PendingArchiveItems = [];
+    private HashSet<Guid> SelectedReferralIds = [];
+    private bool IsPageFullySelected => Items.Count > 0 && Items.All(x => SelectedReferralIds.Contains(x.ReferralId));
     private bool AssignmentUsersLoading;
     private Guid? CurrentUserId;
     private bool IsAdministrator;
@@ -309,7 +453,18 @@
             ?? principal.FindFirstValue("userId");
         if (Guid.TryParse(userIdValue, out var userId))
             CurrentUserId = userId;
+        await Task.WhenAll(LoadAssignmentUsersAsync(), LoadCoordinatorFilterOptionsAsync());
         await LoadAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!PrintAfterRender) return;
+
+        PrintAfterRender = false;
+        await JS.InvokeVoidAsync("window.print");
+        ShowPrintView = false;
+        await InvokeAsync(StateHasChanged);
     }
 
     private bool CanEdit(ReferralListItem item) =>
@@ -323,7 +478,15 @@
         ErrorMessage = null;
         try
         {
-            var result = await ReferralIntakeService.GetReferralListAsync(CurrentPage, PageSize, Search, Status, Source, Insurance);
+            var result = await ReferralIntakeService.GetReferralListAsync(
+                CurrentPage, PageSize, Search, Status, Source, Insurance, AssignedCoordinatorId);
+            var totalPages = (int)Math.Ceiling(result.TotalCount / (double)PageSize);
+            if (totalPages > 0 && CurrentPage > totalPages)
+            {
+                CurrentPage = totalPages;
+                result = await ReferralIntakeService.GetReferralListAsync(
+                    CurrentPage, PageSize, Search, Status, Source, Insurance, AssignedCoordinatorId);
+            }
             Items = result.Items;
             TotalCount = result.TotalCount;
         }
@@ -331,17 +494,29 @@
         finally { IsLoading = false; }
     }
 
-    private async Task ApplyFilters() { CurrentPage = 1; await LoadAsync(); }
-    private async Task ClearFilters() { Search = Status = Source = Insurance = string.Empty; await ApplyFilters(); }
-    private async Task PreviousPage() { if (CurrentPage > 1) { CurrentPage--; await LoadAsync(); } }
-    private async Task NextPage() { if (CurrentPage < TotalPages) { CurrentPage++; await LoadAsync(); } }
-    private async Task OpenBulkEntry()
-    {
-        Rows = Enumerable.Range(0, 3).Select(_ => new BulkReferralEntry()).ToList();
-        BulkError = null;
-        ShowBulkEntry = true;
-        if (AssignmentUsers.Count > 0) return;
+    private async Task ApplyFilters() { CurrentPage = 1; SelectedReferralIds.Clear(); await LoadAsync(); }
+    private async Task ClearFilters() { Search = Status = Source = Insurance = string.Empty; AssignedCoordinatorId = null; await ApplyFilters(); }
+    private async Task PreviousPage() { if (CurrentPage > 1) { SelectedReferralIds.Clear(); CurrentPage--; await LoadAsync(); } }
+    private async Task NextPage() { if (CurrentPage < TotalPages) { SelectedReferralIds.Clear(); CurrentPage++; await LoadAsync(); } }
 
+    private void ToggleReferralSelection(Guid referralId, ChangeEventArgs args)
+    {
+        if (!IsAdministrator) return;
+        if (args.Value is bool selected && selected) SelectedReferralIds.Add(referralId);
+        else SelectedReferralIds.Remove(referralId);
+    }
+
+    private void ToggleSelectPage(ChangeEventArgs args)
+    {
+        if (!IsAdministrator) return;
+        if (args.Value is bool selected && selected)
+            foreach (var item in Items) SelectedReferralIds.Add(item.ReferralId);
+        else
+            foreach (var item in Items) SelectedReferralIds.Remove(item.ReferralId);
+    }
+
+    private async Task LoadAssignmentUsersAsync()
+    {
         AssignmentUsersLoading = true;
         try
         {
@@ -349,9 +524,33 @@
         }
         catch (Exception ex)
         {
-            BulkError = $"Unable to load Care Coordinator accounts: {ex.Message}";
+            ErrorMessage = $"Unable to load Care Coordinator accounts: {ex.Message}";
         }
         finally { AssignmentUsersLoading = false; }
+    }
+
+    private async Task LoadCoordinatorFilterOptionsAsync()
+    {
+        try
+        {
+            FilterCoordinatorOptions = await ReferralIntakeService.GetReferralCoordinatorFilterOptionsAsync();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Unable to load assigned Care Coordinator filters: {ex.Message}";
+        }
+    }
+
+    private async Task OpenBulkEntry()
+    {
+        Rows = Enumerable.Range(0, 3).Select(_ => new BulkReferralEntry()).ToList();
+        BulkError = null;
+        ShowBulkEntry = true;
+        if (AssignmentUsers.Count > 0) return;
+
+        await LoadAssignmentUsersAsync();
+        if (AssignmentUsers.Count == 0)
+            BulkError = "Unable to load Care Coordinator accounts. Refresh the page and try again.";
     }
     private void CloseBulkEntry() { if (!IsSaving) ShowBulkEntry = false; }
     private void AddRow() { if (Rows.Count < 100) Rows.Add(new()); }
@@ -397,25 +596,137 @@
 
     private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
 
-    private async Task PersistEdit(ReferralListItem item)
+    private void OpenPreview(ReferralListItem item) => PreviewItem = item;
+    private void ClosePreview() => PreviewItem = null;
+    private void OpenAdminEdit(ReferralListItem item)
     {
+        Editing = ReferralTrackerAdminEditModel.From(item);
+        EditError = null;
+    }
+    private void CloseAdminEdit() { if (!IsSaving) Editing = null; }
+
+    private void OpenEdit(ReferralListItem item)
+    {
+        if (!CanEdit(item)) return;
+        if (IsAdministrator)
+        {
+            OpenAdminEdit(item);
+            return;
+        }
+
+        CoordinatorEditing = ReferralTrackerCoordinatorEditModel.From(item);
+        EditError = null;
+    }
+
+    private void CloseCoordinatorEdit() { if (!IsSaving) CoordinatorEditing = null; }
+
+    private async Task SaveCoordinatorEditAsync()
+    {
+        if (CoordinatorEditing is null) return;
+        EditError = null;
+        IsSaving = true;
         try
         {
-            await ReferralIntakeService.UpdateReferralTrackerDetailsAsync(item);
-            SaveMessage = $"Saved changes for {item.PatientName}.";
-            ErrorMessage = null;
+            await ReferralIntakeService.UpdateReferralTrackerDetailsAsync(CoordinatorEditing);
+            SaveMessage = $"Saved changes for {CoordinatorEditing.PatientName}.";
+            CoordinatorEditing = null;
+            await LoadAsync();
         }
-        catch (Exception ex) { ErrorMessage = $"Unable to save tracker changes: {ex.Message}"; }
+        catch (Exception ex) { EditError = $"Unable to save referral changes: {ex.Message}"; }
+        finally { IsSaving = false; }
     }
-    private async Task ChangePostedOn(ReferralListItem item, string? value) { item.PostedOn = value ?? ""; await PersistEdit(item); }
-    private async Task ChangeStatus(ReferralListItem item, string? value) { item.Status = value ?? ""; await PersistEdit(item); }
-    private async Task ChangeEdd(ReferralListItem item, string? value) { item.EstimatedDischargeDate = DateOnly.TryParse(value, out var date) ? date : null; await PersistEdit(item); }
-    private async Task ChangeTypeOfReferral(ReferralListItem item, string? value) { item.TypeOfReferral = value; await PersistEdit(item); }
-    private async Task ChangeSource(ReferralListItem item, string? value) { item.Source = value ?? ""; await PersistEdit(item); }
-    private async Task ChangeInsurance(ReferralListItem item, string? value) { item.Insurance = value ?? ""; await PersistEdit(item); }
-    private async Task ChangeSecondCall(ReferralListItem item, string? value) { item.SecondCoordinatorCall = value ?? ""; await PersistEdit(item); }
-    private async Task ChangeThirdCall(ReferralListItem item, string? value) { item.ThirdCoordinatorCall = value ?? ""; await PersistEdit(item); }
-    private async Task ChangeResolution(ReferralListItem item, string? value) { item.Resolution = value ?? ""; await PersistEdit(item); }
+
+    private async Task SaveAdminEditAsync()
+    {
+        if (Editing is null) return;
+        EditError = null;
+        if (string.IsNullOrWhiteSpace(Editing.FirstName) || string.IsNullOrWhiteSpace(Editing.LastName))
+        {
+            EditError = "First name and last name are required.";
+            return;
+        }
+
+        IsSaving = true;
+        try
+        {
+            await ReferralIntakeService.UpdateReferralTrackerEntryAsync(Editing);
+            SaveMessage = $"Saved changes for {Editing.FirstName} {Editing.LastName}.";
+            Editing = null;
+            await LoadCoordinatorFilterOptionsAsync();
+            await LoadAsync();
+        }
+        catch (Exception ex) { EditError = $"Unable to save tracker changes: {ex.Message}"; }
+        finally { IsSaving = false; }
+    }
+
+    private void RequestArchiveSelected()
+    {
+        PendingArchiveItems = Items.Where(x => SelectedReferralIds.Contains(x.ReferralId)).ToList();
+        ArchiveError = null;
+    }
+
+    private void CancelArchive() { if (!IsSaving) PendingArchiveItems.Clear(); }
+
+    private async Task ConfirmArchiveAsync()
+    {
+        if (PendingArchiveItems.Count == 0 || !IsAdministrator) return;
+        var items = PendingArchiveItems.ToList();
+        ArchiveError = null;
+        IsSaving = true;
+        try
+        {
+            await ReferralIntakeService.ArchiveReferralTrackerEntriesAsync(items.Select(x => x.ReferralId).ToList());
+            PendingArchiveItems.Clear();
+            SelectedReferralIds.Clear();
+            if (PreviewItem is not null && items.Any(x => x.ReferralId == PreviewItem.ReferralId)) PreviewItem = null;
+            SaveMessage = items.Count == 1
+                ? $"Archived referral for {items[0].PatientName}."
+                : $"Archived {items.Count} referrals.";
+            await LoadCoordinatorFilterOptionsAsync();
+            await LoadAsync();
+        }
+        catch (Exception ex) { ArchiveError = $"Unable to archive referral: {ex.Message}"; }
+        finally { IsSaving = false; }
+    }
+
+    private async Task PrintFilteredListAsync()
+    {
+        IsExporting = true;
+        ErrorMessage = null;
+        try
+        {
+            PrintItems = await ReferralIntakeService.GetReferralListForExportAsync(
+                Search, Status, Source, Insurance, AssignedCoordinatorId);
+            if (PrintItems.Count == 0)
+            {
+                ErrorMessage = "There are no referrals matching the selected filters to print.";
+                return;
+            }
+
+            PrintGeneratedAt = DateTime.Now;
+            ShowPrintView = true;
+            PrintAfterRender = true;
+        }
+        catch (Exception ex) { ErrorMessage = $"Unable to prepare the referral PDF: {ex.Message}"; }
+        finally { IsExporting = false; }
+    }
+
+    private string GetPrintFilterSummary()
+    {
+        var filters = new List<string>();
+        if (!string.IsNullOrWhiteSpace(Search)) filters.Add($"Search: {Search.Trim()}");
+        if (!string.IsNullOrWhiteSpace(Status)) filters.Add($"Status: {Status}");
+        if (!string.IsNullOrWhiteSpace(Source)) filters.Add($"Source: {Source}");
+        if (!string.IsNullOrWhiteSpace(Insurance)) filters.Add($"Insurance: {Insurance}");
+        if (AssignedCoordinatorId is Guid coordinatorId)
+        {
+            var coordinatorName = AssignmentUsers.FirstOrDefault(x => x.UserId == coordinatorId)?.FullName
+                ?? coordinatorId.ToString();
+            filters.Add($"Assigned CC: {coordinatorName}");
+        }
+
+        return filters.Count == 0 ? "Filters: none" : $"Filters: {string.Join(" · ", filters)}";
+    }
 
     private async Task SaveBulkEntries()
     {
@@ -449,6 +760,7 @@
 
             await ReferralIntakeService.CreateReferralTrackerEntriesAsync(trackerEntries);
             saved = trackerEntries.Count;
+            await LoadCoordinatorFilterOptionsAsync();
             await LoadAsync();
             ShowBulkEntry = false;
         }
