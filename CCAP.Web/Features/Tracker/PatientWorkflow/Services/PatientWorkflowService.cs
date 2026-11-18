@@ -55,6 +55,18 @@ public sealed class PatientWorkflowService
         await _api.EnsureSuccessAsync(response, cancellationToken);
     }
 
+    public async Task NonAdmitAsync(Guid patientId, CancellationToken cancellationToken = default)
+    {
+        var response = await _api.PostAsJsonAsync($"api/patients/{patientId}/non-admit", new { }, cancellationToken);
+        await _api.EnsureSuccessAsync(response, cancellationToken);
+    }
+
+    public async Task DeletePatientAsync(Guid patientId, CancellationToken cancellationToken = default)
+    {
+        var response = await _api.DeleteAsync($"api/patients/{patientId}", cancellationToken);
+        await _api.EnsureSuccessAsync(response, cancellationToken);
+    }
+
     public async Task UpdateHeaderAsync(PatientEditModel model, CancellationToken cancellationToken = default)
     {
         if (_options.Enabled)

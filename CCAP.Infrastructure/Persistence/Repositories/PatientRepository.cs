@@ -130,11 +130,7 @@ public sealed class PatientRepository : IPatientRepository
         if (!string.IsNullOrWhiteSpace(status) &&
             Enum.TryParse<CCAP.Domain.Enums.PatientStatus>(status, true, out var parsedStatus))
         {
-            if (parsedStatus == CCAP.Domain.Enums.PatientStatus.Active)
-                query = query.Where(x => x.Status == CCAP.Domain.Enums.PatientStatus.Active ||
-                                         x.Status == CCAP.Domain.Enums.PatientStatus.Pending);
-            else
-                query = query.Where(x => x.Status == parsedStatus);
+            query = query.Where(x => x.Status == parsedStatus);
         }
         else
         {

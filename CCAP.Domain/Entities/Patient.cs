@@ -475,6 +475,19 @@ public sealed class Patient
         Status = PatientStatus.Archived;
     }
 
+    public void MarkNonAdmit(Guid finalizedByUserId)
+    {
+        if (Status == PatientStatus.Archived)
+            throw new InvalidOperationException("This patient is already archived.");
+
+        FinalStatus = "Non-Admit";
+        FinalizedByUserId = finalizedByUserId;
+        CareCompletedAt = DateTime.UtcNow;
+        ArchivedByUserId = finalizedByUserId;
+        ArchivedAt = DateTime.UtcNow;
+        Status = PatientStatus.Archived;
+    }
+
     public void Archive(Guid archivedByUserId)
     {
         if (Status != PatientStatus.Completed)

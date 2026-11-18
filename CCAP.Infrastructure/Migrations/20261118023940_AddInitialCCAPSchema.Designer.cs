@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CCAP.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261117023129_AddInitialCCAPSchema")]
+    [Migration("20261118023940_AddInitialCCAPSchema")]
     partial class AddInitialCCAPSchema
     {
         /// <inheritdoc />
@@ -191,6 +191,109 @@ namespace CCAP.Infrastructure.Migrations
                     b.HasIndex("PatientId");
 
                     b.ToTable("Assessments", "dbo");
+                });
+
+            modelBuilder.Entity("CCAP.Domain.Entities.CalendarImportBatch", b =>
+                {
+                    b.Property<Guid>("CalendarImportBatchId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("CareCoordinatorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DuplicateRows")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FailedRows")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)");
+
+                    b.Property<int>("InsertedRows")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("TotalRows")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UploadedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("WarningRows")
+                        .HasColumnType("int");
+
+                    b.HasKey("CalendarImportBatchId");
+
+                    b.HasIndex("CareCoordinatorId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("UploadedAt");
+
+                    b.ToTable("CalendarImportBatches", "dbo");
+                });
+
+            modelBuilder.Entity("CCAP.Domain.Entities.CalendarImportRow", b =>
+                {
+                    b.Property<Guid>("CalendarImportRowId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CalendarImportBatchId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<bool>("HasWarning")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RawDataJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("RowNumber")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SheetName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.HasKey("CalendarImportRowId");
+
+                    b.HasIndex("CalendarImportBatchId", "Status");
+
+                    b.HasIndex("CalendarImportBatchId", "SheetName", "RowNumber")
+                        .IsUnique();
+
+                    b.ToTable("CalendarImportRows", "dbo");
                 });
 
             modelBuilder.Entity("CCAP.Domain.Entities.CallNote", b =>
@@ -1238,6 +1341,12 @@ namespace CCAP.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("ArchivedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ArchivedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("AssignedCoordinatorId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1593,6 +1702,8 @@ namespace CCAP.Infrastructure.Migrations
 
                     b.HasIndex("RecurrenceGroupId");
 
+                    b.HasIndex("ScheduledDate");
+
                     b.ToTable("Visits", "dbo");
                 });
 
@@ -1659,6 +1770,23 @@ namespace CCAP.Infrastructure.Migrations
                     b.Navigation("CompletedBy");
 
                     b.Navigation("Patient");
+                });
+
+            modelBuilder.Entity("CCAP.Domain.Entities.CalendarImportBatch", b =>
+                {
+                    b.HasOne("CCAP.Domain.Entities.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CareCoordinatorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("CCAP.Domain.Entities.CalendarImportRow", b =>
+                {
+                    b.HasOne("CCAP.Domain.Entities.CalendarImportBatch", null)
+                        .WithMany()
+                        .HasForeignKey("CalendarImportBatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("CCAP.Domain.Entities.CallNote", b =>

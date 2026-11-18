@@ -4,6 +4,8 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @inject NavigationManager Navigation
 @inject UserServices UserService
+@inject CCAP.Web.Features.Tracker.PatientWorkflow.Services.PatientWorkflowService WorkflowService
+@inject Microsoft.JSInterop.IJSRuntime JS
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <div class="patient-header-wrapper">
@@ -168,6 +170,12 @@
                 <!-- Edit -->
                 <div class="col-auto ms-xl-auto">
 
+                    @if (IsAdministrator)
+                    {
+                        <button type="button" class="btn btn-danger me-2" @onclick="DeletePatientAsync" disabled="@Saving">
+                            <i class="bi bi-trash"></i> Delete Patient
+                        </button>
+                    }
                     <button type="button" class="btn btn-success" @onclick="OpenEdit">
                         <i class="bi bi-pencil-square"></i>
                         Edit Patient
@@ -190,7 +198,8 @@
                   Coordinators="Coordinators"
                   ErrorMessage="@EditError"
                   OnSave="SaveEdit"
-                  OnClose="CloseEdit" />
+                  OnClose="CloseEdit"
+                  OnNonAdmit="NonAdmitAsync" />
 
 @code {
     private static List<EmergencyContactEditModel> LoadEmergencyContacts(
@@ -365,6 +374,34 @@
         {
             Saving = false;
         }
+    }
+
+    private async Task NonAdmitAsync()
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", $"Mark {Patient.FullName} as Non-Admit and archive this patient?")) return;
+        Saving = true; EditError = null;
+        try
+        {
+            await WorkflowService.NonAdmitAsync(Patient.PatientId);
+            ShowEditModal = false;
+            Navigation.NavigateTo("/patients/archive", forceLoad: true);
+        }
+        catch (Exception ex) { EditError = ex.Message; }
+        finally { Saving = false; }
+    }
+
+    private async Task DeletePatientAsync()
+    {
+        if (!IsAdministrator) return;
+        if (!await JS.InvokeAsync<bool>("confirm", $"Permanently delete {Patient.FullName} and all related patient records? This cannot be undone.")) return;
+        Saving = true;
+        try
+        {
+            await WorkflowService.DeletePatientAsync(Patient.PatientId);
+            Navigation.NavigateTo("/patients", forceLoad: true);
+        }
+        catch (Exception ex) { EditError = ex.Message; }
+        finally { Saving = false; }
     }
 
     private void GoBack()

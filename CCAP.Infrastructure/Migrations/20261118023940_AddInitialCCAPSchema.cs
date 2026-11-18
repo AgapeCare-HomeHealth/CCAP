@@ -163,7 +163,9 @@ namespace CCAP.Infrastructure.Migrations
                     ThirdCoordinatorCall = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: false),
                     Resolution = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ArchivedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ArchivedByUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -372,6 +374,37 @@ namespace CCAP.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "CalendarImportBatches",
+                schema: "dbo",
+                columns: table => new
+                {
+                    CalendarImportBatchId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    FileName = table.Column<string>(type: "nvarchar(260)", maxLength: 260, nullable: false),
+                    Status = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
+                    TotalRows = table.Column<int>(type: "int", nullable: false),
+                    InsertedRows = table.Column<int>(type: "int", nullable: false),
+                    DuplicateRows = table.Column<int>(type: "int", nullable: false),
+                    FailedRows = table.Column<int>(type: "int", nullable: false),
+                    WarningRows = table.Column<int>(type: "int", nullable: false),
+                    UploadedByUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CareCoordinatorId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    UploadedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    StartedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    CompletedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CalendarImportBatches", x => x.CalendarImportBatchId);
+                    table.ForeignKey(
+                        name: "FK_CalendarImportBatches_ApplicationUsers_CareCoordinatorId",
+                        column: x => x.CareCoordinatorId,
+                        principalSchema: "dbo",
+                        principalTable: "ApplicationUsers",
+                        principalColumn: "UserId",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "NotificationReadStates",
                 schema: "dbo",
                 columns: table => new
@@ -488,6 +521,33 @@ namespace CCAP.Infrastructure.Migrations
                         principalTable: "ApplicationUsers",
                         principalColumn: "UserId",
                         onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "CalendarImportRows",
+                schema: "dbo",
+                columns: table => new
+                {
+                    CalendarImportRowId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CalendarImportBatchId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    RowNumber = table.Column<int>(type: "int", nullable: false),
+                    SheetName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    RawDataJson = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Status = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
+                    ErrorMessage = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
+                    HasWarning = table.Column<bool>(type: "bit", nullable: false),
+                    ProcessedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CalendarImportRows", x => x.CalendarImportRowId);
+                    table.ForeignKey(
+                        name: "FK_CalendarImportRows_CalendarImportBatches_CalendarImportBatchId",
+                        column: x => x.CalendarImportBatchId,
+                        principalSchema: "dbo",
+                        principalTable: "CalendarImportBatches",
+                        principalColumn: "CalendarImportBatchId",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -974,6 +1034,37 @@ namespace CCAP.Infrastructure.Migrations
                 column: "PatientId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_CalendarImportBatches_CareCoordinatorId",
+                schema: "dbo",
+                table: "CalendarImportBatches",
+                column: "CareCoordinatorId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CalendarImportBatches_Status",
+                schema: "dbo",
+                table: "CalendarImportBatches",
+                column: "Status");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CalendarImportBatches_UploadedAt",
+                schema: "dbo",
+                table: "CalendarImportBatches",
+                column: "UploadedAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CalendarImportRows_CalendarImportBatchId_SheetName_RowNumber",
+                schema: "dbo",
+                table: "CalendarImportRows",
+                columns: new[] { "CalendarImportBatchId", "SheetName", "RowNumber" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CalendarImportRows_CalendarImportBatchId_Status",
+                schema: "dbo",
+                table: "CalendarImportRows",
+                columns: new[] { "CalendarImportBatchId", "Status" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_CallNotes_PatientId",
                 schema: "dbo",
                 table: "CallNotes",
@@ -1259,6 +1350,12 @@ namespace CCAP.Infrastructure.Migrations
                 schema: "dbo",
                 table: "Visits",
                 column: "RecurrenceGroupId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Visits_ScheduledDate",
+                schema: "dbo",
+                table: "Visits",
+                column: "ScheduledDate");
         }
 
         /// <inheritdoc />
@@ -1274,6 +1371,10 @@ namespace CCAP.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "Assessments",
+                schema: "dbo");
+
+            migrationBuilder.DropTable(
+                name: "CalendarImportRows",
                 schema: "dbo");
 
             migrationBuilder.DropTable(
@@ -1338,6 +1439,10 @@ namespace CCAP.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "Visits",
+                schema: "dbo");
+
+            migrationBuilder.DropTable(
+                name: "CalendarImportBatches",
                 schema: "dbo");
 
             migrationBuilder.DropTable(
