@@ -158,10 +158,10 @@ namespace CCAP.Infrastructure.Migrations
                     AssignedCoordinatorName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
                     PostedOn = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     EstimatedDischargeDate = table.Column<DateOnly>(type: "date", nullable: true),
-                    FirstMarketingCall = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: false),
-                    SecondCoordinatorCall = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: false),
-                    ThirdCoordinatorCall = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: false),
-                    Resolution = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+                    FirstMarketingCall = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    SecondCoordinatorCall = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ThirdCoordinatorCall = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Resolution = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ArchivedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
@@ -457,9 +457,9 @@ namespace CCAP.Infrastructure.Migrations
                     PreAuthDueDate = table.Column<DateOnly>(type: "date", nullable: true),
                     NumberOfVisits = table.Column<int>(type: "int", nullable: true),
                     CaseMixType = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
-                    HospitalDcSummaryNotes = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
-                    DmeMedSupplyNotes = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
-                    SocFeedbackFromPatient = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
+                    HospitalDcSummaryNotes = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    DmeMedSupplyNotes = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    SocFeedbackFromPatient = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     HighLevelOfCareSpecialNeeds = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     TifDate = table.Column<DateOnly>(type: "date", nullable: true),
                     RocDate = table.Column<DateOnly>(type: "date", nullable: true),
@@ -467,10 +467,10 @@ namespace CCAP.Infrastructure.Migrations
                     PcpPtNotified = table.Column<bool>(type: "bit", nullable: true),
                     RecertificationRecordsJson = table.Column<string>(type: "nvarchar(max)", nullable: false, defaultValue: "[]"),
                     DischargeDate = table.Column<DateOnly>(type: "date", nullable: true),
-                    DischargeFeedback = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
+                    DischargeFeedback = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     TransferDestination = table.Column<string>(type: "nvarchar(300)", maxLength: 300, nullable: true),
                     TransferDate = table.Column<DateOnly>(type: "date", nullable: true),
-                    TransferReason = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
+                    TransferReason = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     ApprovedVisits = table.Column<int>(type: "int", nullable: true),
                     AuthorizationRequired = table.Column<bool>(type: "bit", nullable: false),
                     InsuranceVerifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
@@ -687,7 +687,7 @@ namespace CCAP.Infrastructure.Migrations
                     Action = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     OldValues = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     NewValues = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Description = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true)
+                    Description = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -721,7 +721,7 @@ namespace CCAP.Infrastructure.Migrations
                     Quantity = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
                     Unit = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                     RecordedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Notes = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
+                    Notes = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Status = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true)
                 },
                 constraints: table =>
@@ -847,10 +847,10 @@ namespace CCAP.Infrastructure.Migrations
                     TrackerCoordinatorName = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: true),
                     TrackerStatus = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     EstimatedDischargeDate = table.Column<DateOnly>(type: "date", nullable: true),
-                    FirstMarketingCall = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
-                    SecondCoordinatorCall = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
-                    ThirdCoordinatorCall = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
-                    Resolution = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
+                    FirstMarketingCall = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    SecondCoordinatorCall = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ThirdCoordinatorCall = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Resolution = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {

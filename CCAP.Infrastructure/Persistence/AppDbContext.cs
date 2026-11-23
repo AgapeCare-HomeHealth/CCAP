@@ -290,19 +290,19 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.PreAuthDueDate).HasColumnType("date");
             e.Property(x => x.NumberOfVisits);
             e.Property(x => x.CaseMixType).HasMaxLength(200);
-            e.Property(x => x.HospitalDcSummaryNotes).HasMaxLength(2000);
-            e.Property(x => x.DmeMedSupplyNotes).HasMaxLength(2000);
-            e.Property(x => x.SocFeedbackFromPatient).HasMaxLength(2000);
+            e.Property(x => x.HospitalDcSummaryNotes).HasColumnType("nvarchar(max)");
+            e.Property(x => x.DmeMedSupplyNotes).HasColumnType("nvarchar(max)");
+            e.Property(x => x.SocFeedbackFromPatient).HasColumnType("nvarchar(max)");
             e.Property(x => x.TifDate).HasColumnType("date");
             e.Property(x => x.RocDate).HasColumnType("date");
             e.Property(x => x.RecertDate).HasColumnType("date");
             e.Property(x => x.PcpPtNotified);
             e.Property(x => x.RecertificationRecordsJson).HasColumnType("nvarchar(max)").IsRequired().HasDefaultValue("[]");
             e.Property(x => x.DischargeDate).HasColumnType("date");
-            e.Property(x => x.DischargeFeedback).HasMaxLength(2000);
+            e.Property(x => x.DischargeFeedback).HasColumnType("nvarchar(max)");
             e.Property(x => x.TransferDestination).HasMaxLength(300);
             e.Property(x => x.TransferDate).HasColumnType("date");
-            e.Property(x => x.TransferReason).HasMaxLength(2000);
+            e.Property(x => x.TransferReason).HasColumnType("nvarchar(max)");
 
             e.Property(x => x.ApprovedVisits);
 
@@ -350,10 +350,10 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.AssignedCoordinatorName).HasMaxLength(200);
             e.Property(x => x.EstimatedDischargeDate).HasColumnType("date");
             e.Property(x => x.DateOfBirth).HasColumnType("date");
-            e.Property(x => x.FirstMarketingCall).HasMaxLength(2000);
-            e.Property(x => x.SecondCoordinatorCall).HasMaxLength(2000);
-            e.Property(x => x.ThirdCoordinatorCall).HasMaxLength(2000);
-            e.Property(x => x.Resolution).HasMaxLength(500);
+            e.Property(x => x.FirstMarketingCall).HasColumnType("nvarchar(max)");
+            e.Property(x => x.SecondCoordinatorCall).HasColumnType("nvarchar(max)");
+            e.Property(x => x.ThirdCoordinatorCall).HasColumnType("nvarchar(max)");
+            e.Property(x => x.Resolution).HasColumnType("nvarchar(max)");
             e.Property(x => x.ArchivedAt).HasColumnType("datetime2");
             e.HasIndex(x => x.ReferralNumber).IsUnique();
             e.HasIndex(x => x.ReferralDate);
@@ -370,10 +370,10 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.TrackerCoordinatorName).HasMaxLength(150);
             e.Property(x => x.TrackerStatus).HasMaxLength(100);
             e.Property(x => x.EstimatedDischargeDate).HasColumnType("date");
-            e.Property(x => x.FirstMarketingCall).HasMaxLength(2000);
-            e.Property(x => x.SecondCoordinatorCall).HasMaxLength(2000);
-            e.Property(x => x.ThirdCoordinatorCall).HasMaxLength(2000);
-            e.Property(x => x.Resolution).HasMaxLength(500);
+            e.Property(x => x.FirstMarketingCall).HasColumnType("nvarchar(max)");
+            e.Property(x => x.SecondCoordinatorCall).HasColumnType("nvarchar(max)");
+            e.Property(x => x.ThirdCoordinatorCall).HasColumnType("nvarchar(max)");
+            e.Property(x => x.Resolution).HasColumnType("nvarchar(max)");
 
             e.Property(x => x.ReferralNumber)
                 .HasMaxLength(50)
@@ -463,10 +463,15 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<PatientCareLog>(e =>
         {
             e.ToTable("PatientCareLogs"); e.HasKey(x=>x.PatientCareLogId);
-            e.Property(x=>x.LogType).HasMaxLength(50).IsRequired(); e.Property(x=>x.Item).HasMaxLength(200).IsRequired();
-            e.Property(x=>x.Quantity).HasColumnType("decimal(18,2)"); e.Property(x=>x.Unit).HasMaxLength(50); e.Property(x=>x.Notes).HasMaxLength(2000); e.Property(x=>x.Status).HasMaxLength(50);
+            e.Property(x=>x.LogType).HasMaxLength(50).IsRequired(); 
+            e.Property(x=>x.Item).HasMaxLength(200).IsRequired();
+            e.Property(x=>x.Quantity).HasColumnType("decimal(18,2)"); 
+            e.Property(x=>x.Unit).HasMaxLength(50); 
+            e.Property(x=>x.Notes).HasColumnType("nvarchar(max)"); 
+            e.Property(x=>x.Status).HasMaxLength(50);
             e.HasOne(x=>x.Patient).WithMany().HasForeignKey(x=>x.PatientId).OnDelete(DeleteBehavior.Cascade);
-            e.HasOne(x=>x.RecordedByUser).WithMany().HasForeignKey(x=>x.RecordedByUserId).OnDelete(DeleteBehavior.Restrict); e.HasIndex(x=>new{x.PatientId,x.LogType,x.RecordedAt});
+            e.HasOne(x=>x.RecordedByUser).WithMany().HasForeignKey(x=>x.RecordedByUserId).OnDelete(DeleteBehavior.Restrict); 
+            e.HasIndex(x=>new{x.PatientId,x.LogType,x.RecordedAt});
         });
 
         modelBuilder.Entity<PatientAuditLog>(e =>
@@ -478,7 +483,7 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Action).HasMaxLength(20).IsRequired();
             e.Property(x => x.OldValues).HasColumnType("nvarchar(max)");
             e.Property(x => x.NewValues).HasColumnType("nvarchar(max)");
-            e.Property(x => x.Description).HasMaxLength(1000);
+            e.Property(x => x.Description).HasColumnType("nvarchar(max)");
             e.HasOne(x => x.Patient).WithMany().HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.PerformedByUser).WithMany().HasForeignKey(x => x.PerformedByUserId).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => new { x.PatientId, x.OccurredAt });

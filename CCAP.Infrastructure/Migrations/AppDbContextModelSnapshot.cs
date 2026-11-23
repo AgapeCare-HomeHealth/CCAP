@@ -542,12 +542,10 @@ namespace CCAP.Infrastructure.Migrations
                         .HasColumnType("date");
 
                     b.Property<string>("DischargeFeedback")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("DmeMedSupplyNotes")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("EmergencyContactName")
                         .HasColumnType("nvarchar(max)");
@@ -580,8 +578,7 @@ namespace CCAP.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("HospitalDcSummaryNotes")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("InsuranceMemberId")
                         .HasColumnType("nvarchar(max)");
@@ -656,8 +653,7 @@ namespace CCAP.Infrastructure.Migrations
                         .HasColumnType("date");
 
                     b.Property<string>("SocFeedbackFromPatient")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("State")
                         .HasMaxLength(50)
@@ -679,8 +675,7 @@ namespace CCAP.Infrastructure.Migrations
                         .HasColumnType("nvarchar(300)");
 
                     b.Property<string>("TransferReason")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ZipCode")
                         .HasMaxLength(20)
@@ -714,8 +709,7 @@ namespace CCAP.Infrastructure.Migrations
                         .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("EntityId")
                         .IsRequired()
@@ -768,8 +762,7 @@ namespace CCAP.Infrastructure.Migrations
                         .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Notes")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<Guid>("PatientId")
                         .HasColumnType("uniqueidentifier");
@@ -1065,8 +1058,7 @@ namespace CCAP.Infrastructure.Migrations
                         .HasColumnType("date");
 
                     b.Property<string>("FirstMarketingCall")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("InsuranceMemberId")
                         .HasMaxLength(100)
@@ -1133,12 +1125,10 @@ namespace CCAP.Infrastructure.Migrations
                         .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("Resolution")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SecondCoordinatorCall")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SecondaryDiagnosis")
                         .HasColumnType("nvarchar(max)");
@@ -1153,8 +1143,7 @@ namespace CCAP.Infrastructure.Migrations
                         .HasColumnType("nvarchar(40)");
 
                     b.Property<string>("ThirdCoordinatorCall")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("TrackerCoordinatorName")
                         .HasMaxLength(150)
@@ -1362,8 +1351,7 @@ namespace CCAP.Infrastructure.Migrations
 
                     b.Property<string>("FirstMarketingCall")
                         .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
@@ -1400,13 +1388,11 @@ namespace CCAP.Infrastructure.Migrations
 
                     b.Property<string>("Resolution")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SecondCoordinatorCall")
                         .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Source")
                         .IsRequired()
@@ -1420,8 +1406,7 @@ namespace CCAP.Infrastructure.Migrations
 
                     b.Property<string>("ThirdCoordinatorCall")
                         .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("TypeOfReferral")
                         .HasMaxLength(50)

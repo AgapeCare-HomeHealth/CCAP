@@ -21,60 +21,90 @@
         <button class="btn btn-outline-secondary" @onclick="LoadHistoryAsync" disabled="@IsReferralImporting"><i class="bi bi-arrow-clockwise me-1"></i>Refresh history</button>
     </div>
 
-    @if (!string.IsNullOrWhiteSpace(ReferralImportError)) { <div class="alert alert-danger">@ReferralImportError</div> }
-    @if (!string.IsNullOrWhiteSpace(ReferralImportMessage)) { <div class="alert alert-info">@ReferralImportMessage</div> }
+    @if (!string.IsNullOrWhiteSpace(ReferralImportError))
+    {
+        <div class="alert alert-danger">@ReferralImportError</div>
+    }
+    @if (!string.IsNullOrWhiteSpace(ReferralImportMessage))
+    {
+        <div class="alert alert-info">@ReferralImportMessage</div>
+    }
 
-    <section class="card shadow-sm mb-4"><div class="card-body">
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-            <div><h5 class="mb-1">Bulk upload Referral Tracker</h5><p class="text-muted small mb-0">Download the template, fill in referral details, then validate and preview before importing. Only columns through Resolution are included.</p></div>
-            <div class="d-flex flex-wrap align-items-center gap-2">
-                <button class="btn btn-outline-primary" @onclick="DownloadReferralTemplateAsync" disabled="@IsReferralImporting"><i class="bi bi-download me-1"></i>Download template</button>
-                <InputFile OnChange="SelectReferralCsvAsync" accept=".csv,text/csv" disabled="@IsReferralImporting" />
-                <button class="btn btn-primary" @onclick="PreviewReferralCsvAsync" disabled="@(ReferralCsvFile is null || IsReferralImporting)">Validate &amp; preview</button>
+    <section class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div><h5 class="mb-1">Bulk upload Referral Tracker</h5><p class="text-muted small mb-0">Download the template, fill in referral details, then validate and preview before importing. Only columns through Resolution are included.</p></div>
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <button class="btn btn-outline-primary" @onclick="DownloadReferralTemplateAsync" disabled="@IsReferralImporting"><i class="bi bi-download me-1"></i>Download template</button>
+                    <InputFile OnChange="SelectReferralCsvAsync" accept=".csv,text/csv" disabled="@IsReferralImporting" />
+                    <button class="btn btn-primary" @onclick="PreviewReferralCsvAsync" disabled="@(ReferralCsvFile is null || IsReferralImporting)">Validate &amp; preview</button>
+                </div>
             </div>
         </div>
-    </div></section>
+    </section>
 
     @if (ReferralImportRows.Count > 0)
     {
-        <section class="card shadow-sm mb-4"><div class="card-body">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-                <div><h5 class="mb-1">Import preview</h5><div class="small text-muted">Rows: @ReferralImportRows.Count · Ready: @ReferralImportRows.Count(x => x.Error is null) · Errors / duplicates: @ReferralImportRows.Count(x => x.Error is not null)</div></div>
-                <button class="btn btn-success" @onclick="ImportReferralCsvAsync" disabled="@(IsReferralImporting || !ReferralImportRows.Any(x => x.Error is null))">@(IsReferralImporting ? "Importing..." : "Import valid rows")</button>
+        <section class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <div><h5 class="mb-1">Import preview</h5><div class="small text-muted">Rows: @ReferralImportRows.Count · Ready: @ReferralImportRows.Count(x => x.Error is null) · Errors / duplicates: @ReferralImportRows.Count(x => x.Error is not null)</div></div>
+                    <button class="btn btn-success" @onclick="ImportReferralCsvAsync" disabled="@(IsReferralImporting || !ReferralImportRows.Any(x => x.Error is null))">@(IsReferralImporting ? "Importing..." : "Import valid rows")</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped align-middle">
+                        <thead><tr><th>Row</th><th>Name</th><th>Referral date</th><th>Assigned CC</th><th>Type</th><th>Result / reason</th></tr></thead>
+                        <tbody>
+                            @foreach (var row in ReferralImportRows)
+                            {
+                                <tr><td>@row.RowNumber</td><td>@row.FirstName @row.LastName</td><td>@row.ReferralDate.ToString("MM/dd/yyyy")</td><td>@row.AssignedCoordinatorDisplay</td><td>@row.TypeOfReferral</td><td>@(row.Error ?? (row.ImportStatus == "Inserted" ? "Inserted" : "Ready"))</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <div class="table-responsive"><table class="table table-sm table-striped align-middle"><thead><tr><th>Row</th><th>Name</th><th>Referral date</th><th>Assigned CC</th><th>Type</th><th>Result / reason</th></tr></thead><tbody>
-                @foreach (var row in ReferralImportRows)
-                {
-                    <tr><td>@row.RowNumber</td><td>@row.FirstName @row.LastName</td><td>@row.ReferralDate.ToString("MM/dd/yyyy")</td><td>@row.AssignedCoordinatorDisplay</td><td>@row.TypeOfReferral</td><td>@(row.Error ?? (row.ImportStatus == "Inserted" ? "Inserted" : "Ready"))</td></tr>
-                }
-            </tbody></table></div>
-        </div></section>
+        </section>
     }
 
-    <section class="card shadow-sm"><div class="card-body">
-        <h5 class="mb-3">Import history</h5>
-        @if (History.Count == 0) { <div class="text-muted">No Referral Tracker imports have been uploaded yet.</div> }
-        else
-        {
-            <div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Uploaded</th><th>Uploaded by</th><th>File</th><th>Total</th><th>Inserted</th><th>Duplicates</th><th>Failed</th><th>Status</th><th></th></tr></thead><tbody>
-            @foreach (var item in History)
+    <section class="card shadow-sm">
+        <div class="card-body">
+            <h5 class="mb-3">Import history</h5>
+            @if (History.Count == 0)
             {
-                <tr><td>@item.UploadedAt.ToLocalTime().ToString("g")</td><td>@item.UploadedBy</td><td>@item.FileName</td><td>@item.TotalRows</td><td>@item.InsertedRows</td><td>@item.DuplicateRows</td><td>@item.FailedRows</td><td><span class="badge @(item.Status == "Completed" ? "bg-success" : item.Status == "Partial" ? "bg-warning text-dark" : "bg-danger")">@item.Status</span></td><td><button class="btn btn-sm btn-outline-secondary" @onclick="() => LoadHistoryLogsAsync(item.ReferralImportBatchId)">View logs</button></td></tr>
+                <div class="text-muted">No Referral Tracker imports have been uploaded yet.</div>
             }
-            </tbody></table></div>
-        }
-        @if (SelectedHistory is not null)
-        {
-            <hr />
-            <div class="d-flex justify-content-between align-items-center"><h6>Import logs — @SelectedHistory.FileName</h6><button class="btn btn-sm btn-outline-primary" @onclick="DownloadHistoricalErrorsAsync">Download failed rows</button></div>
-            <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Row</th><th>Name</th><th>Status</th><th>Reason for error / skip</th></tr></thead><tbody>
-                @foreach (var row in SelectedHistory.Rows.Where(x => x.Status != "Inserted"))
-                {
-                    <tr><td>@row.RowNumber</td><td>@row.PatientName</td><td>@row.Status</td><td>@(row.ErrorMessage ?? "No error details recorded.")</td></tr>
-                }
-            </tbody></table></div>
-        }
-    </div></section>
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead><tr><th>Uploaded</th><th>Uploaded by</th><th>File</th><th>Total</th><th>Inserted</th><th>Duplicates</th><th>Failed</th><th>Status</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (var item in History)
+                            {
+                                <tr><td>@item.UploadedAt.ToLocalTime().ToString("g")</td><td>@item.UploadedBy</td><td>@item.FileName</td><td>@item.TotalRows</td><td>@item.InsertedRows</td><td>@item.DuplicateRows</td><td>@item.FailedRows</td><td><span class="badge @(item.Status == "Completed" ? "bg-success" : item.Status == "Partial" ? "bg-warning text-dark" : "bg-danger")">@item.Status</span></td><td><button class="btn btn-sm btn-outline-secondary" @onclick="() => LoadHistoryLogsAsync(item.ReferralImportBatchId)">View logs</button></td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            @if (SelectedHistory is not null)
+            {
+                <hr />
+                <div class="d-flex justify-content-between align-items-center"><h6>Import logs — @SelectedHistory.FileName</h6><button class="btn btn-sm btn-outline-primary" @onclick="DownloadHistoricalErrorsAsync">Download failed rows</button></div>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead><tr><th>Row</th><th>Name</th><th>Status</th><th>Reason for error / skip</th></tr></thead>
+                        <tbody>
+                            @foreach (var row in SelectedHistory.Rows.Where(x => x.Status != "Inserted"))
+                            {
+                                <tr><td>@row.RowNumber</td><td>@row.PatientName</td><td>@row.Status</td><td>@(row.ErrorMessage ?? "No error details recorded.")</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </section>
 </div>
 
 @code {
@@ -187,52 +217,72 @@
                     !DateTime.TryParse(dateText, CultureInfo.GetCultureInfo("en-US"), DateTimeStyles.None, out referralDate) &&
                     !DateTime.TryParse(dateText, out referralDate)) error = $"Invalid REFERRAL DATE: {dateText}.";
 
-                var key = $"{first.Trim()}|{last.Trim()}|{referralDate:yyyyMMdd}";
+                var key = $"{NormalizeLookupValue(first)}|{NormalizeLookupValue(last)}|{referralDate:yyyyMMdd}";
                 if (error is null && !seen.Add(key)) error = "Duplicate record within this CSV (same name and referral date).";
-                if (error is null && existingKeys.Contains($"{first.Trim()} {last.Trim()}|{referralDate:yyyyMMdd}"))
+                if (error is null && existingKeys.Contains($"{NormalizeLookupValue(first)} {NormalizeLookupValue(last)}|{referralDate:yyyyMMdd}"))
                     error = "A referral with this name and referral date already exists in the Referral Tracker.";
 
                 var eddText = GetCsv(values, "EDD");
                 var edd = ParseCsvDate(eddText);
                 if (error is null && !string.IsNullOrWhiteSpace(eddText) && edd is null) error = $"Invalid EDD date: {eddText}.";
-                var postedOn = GetCsv(values, "POSTED ON");
-                if (error is null && !string.IsNullOrWhiteSpace(postedOn) && !ReferralTrackerOptions.PostedOn.Contains(postedOn, StringComparer.OrdinalIgnoreCase))
-                    error = $"POSTED ON value '{postedOn}' is not supported.";
-                var statusCandidates = new[] { GetCsv(values, "STATUS") };
-                var statusValue = statusCandidates.Where(candidate => !string.IsNullOrWhiteSpace(candidate))
-                    .Select(candidate => ReferralTrackerOptions.Statuses.FirstOrDefault(option => option.Equals(candidate.Trim(), StringComparison.OrdinalIgnoreCase)))
-                    .FirstOrDefault(match => match is not null) ?? string.Empty;
-                var sourceValue = GetCsv(values, "REFERRAL SOURCE");
-                if (error is null && !string.IsNullOrWhiteSpace(sourceValue) && !ReferralTrackerOptions.ReferralSources.Contains(sourceValue, StringComparer.OrdinalIgnoreCase))
-                    error = $"REFERRAL SOURCE '{sourceValue}' does not match a configured source.";
-                var payorValue = GetCsv(values, "PAYOR/INSURANCE");
-                if (error is null && !string.IsNullOrWhiteSpace(payorValue) && !ReferralTrackerOptions.Payors.Contains(payorValue, StringComparer.OrdinalIgnoreCase))
-                    error = $"PAYOR/INSURANCE '{payorValue}' does not match a configured payor.";
+                // Match configured text values without regard to casing or repeated/hidden whitespace.
+                // Return the configured value so the database receives the system's canonical spelling.
+                var postedOnInput = GetCsv(values, "POSTED ON");
+                var postedOnMatch = MatchOption(postedOnInput, ReferralTrackerOptions.PostedOn);
+                var postedOn = postedOnMatch ?? postedOnInput;
+                if (error is null && !string.IsNullOrWhiteSpace(postedOnInput) && postedOnMatch is null)
+                    error = $"POSTED ON value '{postedOnInput}' is not supported.";
+
+                var statusInput = GetCsv(values, "STATUS");
+                var statusMatch = MatchOption(statusInput, ReferralTrackerOptions.Statuses);
+                var statusValue = statusMatch ?? string.Empty;
+
+                var sourceInput = GetCsv(values, "REFERRAL SOURCE");
+                var sourceMatch = MatchOption(sourceInput, ReferralTrackerOptions.ReferralSources);
+                var sourceValue = sourceMatch ?? sourceInput;
+                if (error is null && !string.IsNullOrWhiteSpace(sourceInput) && sourceMatch is null)
+                    error = $"REFERRAL SOURCE '{sourceInput}' does not match a configured source.";
+
+                var payorInput = GetCsv(values, "PAYOR/INSURANCE");
+                var payorMatch = MatchOption(payorInput, ReferralTrackerOptions.Payors);
+                var payorValue = payorMatch ?? payorInput;
+                if (error is null && !string.IsNullOrWhiteSpace(payorInput) && payorMatch is null)
+                    error = $"PAYOR/INSURANCE '{payorInput}' does not match a configured payor.";
 
                 var ccName = GetCsv(values, "ASSIGNED CC");
-                var ccMatches = string.IsNullOrWhiteSpace(ccName) ? new List<UserDto>() : AssignmentUsers.Where(u =>
-                    u.FullName.Equals(ccName, StringComparison.OrdinalIgnoreCase) ||
-                    u.FullName.StartsWith(ccName + " ", StringComparison.OrdinalIgnoreCase) ||
-                    u.FullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Equals(ccName, StringComparison.OrdinalIgnoreCase) == true).ToList();
+                var normalizedCcName = NormalizeLookupValue(ccName);
+                var ccMatches = string.IsNullOrWhiteSpace(normalizedCcName) ? new List<UserDto>() : AssignmentUsers.Where(u =>
+                    string.Equals(NormalizeLookupValue(u.FullName), normalizedCcName, StringComparison.OrdinalIgnoreCase) ||
+                    NormalizeLookupValue(u.FullName).StartsWith(normalizedCcName + " ", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(
+                        NormalizeLookupValue(u.FullName).Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault(),
+                        normalizedCcName,
+                        StringComparison.OrdinalIgnoreCase)).ToList();
                 if (error is null && !string.IsNullOrWhiteSpace(ccName) && ccMatches.Count == 0) error = $"No active Care Coordinator matched '{ccName}'.";
                 else if (error is null && ccMatches.Count > 1) error = $"'{ccName}' matches multiple Care Coordinator accounts; use a more specific name.";
 
                 var row = new ReferralCsvRow
                 {
-                    RowNumber = i + 1, FirstName = first, LastName = last, ReferralDate = referralDate,
-                    TypeOfReferral = "New Patient", PostedOn = postedOn, Edd = edd, Status = statusValue,
-                    Source = sourceValue, Insurance = payorValue,
+                    RowNumber = i + 1,
+                    FirstName = first,
+                    LastName = last,
+                    ReferralDate = referralDate,
+                    TypeOfReferral = "New Patient",
+                    PostedOn = postedOn,
+                    Edd = edd,
+                    Status = statusValue,
+                    Source = sourceValue,
+                    Insurance = payorValue,
                     AssignedCoordinatorId = ccMatches.Count == 1 ? ccMatches[0].UserId : null,
                     AssignedCoordinatorDisplay = ccMatches.Count == 1 ? ccMatches[0].FullName : ccName,
                     FirstMarketingCall = GetCsv(values, "1ST CALL - MARKETING"),
                     SecondCoordinatorCall = GetCsv(values, "2ND CALL - CC"),
                     ThirdCoordinatorCall = GetCsv(values, "3RD CALL - CC"),
-                    Resolution = GetCsv(values, "RESOLUTION"), Error = error
+                    Resolution = GetCsv(values, "RESOLUTION"),
+                    Error = error
                 };
                 if (row.PostedOn.Length > 100) row.Error ??= "POSTED ON exceeds 100 characters.";
-                if (row.FirstMarketingCall.Length > 2000 || row.SecondCoordinatorCall.Length > 2000 || row.ThirdCoordinatorCall.Length > 2000)
-                    row.Error ??= "Call notes must not exceed 2,000 characters.";
-                if (row.Resolution.Length > 500) row.Error ??= "RESOLUTION must not exceed 500 characters.";
+                
                 ReferralImportRows.Add(row);
             }
             ReferralImportMessage = $"Preview ready: {ReferralImportRows.Count(x => x.Error is null)} valid, {ReferralImportRows.Count(x => x.Error is not null)} error or duplicate rows.";
@@ -259,11 +309,20 @@
             {
                 var requests = group.Select(row => new ReferralTrackerCreateRequest
                 {
-                    FirstName = row.FirstName, LastName = row.LastName, TypeOfReferral = "New Patient",
-                    ReferralDate = row.ReferralDate, PostedOn = string.IsNullOrWhiteSpace(row.PostedOn) ? "Referral/Intake" : row.PostedOn,
-                    EstimatedDischargeDate = row.Edd, Status = row.Status, Source = row.Source, Insurance = row.Insurance,
-                    AssignedCoordinatorId = row.AssignedCoordinatorId, FirstMarketingCall = row.FirstMarketingCall,
-                    SecondCoordinatorCall = row.SecondCoordinatorCall, ThirdCoordinatorCall = row.ThirdCoordinatorCall, Resolution = row.Resolution
+                    FirstName = row.FirstName,
+                    LastName = row.LastName,
+                    TypeOfReferral = "New Patient",
+                    ReferralDate = row.ReferralDate,
+                    PostedOn = string.IsNullOrWhiteSpace(row.PostedOn) ? "Referral/Intake" : row.PostedOn,
+                    EstimatedDischargeDate = row.Edd,
+                    Status = row.Status,
+                    Source = row.Source,
+                    Insurance = row.Insurance,
+                    AssignedCoordinatorId = row.AssignedCoordinatorId,
+                    FirstMarketingCall = row.FirstMarketingCall,
+                    SecondCoordinatorCall = row.SecondCoordinatorCall,
+                    ThirdCoordinatorCall = row.ThirdCoordinatorCall,
+                    Resolution = row.Resolution
                 }).ToList();
                 try
                 {
@@ -310,11 +369,38 @@
     }
 
     private static string CsvEscape(string? value) => "\"" + (value ?? "").Replace("\"", "\"\"") + "\"";
+
+    private static string NormalizeLookupValue(string? value)
+    {
+        return string.Join(
+            " ",
+            (value ?? string.Empty)
+                .Replace('\u00A0', ' ')
+                .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    private static string? MatchOption(string? value, IEnumerable<string> options)
+    {
+        var normalizedValue = NormalizeLookupValue(value);
+        if (normalizedValue.Length == 0) return null;
+
+        return options.FirstOrDefault(option =>
+            string.Equals(
+                NormalizeLookupValue(option),
+                normalizedValue,
+                StringComparison.OrdinalIgnoreCase));
+    }
+
     private static string NormalizeCsvHeader(string value) => new string(value.Trim().TrimStart('\uFEFF').ToUpperInvariant().Where(char.IsLetterOrDigit).ToArray()) switch
     {
-        "REFERRALDATE" => "REFERRAL DATE", "POSTEDON" => "POSTED ON", "PAYORINSURANCE" => "PAYOR/INSURANCE",
-        "REFERRALSOURCE" => "REFERRAL SOURCE", "ASSIGNEDCC" => "ASSIGNED CC", "1STCALLMARKETING" => "1ST CALL - MARKETING",
-        "2NDCALLCC" => "2ND CALL - CC", "3RDCALLCC" => "3RD CALL - CC",
+        "REFERRALDATE" => "REFERRAL DATE",
+        "POSTEDON" => "POSTED ON",
+        "PAYORINSURANCE" => "PAYOR/INSURANCE",
+        "REFERRALSOURCE" => "REFERRAL SOURCE",
+        "ASSIGNEDCC" => "ASSIGNED CC",
+        "1STCALLMARKETING" => "1ST CALL - MARKETING",
+        "2NDCALLCC" => "2ND CALL - CC",
+        "3RDCALLCC" => "3RD CALL - CC",
         _ => value.Trim().TrimStart('\uFEFF').ToUpperInvariant()
     };
     private static string GetCsv(Dictionary<string, string> values, string key) => values.GetValueOrDefault(key, "").Trim();
