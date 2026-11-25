@@ -25,7 +25,7 @@
                     <p class="text-muted mb-3">The patient has been moved to the archived patient list.</p>
                     @if (!string.IsNullOrWhiteSpace(ErrorMessage))
                     {
-                        <div class="alert alert-danger mt-3">@ErrorMessage</div>
+                        <SweetAlertError Message="@ErrorMessage" />
                     }
                     <button type="button" class="btn btn-outline-primary" @onclick="GoToPatients">Back to Patient List</button>
                 </div>
@@ -35,7 +35,7 @@
         {
             @if (!string.IsNullOrWhiteSpace(ErrorMessage))
             {
-                <div class="alert alert-danger">@ErrorMessage</div>
+                <SweetAlertError Message="@ErrorMessage" />
             }
 
             @if (!CanCloseEpisode)

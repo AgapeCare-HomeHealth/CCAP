@@ -16,13 +16,14 @@ internal static class PatientWorkflowStageRules
     internal static readonly string[] Soc =
     [
         "DME_MED_SUPPLY", "SIGNED_CONSENTS", "NOA_FILED",
-        "OASIS_SOC_COMPLETE", "ORDERS_SIGNED", "DOCS_UPLOADED", "AVS_RECEIVED"
+        "OASIS_SOC_COMPLETE", "AVS_RECEIVED"
     ];
 
     // Only explicit Yes/No/N/A checklist items belong to workflow progression.
     internal static readonly string[] OngoingCare =
     [
-        "CASE_MIX_IDENTIFIED", "CASE_MIX_PLOTTED", "QA_APPROVAL"
+        "CASE_MIX_IDENTIFIED", "CASE_MIX_PLOTTED", "QA_APPROVAL",
+        "POC_CREATED", "POC_SIGNED", "ORDERS_SIGNED", "DOCS_UPLOADED"
     ];
     // Recertification is now tracked as repeatable records on the patient workflow
     // details, rather than as a single Yes/No compliance requirement. This legacy

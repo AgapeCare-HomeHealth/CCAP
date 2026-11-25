@@ -19,7 +19,7 @@
         }
         else if (!string.IsNullOrWhiteSpace(LoadError))
         {
-            <div class="text-center text-danger py-4">@LoadError</div>
+            <SweetAlertError Message="@LoadError" />
         }
         else if (Appointments.Count == 0)
         {

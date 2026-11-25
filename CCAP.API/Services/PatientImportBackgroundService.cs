@@ -230,19 +230,42 @@ public sealed class PatientImportBackgroundService : BackgroundService
             NullIfEmpty(V("DCFeedbackFromPatient")) ?? patient.DischargeFeedback,
             patient.TransferDestination, patient.TransferDate, patient.TransferReason, patient.HighLevelOfCareSpecialNeeds);
 
+        if (string.Equals(V("PatientStatus"), "TIF", StringComparison.OrdinalIgnoreCase))
+            patient.MarkAsTif();
+
+        if (string.Equals(V("PatientStatus"), "Discharged", StringComparison.OrdinalIgnoreCase))
+            patient.MarkImportedAsDischarged(uploadedBy);
+
         var complianceMap = new (string Csv, string Code)[]
         {
             ("PreAuthReceived", "PRE_AUTH_RECEIVED"), ("PROReceived", "PRO_RECEIVED"),
-            ("AVSReceived", "AVS_RECEIVED"), ("HPReceived", "H_AND_P_RECEIVED"),
+            ("HPReceived", "H_AND_P_RECEIVED"),
             ("F2FReceived", "F2F_RECEIVED"), ("PCPConfirmed", "PCP_CONFIRMED"),
             ("DMEMedSupply", "DME_MED_SUPPLY"), ("SignedConsents", "SIGNED_CONSENTS"),
             ("NOA", "NOA_FILED"), ("OASISSOCCompliant", "OASIS_SOC_COMPLETE"),
-            ("OrdersSignedByPhysician", "ORDERS_SIGNED"), ("DocsUploaded", "DOCS_UPLOADED"),
+            ("AVSReceived", "AVS_RECEIVED"),
             ("CaseMixIdentified", "CASE_MIX_IDENTIFIED"), ("CaseMixPlotted", "CASE_MIX_PLOTTED"),
-            ("QAApprovalPOPOCReadyForFaxing", "QA_APPROVAL"), ("DCSummarySigned", "DISCHARGE_SUMMARY_SIGNED"),
+            ("QAApprovalPOPOCReadyForFaxing", "QA_APPROVAL"), ("POCCreated", "POC_CREATED"),
+            ("POCSigned", "POC_SIGNED"),
+            ("OrdersSignedByPhysician", "ORDERS_SIGNED"), ("DocsUploaded", "DOCS_UPLOADED"),
+            ("DCSummarySigned", "DISCHARGE_SUMMARY_SIGNED"),
             ("NOMNCSigned", "NOMNC_SIGNED")
         };
         var records = await db.ComplianceRecords.Where(x => x.PatientId == patient.PatientId).ToListAsync(ct);
+        foreach (var (code, description) in new[]
+        {
+            ("POC_CREATED", "Confirm the plan of care has been created."),
+            ("POC_SIGNED", "Confirm the plan of care has been signed.")
+        })
+        {
+            if (records.Any(x => x.RequirementCode.Equals(code, StringComparison.OrdinalIgnoreCase)))
+                continue;
+
+            var record = new ComplianceRecord(patient.PatientId, code, description);
+            db.ComplianceRecords.Add(record);
+            records.Add(record);
+        }
+
         var statuses = complianceMap.ToDictionary(x => x.Code, x => NormalizeStatus(V(x.Csv)), StringComparer.OrdinalIgnoreCase);
         var ordered = complianceMap.Select(x => x.Code).ToList();
         for (var i = 0; i < ordered.Count; i++)

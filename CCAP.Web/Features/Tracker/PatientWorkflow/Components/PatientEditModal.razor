@@ -17,7 +17,7 @@
                     <div class="modal-body patient-edit-modal-body">
                         @if (!string.IsNullOrWhiteSpace(ErrorMessage))
                         {
-                            <div class="alert alert-danger">@ErrorMessage</div>
+                            <SweetAlertError Message="@ErrorMessage" />
                         }
 
                         <div class="row g-3">

@@ -23,7 +23,7 @@
 
     @if (!string.IsNullOrWhiteSpace(ReferralImportError))
     {
-        <div class="alert alert-danger">@ReferralImportError</div>
+        <SweetAlertError Message="@ReferralImportError" />
     }
     @if (!string.IsNullOrWhiteSpace(ReferralImportMessage))
     {

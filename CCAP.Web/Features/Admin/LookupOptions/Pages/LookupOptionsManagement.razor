@@ -1,4 +1,4 @@
-﻿@page "/admin/lookup-options"
+@page "/admin/lookup-options"
 @attribute [CcapAuthorize(Policy = "lookups.manage")]
 @using CCAP.Web.Features.Admin.LookupOptions.Models
 @using CCAP.Web.Features.Admin.LookupOptions.Services
@@ -27,7 +27,7 @@
         </ul>
     </div>
 
-    @if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <div class="alert alert-danger">@ErrorMessage</div> }
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <SweetAlertError Message="@ErrorMessage" /> }
     @if (!string.IsNullOrWhiteSpace(SuccessMessage)) { <div class="alert alert-success">@SuccessMessage</div> }
 
     <div class="card shadow-sm border-0">
@@ -76,7 +76,7 @@
                     </table>
                 </div>
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
-                    <div class="small text-muted">Showing @(FilteredOptions.Count == 0 ? 0 : ((CurrentPage - 1) * PageSize) + 1)–@Math.Min(CurrentPage * PageSize, FilteredOptions.Count) of @FilteredOptions.Count</div>
+                    <div class="small text-muted">Showing @(FilteredOptions.Count == 0 ? 0 : ((CurrentPage - 1) * PageSize) + 1)�@Math.Min(CurrentPage * PageSize, FilteredOptions.Count) of @FilteredOptions.Count</div>
                     <div class="d-flex align-items-center gap-2">
                         <label class="small" for="lookupPageSize">Rows</label>
                         <select id="lookupPageSize" class="form-select form-select-sm" style="width: auto" value="@PageSize" @onchange="OnLocalPageSizeChanged">

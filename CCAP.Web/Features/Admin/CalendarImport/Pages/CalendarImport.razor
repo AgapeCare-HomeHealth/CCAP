@@ -23,7 +23,7 @@
         </div>
     </div>
 
-    @if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <div class="alert alert-danger" role="alert">@ErrorMessage</div> }
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <SweetAlertError Message="@ErrorMessage" /> }
     @if (!string.IsNullOrWhiteSpace(SuccessMessage)) { <div class="alert alert-success" role="status">@SuccessMessage</div> }
 
     <div class="card shadow-sm mb-4">

@@ -11,7 +11,10 @@ public sealed class SetComplianceStatusCommandHandler : IRequestHandler<SetCompl
         var status=r.Status?.Trim(); if (status is null || !(status.Equals("Yes",StringComparison.OrdinalIgnoreCase) || status.Equals("No",StringComparison.OrdinalIgnoreCase) || status.Equals("N/A",StringComparison.OrdinalIgnoreCase))) throw new ArgumentException("Status must be Yes, No, or N/A.");
         var patient=await _patients.GetByIdForUpdateAsync(r.PatientId,ct) ?? throw new KeyNotFoundException("Patient not found.");
         var code=r.RequirementCode.Trim().ToUpperInvariant(); var c=await _compliance.GetByPatientAndRequirementAsync(r.PatientId,code,ct) ?? throw new KeyNotFoundException($"Compliance requirement '{code}' was not found.");
-        var old=c.ComplianceStatus ?? (c.IsCompleted ? "Yes" : "No"); if (old.Equals(status,StringComparison.OrdinalIgnoreCase)) return;
+        var old=c.ComplianceStatus ?? (c.IsCompleted ? "Yes" : "");
+        // An unmarked record is pending, not "No". Persisting No for the first
+        // time must still update its status and audit history.
+        if (old.Equals(status,StringComparison.OrdinalIgnoreCase)) return;
         if (status.Equals("Yes", StringComparison.OrdinalIgnoreCase) || status.Equals("N/A", StringComparison.OrdinalIgnoreCase))
         {
             var allRecords = await _compliance.GetByPatientAsync(r.PatientId, ct);

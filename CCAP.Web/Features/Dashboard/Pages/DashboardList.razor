@@ -26,7 +26,7 @@
     }
     else if (!string.IsNullOrEmpty(Error))
     {
-        <div class="alert alert-warning">@Error</div>
+        <SweetAlertError Message="@Error" />
     }
     else
     {
@@ -93,7 +93,7 @@
         }
         else
         {
-            <div class="alert alert-warning">Unknown list.</div>
+            <SweetAlertError Message="Unknown dashboard list. Return to the dashboard and open a valid list." />
         }
 
         @if (TotalItems > 0)

@@ -91,15 +91,19 @@ public sealed class PatientsController : ControllerBase
         [FromQuery] Guid? clinicianId = null,
         [FromQuery] string sortBy = "Name",
         [FromQuery] bool sortDescending = false,
+        [FromQuery] Guid? assignedCoordinatorId = null,
         CancellationToken cancellationToken = default)
     {
         var currentUserId = await ResolveCurrentUserIdAsync(cancellationToken);
         if (!User.IsInRole("Administrator") && !currentUserId.HasValue)
             return Unauthorized();
 
+        var isAdministrator = User.IsInRole("Administrator");
+        var assignedUserId = isAdministrator ? assignedCoordinatorId : currentUserId;
+
         return Ok(await _sender.Send(
             new GetPatientsQuery(pageNumber, pageSize, search, status, clinicianId,
-                User.IsInRole("Administrator") ? null : currentUserId, sortBy, sortDescending),
+                assignedUserId, sortBy, sortDescending),
             cancellationToken));
     }
 

@@ -176,6 +176,12 @@ public sealed class Patient
             Status = PatientStatus.Active;
     }
 
+    public void MarkAsTif()
+    {
+        if (Status is PatientStatus.Pending or PatientStatus.Active)
+            Status = PatientStatus.Tif;
+    }
+
     public void ApplyReferralIntake(
         string? middleName,
         DateOnly? dateOfBirth,
@@ -443,6 +449,14 @@ public sealed class Patient
         TransferReason = Normalize(transferReason);
     }
 
+    public void UpdateStatusFromTifAndRocDates()
+    {
+        if (TifDate.HasValue && !RocDate.HasValue && Status == PatientStatus.Active)
+            Status = PatientStatus.Tif;
+        else if (TifDate.HasValue && RocDate.HasValue && Status == PatientStatus.Tif)
+            Status = PatientStatus.Active;
+    }
+
     public void CompleteCare(
         string finalStatus,
         Guid finalizedByUserId)
@@ -472,6 +486,17 @@ public sealed class Patient
         // outcome; Archived is the internal list-membership state.
         ArchivedByUserId = finalizedByUserId;
         ArchivedAt = DateTime.UtcNow;
+        Status = PatientStatus.Archived;
+    }
+
+    public void MarkImportedAsDischarged(Guid finalizedByUserId)
+    {
+        FinalStatus = "Discharged";
+        FinalizedByUserId = finalizedByUserId;
+        CareCompletedAt ??= DateTime.UtcNow;
+        DischargeDate ??= DateOnly.FromDateTime(DateTime.UtcNow);
+        ArchivedByUserId = finalizedByUserId;
+        ArchivedAt ??= DateTime.UtcNow;
         Status = PatientStatus.Archived;
     }
 

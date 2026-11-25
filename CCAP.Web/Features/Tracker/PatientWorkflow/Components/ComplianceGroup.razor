@@ -29,7 +29,7 @@
                                 <div class="small text-muted">@item.Description</div>
                             </div>
                             <div style="min-width:140px">
-                                <select class="form-select form-select-sm @GetSelectClass(item)" aria-label="Compliance status for @item.RequirementName"
+                                <select @key="(item.RequirementCode, _selectionRenderVersion)" class="form-select form-select-sm @GetSelectClass(item)" aria-label="Compliance status for @item.RequirementName"
                                         value="@(item.ComplianceStatus ?? (item.IsCompleted ? "Yes" : ""))"
                                         @onchange="(e) => HandleStatusChanged(item, e.Value?.ToString())"
                                         disabled="@(IsSaving && SavingCode == item.RequirementCode)">
@@ -70,6 +70,7 @@
     [Parameter] public EventCallback<string> OnUnmark { get; set; }
     [Parameter] public bool IsSaving { get; set; }
     [Parameter] public string? SavingCode { get; set; }
+    private int _selectionRenderVersion;
 
     private int CompletedCount => Items.Count(IsSatisfied);
     private int OutstandingCount => Items.Count(item => string.Equals(GetEffectiveStatus(item), "No", StringComparison.OrdinalIgnoreCase));
@@ -126,7 +127,19 @@
         if (status is "Yes" or "No" or "N/A")
         {
             if (!string.Equals(item.ComplianceStatus, status, StringComparison.OrdinalIgnoreCase))
-                await OnComplete.InvokeAsync(item.RequirementCode + "|STATUS|" + status);
+            {
+                try
+                {
+                    await OnComplete.InvokeAsync(item.RequirementCode + "|STATUS|" + status);
+                }
+                finally
+                {
+                    // Recreate the select from the latest saved DTO value. If
+                    // the API rejects the change, the unsaved browser choice
+                    // must not remain visible as if it were complete.
+                    _selectionRenderVersion++;
+                }
+            }
         }
     }
 }

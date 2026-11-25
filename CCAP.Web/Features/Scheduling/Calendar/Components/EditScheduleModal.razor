@@ -17,7 +17,7 @@
         <form class="visit-edit-form" @onsubmit="SaveAsync" @onsubmit:preventDefault="true">
             @if (!string.IsNullOrWhiteSpace(ErrorMessage))
             {
-                <div class="visit-edit-alert" role="alert">@ErrorMessage</div>
+                <SweetAlertError Message="@ErrorMessage" />
             }
 
             @if (!CanEdit)

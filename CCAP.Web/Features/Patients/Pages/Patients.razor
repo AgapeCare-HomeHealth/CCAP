@@ -3,20 +3,30 @@
 @using CCAP.Web.Common.Models
 @using CCAP.Web.Features.Patients.Models
 @using CCAP.Web.Features.Patients.Components
+@using CCAP.Web.Features.Admin.Users.Models
+@using CCAP.Web.Features.Admin.Users.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @inject CCAP.Web.Features.Patients.Services.PatientService PatientService
+@inject UserServices UserService
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Patients</PageTitle>
 
 <div class="patients-page">
-    <div class="page-header"><h2>My Patients</h2><p>Manage and monitor patient records.</p></div>
-    <PatientToolbar Filter="Filter" OnFilter="ApplyFilter" HideStatusFilter="false" />
+    <div class="page-header"><h2>My Patients</h2><p>Manage and monitor assigned patients without a final care outcome.</p></div>
+    @if (!string.IsNullOrWhiteSpace(CoordinatorLoadError))
+    {
+        <SweetAlertError Message="@CoordinatorLoadError" />
+    }
+    <PatientToolbar Filter="Filter" OnFilter="ApplyFilter" HideStatusFilter="false"
+                    ShowCareCoordinatorFilter="@IsAdministrator" CareCoordinators="@CareCoordinators" />
     @if (IsLoading)
     {
         <div class="py-5 text-center">Loading patients...</div>
     }
     else if (!string.IsNullOrWhiteSpace(ErrorMessage))
     {
-        <div class="alert alert-danger">@ErrorMessage</div>
+        <SweetAlertError Message="@ErrorMessage" />
     }
     else
     {
@@ -73,6 +83,9 @@
     private int PageSize = 20;
     private bool IsLoading;
     private string? ErrorMessage;
+    private bool IsAdministrator;
+    private List<UserDto> CareCoordinators = [];
+    private string? CoordinatorLoadError;
 
     private int TotalPages => Result?.TotalCount > 0
         ? (int)Math.Ceiling(Result.TotalCount / (double)PageSize)
@@ -86,6 +99,23 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        IsAdministrator = authState.User.IsInRole("Administrator");
+        if (IsAdministrator)
+        {
+            try
+            {
+                CareCoordinators = (await UserService.GetUsersAsync())
+                    .Where(x => string.Equals(x.Role?.Trim(), "Care Coordinator", StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(x => x.FullName)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                CoordinatorLoadError = $"Unable to load care coordinators: {ex.Message}";
+            }
+        }
+
         await LoadAsync();
     }
 

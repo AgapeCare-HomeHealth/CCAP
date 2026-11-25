@@ -78,8 +78,9 @@ public sealed class GetPatientWorkflowQueryHandler
                 "PRE_AUTH_RECEIVED", "PRO_RECEIVED",
                 "H_AND_P_RECEIVED", "F2F_RECEIVED", "PCP_CONFIRMED",
                 "DME_MED_SUPPLY", "SIGNED_CONSENTS", "NOA_FILED", "OASIS_SOC_COMPLETE",
-                "ORDERS_SIGNED", "DOCS_UPLOADED", "SOC_FEEDBACK_FROM_PATIENT", "AVS_RECEIVED",
+                "SOC_FEEDBACK_FROM_PATIENT", "AVS_RECEIVED",
                 "CASE_MIX_IDENTIFIED", "CASE_MIX_PLOTTED", "QA_APPROVAL",
+                "POC_CREATED", "POC_SIGNED", "ORDERS_SIGNED", "DOCS_UPLOADED",
                 "DISCHARGE_SUMMARY_SIGNED", "NOMNC_SIGNED"
             };
 
@@ -321,7 +322,7 @@ public sealed class GetPatientWorkflowQueryHandler
                 ReferralNumber =
                     referral?.ReferralNumber ?? string.Empty,
 
-                Status = patient.Status.ToString(),
+                Status = patient.Status == PatientStatus.Tif ? "TIF" : patient.Status.ToString(),
 
                 SocDate = patient.SocDate,
 
@@ -547,8 +548,9 @@ public sealed class GetPatientWorkflowQueryHandler
             "PRE_AUTH_RECEIVED" or "PRO_RECEIVED"
                 or "H_AND_P_RECEIVED" or "F2F_RECEIVED" or "PCP_CONFIRMED" => 1,
             "DME_MED_SUPPLY" or "SIGNED_CONSENTS" or "NOA_FILED" or "OASIS_SOC_COMPLETE"
-                or "ORDERS_SIGNED" or "DOCS_UPLOADED" or "SOC_FEEDBACK_FROM_PATIENT" or "AVS_RECEIVED" => 2,
-            "CASE_MIX_IDENTIFIED" or "CASE_MIX_PLOTTED" or "QA_APPROVAL" => 3,
+                or "SOC_FEEDBACK_FROM_PATIENT" or "AVS_RECEIVED" => 2,
+            "CASE_MIX_IDENTIFIED" or "CASE_MIX_PLOTTED" or "QA_APPROVAL"
+                or "POC_CREATED" or "POC_SIGNED" or "ORDERS_SIGNED" or "DOCS_UPLOADED" => 3,
             "DISCHARGE_SUMMARY_SIGNED" or "NOMNC_SIGNED" => 5,
             _ => 0
         };
@@ -765,14 +767,16 @@ public sealed class GetPatientWorkflowQueryHandler
             "SIGNED_CONSENTS" => "Signed Consents",
             "NOA_FILED" => "NOA",
             "OASIS_SOC_COMPLETE" => "OASIS / SOC Compliant",
-            "ORDERS_SIGNED" => "Orders Signed by Physician",
-            "DOCS_UPLOADED" => "Docs Uploaded",
             "SOC_FEEDBACK_FROM_PATIENT" => "SOC Feedback from Patient",
             "AVS_RECEIVED" => "AVS Received",
             "CASE_MIX_IDENTIFIED" => "Case Mix Identified",
             "CASE_MIX_TYPE" => "Case Mix Type",
             "CASE_MIX_PLOTTED" => "Case Mix Plotted",
             "QA_APPROVAL" => "QA Approval — PO/POC Ready for Faxing",
+            "POC_CREATED" => "POC Created",
+            "POC_SIGNED" => "POC Signed",
+            "ORDERS_SIGNED" => "Order Signed by PCP",
+            "DOCS_UPLOADED" => "Docs Uploaded",
             "TIF_DATE" => "TIF",
             "ROC" => "ROC",
             "RECERTIFICATION_RECEIVED" => "Recertification Received",
@@ -793,10 +797,10 @@ public sealed class GetPatientWorkflowQueryHandler
             "PRO_RECEIVED" => 4, "H_AND_P_RECEIVED" => 5, "F2F_RECEIVED" => 6,
             "PCP_CONFIRMED" => 7, "HOSPITAL_DC_SUMMARY" => 8,
             "DME_MED_SUPPLY" => 10, "SIGNED_CONSENTS" => 11, "NOA_FILED" => 12,
-            "OASIS_SOC_COMPLETE" => 13, "ORDERS_SIGNED" => 14, "DOCS_UPLOADED" => 15,
-            "SOC_FEEDBACK_FROM_PATIENT" => 16, "AVS_RECEIVED" => 17,
+            "OASIS_SOC_COMPLETE" => 13, "SOC_FEEDBACK_FROM_PATIENT" => 14, "AVS_RECEIVED" => 15,
             "CASE_MIX_IDENTIFIED" => 20, "CASE_MIX_TYPE" => 21, "CASE_MIX_PLOTTED" => 22,
-            "QA_APPROVAL" => 23, "TIF_DATE" => 24, "ROC" => 25,
+            "QA_APPROVAL" => 23, "POC_CREATED" => 24, "POC_SIGNED" => 25,
+            "ORDERS_SIGNED" => 26, "DOCS_UPLOADED" => 27, "TIF_DATE" => 28, "ROC" => 29,
             "RECERTIFICATION_RECEIVED" => 30,
             "DISCHARGE_DATE" => 40, "DC_FEEDBACK_FROM_PATIENT" => 41,
             "DISCHARGE_SUMMARY_SIGNED" => 42, "NOMNC_SIGNED" => 43,

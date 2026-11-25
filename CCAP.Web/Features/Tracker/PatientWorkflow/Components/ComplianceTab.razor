@@ -4,6 +4,7 @@
 @inject LookupOptionService LookupService
 @using CCAP.Web.Features.Admin.LookupOptions.Models
 @using CCAP.Web.Features.Admin.LookupOptions.Services
+@inject Microsoft.JSInterop.IJSRuntime JS
 
 <div class="compliance-page">
     @if (IsSaving)
@@ -16,7 +17,6 @@
             </div>
         </div>
     }
-    @if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <div class="alert alert-danger">@ErrorMessage</div> }
     <div class="alert alert-info border-0 shadow-sm"><i class="bi bi-info-circle me-2"></i><strong>How to use this tab:</strong> CCAP records confirmations and next actions. The EMR remains the source for clinical documents and visit details. Mark an item complete only after you have checked the corresponding information in the EMR or completed the required coordination action. Dates shown below are workflow dates and are not a substitute for EMR documentation.</div>
 
     @* Insurance is a distinct workflow stage between Referral and Admission.
@@ -66,7 +66,7 @@
       </div></div>
     </div>
 
-    <ComplianceGroup Title="On-Going Care" Description="Case mix, QA, TIF, and resumption-of-care requirements during the active episode." Items="OngoingCareStageItems" OnComplete="CompleteComplianceAsync" OnUnmark="UnmarkComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" />
+    <ComplianceGroup Title="On-Going Care" Description="Case mix, QA, POC, signed order, document, TIF, and resumption-of-care requirements during the active episode." Items="OngoingCareStageItems" OnComplete="CompleteComplianceAsync" OnUnmark="UnmarkComplianceAsync" IsSaving="IsSaving" SavingCode="SavingRequirementCode" />
 
     <div class="card shadow-sm border-0 mb-4">
       <div class="card-header bg-white d-flex justify-content-between align-items-center"><div><h5 class="mb-1">On-Going Care Details</h5><small class="text-muted">Record the relevant care dates and case mix type.</small></div><button class="btn btn-sm btn-primary" @onclick='() => SaveDetailsAsync("OngoingCare")' disabled="@IsSavingDetails">@(IsSavingDetails ? "Updating..." : "Update")</button></div>
@@ -165,7 +165,7 @@
 
 @code {
  [Parameter] public Guid PatientId {get;set;} [Parameter] public PatientWorkflowDto Workflow {get;set;} = new(); [Parameter] public EventCallback OnCompleted {get;set;}
- private bool IsSaving; private bool IsSavingDetails; private List<LookupOptionDto> CaseMixOptions = []; private string? ErrorMessage; private string? SavingRequirementCode;
+ private bool IsSaving; private bool IsSavingDetails; private List<LookupOptionDto> CaseMixOptions = []; private string? SavingRequirementCode;
  private List<RecertificationRecordDto> RecertificationRecords => Workflow?.WorkflowDetails?.RecertificationRecords ?? [];
  private int RecertificationCount => RecertificationRecords.Count;
  // Counts represent actual records only. No record is created or counted when another recertification was not needed.
@@ -176,8 +176,8 @@
  protected override async Task OnInitializedAsync(){ try{ CaseMixOptions = await LookupService.GetAsync("CaseMixType", true); } catch { CaseMixOptions = []; } }
  private IEnumerable<ComplianceItemDto> Items => Workflow.ComplianceItems ?? [];
  private static readonly string[] AdmissionRequirementCodes = ["PRE_AUTH_RECEIVED", "PRO_RECEIVED", "H_AND_P_RECEIVED", "F2F_RECEIVED", "PCP_CONFIRMED"];
- private static readonly string[] SocRequirementCodes = ["DME_MED_SUPPLY", "SIGNED_CONSENTS", "NOA_FILED", "OASIS_SOC_COMPLETE", "ORDERS_SIGNED", "DOCS_UPLOADED", "AVS_RECEIVED"];
- private static readonly string[] OngoingCareRequirementCodes = ["CASE_MIX_IDENTIFIED", "CASE_MIX_PLOTTED", "QA_APPROVAL"];
+ private static readonly string[] SocRequirementCodes = ["DME_MED_SUPPLY", "SIGNED_CONSENTS", "NOA_FILED", "OASIS_SOC_COMPLETE", "AVS_RECEIVED"];
+ private static readonly string[] OngoingCareRequirementCodes = ["CASE_MIX_IDENTIFIED", "CASE_MIX_PLOTTED", "QA_APPROVAL", "POC_CREATED", "POC_SIGNED", "ORDERS_SIGNED", "DOCS_UPLOADED"];
 
  private static readonly string[] DischargeRequirementCodes = ["DISCHARGE_SUMMARY_SIGNED", "NOMNC_SIGNED"];
  private IEnumerable<ComplianceItemDto> ByCodes(IEnumerable<string> codes) => Items.Where(x => codes.Contains(x.RequirementCode, StringComparer.OrdinalIgnoreCase));
@@ -196,8 +196,8 @@
      if (IsSaving) return;
      IsSaving = true;
      SavingRequirementCode = code;
-     ErrorMessage = null;
      await InvokeAsync(StateHasChanged);
+     string? errorMessage = null;
      try
      {
          await WorkflowService.SetComplianceStatusAsync(PatientId, code, status);
@@ -205,7 +205,7 @@
      }
      catch (Exception ex)
      {
-         ErrorMessage = $"Unable to update compliance status: {ex.Message}";
+         errorMessage = $"Unable to update compliance status: {ex.Message}";
      }
      finally
      {
@@ -213,6 +213,9 @@
          SavingRequirementCode = null;
          await InvokeAsync(StateHasChanged);
      }
+
+     if (errorMessage is not null)
+         await ShowErrorAlertAsync(errorMessage);
  }
  private void AddRecertificationRow()
  {
@@ -222,6 +225,39 @@
  {
      Workflow.WorkflowDetails.RecertificationRecords.RemoveAll(x => x.Id == id);
  }
- private async Task SaveDetailsAsync(string section){if(IsSavingDetails)return;IsSavingDetails=true;ErrorMessage=null;try{await WorkflowService.UpdateWorkflowDetailsAsync(PatientId,Workflow.WorkflowDetails,section);await OnCompleted.InvokeAsync();}catch(Exception ex){ErrorMessage=ex.Message;}finally{IsSavingDetails=false;}}
+ private async Task SaveDetailsAsync(string section)
+ {
+     if (IsSavingDetails) return;
+     IsSavingDetails = true;
+     string? errorMessage = null;
+     try
+     {
+         await WorkflowService.UpdateWorkflowDetailsAsync(PatientId, Workflow.WorkflowDetails, section);
+         await OnCompleted.InvokeAsync();
+     }
+     catch (Exception ex)
+     {
+         errorMessage = ex.Message;
+     }
+     finally
+     {
+         IsSavingDetails = false;
+     }
+
+     if (errorMessage is not null)
+         await ShowErrorAlertAsync(errorMessage);
+ }
+
+ private ValueTask ShowErrorAlertAsync(string message) => JS.InvokeVoidAsync(
+     "Swal.fire",
+     new
+     {
+         icon = "error",
+         title = "Unable to save",
+         text = message,
+         confirmButtonText = "OK",
+         allowOutsideClick = false,
+         allowEscapeKey = true
+     });
 }
 

@@ -60,7 +60,7 @@
 
     @if (!string.IsNullOrWhiteSpace(ErrorMessage))
     {
-        <div class="alert alert-danger">@ErrorMessage</div>
+        <SweetAlertError Message="@ErrorMessage" />
     }
     @if (!string.IsNullOrWhiteSpace(SaveMessage))
     {
@@ -250,7 +250,7 @@
                 <label class="edit-wide"><span>3rd Call - CC</span><textarea class="form-control" rows="2" @bind="Editing.ThirdCoordinatorCall" disabled="@IsSaving"></textarea></label>
                 <label class="edit-wide"><span>Resolution</span><textarea class="form-control" rows="2" @bind="Editing.Resolution" disabled="@IsSaving"></textarea></label>
             </div>
-            @if (!string.IsNullOrWhiteSpace(EditError)) { <div class="alert alert-danger mx-4 mb-0">@EditError</div> }
+            @if (!string.IsNullOrWhiteSpace(EditError)) { <SweetAlertError Message="@EditError" /> }
             <footer class="referral-modal-footer"><span>Referral number is system-generated and remains unchanged.</span><div><button class="btn btn-light" disabled="@IsSaving" @onclick="CloseAdminEdit">Cancel</button><button class="btn btn-primary" disabled="@IsSaving" @onclick="SaveAdminEditAsync">@(IsSaving ? "Saving..." : "Save changes")</button></div></footer>
         </section>
     </div>
@@ -275,7 +275,7 @@
                 <label class="edit-wide"><span>3rd Call - CC</span><textarea class="form-control" rows="3" @bind="CoordinatorEditing.ThirdCoordinatorCall" disabled="@IsSaving"></textarea></label>
                 <label class="edit-wide"><span>Resolution</span><textarea class="form-control" rows="3" @bind="CoordinatorEditing.Resolution" disabled="@IsSaving"></textarea></label>
             </div>
-            @if (!string.IsNullOrWhiteSpace(EditError)) { <div class="alert alert-danger mx-4 mb-0">@EditError</div> }
+            @if (!string.IsNullOrWhiteSpace(EditError)) { <SweetAlertError Message="@EditError" /> }
             <footer class="referral-modal-footer"><span>You can update the assigned referral details.</span><div><button class="btn btn-light" disabled="@IsSaving" @onclick="CloseCoordinatorEdit">Cancel</button><button class="btn btn-primary" disabled="@IsSaving" @onclick="SaveCoordinatorEditAsync">@(IsSaving ? "Saving..." : "Save changes")</button></div></footer>
         </section>
     </div>
@@ -287,7 +287,7 @@
         <section class="referral-detail-modal referral-confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="archive-referral-title" @onclick:stopPropagation="true">
             <header class="referral-modal-header"><div><div class="referral-eyebrow">ADMINISTRATOR ACTION</div><h3 id="archive-referral-title">Archive @PendingArchiveItems.Count selected referral@(PendingArchiveItems.Count == 1 ? "" : "s")?</h3><p>@string.Join(", ", PendingArchiveItems.Select(x => x.PatientName))</p></div><button class="modal-close" aria-label="Close confirmation" @onclick="CancelArchive"><i class="bi bi-x-lg"></i></button></header>
             <p class="archive-confirm-copy">These referrals will be removed from the active tracker. Their records and archive timestamps will be retained.</p>
-            @if (!string.IsNullOrWhiteSpace(ArchiveError)) { <div class="alert alert-danger mx-4 mb-0">@ArchiveError</div> }
+            @if (!string.IsNullOrWhiteSpace(ArchiveError)) { <SweetAlertError Message="@ArchiveError" /> }
             <footer class="referral-modal-footer"><span>Only Administrators can archive tracker entries.</span><div><button class="btn btn-light" disabled="@IsSaving" @onclick="CancelArchive">Cancel</button><button class="btn btn-danger" disabled="@IsSaving" @onclick="ConfirmArchiveAsync">@(IsSaving ? "Archiving..." : $"Archive {PendingArchiveItems.Count} referral(s)")</button></div></footer>
         </section>
     </div>
@@ -393,7 +393,7 @@
                 </table>
             </div>
 
-            @if (!string.IsNullOrWhiteSpace(BulkError)) { <div class="alert alert-danger mx-4 mb-0">@BulkError</div> }
+            @if (!string.IsNullOrWhiteSpace(BulkError)) { <SweetAlertError Message="@BulkError" /> }
             <footer class="referral-modal-footer">
                 <span><i class="bi bi-shield-check me-1"></i>Referral assignments use registered CCAP accounts.</span>
                 <div><button class="btn btn-light" disabled="@IsSaving" @onclick="CloseBulkEntry">Cancel</button>

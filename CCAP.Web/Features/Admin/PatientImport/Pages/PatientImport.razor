@@ -15,12 +15,12 @@
         </div>
     </div>
 
-    @if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <div class="alert alert-danger">@ErrorMessage</div> }
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <SweetAlertError Message="@ErrorMessage" /> }
     @if (!string.IsNullOrWhiteSpace(SuccessMessage)) { <div class="alert alert-success">@SuccessMessage</div> }
 
     <div class="card shadow-sm mb-4"><div class="card-body">
         <h5 class="card-title">Upload patient CSV</h5>
-        <p class="text-muted small">Required columns: FirstName, LastName, CoordinatorEmail. The import recognizes the columns in the supplied PatientImport template.</p>
+        <p class="text-muted small">Required columns: FirstName, LastName, CoordinatorEmail. The template includes the Yes/No/N/A compliance columns, including POCCreated and POCSigned. Setting PatientStatus to Discharged archives the patient with Final Status Discharged; if DischargeDate is blank, today’s date is used.</p>
         <div class="d-flex flex-wrap align-items-center gap-3">
             <InputFile OnChange="SelectFileAsync" accept=".csv,text/csv" disabled="@IsBusy" />
             @if (!string.IsNullOrWhiteSpace(SelectedFileName)) { <span class="small text-muted">@SelectedFileName</span> }
@@ -86,7 +86,7 @@
 
     private async Task DownloadTemplateAsync()
     {
-        const string csv = "FirstName,LastName,DateOfBirth,CoordinatorEmail,AssignedClinician,PayorInsurance,PatientStatus,NotesRemarks,CaseMixType,DMEMedSupply,SOCFeedbackFromPatient,TIF,ROC,Recert,PCPPTNotified,DischargeDate,DCFeedbackFromPatient,PreAuthReceived,PROReceived,AVSReceived,HPReceived,F2FReceived,PCPConfirmed,SignedConsents,NOA,OASISSOCCompliant,OrdersSignedByPhysician,DocsUploaded,CaseMixIdentified,CaseMixPlotted,QAApprovalPOPOCReadyForFaxing,DCSummarySigned,NOMNCSigned\r\n";
+        const string csv = "FirstName,LastName,DateOfBirth,CoordinatorEmail,AssignedClinician,PayorInsurance,PatientStatus,NotesRemarks,CaseMixType,DMEMedSupply,SOCFeedbackFromPatient,TIF,ROC,Recert,PCPPTNotified,DischargeDate,DCFeedbackFromPatient,PreAuthReceived,PROReceived,HPReceived,F2FReceived,PCPConfirmed,SignedConsents,NOA,OASISSOCCompliant,AVSReceived,CaseMixIdentified,CaseMixPlotted,QAApprovalPOPOCReadyForFaxing,POCCreated,POCSigned,OrdersSignedByPhysician,DocsUploaded,DCSummarySigned,NOMNCSigned\r\n";
         using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetPreamble().Concat(System.Text.Encoding.UTF8.GetBytes(csv)).ToArray());
         using var reference = new DotNetStreamReference(stream);
         await JS.InvokeVoidAsync("ccapDownloadStream", "CCAP_Patient_Import_Template.csv", "text/csv;charset=utf-8", reference);

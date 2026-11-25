@@ -2,7 +2,8 @@
 <div class="toolbar-card">
  <div class="row g-3 align-items-end">
   <div class="col-lg-4"><label class="toolbar-label">Search</label><div class="search-box"><i class="bi bi-search"></i><input class="form-control" value="@SearchText" @oninput="SearchChanged" placeholder="Search name, MRN, diagnosis..." /></div></div>
-  @if (!HideStatusFilter) { <div class="col-md-3 col-lg-2"><label class="toolbar-label">Status</label><select class="form-select" @bind="DraftFilter.Status"><option value="">All Status</option><option value="Pending">Pending</option><option value="Active">Active</option><option value="Completed">Completed</option></select></div> }
+  @if (!HideStatusFilter) { <div class="col-md-3 col-lg-2"><label class="toolbar-label">Status</label><select class="form-select" @bind="DraftFilter.Status"><option value="">All Status</option><option value="Pending">Pending</option><option value="Active">Active</option><option value="OnHold">On Hold</option><option value="Tif">TIF</option><option value="Completed">Completed</option></select></div> }
+  @if (ShowCareCoordinatorFilter) { <div class="col-md-3 col-lg-3"><label class="toolbar-label">Care Coordinator</label><select class="form-select" @bind="DraftFilter.AssignedCoordinatorId"><option value="">All Care Coordinators</option>@foreach (var coordinator in CareCoordinators) { <option value="@coordinator.UserId">@coordinator.FullName</option> }</select></div> }
   <div class="col-md-3 col-lg-2"><label class="toolbar-label">Sort By</label><select class="form-select" @bind="DraftFilter.SortBy"><option value="Name">Name</option><option value="MRN">MRN</option><option value="Status">Status</option><option value="Diagnosis">Diagnosis</option><option value="Clinician">Clinician</option></select></div>
   <div class="col-md-3 col-lg-2"><label class="toolbar-label">Direction</label><select class="form-select" @bind="DraftFilter.SortDescending"><option value="false">Ascending</option><option value="true">Descending</option></select></div>
   <div class="col-md-3 col-lg-2 d-flex gap-2"><button class="btn btn-primary flex-fill" @onclick="Apply">Apply</button><button class="btn btn-outline-secondary" @onclick="Clear">Clear</button></div>
@@ -12,6 +13,8 @@
  [Parameter] public PatientListQuery Filter { get; set; } = new();
  [Parameter] public EventCallback<PatientListQuery> OnFilter { get; set; }
  [Parameter] public bool HideStatusFilter { get; set; }
+ [Parameter] public bool ShowCareCoordinatorFilter { get; set; }
+ [Parameter] public List<CCAP.Web.Features.Admin.Users.Models.UserDto> CareCoordinators { get; set; } = [];
  private string SearchText = string.Empty;
  private PatientListQuery DraftFilter = new();
  protected override void OnParametersSet()
@@ -22,6 +25,7 @@
          Search = Filter.Search ?? string.Empty,
          Status = Filter.Status ?? string.Empty,
          ClinicianId = Filter.ClinicianId,
+         AssignedCoordinatorId = Filter.AssignedCoordinatorId,
          SortBy = Filter.SortBy ?? "Name",
          SortDescending = Filter.SortDescending
      };
@@ -34,6 +38,7 @@
          Search = SearchText.Trim(),
          Status = HideStatusFilter ? Filter.Status : DraftFilter.Status,
          ClinicianId = DraftFilter.ClinicianId,
+         AssignedCoordinatorId = DraftFilter.AssignedCoordinatorId,
          SortBy = DraftFilter.SortBy,
          SortDescending = DraftFilter.SortDescending
      };

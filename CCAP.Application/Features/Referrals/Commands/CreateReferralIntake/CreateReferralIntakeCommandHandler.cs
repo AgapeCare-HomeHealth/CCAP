@@ -361,14 +361,16 @@ public sealed class CreateReferralIntakeCommandHandler
         await AddCompliance(patient.PatientId, "SIGNED_CONSENTS", "Confirm required consents are signed.", cancellationToken);
         await AddCompliance(patient.PatientId, "NOA_FILED", "Confirm the Notice of Admission is filed.", cancellationToken);
         await AddCompliance(patient.PatientId, "OASIS_SOC_COMPLETE", "Confirm OASIS / SOC compliance.", cancellationToken);
-        await AddCompliance(patient.PatientId, "ORDERS_SIGNED", "Confirm orders are signed by the physician.", cancellationToken);
-        await AddCompliance(patient.PatientId, "DOCS_UPLOADED", "Confirm required documents are uploaded.", cancellationToken);
         await AddCompliance(patient.PatientId, "AVS_RECEIVED", "Confirm AVS has been received.", cancellationToken);
 
         // ON-GOING CARE
         await AddCompliance(patient.PatientId, "CASE_MIX_IDENTIFIED", "Confirm case mix has been identified.", cancellationToken);
         await AddCompliance(patient.PatientId, "CASE_MIX_PLOTTED", "Confirm case mix has been plotted.", cancellationToken);
         await AddCompliance(patient.PatientId, "QA_APPROVAL", "Confirm QA approval and PO/POC readiness for faxing.", cancellationToken);
+        await AddCompliance(patient.PatientId, "POC_CREATED", "Confirm the plan of care has been created.", cancellationToken);
+        await AddCompliance(patient.PatientId, "POC_SIGNED", "Confirm the plan of care has been signed.", cancellationToken);
+        await AddCompliance(patient.PatientId, "ORDERS_SIGNED", "Confirm the order has been signed by the primary care physician.", cancellationToken);
+        await AddCompliance(patient.PatientId, "DOCS_UPLOADED", "Confirm required documents are uploaded.", cancellationToken);
 
         // DISCHARGE
         await AddCompliance(patient.PatientId, "DISCHARGE_SUMMARY_SIGNED", "Confirm the discharge summary is signed.", cancellationToken);
