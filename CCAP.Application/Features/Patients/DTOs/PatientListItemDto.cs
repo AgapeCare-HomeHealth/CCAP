@@ -5,8 +5,14 @@ public sealed record PatientListItemDto(
     string Name,
     string MRN,
     string Status,
+    string Episode,
     string PrimaryDiagnosis,
     string AssignedClinician,
+    string AssignedPrimaryCC,
     string? NextVisit,
     Guid? AssignedClinicianId,
-    string MyAssignmentRole);
+    string MyAssignmentRole,
+    DateOnly? SocDate,
+    DateOnly? RocDate,
+    DateOnly? RecertDate,
+    DateOnly? TifDate);

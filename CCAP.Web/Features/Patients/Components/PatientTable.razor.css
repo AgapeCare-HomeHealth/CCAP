@@ -5,7 +5,8 @@
 .patient-table-card {
     background: white;
     border-radius: 14px;
-    overflow: visible;
+    max-width: 100%;
+    overflow-x: auto;
     box-shadow: 0 2px 10px rgba(0,0,0,.05);
 }
 
@@ -15,8 +16,31 @@
 
 .patient-table {
     width: 100%;
+    min-width: 880px;
     border-collapse: collapse;
 }
+
+.episode-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 88px;
+    padding: 7px 12px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .035em;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.episode-soc { color: #075985; background: #e0f2fe; border-color: #bae6fd; }
+.episode-recert { color: #6b21a8; background: #f3e8ff; border-color: #d8b4fe; }
+.episode-tif { color: #92400e; background: #fef3c7; border-color: #fcd34d; }
+.episode-roc { color: #166534; background: #dcfce7; border-color: #86efac; }
+.episode-discharged { color: #991b1b; background: #fee2e2; border-color: #fca5a5; }
+.episode-none { color: #64748b; background: #f1f5f9; border-color: #e2e8f0; }
 
     /* ==========================================
    HEADER
@@ -62,4 +86,11 @@
 
 .clickable-row:hover td{
     background:#f5fdf7;
+}
+
+@media (max-width: 600px) {
+    .patient-table th,
+    .patient-table td {
+        padding: 12px;
+    }
 }

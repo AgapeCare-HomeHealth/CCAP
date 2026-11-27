@@ -192,10 +192,10 @@ public sealed class MockDataStore
 
     private void BuildPatients()
     {
-        Patients.Add(new PatientListItem { PatientId = JohnId, Name = "John Michael Smith", MRN = "MRN-100001", Status = "Active", PrimaryDiagnosis = "Congestive Heart Failure", AssignedClinician = "Jennifer RN", NextVisit = DateTime.Today.AddDays(1).AddHours(9).ToString("MM/dd/yyyy h:mm tt") });
-        Patients.Add(new PatientListItem { PatientId = MariaId, Name = "Maria Elena Cruz", MRN = "MRN-100002", Status = "Pending", PrimaryDiagnosis = "Type 2 Diabetes", AssignedClinician = "Renaldi LVN", NextVisit = DateTime.Today.AddDays(2).AddHours(10).ToString("MM/dd/yyyy h:mm tt") });
-        Patients.Add(new PatientListItem { PatientId = RobertId, Name = "Robert James Brown", MRN = "MRN-100003", Status = "Active", PrimaryDiagnosis = "COPD", AssignedClinician = "Jennifer RN", NextVisit = DateTime.Today.AddDays(3).AddHours(11).ToString("MM/dd/yyyy h:mm tt") });
-        Patients.Add(new PatientListItem { PatientId = PatriciaId, Name = "Patricia Ann Johnson", MRN = "MRN-100004", Status = "On Hold", PrimaryDiagnosis = "Post-operative care", AssignedClinician = "Michael PT", NextVisit = "Not scheduled" });
+        Patients.Add(new PatientListItem { PatientId = JohnId, Name = "John Michael Smith", MRN = "MRN-100001", Status = "Active", PrimaryDiagnosis = "Congestive Heart Failure", AssignedClinician = "Jennifer RN", AssignedPrimaryCC = "Maria Santos", NextVisit = DateTime.Today.AddDays(1).AddHours(9).ToString("MM/dd/yyyy h:mm tt") });
+        Patients.Add(new PatientListItem { PatientId = MariaId, Name = "Maria Elena Cruz", MRN = "MRN-100002", Status = "Pending", PrimaryDiagnosis = "Type 2 Diabetes", AssignedClinician = "Renaldi LVN", AssignedPrimaryCC = "Maria Santos", NextVisit = DateTime.Today.AddDays(2).AddHours(10).ToString("MM/dd/yyyy h:mm tt") });
+        Patients.Add(new PatientListItem { PatientId = RobertId, Name = "Robert James Brown", MRN = "MRN-100003", Status = "Active", PrimaryDiagnosis = "COPD", AssignedClinician = "Jennifer RN", AssignedPrimaryCC = "Ana Reyes", NextVisit = DateTime.Today.AddDays(3).AddHours(11).ToString("MM/dd/yyyy h:mm tt") });
+        Patients.Add(new PatientListItem { PatientId = PatriciaId, Name = "Patricia Ann Johnson", MRN = "MRN-100004", Status = "On Hold", PrimaryDiagnosis = "Post-operative care", AssignedClinician = "Michael PT", AssignedPrimaryCC = "Unassigned", NextVisit = "Not scheduled" });
     }
 
     private void BuildPatientCare()

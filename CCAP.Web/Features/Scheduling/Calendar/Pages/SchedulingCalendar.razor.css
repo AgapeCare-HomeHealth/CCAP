@@ -1,5 +1,5 @@
 .scheduling-calendar-page {
-    padding: 24px;
+    padding: 0;
     background: #f8fafc;
     min-height: 100%;
 }
@@ -165,23 +165,26 @@
 
 .filters-panel {
     display: grid;
-    grid-template-columns: minmax(220px, 280px) minmax(220px, 1fr) auto;
+    grid-template-columns: minmax(0, 280px) minmax(0, 1fr) auto;
     gap: 14px;
     margin-bottom: 14px;
     padding: 14px;
+    min-width: 0;
+    box-sizing: border-box;
     background: #f8fafc;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
 }
 
 .filters-panel.admin-filters {
-    grid-template-columns: minmax(190px, 240px) minmax(190px, 240px) minmax(220px, 1fr) auto;
+    grid-template-columns: minmax(0, 240px) minmax(0, 240px) minmax(0, 1fr) auto;
 }
 
 .filter-group {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    min-width: 0;
 }
 
 .filter-group label {
@@ -192,6 +195,10 @@
 
 .filter-select,
 .filter-input {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
     height: 40px;
     padding: 0 12px;
     border: 1px solid #cbd5e1;
@@ -771,8 +778,9 @@
 }
 
 @media (max-width: 1080px) {
-    .filters-panel {
-        grid-template-columns: 1fr 1fr;
+    .filters-panel,
+    .filters-panel.admin-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .filter-action-group {
@@ -804,8 +812,17 @@
         width: 100%;
     }
 
-    .filters-panel {
-        grid-template-columns: 1fr;
+    .filters-panel,
+    .filters-panel.admin-filters {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .filter-action-group {
+        grid-column: auto;
+    }
+
+    .btn-clear-filters {
+        width: 100%;
     }
 
     .calendar-grid {
@@ -841,7 +858,7 @@
 
 @media (max-width: 600px) {
     .scheduling-calendar-page {
-        padding: 16px;
+        padding: 0;
     }
 
     .calendar-page-header h1 {
@@ -856,7 +873,6 @@
     .calendar-day {
         min-height: 120px;
     }
-<<<<<<< HEAD
 }
 
 /* Tracker-only paging; keep the calendar view unaffected. */
@@ -894,8 +910,6 @@
 
 .tracker-pagination-actions button:not(:disabled):hover {
     background: #e2e8f0;
-=======
->>>>>>> origin/main
 }
 
 .tracker-page-label { white-space: nowrap; }

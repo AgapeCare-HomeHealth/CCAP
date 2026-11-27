@@ -245,6 +245,128 @@ h1:focus {
     font-size: .7rem;
     padding: 4px 8px;
 }
+
+/* Shared layout guards: prevent nested grids and long content from widening pages. */
+.layout,
+.main-content,
+.page-content {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.page-content {
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.page-content > *,
+.page-content .row > *,
+.page-content .card,
+.page-content .card-body,
+.page-content .card-header {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.page-content img,
+.page-content video,
+.page-content canvas {
+    max-width: 100%;
+}
+
+.page-content input,
+.page-content select,
+.page-content textarea {
+    max-width: 100%;
+}
+
+.page-content .table-responsive,
+.page-content .patient-table-card,
+.page-content .tracker-table-wrapper,
+.page-content .recertification-table-wrap,
+.page-content .referral-table-wrap {
+    max-width: 100%;
+    overscroll-behavior-x: contain;
+}
+
+/* On phones, the sidebar becomes a slide-in menu instead of reserving 260px. */
+.mobile-sidebar-backdrop {
+    display: none;
+}
+
+@media (max-width: 700px) {
+    .page-content {
+        padding: 12px;
+    }
+
+    .layout > .sidebar {
+        width: 0 !important;
+        flex: 0 0 0 !important;
+        overflow: visible !important;
+    }
+
+    .layout > .sidebar > .sidebar {
+        width: 260px !important;
+        transform: translateX(-105%);
+        transition: transform .22s ease;
+    }
+
+    .layout > .sidebar.mobile-open > .sidebar {
+        width: 260px !important;
+        transform: translateX(0);
+    }
+
+    .layout > .sidebar.mobile-open > .sidebar .sidebar-title,
+    .layout > .sidebar.mobile-open > .sidebar .submenu-item {
+        display: block !important;
+    }
+
+    .layout > .sidebar.mobile-open > .sidebar .sidebar-nav .nav-item {
+        justify-content: flex-start !important;
+        padding: 0 14px !important;
+    }
+
+    .layout > .sidebar.mobile-open > .sidebar .menu-dropdown summary {
+        justify-content: space-between !important;
+        padding: 0 14px !important;
+    }
+
+    .layout > .sidebar.mobile-open > .sidebar .menu-dropdown summary div {
+        justify-content: flex-start !important;
+        width: auto !important;
+    }
+
+    .layout > .sidebar.mobile-open > .sidebar .arrow {
+        display: inline !important;
+    }
+
+    .mobile-sidebar-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 998;
+        border: 0;
+        background: rgb(15 23 42 / 35%);
+    }
+
+    .topbar,
+    .topbar.collapsed {
+        left: 0 !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .page-content {
+        padding: 10px;
+    }
+
+    .page-content .card-header,
+    .page-content .card-footer {
+        flex-wrap: wrap;
+        gap: .65rem;
+    }
+}
+
 /* Referral Tracker print view. Exports all filtered rows via the browser's Save as PDF flow. */
 .referral-print-only { display: none; }
 @page { size: landscape; margin: 10mm; }

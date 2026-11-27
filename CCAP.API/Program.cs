@@ -96,6 +96,12 @@ app.UseExceptionHandler(errorApp =>
         var exception = context.Features
             .Get<IExceptionHandlerFeature>()?.Error;
 
+        if (exception is not null)
+        {
+            app.Logger.LogError(exception, "Unhandled API exception for {Method} {Path}",
+                context.Request.Method, context.Request.Path);
+        }
+
         context.Response.ContentType = "application/json";
 
         if (exception is RequestValidationException validationException)

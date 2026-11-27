@@ -3,15 +3,20 @@
     [Parameter]
     public bool IsCollapsed { get; set; }
 
+    [Parameter]
+    public bool IsMobileMenuOpen { get; set; }
+
+    private bool ShowLabels => !IsCollapsed || IsMobileMenuOpen;
+
 }
 
-<div class="sidebar @(IsCollapsed ? "collapsed" : "")">
+<div class="sidebar @(IsCollapsed ? "collapsed" : "") @(IsMobileMenuOpen ? "mobile-open" : "")">
 
     <!-- Logo Section -->
     <div class="sidebar-header">
         <div class="sidebar-header-content">
 
-            @if (IsCollapsed)
+            @if (!ShowLabels)
             {
                 <img src="images/logo11.png"
                      alt="AgapeCare"
@@ -35,7 +40,7 @@
             <NavLink href="/Dashboard" Match="NavLinkMatch.All" class="nav-item">
                 <i class="bi bi-grid"></i>
 
-                @if (!IsCollapsed)
+                @if (ShowLabels)
                 {
                     <span>Dashboard</span>
                 }
@@ -43,7 +48,7 @@
 
             <NavLink href="/patients" Match="NavLinkMatch.All" class="nav-item">
                 <i class="bi bi-people"></i>
-                @if (!IsCollapsed)
+                @if (ShowLabels)
                 {
                     <span>My Patients</span>
                 }
@@ -51,7 +56,7 @@
 
             <NavLink href="/patients/archive" Match="NavLinkMatch.All" class="nav-item">
                 <i class="bi bi-archive"></i>
-                @if (!IsCollapsed)
+                @if (ShowLabels)
                 {
                     <span>Archived Patients</span>
                 }
@@ -61,7 +66,7 @@
                 <Authorized>
                     <NavLink href="/referrals/list" Match="NavLinkMatch.All" class="nav-item">
                         <i class="bi bi-list-ul"></i>
-                        @if (!IsCollapsed)
+                        @if (ShowLabels)
                         {
                             <span>Referral Tracker</span>
                         }
@@ -83,21 +88,21 @@
 
                     <i class="bi bi-person-plus"></i>
 
-                    @if (!IsCollapsed)
+                    @if (ShowLabels)
                     {
                         <span>Referrals</span>
                     }
 
                 </div>
 
-                @if (!IsCollapsed)
+                @if (ShowLabels)
                 {
                     <i class="bi bi-chevron-down arrow"></i>
                 }
 
             </summary>
 
-            @if (!IsCollapsed)
+            @if (ShowLabels)
             {
                 @* <NavLink href="/referrals/list"
                          Match="NavLinkMatch.All"
@@ -131,20 +136,20 @@
                 <div>
                     <i class="bi bi-clipboard-check"></i>
 
-                    @if (!IsCollapsed)
+                    @if (ShowLabels)
                     {
                         <span>Workflow Tracker</span>
                     }
                 </div>
 
-                @if (!IsCollapsed)
+                @if (ShowLabels)
                 {
                     <i class="bi bi-chevron-down arrow"></i>
                 }
 
             </summary>
 
-            @if (!IsCollapsed)
+            @if (ShowLabels)
             {
                 <NavLink href="/tracker/referral" class="submenu-item">
                     Referral Intake
@@ -177,21 +182,21 @@
 
                     <i class="bi bi-folder2-open"></i>
 
-                    @if (!IsCollapsed)
+                    @if (ShowLabels)
                     {
                         <span>Documents</span>
                     }
 
                 </div>
 
-                @if (!IsCollapsed)
+                @if (ShowLabels)
                 {
                     <i class="bi bi-chevron-down arrow"></i>
                 }
 
             </summary>
 
-            @if (!IsCollapsed)
+            @if (ShowLabels)
             {
                 <NavLink href="/documents/upload" class="submenu-item">
                     Upload
@@ -217,19 +222,19 @@
                 <div>
                     <i class="bi bi-calendar3"></i>
 
-                    @if (!IsCollapsed)
+                    @if (ShowLabels)
                     {
                         <span>Scheduling</span>
                     }
                 </div>
 
-                @if (!IsCollapsed)
+                @if (ShowLabels)
                 {
                     <i class="bi bi-chevron-down arrow"></i>
                 }
             </summary>
 
-            @if (!IsCollapsed)
+            @if (ShowLabels)
             {
                 <NavLink href="/scheduling/calendar"
                          Match="NavLinkMatch.All"
@@ -258,21 +263,21 @@
 
                             <i class="bi bi-gear"></i>
 
-                            @if (!IsCollapsed)
+                            @if (ShowLabels)
                             {
                                 <span>Admin</span>
                             }
 
                         </div>
 
-                        @if (!IsCollapsed)
+                        @if (ShowLabels)
                         {
                             <i class="bi bi-chevron-down arrow"></i>
                         }
 
                     </summary>
 
-            @if (!IsCollapsed)
+            @if (ShowLabels)
             {
                 <NavLink href="/admin/users" class="submenu-item">
                     Users
@@ -319,7 +324,7 @@
     </nav>
 
     <!-- Footer -->
-    @if (!IsCollapsed)
+    @if (ShowLabels)
     {
         <div class="sidebar-footer">
             Version 1.0

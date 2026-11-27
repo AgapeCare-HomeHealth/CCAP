@@ -109,7 +109,7 @@
             try
             {
                 CareCoordinators = (await UserService.GetUsersAsync())
-                    .Where(x => string.Equals(x.Role?.Trim(), "Care Coordinator", StringComparison.OrdinalIgnoreCase))
+                    .Where(x => x.IsActive && string.Equals(x.Role?.Trim(), "Care Coordinator", StringComparison.OrdinalIgnoreCase))
                     .OrderBy(x => x.FullName)
                     .ToList();
             }

@@ -113,6 +113,7 @@ public sealed class PatientRepository : IPatientRepository
             .Include(x => x.Coordinator)
             .Include(x => x.SecondaryCoordinator)
             .Include(x => x.BackupCoordinator)
+            .Include(x => x.ComplianceRecords)
             .AsNoTracking()
             .AsQueryable();
 

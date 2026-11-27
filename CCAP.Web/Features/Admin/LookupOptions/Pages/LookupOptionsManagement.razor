@@ -21,7 +21,7 @@
             <li><strong>Lookup Group:</strong> Select an existing group whenever possible. Group names are case-insensitive, so <code>Insurance</code> and <code>insurance</code> are treated as the same group.</li>
             <li><strong>Code:</strong> Use a stable, unique code for the option. Codes are also case-insensitive within a group.</li>
             <li><strong>Display Name:</strong> Enter the wording users should see in the dropdown.</li>
-            <li><strong>Order:</strong> Lower numbers appear first. We recommend <code>10, 20, 30...</code> so you can insert an option later without renumbering everything.</li>
+            <li><strong>Order:</strong> New options are assigned the next number in their group automatically. Edit an existing option to change its position; lower numbers appear first.</li>
             <li><strong>Active:</strong> Inactivate an option when it should no longer be selectable. Keep it active only when users should see it in dropdowns.</li>
             <li><strong>Important:</strong> Do not create a new group just because the capitalization is different. The system will reuse the existing group's spelling.</li>
         </ul>
@@ -102,14 +102,14 @@
                 {
                     <div class="mb-3">
                         <label class="form-label">Lookup Group</label>
-                        <select class="form-select" @bind="SelectedEditorGroup">
+                        <select class="form-select" @bind="SelectedEditorGroup" @bind:after="UpdateCreateOrder">
                             <option value="">Select an existing group...</option>
                             @foreach (var type in Groups) { <option value="@type">@type</option> }
                             <option value="__new__">+ Create a new group</option>
                         </select>
                         @if (SelectedEditorGroup == "__new__")
                         {
-                            <input class="form-control mt-2" @bind="NewGroupName" placeholder="New group name, e.g. CaseMixType" />
+                            <input class="form-control mt-2" @bind="NewGroupName" @bind:after="UpdateCreateOrder" placeholder="New group name, e.g. CaseMixType" />
                             <div class="form-text">Use a clear, stable name. Capitalization differences are automatically normalized to an existing group when applicable.</div>
                         }
                         <ValidationMessage For="() => Editor.LookupType" />
@@ -121,7 +121,14 @@
                 }
                 <div class="mb-3"><label class="form-label">Code</label><InputText class="form-control" @bind-Value="Editor.Code" placeholder="e.g. ACTIVE" /><div class="form-text">Stable internal value. Avoid changing it if existing records may already use this option.</div><ValidationMessage For="() => Editor.Code" /></div>
                 <div class="mb-3"><label class="form-label">Display Name</label><InputText class="form-control" @bind-Value="Editor.DisplayName" placeholder="Text users will see" /><ValidationMessage For="() => Editor.DisplayName" /></div>
-                <div class="mb-3"><label class="form-label">Sort Order</label><InputNumber class="form-control" @bind-Value="Editor.SortOrder" /><div class="form-text">Lower numbers appear first. Recommended: 10, 20, 30, 40...</div></div>
+                @if (Editing)
+                {
+                    <div class="mb-3"><label class="form-label">Display Order</label><InputNumber class="form-control" @bind-Value="Editor.SortOrder" /><div class="form-text">Lower numbers appear first. Change this value to move the option within its group.</div></div>
+                }
+                else
+                {
+                    <div class="mb-3"><label class="form-label">Display Order</label><div class="form-control-plaintext fw-semibold">@Editor.SortOrder (assigned automatically)</div></div>
+                }
                 <div class="form-check"><InputCheckbox class="form-check-input" @bind-Value="Editor.IsActive" /><label class="form-check-label">Active</label><div class="form-text">Inactive options are retained for historical data but should not appear in active dropdowns.</div></div>
             </div><div class="modal-footer"><button type="button" class="btn btn-secondary" @onclick="CloseEditor">Cancel</button><button type="submit" class="btn btn-primary" disabled="@Saving">@(Saving ? "Saving..." : "Save")</button></div></EditForm>
         </div></div>
@@ -177,10 +184,23 @@
         Editing = false;
         SelectedEditorGroup = string.IsNullOrWhiteSpace(SelectedType) ? string.Empty : SelectedType;
         NewGroupName = string.Empty;
-        var group = SelectedEditorGroup == "__new__" ? string.Empty : SelectedEditorGroup;
-        var nextOrder = string.IsNullOrWhiteSpace(group) ? 10 : (Options.Where(x => string.Equals(x.LookupType, group, StringComparison.OrdinalIgnoreCase)).Select(x => x.SortOrder).DefaultIfEmpty(0).Max() + 10);
-        Editor = new LookupOptionEditModel { LookupType = group, SortOrder = nextOrder, IsActive = true };
+        Editor = new LookupOptionEditModel { LookupType = string.Empty, IsActive = true };
+        UpdateCreateOrder();
         EditorVisible = true;
+    }
+
+    private void UpdateCreateOrder()
+    {
+        if (Editing)
+            return;
+
+        var group = SelectedEditorGroup == "__new__" ? NewGroupName : SelectedEditorGroup;
+        var groupOptions = Options
+            .Where(x => string.Equals(x.LookupType.Trim(), group.Trim(), StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var nextOrder = Math.Max(groupOptions.Count, groupOptions.Select(x => x.SortOrder).DefaultIfEmpty(0).Max()) + 1;
+        Editor.LookupType = group;
+        Editor.SortOrder = nextOrder;
     }
 
     private void OpenEdit(LookupOptionDto item)
@@ -200,7 +220,7 @@
             if (!Editing)
                 Editor.LookupType = SelectedEditorGroup == "__new__" ? NewGroupName.Trim() : SelectedEditorGroup.Trim();
             if (string.IsNullOrWhiteSpace(Editor.LookupType)) throw new InvalidOperationException("Select an existing lookup group or create a new group.");
-            if (Editor.SortOrder <= 0) throw new InvalidOperationException("Sort Order must be greater than 0. Use 10, 20, 30... for easy future insertion.");
+            if (Editor.SortOrder <= 0) throw new InvalidOperationException("Display Order must be greater than 0.");
             if (Editing) await Service.UpdateAsync(Editor); else await Service.CreateAsync(Editor);
             EditorVisible = false; SuccessMessage = "Lookup option saved."; await LoadAsync();
         }

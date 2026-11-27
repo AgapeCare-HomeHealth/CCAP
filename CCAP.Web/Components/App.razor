@@ -42,6 +42,10 @@
 
 
     <script>
+        window.ccapIsMobileLayout = function () {
+            return window.matchMedia('(max-width: 700px)').matches;
+        };
+
         window.ccapDownloadStream = async function (fileName, contentType, streamReference) {
             const bytes = await streamReference.arrayBuffer();
             const blob = new Blob([bytes], { type: contentType || 'application/octet-stream' });

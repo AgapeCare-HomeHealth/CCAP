@@ -2,7 +2,6 @@
 @inject NavigationManager Navigation
 
 <div class="patient-table-card">
-
     <table class="patient-table">
 
         <thead>
@@ -12,8 +11,10 @@
                 <th>Patient</th>
                 <th>MRN</th>
                 <th>Status</th>
+                <th>Episode</th>
                 <th>Primary Diagnosis</th>
                 <th>Assigned Clinician</th>
+                <th>Assigned Primary CC</th>
 
             </tr>
 
@@ -41,9 +42,22 @@
                             <PatientStatusBadge Status="@patient.Status" />
                         </td>
 
+                        <td>
+                            @if (string.IsNullOrWhiteSpace(patient.Episode))
+                            {
+                                <span class="episode-badge episode-none">—</span>
+                            }
+                            else
+                            {
+                                <span class="episode-badge @GetEpisodeBadgeClass(patient.Episode)">@patient.Episode</span>
+                            }
+                        </td>
+
                         <td>@patient.PrimaryDiagnosis</td>
 
                         <td>@patient.AssignedClinician</td>
+
+                        <td>@patient.AssignedPrimaryCC</td>
 
 
 
@@ -54,7 +68,7 @@
             {
                 <tr>
 
-                    <td colspan="5"
+                    <td colspan="7"
                         class="text-center py-5">
 
                         No data available.
@@ -74,6 +88,16 @@
 
     [Parameter]
     public List<PatientListItem> Patients { get; set; } = [];
+
+    private static string GetEpisodeBadgeClass(string episode) => episode.ToUpperInvariant() switch
+    {
+        "SOC" => "episode-soc",
+        "RECERT" => "episode-recert",
+        "TIF" => "episode-tif",
+        "ROC" => "episode-roc",
+        "DISCHARGED" => "episode-discharged",
+        _ => "episode-none"
+    };
 
     private void OpenPatient(PatientListItem patient)
     {

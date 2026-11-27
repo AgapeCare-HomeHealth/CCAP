@@ -1,10 +1,14 @@
 @inherits LayoutComponentBase
+@implements IDisposable
+@inject Microsoft.JSInterop.IJSRuntime JS
+@inject NavigationManager Navigation
 
 <div class="layout">
 
-    <div class="sidebar @(IsSidebarCollapsed ? "collapsed" : "")">
+    <div class="sidebar @(IsSidebarCollapsed ? "collapsed" : "") @(IsMobileSidebarOpen ? "mobile-open" : "")">
 
-        <NavMenu IsCollapsed="@IsSidebarCollapsed" />
+        <NavMenu IsCollapsed="@IsSidebarCollapsed"
+                 IsMobileMenuOpen="@IsMobileSidebarOpen" />
 
     </div>
 
@@ -18,6 +22,14 @@
 
     </div>
 
+    @if (IsMobileSidebarOpen)
+    {
+        <button type="button"
+                class="mobile-sidebar-backdrop"
+                aria-label="Close navigation"
+                @onclick="ToggleSidebar"></button>
+    }
+
 </div>
 
 <div id="blazor-error-ui" data-nosnippet>
@@ -29,10 +41,43 @@
 @code {
 
     private bool IsSidebarCollapsed;
+    private bool IsMobileSidebarOpen;
 
-    private void ToggleSidebar()
+    protected override void OnInitialized()
     {
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    private async Task ToggleSidebar()
+    {
+        var isMobile = await JS.InvokeAsync<bool>(
+            "ccapIsMobileLayout");
+
+        if (isMobile)
+        {
+            IsMobileSidebarOpen = !IsMobileSidebarOpen;
+            return;
+        }
+
         IsSidebarCollapsed = !IsSidebarCollapsed;
+        IsMobileSidebarOpen = false;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        if (!IsMobileSidebarOpen)
+            return;
+
+        _ = InvokeAsync(() =>
+        {
+            IsMobileSidebarOpen = false;
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
     }
 
 }

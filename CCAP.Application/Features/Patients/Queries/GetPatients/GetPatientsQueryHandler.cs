@@ -1,6 +1,7 @@
 using CCAP.Application.Abstractions.Persistence;
 using CCAP.Application.Common.Models;
 using CCAP.Application.Features.Patients.DTOs;
+using CCAP.Domain.Entities;
 using MediatR;
 
 namespace CCAP.Application.Features.Patients.Queries.GetPatients;
@@ -32,13 +33,19 @@ public sealed class GetPatientsQueryHandler
             x.MRN,
             !string.IsNullOrWhiteSpace(x.FinalStatus) ? x.FinalStatus :
                 x.Status == CCAP.Domain.Enums.PatientStatus.Tif ? "TIF" : x.Status.ToString(),
+            GetEpisode(x),
             x.PrimaryDiagnosis ?? string.Empty,
             x.Clinician is null ? string.Empty : $"{x.Clinician.FirstName} {x.Clinician.LastName}",
+            x.Coordinator is null ? string.Empty : $"{x.Coordinator.FirstName} {x.Coordinator.LastName}",
             null,
             x.ClinicianId,
             request.AssignedUserId.HasValue && x.CoordinatorId == request.AssignedUserId ? "Primary CC" :
                 request.AssignedUserId.HasValue && x.SecondaryCoordinatorId == request.AssignedUserId ? "Secondary CC" :
-                request.AssignedUserId.HasValue && x.BackupCoordinatorId == request.AssignedUserId ? "Backup CC" : string.Empty)).ToList();
+                request.AssignedUserId.HasValue && x.BackupCoordinatorId == request.AssignedUserId ? "Backup CC" : string.Empty,
+            x.SocDate,
+            x.RocDate,
+            GetLatestRecertDate(x),
+            x.TifDate)).ToList();
 
         return new PagedResult<PatientListItemDto>
         {
@@ -47,5 +54,50 @@ public sealed class GetPatientsQueryHandler
             PageSize = pageSize,
             TotalCount = totalCount
         };
+    }
+
+    private static DateOnly? GetLatestRecertDate(Patient patient)
+    {
+        try
+        {
+            var recordDates = System.Text.Json.JsonSerializer
+                .Deserialize<List<RecertificationRecordResponseDto>>(patient.RecertificationRecordsJson)?
+                .Where(record => record.ReceivedDate.HasValue)
+                .Select(record => record.ReceivedDate!.Value)
+                .ToList() ?? [];
+
+            if (patient.RecertDate.HasValue)
+                recordDates.Add(patient.RecertDate.Value);
+
+            return recordDates.Count == 0 ? null : recordDates.Max();
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return patient.RecertDate;
+        }
+    }
+
+    private static string GetEpisode(Patient patient)
+    {
+        if (string.Equals(patient.FinalStatus, "Discharged", StringComparison.OrdinalIgnoreCase))
+            return "DISCHARGED";
+
+        var latestRecertDate = GetLatestRecertDate(patient);
+        DateOnly? latestTifOrRocDate = new DateOnly?[] { patient.TifDate, patient.RocDate }.Max();
+
+        if (latestRecertDate.HasValue &&
+            (!latestTifOrRocDate.HasValue || latestRecertDate.Value > latestTifOrRocDate.Value))
+            return "RECERT";
+
+        if (patient.TifDate.HasValue && !patient.RocDate.HasValue)
+            return "TIF";
+
+        if (patient.RocDate.HasValue)
+            return "ROC";
+
+        var socInProgress = patient.Status == CCAP.Domain.Enums.PatientStatus.Active &&
+            !PatientWorkflowStageRules.IsGroupComplete(patient, patient.ComplianceRecords, PatientWorkflowStageRules.Soc);
+
+        return socInProgress ? "SOC" : string.Empty;
     }
 }
