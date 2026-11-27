@@ -245,3 +245,29 @@ h1:focus {
     font-size: .7rem;
     padding: 4px 8px;
 }
+/* Referral Tracker print view. Exports all filtered rows via the browser's Save as PDF flow. */
+.referral-print-only { display: none; }
+@page { size: landscape; margin: 10mm; }
+@media print {
+    body * { visibility: hidden !important; }
+    .referral-print-only,
+    .referral-print-only * { visibility: visible !important; }
+    .referral-print-only {
+        display: block !important;
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        color: #111;
+        background: #fff;
+        font: 9pt Arial, sans-serif;
+    }
+    .referral-print-only h1 { margin: 0 0 3mm; font-size: 16pt; }
+    .referral-print-only .print-generated,
+    .referral-print-only .print-filters { margin: 0 0 2mm; font-size: 8pt; }
+    .referral-print-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 6.5pt; }
+    .referral-print-table th,
+    .referral-print-table td { border: .25mm solid #666; padding: 1.2mm; vertical-align: top; overflow-wrap: anywhere; }
+    .referral-print-table th { background: #e9edf3 !important; text-align: left; }
+    .referral-print-table thead { display: table-header-group; }
+    .referral-print-table tr { break-inside: avoid; }
+}

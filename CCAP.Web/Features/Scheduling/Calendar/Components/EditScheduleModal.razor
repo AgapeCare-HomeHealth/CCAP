@@ -17,7 +17,7 @@
         <form class="visit-edit-form" @onsubmit="SaveAsync" @onsubmit:preventDefault="true">
             @if (!string.IsNullOrWhiteSpace(ErrorMessage))
             {
-                <div class="visit-edit-alert" role="alert">@ErrorMessage</div>
+                <SweetAlertError Message="@ErrorMessage" />
             }
 
             @if (!CanEdit)
@@ -140,7 +140,7 @@
     [Parameter] public IReadOnlyList<SchedulingLookupOptionDto> ConfirmationOptions { get; set; } = [];
     [Parameter] public IReadOnlyList<SchedulingLookupOptionDto> VisitStatusOptions { get; set; } = [];
     [Parameter] public bool CanEdit { get; set; }
-    [Parameter] public Guid CurrentUserId { get; set; }
+    [Parameter] public bool CanDelete { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public EventCallback<string> OnSaved { get; set; }
     [Parameter] public EventCallback<string> OnDeleted { get; set; }
@@ -153,7 +153,6 @@
     private bool IsSaving;
     private bool IsDeleting;
     private bool ShowDeleteConfirmation;
-    private bool CanDelete => CanEdit && CurrentUserId != Guid.Empty && Visit.AssignedUserId == CurrentUserId;
 
     protected override void OnParametersSet()
     {
@@ -249,20 +248,20 @@
         IsDeleting = true;
         try
         {
-            // The API/CQRS handler verifies AssignedUserId ownership before removing the visit.
+            // The API/CQRS handler enforces role-specific deletion access.
             await CalendarService.DeleteVisitsAsync([Visit.VisitId]);
             await OnDeleted.InvokeAsync($"Deleted the calendar schedule for {Visit.PatientName}.");
         }
         catch (HttpRequestException ex)
         {
             ErrorMessage = string.IsNullOrWhiteSpace(ex.Message)
-                ? "Could not delete this schedule. Only the user who created this calendar entry can delete it."
+                ? "Could not delete this schedule. Check your access and try again."
                 : $"Could not delete this schedule: {ex.Message}";
             ShowDeleteConfirmation = false;
         }
         catch
         {
-            ErrorMessage = "Could not delete this schedule. Only the user who created this calendar entry can delete it.";
+            ErrorMessage = "Could not delete this schedule. Check your access and try again.";
             ShowDeleteConfirmation = false;
         }
         finally

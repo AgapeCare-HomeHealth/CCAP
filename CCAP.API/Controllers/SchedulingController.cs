@@ -128,7 +128,10 @@ public sealed class SchedulingController : ControllerBase
         try
         {
             var deleted = await _sender.Send(new CCAP.Application.Features.Scheduling.Commands.DeleteScheduleVisits.DeleteScheduleVisitsCommand(
-                userId, request.VisitIds, User.IsInRole("Administrator") || User.IsInRole("Admin")), cancellationToken);
+                userId,
+                request.VisitIds,
+                User.IsInRole("Administrator") || User.IsInRole("Admin"),
+                User.IsInRole("Care Coordinator")), cancellationToken);
             return Ok(new { deleted });
         }
         catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
@@ -289,7 +292,9 @@ public sealed class SchedulingController : ControllerBase
         User.IsInRole("Administrator") || User.IsInRole("Admin") || User.IsInRole("Scheduler");
 
     private bool CanManageSchedulingOrCareCoordinator() =>
-        User.HasClaim("permission", PermissionPolicies.SchedulingManage) || User.IsInRole("Care Coordinator");
+        User.HasClaim("permission", PermissionPolicies.SchedulingManage) ||
+        User.IsInRole("Administrator") || User.IsInRole("Admin") ||
+        User.IsInRole("Care Coordinator");
 
     private bool TryGetCurrentUserId(out Guid userId)
     {

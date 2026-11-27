@@ -47,6 +47,9 @@ public sealed class UpdateWorkflowDetailsCommandHandler : IRequestHandler<Update
             all || Is("Discharge") ? r.TransferReason : p.TransferReason,
             Is("SOC") || all ? r.HighLevelOfCareSpecialNeeds : p.HighLevelOfCareSpecialNeeds);
 
+        if (all || Is("OngoingCare"))
+            p.UpdateStatusFromTifAndRocDates();
+
         if (all || Is("Recertification"))
         {
             if (r.RecertificationRecords is not null)

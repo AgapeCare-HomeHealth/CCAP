@@ -26,7 +26,7 @@
             </div>
         </div>
 
-        <div class="filters-panel">
+        <div class="filters-panel @(IsAdministrator ? "admin-filters" : "")">
             <div class="filter-group physician-filter">
                 <label for="physicianFilter">Physician / Clinician</label>
                 <select id="physicianFilter" class="filter-select" @bind="SelectedPhysician">
@@ -37,6 +37,19 @@
                     }
                 </select>
             </div>
+            @if (IsAdministrator)
+            {
+                <div class="filter-group care-coordinator-filter">
+                    <label for="careCoordinatorFilter">Care Coordinator</label>
+                    <select id="careCoordinatorFilter" class="filter-select" @bind="SelectedCareCoordinatorId">
+                        <option value="">All Care Coordinators</option>
+                        @foreach (var coordinator in CareCoordinators)
+                        {
+                            <option value="@coordinator.UserId">@coordinator.FullName</option>
+                        }
+                    </select>
+                </div>
+            }
             <div class="filter-group patient-filter">
                 <label for="patientSearch">Search Patient / Clinician / CC</label>
                 <input id="patientSearch" class="filter-input" type="text"
@@ -56,13 +69,17 @@
             {
                 <div class="summary-pill accent">Filtered by: @SelectedPhysician</div>
             }
+            @if (SelectedCareCoordinatorName is not null)
+            {
+                <div class="summary-pill accent">Care Coordinator: @SelectedCareCoordinatorName</div>
+            }
             @if (!string.IsNullOrWhiteSpace(StatusMessage))
             {
                 <div class="calendar-feedback success" role="status">@StatusMessage</div>
             }
             @if (!string.IsNullOrWhiteSpace(StatusError))
             {
-                <div class="calendar-feedback error" role="alert">@StatusError</div>
+                <SweetAlertError Message="@StatusError" />
             }
         </div>
 
@@ -72,7 +89,7 @@
         }
         else if (!string.IsNullOrWhiteSpace(CalendarLoadErrorMessage))
         {
-            <div class="alert alert-danger m-3 mb-0">@CalendarLoadErrorMessage</div>
+            <SweetAlertError Message="@CalendarLoadErrorMessage" />
         }
         else
         {
@@ -238,7 +255,7 @@
                        ConfirmationOptions="ConfirmationOptions"
                        VisitStatusOptions="VisitStatusOptions"
                        CanEdit="@(SelectedSchedule is not null && CanModifySchedule(SelectedSchedule))"
-                       CurrentUserId="CurrentUserId"
+                       CanDelete="@(SelectedSchedule is not null && CanDeleteSchedule(SelectedSchedule))"
                        OnClose="CloseEditScheduleModal"
                        OnSaved="HandleScheduleDetailsSavedAsync"
                        OnDeleted="HandleScheduleDeletedAsync" />
@@ -284,6 +301,22 @@
             SyncSelectionWithFilters();
         }
     }
+
+    private Guid? _selectedCareCoordinatorId;
+    private Guid? SelectedCareCoordinatorId
+    {
+        get => _selectedCareCoordinatorId;
+        set
+        {
+            if (_selectedCareCoordinatorId == value) return;
+            _selectedCareCoordinatorId = value;
+            SyncSelectionWithFilters();
+        }
+    }
+
+    private string? SelectedCareCoordinatorName => _selectedCareCoordinatorId is Guid coordinatorId
+        ? CareCoordinators.FirstOrDefault(x => x.UserId == coordinatorId)?.FullName
+        : null;
 
     private string _patientSearchTerm = string.Empty;
     private string PatientSearchTerm
@@ -352,10 +385,12 @@
             Schedules = await CalendarService.GetVisitsAsync(start, end);
             SyncSelectionWithFilters();
         }
-        catch
+        catch (Exception ex)
         {
             Schedules = [];
-            CalendarLoadErrorMessage = "Unable to load schedules right now. Please try again.";
+            CalendarLoadErrorMessage = string.IsNullOrWhiteSpace(ex.Message)
+                ? "Unable to load schedules. Confirm you are signed in and try again."
+                : $"Unable to load schedules: {ex.Message}";
         }
         finally
         {
@@ -380,12 +415,15 @@
     {
         var matchesPhysician = string.IsNullOrWhiteSpace(SelectedPhysician) ||
             string.Equals(schedule.Clinician, SelectedPhysician, StringComparison.OrdinalIgnoreCase);
+        var matchesCareCoordinator = !IsAdministrator || !_selectedCareCoordinatorId.HasValue ||
+            schedule.CareCoordinatorId == _selectedCareCoordinatorId ||
+            (!schedule.CareCoordinatorId.HasValue && schedule.AssignedUserId == _selectedCareCoordinatorId);
         var search = PatientSearchTerm.Trim();
         var matchesSearch = string.IsNullOrEmpty(search) ||
             (schedule.PatientName?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false) ||
             (schedule.Clinician?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false) ||
             (schedule.CareCoordinatorName?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false);
-        return matchesPhysician && matchesSearch;
+        return matchesPhysician && matchesCareCoordinator && matchesSearch;
     }
 
     private List<CalendarVisitDto> GetSchedulesForDate(DateTime date) => FilteredSchedules
@@ -455,6 +493,7 @@
     private void ClearFilters()
     {
         _selectedPhysician = string.Empty;
+        _selectedCareCoordinatorId = null;
         _patientSearchTerm = string.Empty;
         SyncSelectionWithFilters();
     }
@@ -509,7 +548,7 @@
 
     private async Task DeleteScheduleFromCardAsync(CalendarVisitDto schedule)
     {
-        if (schedule.AssignedUserId != CurrentUserId || !(CanManageScheduling || IsCareCoordinator))
+        if (!CanDeleteSchedule(schedule))
             return;
 
         var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Delete the schedule for {schedule.PatientName} on {schedule.ScheduledDate:MMMM d, yyyy}? This cannot be undone.");
@@ -527,9 +566,11 @@
             StatusError = null;
             await LoadSchedulesAsync();
         }
-        catch
+        catch (Exception ex)
         {
-            StatusError = "Could not delete this schedule. Only the user who created this calendar entry can delete it.";
+            StatusError = string.IsNullOrWhiteSpace(ex.Message)
+                ? "Could not delete this schedule. Check your access and try again."
+                : $"Could not delete this schedule: {ex.Message}";
             StatusMessage = null;
         }
     }
@@ -552,10 +593,8 @@
         if (CurrentUserId == Guid.Empty)
             return false;
 
-        // Administrators may view all CC schedules, but may only modify entries
-        // assigned to themselves (or their own legacy, unassigned entries).
         if (IsAdministrator)
-            return IsAssignedToCurrentCoordinator(schedule);
+            return true;
 
         // Care Coordinators stay inside their own assignment scope.
         if (IsCareCoordinator)
@@ -567,14 +606,16 @@
 
     private bool CanDeleteSchedule(CalendarVisitDto schedule)
     {
-        if ((!CanManageScheduling && !IsCareCoordinator) || CurrentUserId == Guid.Empty || schedule.AssignedUserId != CurrentUserId)
+        if (CurrentUserId == Guid.Empty)
             return false;
 
-        // Do not let Admin delete a visit belonging to another Care Coordinator.
-        if (IsAdministrator && schedule.CareCoordinatorId.HasValue && schedule.CareCoordinatorId != CurrentUserId)
-            return false;
+        if (IsAdministrator)
+            return true;
 
-        return true;
+        if (IsCareCoordinator)
+            return schedule.AssignedUserId == CurrentUserId || schedule.CareCoordinatorId == CurrentUserId;
+
+        return CanManageScheduling && schedule.AssignedUserId == CurrentUserId;
     }
 
     private void BeginDragging(CalendarVisitDto schedule)
@@ -624,9 +665,11 @@
             SelectedSchedule = Schedules.FirstOrDefault(x => x.VisitId == visitId);
             StatusMessage = $"Rescheduled {schedule.PatientName} to {targetDay:MMMM d, yyyy}.";
         }
-        catch
+        catch (Exception ex)
         {
-            StatusError = "Could not reschedule this visit. Verify your permissions and try again.";
+            StatusError = string.IsNullOrWhiteSpace(ex.Message)
+                ? "Could not reschedule this visit. Verify your permissions and try again."
+                : $"Could not reschedule this visit: {ex.Message}";
         }
         finally
         {

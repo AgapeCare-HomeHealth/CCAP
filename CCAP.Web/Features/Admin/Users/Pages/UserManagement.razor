@@ -39,7 +39,7 @@
     }
     else if (!string.IsNullOrWhiteSpace(ErrorMessage))
     {
-        <div class="alert alert-danger">@ErrorMessage</div>
+        <SweetAlertError Message="@ErrorMessage" />
     }
     else
     {
@@ -79,7 +79,7 @@
                     <div class="modal-body">
                         @if (!string.IsNullOrWhiteSpace(EditorError))
                         {
-                            <div class="alert alert-danger">@EditorError</div>
+                            <SweetAlertError Message="@EditorError" />
                         }
 
                         <div class="row g-3">

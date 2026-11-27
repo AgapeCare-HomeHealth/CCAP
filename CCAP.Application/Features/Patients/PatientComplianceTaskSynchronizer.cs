@@ -10,6 +10,9 @@ namespace CCAP.Application.Features.Patients;
 /// </summary>
 public static class PatientComplianceTaskSynchronizer
 {
+    private static readonly HashSet<string> BackfilledRequirementCodes =
+        new(StringComparer.OrdinalIgnoreCase) { "POC_CREATED", "POC_SIGNED" };
+
     public static async Task EnsureAllAsync(
         Patient patient,
         IPatientTaskRepository tasks,
@@ -19,7 +22,19 @@ public static class PatientComplianceTaskSynchronizer
         var records = await compliance.GetByPatientAsync(patient.PatientId, ct);
 
         foreach (var item in PatientComplianceTaskCatalog.Items)
+        {
+            var record = records.FirstOrDefault(x =>
+                string.Equals(x.RequirementCode, item.Key, StringComparison.OrdinalIgnoreCase));
+            if (record is null && BackfilledRequirementCodes.Contains(item.Key))
+            {
+                record = new ComplianceRecord(patient.PatientId, item.Key, item.Value.Description);
+                await compliance.AddAsync(record, ct);
+                records.Add(record);
+                patient.ComplianceRecords.Add(record);
+            }
+
             await EnsureAsync(patient, item.Key, tasks, records, ct);
+        }
 
         // Retire legacy tasks incorrectly generated from informational fields.
         var informationalTaskTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)

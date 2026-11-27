@@ -37,6 +37,23 @@ public sealed class VisitRepository : IVisitRepository
     public Task<List<Visit>> GetForAssignmentAsync(Guid userId, IReadOnlyCollection<Guid> visitIds, CancellationToken cancellationToken)
         => _context.Visits.Where(x => x.AssignedUserId == userId && visitIds.Contains(x.VisitId)).ToListAsync(cancellationToken);
 
+    public Task<List<Visit>> GetForDeletionAsync(
+        Guid userId,
+        IReadOnlyCollection<Guid> visitIds,
+        bool isAdministrator,
+        bool isCareCoordinator,
+        CancellationToken cancellationToken)
+    {
+        var query = _context.Visits.Where(x => visitIds.Contains(x.VisitId));
+        if (isAdministrator)
+            return query.ToListAsync(cancellationToken);
+
+        query = isCareCoordinator
+            ? query.Where(x => x.AssignedUserId == userId || x.CareCoordinatorId == userId)
+            : query.Where(x => x.AssignedUserId == userId);
+        return query.ToListAsync(cancellationToken);
+    }
+
     public Task<Visit?> GetByIdForUpdateAsync(Guid visitId, CancellationToken cancellationToken)
         => _context.Visits.FirstOrDefaultAsync(x => x.VisitId == visitId, cancellationToken);
 
@@ -77,6 +94,18 @@ public sealed class VisitRepository : IVisitRepository
                  x.TimeBlock.ToUpper() == normalizedTimeBlock &&
                  x.VisitType.ToUpper() == normalizedVisitType,
             cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Visit>> GetScheduleImportCandidatesAsync(
+        DateTime startDate,
+        DateTime endDate,
+        CancellationToken cancellationToken)
+    {
+        return await _context.Visits.AsNoTracking()
+            .Include(x => x.Patient)
+            .Where(x => x.ScheduledDate >= startDate && x.ScheduledDate < endDate &&
+                        x.Status.ToUpper() != "CANCELLED")
+            .ToListAsync(cancellationToken);
     }
 
     private static string NormalizeName(string value) =>

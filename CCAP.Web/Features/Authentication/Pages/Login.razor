@@ -45,10 +45,7 @@
 
         @if (!string.IsNullOrWhiteSpace(ErrorMessage))
         {
-            <div class="login-error" role="alert" aria-live="polite">
-                <i class="bi bi-exclamation-circle"></i>
-                <span>@ErrorMessage</span>
-            </div>
+            <SweetAlertError Message="@ErrorMessage" />
         }
 
         <EditForm Model="LoginModel"

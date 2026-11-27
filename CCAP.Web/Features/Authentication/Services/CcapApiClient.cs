@@ -273,16 +273,44 @@ public sealed class CcapApiClient
         {
             using var doc = JsonDocument.Parse(body);
             var root = doc.RootElement;
-            if (root.TryGetProperty("message", out var message)) return message.GetString();
-            if (root.TryGetProperty("title", out var title)) return title.GetString();
+            var messageText = root.TryGetProperty("message", out var message)
+                ? message.GetString()
+                : null;
+            var titleText = root.TryGetProperty("title", out var title)
+                ? title.GetString()
+                : null;
+
             if (root.TryGetProperty("errors", out var errors))
             {
                 var values = new List<string>();
-                foreach (var property in errors.EnumerateObject())
-                    foreach (var item in property.Value.EnumerateArray())
-                        if (item.ValueKind == JsonValueKind.String) values.Add(item.GetString()!);
-                return values.Count == 0 ? null : string.Join(" ", values);
+                if (errors.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var property in errors.EnumerateObject())
+                    {
+                        if (property.Value.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var item in property.Value.EnumerateArray())
+                                if (item.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(item.GetString()))
+                                    values.Add($"{property.Name}: {item.GetString()}");
+                        }
+                        else if (property.Value.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(property.Value.GetString()))
+                        {
+                            values.Add($"{property.Name}: {property.Value.GetString()}");
+                        }
+                    }
+                }
+
+                if (values.Count > 0)
+                {
+                    var details = string.Join(" ", values);
+                    return string.IsNullOrWhiteSpace(messageText)
+                        ? details
+                        : $"{messageText} {details}";
+                }
             }
+
+            if (!string.IsNullOrWhiteSpace(messageText)) return messageText;
+            if (!string.IsNullOrWhiteSpace(titleText)) return titleText;
         }
         catch (JsonException) { }
         return body.Length > 1000 ? body[..1000] : body;

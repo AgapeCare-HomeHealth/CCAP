@@ -8,5 +8,6 @@ public enum ReferralStatus
     Assigned,
     Accepted,
     ConvertedToPatient,
-    Closed
+    Closed,
+    Pending
 }

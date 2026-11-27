@@ -31,9 +31,7 @@
 
         @if (!string.IsNullOrWhiteSpace(ErrorMessage))
         {
-            <div class="alert alert-danger">
-                @ErrorMessage
-            </div>
+            <SweetAlertError Message="@ErrorMessage" />
         }
 
         @switch (CurrentStep)
@@ -63,8 +61,7 @@
 
             case 5:
                 <ReviewStep Model="@Model"
-                            Coordinators="@Coordinators"
-                            Clinicians="@Clinicians"
+                            AssignmentUsers="@AssignmentUsers"
                             Disciplines="@Disciplines" />
                 break;
         }
@@ -194,6 +191,7 @@
 
     private List<UserDto> Coordinators = [];
     private List<UserDto> Clinicians = [];
+    private List<UserDto> AssignmentUsers = [];
     private List<LookupDto> Disciplines = [];
 
     private bool AssignmentOptionsLoaded;
@@ -308,6 +306,7 @@
                 LookupService.GetDisciplinesAsync();
 
             var users = await usersTask;
+            AssignmentUsers = users;
 
             Disciplines =
                 await disciplinesTask;

@@ -16,7 +16,7 @@
         <form class="schedule-modal-form" @onsubmit="SaveAsync" @onsubmit:preventDefault="true">
             @if (!string.IsNullOrWhiteSpace(ErrorMessage))
             {
-                <div class="schedule-form-alert" role="alert">@ErrorMessage</div>
+                <SweetAlertError Message="@ErrorMessage" />
             }
             @if (!string.IsNullOrWhiteSpace(ResultMessage))
             {
@@ -300,9 +300,11 @@
             await OnSaved.InvokeAsync(message);
             await OnClose.InvokeAsync();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            ErrorMessage = "Could not save the schedule. Verify the fields and try again.";
+            ErrorMessage = string.IsNullOrWhiteSpace(ex.Message)
+                ? "Could not save the schedule. Check that the selected patient, date, time block, visit type, and clinician are valid, then try again."
+                : $"Could not save the schedule: {ex.Message}";
         }
         finally
         {

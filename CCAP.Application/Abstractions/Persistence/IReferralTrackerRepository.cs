@@ -7,6 +7,12 @@ public interface IReferralTrackerRepository
 {
     Task<(IReadOnlyList<ReferralListItemDto> Items, int TotalCount)> GetPagedListAsync(
         int pageNumber, int pageSize, string? search, string? status, string? source, string? insurance,
+        Guid? assignedCoordinatorId,
+        CancellationToken cancellationToken);
+    Task<IReadOnlyList<ReferralListItemDto>> GetListAsync(
+        string? search, string? status, string? source, string? insurance,
+        Guid? assignedCoordinatorId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<ReferralCoordinatorFilterOptionDto>> GetAssignedCoordinatorsAsync(
         CancellationToken cancellationToken);
     Task<ReferralTrackerEntry?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
     Task AddAsync(ReferralTrackerEntry entry, CancellationToken cancellationToken);

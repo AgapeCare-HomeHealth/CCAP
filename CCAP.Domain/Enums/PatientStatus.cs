@@ -7,5 +7,6 @@ public enum PatientStatus
     Completed,
     Cancelled,
     Archived,
-    Pending
+    Pending,
+    Tif
 }

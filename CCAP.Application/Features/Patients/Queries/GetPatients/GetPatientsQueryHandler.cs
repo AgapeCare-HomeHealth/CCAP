@@ -23,13 +23,15 @@ public sealed class GetPatientsQueryHandler
         var sortBy = string.IsNullOrWhiteSpace(request.SortBy) ? "Name" : request.SortBy.Trim();
 
         var (patients, totalCount) = await _patients.GetPagedAsync(
-            pageNumber, pageSize, search, status, request.ClinicianId, request.AssignedUserId, sortBy, request.SortDescending, cancellationToken);
+            pageNumber, pageSize, search, status, request.ClinicianId, request.AssignedUserId,
+            sortBy, request.SortDescending, cancellationToken);
 
         var items = patients.Select(x => new PatientListItemDto(
             x.PatientId,
             $"{x.FirstName} {x.MiddleName} {x.LastName}".Replace("  ", " ").Trim(),
             x.MRN,
-            x.Status.ToString(),
+            !string.IsNullOrWhiteSpace(x.FinalStatus) ? x.FinalStatus :
+                x.Status == CCAP.Domain.Enums.PatientStatus.Tif ? "TIF" : x.Status.ToString(),
             x.PrimaryDiagnosis ?? string.Empty,
             x.Clinician is null ? string.Empty : $"{x.Clinician.FirstName} {x.Clinician.LastName}",
             null,

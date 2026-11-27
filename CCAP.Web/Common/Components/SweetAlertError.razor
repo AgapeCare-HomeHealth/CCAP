@@ -1,0 +1,51 @@
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+
+@code {
+    [Parameter] public string? Message { get; set; }
+    private string? _lastShownMessage;
+
+    protected override void OnParametersSet()
+    {
+        if (string.IsNullOrWhiteSpace(Message))
+            _lastShownMessage = null;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (string.IsNullOrWhiteSpace(Message) ||
+            string.Equals(Message, _lastShownMessage, StringComparison.Ordinal))
+            return;
+
+        _lastShownMessage = Message;
+        await JS.InvokeVoidAsync(
+            "Swal.fire",
+            new
+            {
+                icon = "error",
+                title = "Unable to complete action",
+                text = FormatMessage(Message),
+                confirmButtonText = "OK",
+                allowOutsideClick = false,
+                allowEscapeKey = true
+            });
+    }
+
+    private static string FormatMessage(string message)
+    {
+        var normalized = message.Trim();
+        if (normalized.Length == 0)
+            return "Something went wrong. Please try again.";
+
+        if (string.Equals(normalized, "An unexpected server error occurred.", StringComparison.OrdinalIgnoreCase))
+            return "The server encountered an unexpected problem while processing this request. Your changes may not have been saved. Try again; if it continues, contact your administrator and tell them what you were doing.";
+
+        if (normalized.Contains("actively refused", StringComparison.OrdinalIgnoreCase) ||
+            normalized.Contains("connection refused", StringComparison.OrdinalIgnoreCase) ||
+            normalized.Contains("failed to fetch", StringComparison.OrdinalIgnoreCase) ||
+            normalized.Contains("network error", StringComparison.OrdinalIgnoreCase))
+            return "CCAP could not reach the API. Confirm the API is running and try again.";
+
+        return normalized;
+    }
+}

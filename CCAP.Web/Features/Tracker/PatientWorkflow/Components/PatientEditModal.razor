@@ -17,7 +17,7 @@
                     <div class="modal-body patient-edit-modal-body">
                         @if (!string.IsNullOrWhiteSpace(ErrorMessage))
                         {
-                            <div class="alert alert-danger">@ErrorMessage</div>
+                            <SweetAlertError Message="@ErrorMessage" />
                         }
 
                         <div class="row g-3">
@@ -141,6 +141,7 @@
                     </div>
 
                     <div class="modal-footer patient-edit-modal-footer">
+                        <button type="button" class="btn btn-outline-warning me-auto" @onclick="NonAdmit" disabled="@Saving">Non-Admit</button>
                         <button type="button" class="btn btn-light" @onclick="Close">Cancel</button>
                         <button type="submit" class="btn btn-success" disabled="@Saving">
                             @(Saving ? "Saving..." : "Save Changes")
@@ -161,6 +162,7 @@
     [Parameter] public string? ErrorMessage { get; set; }
     [Parameter] public EventCallback OnSave { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnNonAdmit { get; set; }
 
     private void AddEmergencyContact() => Model.EmergencyContacts.Add(new EmergencyContactEditModel());
 
@@ -168,6 +170,7 @@
 
     private Task Save() => OnSave.InvokeAsync();
     private Task Close() => OnClose.InvokeAsync();
+    private Task NonAdmit() => OnNonAdmit.InvokeAsync();
 }
 
 <style>

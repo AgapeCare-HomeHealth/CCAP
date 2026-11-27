@@ -23,6 +23,8 @@ public sealed class ReferralTrackerEntry
     public string Resolution { get; private set; } = string.Empty;
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
+    public DateTime? ArchivedAt { get; private set; }
+    public Guid? ArchivedByUserId { get; private set; }
 
     private ReferralTrackerEntry() { }
 
@@ -68,6 +70,56 @@ public sealed class ReferralTrackerEntry
                 ? null
                 : NormalizeTypeOfReferral(typeOfReferral);
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void UpdateAllTrackerDetails(
+        DateTime referralDate,
+        string firstName,
+        string lastName,
+        string? mrn,
+        string typeOfReferral,
+        string? postedOn,
+        DateOnly? edd,
+        string? status,
+        string? source,
+        string? insurance,
+        Guid? assignedCoordinatorId,
+        string? assignedCoordinatorName,
+        string? firstMarketingCall,
+        string? secondCall,
+        string? thirdCall,
+        string? resolution)
+    {
+        if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName))
+            throw new ArgumentException("First and last name are required.");
+
+        ReferralDate = referralDate;
+        FirstName = firstName.Trim();
+        LastName = lastName.Trim();
+        Mrn = mrn?.Trim() ?? string.Empty;
+        TypeOfReferral = NormalizeTypeOfReferral(typeOfReferral);
+        PostedOn = postedOn?.Trim() ?? string.Empty;
+        EstimatedDischargeDate = edd;
+        Status = status?.Trim() ?? string.Empty;
+        Source = source?.Trim() ?? string.Empty;
+        Insurance = insurance?.Trim() ?? string.Empty;
+        AssignedCoordinatorId = assignedCoordinatorId;
+        AssignedCoordinatorName = assignedCoordinatorName?.Trim();
+        FirstMarketingCall = firstMarketingCall?.Trim() ?? string.Empty;
+        SecondCoordinatorCall = secondCall?.Trim() ?? string.Empty;
+        ThirdCoordinatorCall = thirdCall?.Trim() ?? string.Empty;
+        Resolution = resolution?.Trim() ?? string.Empty;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void Archive(Guid archivedByUserId)
+    {
+        if (archivedByUserId == Guid.Empty)
+            throw new ArgumentException("Archiving user is required.", nameof(archivedByUserId));
+
+        ArchivedAt = DateTime.UtcNow;
+        ArchivedByUserId = archivedByUserId;
+        UpdatedAt = ArchivedAt.Value;
     }
 
     public static bool IsValidTypeOfReferral(string? value) =>

@@ -24,12 +24,26 @@
         <SummaryItem Label="ZIP Code" Value="@Model.ZipCode" />
     </div>
 
-    <h6 class="mt-4 mb-3">Emergency Contact</h6>
-    <div class="summary-grid">
-        <SummaryItem Label="Contact Name" Value="@Model.EmergencyContactName" />
-        <SummaryItem Label="Relationship" Value="@Model.EmergencyContactRelationship" />
-        <SummaryItem Label="Phone Number" Value="@Model.EmergencyContactPhone" />
-    </div>
+    <h6 class="mt-4 mb-3">Emergency Contacts</h6>
+    @if (EmergencyContactsForReview.Count == 0)
+    {
+        <div class="text-muted">No emergency contacts provided.</div>
+    }
+    else
+    {
+        @for (var index = 0; index < EmergencyContactsForReview.Count; index++)
+        {
+            var contact = EmergencyContactsForReview[index];
+            <div class="border rounded-3 p-3 mb-3">
+                <div class="fw-semibold mb-2">Emergency Contact @(index + 1)</div>
+                <div class="summary-grid">
+                    <SummaryItem Label="Contact Name" Value="@contact.Name" />
+                    <SummaryItem Label="Relationship" Value="@contact.Relationship" />
+                    <SummaryItem Label="Phone Number" Value="@contact.Phone" />
+                </div>
+            </div>
+        }
+    }
 
     <hr />
     <h5 class="section-heading">Referral Information</h5>
@@ -39,6 +53,8 @@
         <SummaryItem Label="Initial Referral Date" Value="@Model.ReferralDate.ToString("MM/dd/yyyy")" />
         <SummaryItem Label="Type of Referral" Value="@Model.ReferralType" />
         <SummaryItem Label="Referral Source" Value="@Model.ReferralSource" />
+        <SummaryItem Label="Referral Channel" Value="@Model.ReferralChannel" />
+        <SummaryItem Label="Referral Priority" Value="@Model.Priority" />
         <SummaryItem Label="Target SOC Date" Value="@FormatDate(Model.SocDate)" />
     </div>
 
@@ -47,6 +63,7 @@
         <SummaryItem Label="Primary Insurance" Value="@Model.PrimaryInsurance" />
         <SummaryItem Label="Member ID" Value="@Model.InsuranceMemberId" />
         <SummaryItem Label="PRE AUTH" Value="@Model.PreAuthStatus" />
+        <SummaryItem Label="Authorization Required" Value="@(Model.AuthorizationRequired ? "Yes" : "No")" />
         <SummaryItem Label="Authorization Date" Value="@FormatDate(Model.AuthorizationDate)" />
         <SummaryItem Label="Number of Approved Visits" Value="@Model.ApprovedVisits?.ToString()" />
     </div>
@@ -95,7 +112,7 @@
         <SummaryItem Label="Discipline" Value="@DisciplineName" />
         <SummaryItem Label="Target SOC Date" Value="@FormatDate(Model.SocDate)" />
         <SummaryItem Label="Visit Priority" Value="@Model.VisitPriority" />
-        <SummaryItem Label="Case Status" Value="Pending" />
+        <SummaryItem Label="Case Status" Value="@Model.CaseStatus" />
     </div>
 
     <h6 class="mt-4 mb-3">Internal Notes</h6>
@@ -122,18 +139,52 @@
 
 @code {
     [Parameter] public ReferralIntakeModel Model { get; set; } = null!;
-    [Parameter] public List<UserDto> Coordinators { get; set; } = [];
-    [Parameter] public List<UserDto> Clinicians { get; set; } = [];
+    [Parameter] public List<UserDto> AssignmentUsers { get; set; } = [];
     [Parameter] public List<LookupDto> Disciplines { get; set; } = [];
 
-    private string SecondaryCoordinatorName => Coordinators.FirstOrDefault(x => x.UserId == Model.SecondaryCoordinatorId)?.FullName ?? "Not assigned";
-    private string CoordinatorName => Model.CoordinatorId.HasValue
-        ? Coordinators.FirstOrDefault(x => x.UserId == Model.CoordinatorId.Value)?.FullName ?? Model.CoordinatorId.Value.ToString()
-        : string.Empty;
+    private string SecondaryCoordinatorName => ResolveUserName(Model.SecondaryCoordinatorId);
+    private string CoordinatorName => ResolveUserName(Model.CoordinatorId);
+    private string ClinicianName => ResolveUserName(Model.ClinicianId);
 
-    private string ClinicianName => Model.ClinicianId.HasValue
-        ? Clinicians.FirstOrDefault(x => x.UserId == Model.ClinicianId.Value)?.FullName ?? Model.ClinicianId.Value.ToString()
-        : string.Empty;
+    private List<EmergencyContactModel> EmergencyContactsForReview
+    {
+        get
+        {
+            var contacts = (Model.EmergencyContacts ?? [])
+                .Where(x => !string.IsNullOrWhiteSpace(x.Name) ||
+                            !string.IsNullOrWhiteSpace(x.Relationship) ||
+                            !string.IsNullOrWhiteSpace(x.Phone))
+                .ToList();
+            if (contacts.Count > 0)
+                return contacts;
+
+            if (string.IsNullOrWhiteSpace(Model.EmergencyContactName) &&
+                string.IsNullOrWhiteSpace(Model.EmergencyContactRelationship) &&
+                string.IsNullOrWhiteSpace(Model.EmergencyContactPhone))
+                return [];
+
+            return
+            [
+                new EmergencyContactModel
+                {
+                    Name = Model.EmergencyContactName,
+                    Relationship = Model.EmergencyContactRelationship,
+                    Phone = Model.EmergencyContactPhone
+                }
+            ];
+        }
+    }
+
+    private string ResolveUserName(Guid? userId)
+    {
+        if (!userId.HasValue)
+            return "Not assigned";
+
+        var user = AssignmentUsers.FirstOrDefault(x => x.UserId == userId.Value);
+        return user is null || string.IsNullOrWhiteSpace(user.FullName)
+            ? "Assigned user unavailable"
+            : user.FullName;
+    }
 
     private string DisciplineName => Model.DisciplineId.HasValue
         ? Disciplines.FirstOrDefault(x => x.Id == Model.DisciplineId.Value)?.Name ?? Model.DisciplineId.Value.ToString()

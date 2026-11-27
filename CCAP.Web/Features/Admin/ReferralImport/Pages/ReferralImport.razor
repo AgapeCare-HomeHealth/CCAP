@@ -1,0 +1,492 @@
+@page "/admin/referral-import"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Administrator")]
+@using System.Text.Json
+@using System.Globalization
+@using System.Text
+@using Microsoft.AspNetCore.Components.Forms
+@using CCAP.Web.Features.Tracker.ReferralIntake.Models
+@using CCAP.Web.Features.Tracker.ReferralIntake.Services
+@using CCAP.Web.Features.Tracker.ReferralList.Models
+@using CCAP.Web.Features.Admin.Users.Models
+@using CCAP.Web.Features.Authentication.Services
+@inject ReferralIntakeService ReferralIntakeService
+@inject CcapApiClient Api
+@inject IJSRuntime JS
+
+<PageTitle>Referral Tracker Import</PageTitle>
+
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4">
+        <div><h2 class="mb-1">Referral Tracker Import</h2><p class="text-muted mb-0">Upload and validate Referral Tracker records. Type of Referral defaults to New Patient.</p></div>
+        <button class="btn btn-outline-secondary" @onclick="LoadHistoryAsync" disabled="@IsReferralImporting"><i class="bi bi-arrow-clockwise me-1"></i>Refresh history</button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(ReferralImportError))
+    {
+        <SweetAlertError Message="@ReferralImportError" />
+    }
+    @if (!string.IsNullOrWhiteSpace(ReferralImportMessage))
+    {
+        <div class="alert alert-info">@ReferralImportMessage</div>
+    }
+
+    <section class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div><h5 class="mb-1">Bulk upload Referral Tracker</h5><p class="text-muted small mb-0">Download the template, fill in referral details, then validate and preview before importing. Only columns through Resolution are included.</p></div>
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <button class="btn btn-outline-primary" @onclick="DownloadReferralTemplateAsync" disabled="@IsReferralImporting"><i class="bi bi-download me-1"></i>Download template</button>
+                    <InputFile OnChange="SelectReferralCsvAsync" accept=".csv,text/csv" disabled="@IsReferralImporting" />
+                    <button class="btn btn-primary" @onclick="PreviewReferralCsvAsync" disabled="@(ReferralCsvFile is null || IsReferralImporting)">Validate &amp; preview</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    @if (ReferralImportRows.Count > 0)
+    {
+        <section class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <div><h5 class="mb-1">Import preview</h5><div class="small text-muted">Rows: @ReferralImportRows.Count · Ready: @ReferralImportRows.Count(x => x.Error is null) · Errors / duplicates: @ReferralImportRows.Count(x => x.Error is not null)</div></div>
+                    <button class="btn btn-success" @onclick="ImportReferralCsvAsync" disabled="@(IsReferralImporting || !ReferralImportRows.Any(x => x.Error is null))">@(IsReferralImporting ? "Importing..." : "Import valid rows")</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped align-middle">
+                        <thead><tr><th>Row</th><th>Name</th><th>Referral date</th><th>Assigned CC</th><th>Type</th><th>Result / reason</th></tr></thead>
+                        <tbody>
+                            @foreach (var row in ReferralImportRows)
+                            {
+                                <tr><td>@row.RowNumber</td><td>@row.FirstName @row.LastName</td><td>@row.ReferralDate.ToString("MM/dd/yyyy")</td><td>@row.AssignedCoordinatorDisplay</td><td>@row.TypeOfReferral</td><td>@(row.Error ?? (row.ImportStatus == "Inserted" ? "Inserted" : "Ready"))</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    }
+
+    <section class="card shadow-sm">
+        <div class="card-body">
+            <h5 class="mb-3">Import history</h5>
+            @if (History.Count == 0)
+            {
+                <div class="text-muted">No Referral Tracker imports have been uploaded yet.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead><tr><th>Uploaded</th><th>Uploaded by</th><th>File</th><th>Total</th><th>Inserted</th><th>Duplicates</th><th>Failed</th><th>Status</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (var item in History)
+                            {
+                                <tr><td>@item.UploadedAt.ToLocalTime().ToString("g")</td><td>@item.UploadedBy</td><td>@item.FileName</td><td>@item.TotalRows</td><td>@item.InsertedRows</td><td>@item.DuplicateRows</td><td>@item.FailedRows</td><td><span class="badge @(item.Status == "Completed" ? "bg-success" : item.Status == "Partial" ? "bg-warning text-dark" : "bg-danger")">@item.Status</span></td><td><button class="btn btn-sm btn-outline-secondary" @onclick="() => LoadHistoryLogsAsync(item.ReferralImportBatchId)">View logs</button></td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            @if (SelectedHistory is not null)
+            {
+                <hr />
+                <div class="d-flex justify-content-between align-items-center"><h6>Import logs — @SelectedHistory.FileName</h6><button class="btn btn-sm btn-outline-primary" @onclick="DownloadHistoricalErrorsAsync">Download failed rows</button></div>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead><tr><th>Row</th><th>Name</th><th>Status</th><th>Reason for error / skip</th></tr></thead>
+                        <tbody>
+                            @foreach (var row in SelectedHistory.Rows.Where(x => x.Status != "Inserted"))
+                            {
+                                <tr><td>@row.RowNumber</td><td>@row.PatientName</td><td>@row.Status</td><td>@(row.ErrorMessage ?? "No error details recorded.")</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </section>
+</div>
+
+@code {
+    private IBrowserFile? ReferralCsvFile;
+    private bool IsReferralImporting;
+    private string? ReferralImportMessage;
+    private string? ReferralImportError;
+    private List<ReferralCsvRow> ReferralImportRows = [];
+    private List<UserDto> AssignmentUsers = [];
+    private List<ReferralImportHistoryDto> History = [];
+    private ReferralImportHistoryDetailDto? SelectedHistory;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { AssignmentUsers = await ReferralIntakeService.GetReferralAssignmentUsersAsync(); }
+        catch (Exception ex) { ReferralImportError = $"Unable to load Care Coordinator accounts: {ex.Message}"; }
+        await LoadHistoryAsync();
+    }
+
+    private async Task LoadHistoryAsync()
+    {
+        try { History = await Api.GetFromJsonAsync<List<ReferralImportHistoryDto>>("api/referral-import/history") ?? []; }
+        catch (Exception ex) { ReferralImportError = $"Unable to load import history: {ex.Message}"; }
+    }
+
+    private async Task LoadHistoryLogsAsync(Guid id)
+    {
+        try { SelectedHistory = await Api.GetFromJsonAsync<ReferralImportHistoryDetailDto>($"api/referral-import/history/{id}"); }
+        catch (Exception ex) { ReferralImportError = $"Unable to load import logs: {ex.Message}"; }
+    }
+
+    private async Task PersistImportHistoryAsync()
+    {
+        var request = new SaveReferralImportHistoryDto
+        {
+            FileName = ReferralCsvFile?.Name ?? "ReferralTracker.csv",
+            Rows = ReferralImportRows.Select(row => new SaveReferralImportHistoryRowDto
+            {
+                RowNumber = row.RowNumber,
+                PatientName = $"{row.FirstName} {row.LastName}".Trim(),
+                Status = row.ImportStatus == "Inserted" ? "Inserted" :
+                    row.Error?.Contains("duplicate", StringComparison.OrdinalIgnoreCase) == true ? "Duplicate" :
+                    row.ImportStatus == "Failed" ? "Failed" : "Validation Error",
+                ErrorMessage = row.Error,
+                RawDataJson = JsonSerializer.Serialize(row)
+            }).ToList()
+        };
+        using var response = await Api.PostAsJsonAsync("api/referral-import/history", request);
+        await Api.EnsureSuccessAsync(response);
+        await LoadHistoryAsync();
+    }
+
+    private async Task DownloadReferralTemplateAsync()
+    {
+        const string csv = "REFERRAL DATE,POSTED ON,EDD,NAME,STATUS,REFERRAL SOURCE,PAYOR/INSURANCE,ASSIGNED CC,1st CALL - MARKETING,2nd Call - CC,3rd Call - CC,RESOLUTION\r\n";
+        using var stream = new MemoryStream(Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(csv)).ToArray());
+        using var reference = new DotNetStreamReference(stream);
+        await JS.InvokeVoidAsync("ccapDownloadStream", "CCAP_Referral_Tracker_Import_Template.csv", "text/csv;charset=utf-8", reference);
+    }
+
+    private Task SelectReferralCsvAsync(InputFileChangeEventArgs args)
+    {
+        ReferralCsvFile = args.File;
+        ReferralImportRows.Clear();
+        SelectedHistory = null;
+        ReferralImportError = null;
+        ReferralImportMessage = $"Selected: {args.File.Name}";
+        return Task.CompletedTask;
+    }
+
+    private async Task PreviewReferralCsvAsync()
+    {
+        if (ReferralCsvFile is null) return;
+        ReferralImportError = null;
+        ReferralImportMessage = null;
+        ReferralImportRows.Clear();
+        try
+        {
+            using var stream = ReferralCsvFile.OpenReadStream(20 * 1024 * 1024);
+            using var reader = new StreamReader(stream, Encoding.UTF8, true);
+            var text = await reader.ReadToEndAsync();
+            var parsed = ParseCsv(text);
+            if (parsed.Count < 2) throw new InvalidOperationException("The CSV must contain a header and at least one data row.");
+            var headers = parsed[0].Select(NormalizeCsvHeader).ToList();
+            if (!headers.Contains("NAME")) throw new InvalidOperationException("Missing required column: NAME.");
+            if (AssignmentUsers.Count == 0) AssignmentUsers = await ReferralIntakeService.GetReferralAssignmentUsersAsync();
+
+            var existingKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var firstPage = await ReferralIntakeService.GetReferralListAsync(1, 100, "", "", "", "");
+            var totalPagesForDuplicateCheck = (int)Math.Ceiling(firstPage.TotalCount / 100d);
+            foreach (var existing in firstPage.Items) existingKeys.Add($"{existing.PatientName.Trim().ToUpperInvariant()}|{existing.ReferralDate:yyyyMMdd}");
+            for (var page = 2; page <= totalPagesForDuplicateCheck; page++)
+            {
+                var result = await ReferralIntakeService.GetReferralListAsync(page, 100, "", "", "", "");
+                foreach (var existing in result.Items) existingKeys.Add($"{existing.PatientName.Trim().ToUpperInvariant()}|{existing.ReferralDate:yyyyMMdd}");
+            }
+
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (var i = 1; i < parsed.Count; i++)
+            {
+                var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                for (var c = 0; c < headers.Count; c++) values[headers[c]] = c < parsed[i].Count ? parsed[i][c].Trim() : "";
+                var name = GetCsv(values, "NAME");
+                var (first, last) = SplitReferralName(name);
+                var dateText = GetCsv(values, "REFERRAL DATE");
+                var referralDate = DateTime.Today;
+                string? error = null;
+                if (string.IsNullOrWhiteSpace(first) || string.IsNullOrWhiteSpace(last)) error = "NAME must contain a first and last name.";
+                else if (!string.IsNullOrWhiteSpace(dateText) &&
+                    !DateTime.TryParse(dateText, CultureInfo.GetCultureInfo("en-US"), DateTimeStyles.None, out referralDate) &&
+                    !DateTime.TryParse(dateText, out referralDate)) error = $"Invalid REFERRAL DATE: {dateText}.";
+
+                var key = $"{NormalizeLookupValue(first)}|{NormalizeLookupValue(last)}|{referralDate:yyyyMMdd}";
+                if (error is null && !seen.Add(key)) error = "Duplicate record within this CSV (same name and referral date).";
+                if (error is null && existingKeys.Contains($"{NormalizeLookupValue(first)} {NormalizeLookupValue(last)}|{referralDate:yyyyMMdd}"))
+                    error = "A referral with this name and referral date already exists in the Referral Tracker.";
+
+                var eddText = GetCsv(values, "EDD");
+                var edd = ParseCsvDate(eddText);
+                if (error is null && !string.IsNullOrWhiteSpace(eddText) && edd is null) error = $"Invalid EDD date: {eddText}.";
+                // Match configured text values without regard to casing or repeated/hidden whitespace.
+                // Return the configured value so the database receives the system's canonical spelling.
+                var postedOnInput = GetCsv(values, "POSTED ON");
+                var postedOnMatch = MatchOption(postedOnInput, ReferralTrackerOptions.PostedOn);
+                var postedOn = postedOnMatch ?? postedOnInput;
+                if (error is null && !string.IsNullOrWhiteSpace(postedOnInput) && postedOnMatch is null)
+                    error = $"POSTED ON value '{postedOnInput}' is not supported.";
+
+                var statusInput = GetCsv(values, "STATUS");
+                var statusMatch = MatchOption(statusInput, ReferralTrackerOptions.Statuses);
+                var statusValue = statusMatch ?? string.Empty;
+
+                var sourceInput = GetCsv(values, "REFERRAL SOURCE");
+                var sourceMatch = MatchOption(sourceInput, ReferralTrackerOptions.ReferralSources);
+                var sourceValue = sourceMatch ?? sourceInput;
+                if (error is null && !string.IsNullOrWhiteSpace(sourceInput) && sourceMatch is null)
+                    error = $"REFERRAL SOURCE '{sourceInput}' does not match a configured source.";
+
+                var payorInput = GetCsv(values, "PAYOR/INSURANCE");
+                var payorMatch = MatchOption(payorInput, ReferralTrackerOptions.Payors);
+                var payorValue = payorMatch ?? payorInput;
+                if (error is null && !string.IsNullOrWhiteSpace(payorInput) && payorMatch is null)
+                    error = $"PAYOR/INSURANCE '{payorInput}' does not match a configured payor.";
+
+                var ccName = GetCsv(values, "ASSIGNED CC");
+                var normalizedCcName = NormalizeLookupValue(ccName);
+                var ccMatches = string.IsNullOrWhiteSpace(normalizedCcName) ? new List<UserDto>() : AssignmentUsers.Where(u =>
+                    string.Equals(NormalizeLookupValue(u.FullName), normalizedCcName, StringComparison.OrdinalIgnoreCase) ||
+                    NormalizeLookupValue(u.FullName).StartsWith(normalizedCcName + " ", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(
+                        NormalizeLookupValue(u.FullName).Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault(),
+                        normalizedCcName,
+                        StringComparison.OrdinalIgnoreCase)).ToList();
+                if (error is null && !string.IsNullOrWhiteSpace(ccName) && ccMatches.Count == 0) error = $"No active Care Coordinator matched '{ccName}'.";
+                else if (error is null && ccMatches.Count > 1) error = $"'{ccName}' matches multiple Care Coordinator accounts; use a more specific name.";
+
+                var row = new ReferralCsvRow
+                {
+                    RowNumber = i + 1,
+                    FirstName = first,
+                    LastName = last,
+                    ReferralDate = referralDate,
+                    TypeOfReferral = "New Patient",
+                    PostedOn = postedOn,
+                    Edd = edd,
+                    Status = statusValue,
+                    Source = sourceValue,
+                    Insurance = payorValue,
+                    AssignedCoordinatorId = ccMatches.Count == 1 ? ccMatches[0].UserId : null,
+                    AssignedCoordinatorDisplay = ccMatches.Count == 1 ? ccMatches[0].FullName : ccName,
+                    FirstMarketingCall = GetCsv(values, "1ST CALL - MARKETING"),
+                    SecondCoordinatorCall = GetCsv(values, "2ND CALL - CC"),
+                    ThirdCoordinatorCall = GetCsv(values, "3RD CALL - CC"),
+                    Resolution = GetCsv(values, "RESOLUTION"),
+                    Error = error
+                };
+                if (row.PostedOn.Length > 100) row.Error ??= "POSTED ON exceeds 100 characters.";
+                
+                ReferralImportRows.Add(row);
+            }
+            ReferralImportMessage = $"Preview ready: {ReferralImportRows.Count(x => x.Error is null)} valid, {ReferralImportRows.Count(x => x.Error is not null)} error or duplicate rows.";
+            if (ReferralImportRows.Any(x => x.Error is not null))
+                await DownloadReferralErrorsAsync("validation");
+            if (!ReferralImportRows.Any(x => x.Error is null))
+            {
+                await PersistImportHistoryAsync();
+                ReferralImportMessage += " No valid rows were found; validation results were saved to Import History.";
+            }
+        }
+        catch (Exception ex) { ReferralImportError = ex.Message; }
+    }
+
+    private async Task ImportReferralCsvAsync()
+    {
+        IsReferralImporting = true;
+        ReferralImportError = null;
+        var ready = ReferralImportRows.Where(x => x.Error is null).ToList();
+        var inserted = 0;
+        try
+        {
+            foreach (var group in ready.Chunk(100))
+            {
+                var requests = group.Select(row => new ReferralTrackerCreateRequest
+                {
+                    FirstName = row.FirstName,
+                    LastName = row.LastName,
+                    TypeOfReferral = "New Patient",
+                    ReferralDate = row.ReferralDate,
+                    PostedOn = string.IsNullOrWhiteSpace(row.PostedOn) ? "Referral/Intake" : row.PostedOn,
+                    EstimatedDischargeDate = row.Edd,
+                    Status = row.Status,
+                    Source = row.Source,
+                    Insurance = row.Insurance,
+                    AssignedCoordinatorId = row.AssignedCoordinatorId,
+                    FirstMarketingCall = row.FirstMarketingCall,
+                    SecondCoordinatorCall = row.SecondCoordinatorCall,
+                    ThirdCoordinatorCall = row.ThirdCoordinatorCall,
+                    Resolution = row.Resolution
+                }).ToList();
+                try
+                {
+                    await ReferralIntakeService.CreateReferralTrackerEntriesAsync(requests);
+                    foreach (var row in group) { row.ImportStatus = "Inserted"; }
+                    inserted += group.Length;
+                }
+                catch (Exception ex)
+                {
+                    foreach (var row in group) { row.Error = $"Not inserted: {ex.Message}"; row.ImportStatus = "Failed"; }
+                }
+            }
+            await PersistImportHistoryAsync();
+            await LoadHistoryAsync();
+            ReferralImportMessage = $"Referral import finished: {inserted} inserted, {ReferralImportRows.Count(x => x.Error is not null)} failed or skipped. Import history has been saved.";
+            if (ReferralImportRows.Any(x => x.Error is not null)) await DownloadReferralErrorsAsync("import");
+        }
+        catch (Exception ex) { ReferralImportError = $"Import completed but history could not be saved: {ex.Message}"; }
+        finally { IsReferralImporting = false; }
+    }
+
+    private async Task DownloadReferralErrorsAsync(string stage)
+    {
+        var failed = ReferralImportRows.Where(x => x.Error is not null).ToList();
+        if (failed.Count == 0) return;
+        var builder = new StringBuilder();
+        builder.AppendLine("Row,FirstName,LastName,ReferralDate,TypeOfReferral,AssignedCC,ImportStatus,ImportError");
+        foreach (var row in failed)
+            builder.AppendLine(string.Join(",", new[] { row.RowNumber.ToString(), row.FirstName, row.LastName, row.ReferralDate.ToString("yyyy-MM-dd"), row.TypeOfReferral, row.AssignedCoordinatorDisplay, row.ImportStatus, row.Error ?? "" }.Select(CsvEscape)));
+        using var stream = new MemoryStream(Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(builder.ToString())).ToArray());
+        using var reference = new DotNetStreamReference(stream);
+        await JS.InvokeVoidAsync("ccapDownloadStream", $"ReferralTracker_{stage}_errors.csv", "text/csv;charset=utf-8", reference);
+    }
+
+    private async Task DownloadHistoricalErrorsAsync()
+    {
+        if (SelectedHistory is null) return;
+        var failed = SelectedHistory.Rows.Where(x => x.Status != "Inserted").ToList();
+        var builder = new StringBuilder("Row,PatientName,Status,ImportError\r\n");
+        foreach (var row in failed) builder.AppendLine(string.Join(",", new[] { row.RowNumber.ToString(), row.PatientName, row.Status, row.ErrorMessage ?? "" }.Select(CsvEscape)));
+        using var stream = new MemoryStream(Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(builder.ToString())).ToArray());
+        using var reference = new DotNetStreamReference(stream);
+        await JS.InvokeVoidAsync("ccapDownloadStream", $"ReferralTracker_{SelectedHistory.FileName}_errors.csv", "text/csv;charset=utf-8", reference);
+    }
+
+    private static string CsvEscape(string? value) => "\"" + (value ?? "").Replace("\"", "\"\"") + "\"";
+
+    private static string NormalizeLookupValue(string? value)
+    {
+        return string.Join(
+            " ",
+            (value ?? string.Empty)
+                .Replace('\u00A0', ' ')
+                .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    private static string? MatchOption(string? value, IEnumerable<string> options)
+    {
+        var normalizedValue = NormalizeLookupValue(value);
+        if (normalizedValue.Length == 0) return null;
+
+        return options.FirstOrDefault(option =>
+            string.Equals(
+                NormalizeLookupValue(option),
+                normalizedValue,
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string NormalizeCsvHeader(string value) => new string(value.Trim().TrimStart('\uFEFF').ToUpperInvariant().Where(char.IsLetterOrDigit).ToArray()) switch
+    {
+        "REFERRALDATE" => "REFERRAL DATE",
+        "POSTEDON" => "POSTED ON",
+        "PAYORINSURANCE" => "PAYOR/INSURANCE",
+        "REFERRALSOURCE" => "REFERRAL SOURCE",
+        "ASSIGNEDCC" => "ASSIGNED CC",
+        "1STCALLMARKETING" => "1ST CALL - MARKETING",
+        "2NDCALLCC" => "2ND CALL - CC",
+        "3RDCALLCC" => "3RD CALL - CC",
+        _ => value.Trim().TrimStart('\uFEFF').ToUpperInvariant()
+    };
+    private static string GetCsv(Dictionary<string, string> values, string key) => values.GetValueOrDefault(key, "").Trim();
+    private static DateOnly? ParseCsvDate(string value) =>
+        DateOnly.TryParse(value, CultureInfo.GetCultureInfo("en-US"), out var date) || DateOnly.TryParse(value, out date) ? date : null;
+    private static (string First, string Last) SplitReferralName(string value)
+    {
+        var clean = value.Trim();
+        if (clean.Contains(',')) { var parts = clean.Split(',', 2, StringSplitOptions.TrimEntries); return (parts.Length > 1 ? parts[1] : "", parts[0]); }
+        var parts2 = clean.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return parts2.Length > 1 ? (string.Join(" ", parts2[..^1]), parts2[^1]) : ("", "");
+    }
+    private static List<List<string>> ParseCsv(string input)
+    {
+        var rows = new List<List<string>>(); var row = new List<string>(); var cell = new StringBuilder(); var quoted = false;
+        for (var i = 0; i < input.Length; i++)
+        {
+            var ch = input[i];
+            if (quoted) { if (ch == '"' && i + 1 < input.Length && input[i + 1] == '"') { cell.Append('"'); i++; } else if (ch == '"') quoted = false; else cell.Append(ch); }
+            else if (ch == '"') quoted = true;
+            else if (ch == ',') { row.Add(cell.ToString()); cell.Clear(); }
+            else if (ch == '\n') { row.Add(cell.ToString().TrimEnd('\r')); cell.Clear(); rows.Add(row); row = []; }
+            else cell.Append(ch);
+        }
+        if (cell.Length > 0 || row.Count > 0) { row.Add(cell.ToString().TrimEnd('\r')); rows.Add(row); }
+        return rows.Where(r => r.Any(c => !string.IsNullOrWhiteSpace(c))).ToList();
+    }
+
+    private sealed class ReferralCsvRow
+    {
+        public int RowNumber { get; set; }
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
+        public DateTime ReferralDate { get; set; }
+        public string TypeOfReferral { get; set; } = "New Patient";
+        public string PostedOn { get; set; } = "";
+        public DateOnly? Edd { get; set; }
+        public string Status { get; set; } = "";
+        public string Source { get; set; } = "";
+        public string Insurance { get; set; } = "";
+        public Guid? AssignedCoordinatorId { get; set; }
+        public string AssignedCoordinatorDisplay { get; set; } = "";
+        public string FirstMarketingCall { get; set; } = "";
+        public string SecondCoordinatorCall { get; set; } = "";
+        public string ThirdCoordinatorCall { get; set; } = "";
+        public string Resolution { get; set; } = "";
+        public string ImportStatus { get; set; } = "Pending";
+        public string? Error { get; set; }
+    }
+
+    public sealed class ReferralImportHistoryDto
+    {
+        public Guid ReferralImportBatchId { get; set; }
+        public string FileName { get; set; } = "";
+        public string UploadedBy { get; set; } = "";
+        public DateTime UploadedAt { get; set; }
+        public int TotalRows { get; set; }
+        public int InsertedRows { get; set; }
+        public int DuplicateRows { get; set; }
+        public int FailedRows { get; set; }
+        public string Status { get; set; } = "";
+    }
+    public sealed class ReferralImportHistoryDetailDto
+    {
+        public Guid ReferralImportBatchId { get; set; }
+        public string FileName { get; set; } = "";
+        public List<ReferralImportHistoryRowDto> Rows { get; set; } = [];
+    }
+    public sealed class ReferralImportHistoryRowDto
+    {
+        public int RowNumber { get; set; }
+        public string PatientName { get; set; } = "";
+        public string Status { get; set; } = "";
+        public string? ErrorMessage { get; set; }
+    }
+    public sealed class SaveReferralImportHistoryDto
+    {
+        public string FileName { get; set; } = "";
+        public List<SaveReferralImportHistoryRowDto> Rows { get; set; } = [];
+    }
+    public sealed class SaveReferralImportHistoryRowDto
+    {
+        public int RowNumber { get; set; }
+        public string PatientName { get; set; } = "";
+        public string Status { get; set; } = "";
+        public string? ErrorMessage { get; set; }
+        public string RawDataJson { get; set; } = "{}";
+    }
+}

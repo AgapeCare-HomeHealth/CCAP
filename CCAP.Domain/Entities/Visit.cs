@@ -166,7 +166,8 @@ public sealed class Visit
         Guid assignedUserId,
         string visitType,
         string visitStatus,
-        string? notesFlag)
+        string? notesFlag,
+        Guid? careCoordinatorId = null)
     {
         if (string.IsNullOrWhiteSpace(patientName))
             throw new ArgumentException("Patient name is required.", nameof(patientName));
@@ -189,6 +190,7 @@ public sealed class Visit
             PatientId = patientId,
             ClinicianId = clinicianId,
             AssignedUserId = assignedUserId,
+            CareCoordinatorId = careCoordinatorId,
             PatientName = patientName.Trim(),
             ClinicianName = string.IsNullOrWhiteSpace(clinicianName) ? null : clinicianName.Trim(),
             VisitType = visitType.Trim(),

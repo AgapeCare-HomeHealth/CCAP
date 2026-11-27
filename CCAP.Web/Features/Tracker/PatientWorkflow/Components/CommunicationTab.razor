@@ -10,7 +10,7 @@
   <div><h5 class="mb-0">Communication</h5><small class="text-muted">Record patient, caregiver, physician, insurance and other communications.</small></div>
   <button class="btn btn-primary" type="button" @onclick="ToggleForm"><i class="bi bi-plus-lg me-1"></i>New Communication</button>
  </div>
- @if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <div class="alert alert-danger m-3">@ErrorMessage</div> }
+ @if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <SweetAlertError Message="@ErrorMessage" /> }
  @if (!string.IsNullOrWhiteSpace(SuccessMessage)) { <div class="alert alert-success m-3">@SuccessMessage</div> }
  @if (ShowForm)
  {

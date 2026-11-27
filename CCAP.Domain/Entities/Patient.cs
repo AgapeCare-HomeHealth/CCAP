@@ -176,6 +176,12 @@ public sealed class Patient
             Status = PatientStatus.Active;
     }
 
+    public void MarkAsTif()
+    {
+        if (Status is PatientStatus.Pending or PatientStatus.Active)
+            Status = PatientStatus.Tif;
+    }
+
     public void ApplyReferralIntake(
         string? middleName,
         DateOnly? dateOfBirth,
@@ -443,6 +449,14 @@ public sealed class Patient
         TransferReason = Normalize(transferReason);
     }
 
+    public void UpdateStatusFromTifAndRocDates()
+    {
+        if (TifDate.HasValue && !RocDate.HasValue && Status == PatientStatus.Active)
+            Status = PatientStatus.Tif;
+        else if (TifDate.HasValue && RocDate.HasValue && Status == PatientStatus.Tif)
+            Status = PatientStatus.Active;
+    }
+
     public void CompleteCare(
         string finalStatus,
         Guid finalizedByUserId)
@@ -467,7 +481,36 @@ public sealed class Patient
         if (!string.Equals(FinalStatus, "Transferred", StringComparison.OrdinalIgnoreCase))
             DischargeDate ??= DateOnly.FromDateTime(DateTime.UtcNow);
 
-        Status = PatientStatus.Completed;
+        // A recorded final outcome closes the episode and moves the patient
+        // out of the active list immediately. FinalStatus remains the visible
+        // outcome; Archived is the internal list-membership state.
+        ArchivedByUserId = finalizedByUserId;
+        ArchivedAt = DateTime.UtcNow;
+        Status = PatientStatus.Archived;
+    }
+
+    public void MarkImportedAsDischarged(Guid finalizedByUserId)
+    {
+        FinalStatus = "Discharged";
+        FinalizedByUserId = finalizedByUserId;
+        CareCompletedAt ??= DateTime.UtcNow;
+        DischargeDate ??= DateOnly.FromDateTime(DateTime.UtcNow);
+        ArchivedByUserId = finalizedByUserId;
+        ArchivedAt ??= DateTime.UtcNow;
+        Status = PatientStatus.Archived;
+    }
+
+    public void MarkNonAdmit(Guid finalizedByUserId)
+    {
+        if (Status == PatientStatus.Archived)
+            throw new InvalidOperationException("This patient is already archived.");
+
+        FinalStatus = "Non-Admit";
+        FinalizedByUserId = finalizedByUserId;
+        CareCompletedAt = DateTime.UtcNow;
+        ArchivedByUserId = finalizedByUserId;
+        ArchivedAt = DateTime.UtcNow;
+        Status = PatientStatus.Archived;
     }
 
     public void Archive(Guid archivedByUserId)

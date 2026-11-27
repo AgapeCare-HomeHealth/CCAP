@@ -40,6 +40,7 @@ public sealed class PatientService
         if (!string.IsNullOrWhiteSpace(query.Search)) url += $"&search={Uri.EscapeDataString(query.Search.Trim())}";
         if (!string.IsNullOrWhiteSpace(query.Status)) url += $"&status={Uri.EscapeDataString(query.Status.Trim())}";
         if (query.ClinicianId.HasValue) url += $"&clinicianId={query.ClinicianId.Value}";
+        if (query.AssignedCoordinatorId.HasValue) url += $"&assignedCoordinatorId={query.AssignedCoordinatorId.Value}";
         return await _api.GetFromJsonAsync<PagedResult<PatientListItem>>(url, cancellationToken) ?? new();
     }
 

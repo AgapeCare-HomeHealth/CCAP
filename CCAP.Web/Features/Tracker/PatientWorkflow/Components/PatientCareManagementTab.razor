@@ -4,8 +4,8 @@
 
 <div class="patient-care-management">
  @if(IsLoading){<div class="text-center py-5"><div class="spinner-border"></div></div>}
- else if(!string.IsNullOrWhiteSpace(ErrorMessage)){<div class="alert alert-danger">@ErrorMessage</div>}
- else if(Care is null){<div class="alert alert-warning">Patient care information is unavailable.</div>}
+ else if(!string.IsNullOrWhiteSpace(ErrorMessage)){<SweetAlertError Message="@ErrorMessage" />}
+ else if(Care is null){<SweetAlertError Message="Patient care information is unavailable. Refresh the page or check that the patient record still exists." />}
  else{
   <div class="row g-4">
    <div class="col-12"><div class="card shadow-sm border-0"><div class="card-header bg-white d-flex justify-content-between align-items-center"><div><h5 class="mb-0">Discipline Orders</h5><small class="text-muted">Orders maintained in CCAP for care coordination.</small></div><button class="btn btn-primary btn-sm" @onclick="ShowAddOrder"><i class="bi bi-plus-lg me-1"></i>Add Order</button></div>

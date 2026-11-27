@@ -5,6 +5,7 @@ namespace CCAP.Application.Abstractions.Scheduling;
 public interface IScheduleImportService
 {
     Task<IReadOnlyList<ScheduleImportPreviewItem>> PreviewAsync(Guid userId, Stream fileStream, string fileName, CancellationToken cancellationToken);
+    Task<IReadOnlyList<ScheduleImportPreviewItem>> PreviewForAdministratorAsync(Guid userId, Stream fileStream, string fileName, CancellationToken cancellationToken);
     Task<ScheduleImportResult> CommitAsync(Guid userId, IReadOnlyList<ScheduleImportCommitItem> items, CancellationToken cancellationToken);
 }
 

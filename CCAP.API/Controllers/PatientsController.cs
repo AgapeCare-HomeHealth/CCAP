@@ -91,15 +91,19 @@ public sealed class PatientsController : ControllerBase
         [FromQuery] Guid? clinicianId = null,
         [FromQuery] string sortBy = "Name",
         [FromQuery] bool sortDescending = false,
+        [FromQuery] Guid? assignedCoordinatorId = null,
         CancellationToken cancellationToken = default)
     {
         var currentUserId = await ResolveCurrentUserIdAsync(cancellationToken);
         if (!User.IsInRole("Administrator") && !currentUserId.HasValue)
             return Unauthorized();
 
+        var isAdministrator = User.IsInRole("Administrator");
+        var assignedUserId = isAdministrator ? assignedCoordinatorId : currentUserId;
+
         return Ok(await _sender.Send(
             new GetPatientsQuery(pageNumber, pageSize, search, status, clinicianId,
-                User.IsInRole("Administrator") ? null : currentUserId, sortBy, sortDescending),
+                assignedUserId, sortBy, sortDescending),
             cancellationToken));
     }
 
@@ -394,6 +398,34 @@ public sealed class PatientsController : ControllerBase
             new ArchivePatientCommand(patientId, currentUserId),
             cancellationToken);
 
+        return NoContent();
+    }
+
+    [HttpPost("{patientId:guid}/non-admit")]
+    [Authorize(Policy = PermissionPolicies.PatientsManage)]
+    public async Task<IActionResult> NonAdmit(Guid patientId, CancellationToken cancellationToken)
+    {
+        if (!await CanAccessPatientAsync(patientId, cancellationToken)) return NotFound();
+        var userId = await ResolveCurrentUserIdAsync(cancellationToken);
+        if (!userId.HasValue) return Unauthorized();
+        var patient = await _db.Patients.FirstOrDefaultAsync(p => p.PatientId == patientId, cancellationToken);
+        if (patient is null) return NotFound();
+        patient.MarkNonAdmit(userId.Value);
+        _db.PatientAuditLogs.Add(new CCAP.Domain.Entities.PatientAuditLog(patientId, userId.Value, "Patient", patientId.ToString(), "UPDATE", null, System.Text.Json.JsonSerializer.Serialize(new { FinalStatus = "Non-Admit", Status = "Archived" }), "Patient marked as Non-Admit."));
+        await _db.SaveChangesAsync(cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{patientId:guid}")]
+    [Authorize(Roles = "Administrator,Admin")]
+    public async Task<IActionResult> DeletePatient(Guid patientId, CancellationToken cancellationToken)
+    {
+        var patient = await _db.Patients.Include(p => p.Referrals).FirstOrDefaultAsync(p => p.PatientId == patientId, cancellationToken);
+        if (patient is null) return NotFound();
+        // Referral.Patient is configured Restrict; remove referral rows first. Other patient-owned records cascade.
+        _db.Referrals.RemoveRange(patient.Referrals);
+        _db.Patients.Remove(patient);
+        await _db.SaveChangesAsync(cancellationToken);
         return NoContent();
     }
 

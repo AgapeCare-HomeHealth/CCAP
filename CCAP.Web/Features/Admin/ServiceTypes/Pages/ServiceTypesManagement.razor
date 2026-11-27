@@ -1,4 +1,4 @@
-﻿@page "/admin/service-types"
+@page "/admin/service-types"
 @attribute [CcapAuthorize(Policy = "lookups.manage")]
 @using CCAP.Web.Features.Admin.ServiceTypes.Models
 @using CCAP.Web.Features.Admin.ServiceTypes.Services
@@ -15,7 +15,7 @@
         <button class="btn btn-primary" @onclick="OpenCreate"><i class="bi bi-plus-lg me-1"></i>Add Service Type</button>
     </div>
 
-    @if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <div class="alert alert-danger">@ErrorMessage</div> }
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <SweetAlertError Message="@ErrorMessage" /> }
     @if (!string.IsNullOrWhiteSpace(SuccessMessage)) { <div class="alert alert-success">@SuccessMessage</div> }
 
     <div class="card shadow-sm border-0">
@@ -51,7 +51,7 @@
                     </table>
                 </div>
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
-                    <div class="small text-muted">Showing @(FilteredItems.Count == 0 ? 0 : ((CurrentPage - 1) * PageSize) + 1)–@Math.Min(CurrentPage * PageSize, FilteredItems.Count) of @FilteredItems.Count</div>
+                    <div class="small text-muted">Showing @(FilteredItems.Count == 0 ? 0 : ((CurrentPage - 1) * PageSize) + 1)�@Math.Min(CurrentPage * PageSize, FilteredItems.Count) of @FilteredItems.Count</div>
                     <div class="d-flex align-items-center gap-2">
                         <label class="small" for="servicePageSize">Rows</label>
                         <select id="servicePageSize" class="form-select form-select-sm" style="width:auto" value="@PageSize" @onchange="OnLocalPageSizeChanged"><option value="10">10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option></select>

@@ -15,7 +15,8 @@ public sealed class GetReferralListQueryHandler : IRequestHandler<GetReferralLis
         var page = Math.Max(1, request.PageNumber);
         var size = Math.Clamp(request.PageSize, 1, 100);
         var (items, count) = await _repository.GetPagedListAsync(
-            page, size, request.Search, request.Status, request.Source, request.Insurance, cancellationToken);
+            page, size, request.Search, request.Status, request.Source, request.Insurance,
+            request.AssignedCoordinatorId, cancellationToken);
         return new PagedResult<ReferralListItemDto> { Items = items, PageNumber = page, PageSize = size, TotalCount = count };
     }
 }

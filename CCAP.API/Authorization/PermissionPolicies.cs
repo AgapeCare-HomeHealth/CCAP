@@ -14,6 +14,9 @@ public static class PermissionPolicies
     public const string PatientsManage = "patients.manage";
     public const string ReferralsView = "referrals.view";
     public const string ReferralsManage = "referrals.manage";
+    public const string ReferralTrackerView = "referral-tracker.view";
+    public const string ReferralTrackerManage = "referral-tracker.manage";
+    public const string ReferralTrackerAdmin = "referral-tracker.admin";
     public const string FaxView = "fax.view";
     public const string FaxManage = "fax.manage";
     public const string NotificationsView = "notifications.view";
@@ -49,6 +52,21 @@ public static class PermissionPolicies
             Add(options, PatientsManage);
             Add(options, ReferralsView);
             Add(options, ReferralsManage);
+            options.AddPolicy(ReferralTrackerView, policy =>
+            {
+                policy.RequireRole("Administrator", "Care Coordinator");
+                policy.AddRequirements(new PermissionRequirement(ReferralsView));
+            });
+            options.AddPolicy(ReferralTrackerManage, policy =>
+            {
+                policy.RequireRole("Administrator", "Care Coordinator");
+                policy.AddRequirements(new PermissionRequirement(ReferralsManage));
+            });
+            options.AddPolicy(ReferralTrackerAdmin, policy =>
+            {
+                policy.RequireRole("Administrator");
+                policy.AddRequirements(new PermissionRequirement(ReferralsManage));
+            });
             Add(options, FaxView);
             Add(options, FaxManage);
             Add(options, NotificationsView);

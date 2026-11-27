@@ -1,0 +1,286 @@
+@page "/admin/calendar-import"
+@attribute [Authorize(Roles = "Administrator,Admin")]
+@using CCAP.Web.Features.Admin.CalendarImport.Models
+@using CCAP.Web.Features.Admin.CalendarImport.Services
+@inject CalendarImportService ImportService
+@inject IJSRuntime JS
+
+<PageTitle>Calendar Import</PageTitle>
+
+<div class="container-fluid py-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-4">
+        <div>
+            <h2 class="mb-1">Calendar Import</h2>
+            <p class="text-muted mb-0">Upload a calendar workbook or CSV, review each row, then confirm the import.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-primary" href="templates/CC_Sched_Import_Template.xlsx" download>
+                <i class="bi bi-download me-1"></i> Download calendar template
+            </a>
+            <button class="btn btn-outline-secondary" @onclick="LoadHistoryAsync" disabled="@IsBusy">
+                <i class="bi bi-arrow-clockwise me-1"></i> Refresh history
+            </button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage)) { <SweetAlertError Message="@ErrorMessage" /> }
+    @if (!string.IsNullOrWhiteSpace(SuccessMessage)) { <div class="alert alert-success" role="status">@SuccessMessage</div> }
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Upload a schedule</h5>
+            <p class="small text-muted mb-3">Excel workbooks may contain multiple schedule tabs. CSV files must include the calendar template columns.</p>
+            <div class="row g-2 mb-3">
+                <div class="col-md-6 col-lg-5">
+                    <label for="calendar-import-cc" class="form-label fw-semibold">Assign all schedules to Care Coordinator</label>
+                    <select id="calendar-import-cc" class="form-select" @bind="SelectedCareCoordinatorId" disabled="@(IsBusy || Preview is not null)">
+                        <option value="">Choose a Care Coordinator</option>
+                        @foreach (var careCoordinator in CareCoordinators)
+                        {
+                            <option value="@careCoordinator.UserId">@careCoordinator.FullName</option>
+                        }
+                    </select>
+                    <div class="form-text">This choice applies to every schedule in the uploaded file.</div>
+                </div>
+            </div>
+            <div class="d-flex flex-wrap align-items-center gap-3">
+                <InputFile OnChange="SelectFileAsync" accept=".xlsx,.csv" disabled="@IsBusy" />
+                @if (!string.IsNullOrWhiteSpace(SelectedFileName)) { <span class="small text-muted">@SelectedFileName</span> }
+                <button class="btn btn-primary" @onclick="PreviewAsync" disabled="@(!CanPreview)">
+                    @if (IsBusy && Preview is null) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                    else { <i class="bi bi-eye me-1"></i> }
+                    Validate and preview
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @if (Preview is not null)
+    {
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <div><h5 class="mb-1">Import preview</h5><div class="small text-muted">@Preview.FileName · @Preview.TotalRows rows</div><div class="small mt-1"><strong>Assigned to:</strong> @Preview.CareCoordinatorName</div></div>
+                    <button class="btn btn-success" @onclick="ConfirmImportAsync" disabled="@(IsBusy || !Preview.Rows.Any(x => x.Status == "Ready"))">
+                        <i class="bi bi-cloud-upload me-1"></i> Confirm import
+                    </button>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6 col-lg-3"><div class="border rounded p-3"><div class="small text-muted">Ready to import</div><strong>@Preview.Rows.Count(x => x.Status == "Ready")</strong></div></div>
+                    <div class="col-6 col-lg-3"><div class="border rounded p-3"><div class="small text-muted">Duplicates skipped</div><strong>@Preview.Rows.Count(x => x.Status == "Duplicate")</strong></div></div>
+                    <div class="col-6 col-lg-3"><div class="border rounded p-3"><div class="small text-muted">Rows to fix</div><strong>@Preview.Rows.Count(x => x.Status == "Failed")</strong></div></div>
+                    <div class="col-6 col-lg-3"><div class="border rounded p-3"><div class="small text-muted">Review warnings</div><strong>@Preview.Rows.Count(x => x.HasWarning)</strong></div></div>
+                </div>
+                <div class="alert alert-info py-2 small">
+                    An exact patient, date, time, and visit type match is skipped. Different visit types on the same day show a warning. Two or three visits per week are allowed. Cancelled visits do not block a new schedule.
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped align-middle">
+                        <thead><tr><th>Sheet / row</th><th>Patient</th><th>Date</th><th>Time</th><th>Visit type</th><th>Clinician</th><th>Result</th><th>Details</th></tr></thead>
+                        <tbody>
+                            @foreach (var row in Preview.Rows)
+                            {
+                                <tr>
+                                    <td>@row.SheetName / @row.RowNumber</td>
+                                    <td>@row.PatientName</td>
+                                    <td>@(row.ScheduledDate?.ToString("MMM d, yyyy") ?? "—")</td>
+                                    <td>@(string.IsNullOrWhiteSpace(row.TimeBlock) ? "—" : row.TimeBlock)</td>
+                                    <td>@(string.IsNullOrWhiteSpace(row.VisitType) ? "—" : row.VisitType)</td>
+                                    <td>@(string.IsNullOrWhiteSpace(row.ClinicianName) ? "Unassigned" : row.ClinicianName)</td>
+                                    <td><span class="badge @BadgeClass(row.Status)">@row.Status</span>@if (row.HasWarning) { <span class="badge bg-warning text-dark ms-1">Review</span> }</td>
+                                    <td class="small">@row.ErrorMessage</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (ActiveBatch is not null)
+    {
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between flex-wrap gap-2">
+                    <div><h5 class="mb-1">Import progress</h5><div class="small text-muted">@ActiveBatch.FileName · @ActiveBatch.Status</div><div class="small"><strong>Assigned to:</strong> @ActiveBatch.CareCoordinatorName</div></div>
+                    <strong>@(ActiveBatch.InsertedRows + ActiveBatch.DuplicateRows + ActiveBatch.FailedRows) / @ActiveBatch.TotalRows processed</strong>
+                </div>
+                <div class="progress my-3" role="progressbar" aria-valuenow="@ProgressPercent" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar" style="width:@ProgressPercent%"></div></div>
+                <div class="d-flex flex-wrap gap-4 small"><span>Imported: <b>@ActiveBatch.InsertedRows</b></span><span>Duplicates: <b>@ActiveBatch.DuplicateRows</b></span><span>Errors: <b>@ActiveBatch.FailedRows</b></span><span>Warnings reviewed: <b>@ActiveBatch.WarningRows</b></span></div>
+                @if (ActiveBatch.Status is "Queued" or "Processing") { <div class="small text-muted mt-2"><span class="spinner-border spinner-border-sm me-1"></span> Import is processing in the background.</div> }
+            </div>
+        </div>
+    }
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="mb-3">Import history</h5>
+            @if (History.Count == 0) { <div class="text-muted">No calendar imports have been uploaded yet.</div> }
+            else
+            {
+                <div class="table-responsive"><table class="table table-sm table-striped align-middle">
+                    <thead><tr><th>File</th><th>Care Coordinator</th><th>Uploaded</th><th>Status</th><th>Imported</th><th>Duplicates</th><th>Errors</th><th>Actions</th></tr></thead>
+                    <tbody>
+                        @foreach (var batch in History)
+                        {
+                            <tr>
+                                <td>@batch.FileName</td><td>@batch.CareCoordinatorName</td><td>@batch.UploadedAt.ToLocalTime().ToString("g")</td>
+                                <td><span class="badge @BadgeClass(batch.Status)">@batch.Status</span></td>
+                                <td>@batch.InsertedRows</td><td>@batch.DuplicateRows</td><td>@batch.FailedRows</td>
+                                <td class="text-nowrap">
+                                    <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => LoadLogsAsync(batch.CalendarImportBatchId)">View rows</button>
+                                    @if (batch.DuplicateRows + batch.FailedRows > 0) { <button class="btn btn-sm btn-outline-secondary" @onclick="() => DownloadErrorsAsync(batch.CalendarImportBatchId)">Download results</button> }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table></div>
+            }
+        </div>
+    </div>
+
+    @if (LogBatch is not null)
+    {
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3"><div><h5 class="mb-1">Import rows</h5><div class="small text-muted">@LogBatch.FileName · Assigned to @LogBatch.CareCoordinatorName</div></div><button class="btn btn-sm btn-outline-secondary" @onclick="CloseLogs">Close</button></div>
+                <div class="table-responsive"><table class="table table-sm table-striped align-middle">
+                    <thead><tr><th>Sheet / row</th><th>Patient</th><th>Date</th><th>Visit type</th><th>Status</th><th>Details</th></tr></thead>
+                    <tbody>@foreach (var row in LogBatch.Rows) { <tr><td>@row.SheetName / @row.RowNumber</td><td>@row.PatientName</td><td>@(row.ScheduledDate?.ToString("MMM d, yyyy") ?? "—")</td><td>@row.VisitType</td><td><span class="badge @BadgeClass(row.Status)">@row.Status</span></td><td>@row.ErrorMessage</td></tr> }</tbody>
+                </table></div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private const long MaximumFileSize = 20 * 1024 * 1024;
+    private IBrowserFile? SelectedFile;
+    private string? SelectedFileName;
+    private bool IsBusy;
+    private bool IsMonitoring;
+    private string? ErrorMessage;
+    private string? SuccessMessage;
+    private CalendarImportBatchDto? Preview;
+    private CalendarImportBatchDto? ActiveBatch;
+    private CalendarImportBatchDto? LogBatch;
+    private List<CalendarImportBatchDto> History = [];
+    private List<CalendarImportCareCoordinatorDto> CareCoordinators = [];
+    private Guid? SelectedCareCoordinatorId;
+    private readonly HashSet<Guid> AutoDownloaded = [];
+    private bool CanPreview => SelectedFile is not null && SelectedCareCoordinatorId.HasValue && !IsBusy && Preview is null;
+    private int ProgressPercent => ActiveBatch is null || ActiveBatch.TotalRows == 0 ? 0 : Math.Clamp((ActiveBatch.InsertedRows + ActiveBatch.DuplicateRows + ActiveBatch.FailedRows) * 100 / ActiveBatch.TotalRows, 0, 100);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { CareCoordinators = await ImportService.GetCareCoordinatorsAsync(); }
+        catch (Exception ex) { ErrorMessage = $"Unable to load Care Coordinators: {ex.Message}"; }
+        await LoadHistoryAsync();
+        if (History.Any(x => x.Status is "Queued" or "Processing")) _ = MonitorPendingBatchesAsync();
+    }
+
+    private Task SelectFileAsync(InputFileChangeEventArgs e)
+    {
+        SelectedFile = e.File;
+        SelectedFileName = SelectedFile.Name;
+        Preview = null;
+        ErrorMessage = null;
+        SuccessMessage = null;
+        return Task.CompletedTask;
+    }
+
+    private async Task PreviewAsync()
+    {
+        if (SelectedFile is null || !SelectedCareCoordinatorId.HasValue) return;
+        IsBusy = true; ErrorMessage = null; SuccessMessage = null;
+        try
+        {
+            await using var stream = SelectedFile.OpenReadStream(MaximumFileSize);
+            using var memory = new MemoryStream();
+            await stream.CopyToAsync(memory);
+            Preview = await ImportService.PreviewAsync(memory.ToArray(), SelectedFile.Name, SelectedCareCoordinatorId.Value);
+            await LoadHistoryAsync();
+        }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { IsBusy = false; }
+    }
+
+    private async Task ConfirmImportAsync()
+    {
+        if (Preview is null) return;
+        IsBusy = true; ErrorMessage = null; SuccessMessage = null;
+        try
+        {
+            ActiveBatch = await ImportService.ConfirmAsync(Preview.CalendarImportBatchId);
+            Preview = null;
+            await MonitorBatchAsync(ActiveBatch.CalendarImportBatchId);
+        }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { IsBusy = false; await InvokeAsync(StateHasChanged); }
+    }
+
+    private async Task MonitorBatchAsync(Guid id)
+    {
+        ActiveBatch = await ImportService.GetAsync(id);
+        while (ActiveBatch is not null && ActiveBatch.Status is "Queued" or "Processing")
+        {
+            await Task.Delay(2000);
+            ActiveBatch = await ImportService.GetAsync(id) ?? ActiveBatch;
+            await InvokeAsync(StateHasChanged);
+        }
+        if (ActiveBatch is null) return;
+        SuccessMessage = $"Import finished: {ActiveBatch.InsertedRows} schedules added, {ActiveBatch.DuplicateRows} duplicates skipped, {ActiveBatch.FailedRows} rows need correction.";
+        if ((ActiveBatch.FailedRows > 0 || ActiveBatch.DuplicateRows > 0) && AutoDownloaded.Add(id)) await DownloadErrorsAsync(id);
+        await LoadHistoryAsync();
+    }
+
+    private async Task LoadHistoryAsync()
+    {
+        try { History = await ImportService.HistoryAsync(); }
+        catch (Exception ex) { if (History.Count == 0) ErrorMessage = ex.Message; }
+    }
+
+    private async Task MonitorPendingBatchesAsync()
+    {
+        if (IsMonitoring) return;
+        IsMonitoring = true;
+        try
+        {
+            await LoadHistoryAsync();
+            var pending = History.Where(x => x.Status is "Queued" or "Processing").OrderBy(x => x.UploadedAt).FirstOrDefault();
+            if (pending is not null) await MonitorBatchAsync(pending.CalendarImportBatchId);
+        }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { IsMonitoring = false; await InvokeAsync(StateHasChanged); }
+    }
+
+    private async Task LoadLogsAsync(Guid id)
+    {
+        try { LogBatch = await ImportService.GetAsync(id); if (LogBatch is not null) LogBatch.Rows = await ImportService.GetLogsAsync(id); }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+    }
+
+    private void CloseLogs() => LogBatch = null;
+
+    private async Task DownloadErrorsAsync(Guid id)
+    {
+        try
+        {
+            var file = await ImportService.DownloadErrorsAsync(id);
+            using var stream = new MemoryStream(file.Bytes);
+            using var reference = new DotNetStreamReference(stream);
+            await JS.InvokeVoidAsync("ccapDownloadStream", file.FileName, "text/csv;charset=utf-8", reference);
+        }
+        catch (Exception ex) { ErrorMessage = $"Unable to download the results file: {ex.Message}"; }
+    }
+
+    private static string BadgeClass(string status) => status switch
+    {
+        "Completed" or "Inserted" or "Ready" => "bg-success",
+        "Partial" or "Processing" or "Queued" => "bg-warning text-dark",
+        "Failed" => "bg-danger",
+        "Duplicate" => "bg-secondary",
+        _ => "bg-secondary"
+    };
+}

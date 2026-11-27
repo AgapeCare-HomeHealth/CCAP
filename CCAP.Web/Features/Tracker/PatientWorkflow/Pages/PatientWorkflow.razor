@@ -20,9 +20,7 @@
 }
 else if (Workflow is null)
 {
-    <div class="alert alert-warning">
-        Patient record was not found.
-    </div>
+    <SweetAlertError Message="Patient record was not found. It may have been removed, or you may not have access to it." />
 }
 else
 {
