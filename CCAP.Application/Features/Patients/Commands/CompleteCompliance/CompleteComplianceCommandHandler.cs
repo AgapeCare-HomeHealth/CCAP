@@ -45,11 +45,6 @@ public sealed class CompleteComplianceCommandHandler
         if (compliance.IsCompleted)
             return;
 
-        var allRecordsBeforeUpdate = await _compliance.GetByPatientAsync(request.PatientId, cancellationToken);
-        var prerequisiteError = PatientWorkflowStageRules.GetPrerequisiteError(patient, allRecordsBeforeUpdate, requirementCode);
-        if (!string.IsNullOrWhiteSpace(prerequisiteError))
-            throw new InvalidOperationException(prerequisiteError);
-
         if (string.Equals(requirementCode, "INSURANCE_VERIFICATION", StringComparison.OrdinalIgnoreCase) && !patient.InsuranceVerifiedAt.HasValue)
             patient.VerifyInsurance(request.CompletedByUserId);
 
@@ -58,7 +53,8 @@ public sealed class CompleteComplianceCommandHandler
         await _auditLogs.AddAsync(new CCAP.Domain.Entities.PatientAuditLog(patient.PatientId, request.CompletedByUserId, "Compliance", compliance.ComplianceRecordId.ToString(), "UPDATE", "Pending", "Completed", $"{requirementCode} completed."), cancellationToken);
 
         var allRecordsAfterUpdate = await _compliance.GetByPatientAsync(request.PatientId, cancellationToken);
-        if (PatientWorkflowStageRules.IsGroupComplete(patient, allRecordsAfterUpdate, PatientWorkflowStageRules.Admission))
+        if (patient.Referrals.Count > 0 && patient.InsuranceVerifiedAt.HasValue &&
+            PatientWorkflowStageRules.IsGroupComplete(patient, allRecordsAfterUpdate, PatientWorkflowStageRules.Admission))
             patient.ActivateAfterAdmission();
 
         await PatientComplianceTaskSynchronizer.EnsureAsync(patient, requirementCode, _tasks, _compliance, cancellationToken);

@@ -15,20 +15,14 @@ public sealed class SetComplianceStatusCommandHandler : IRequestHandler<SetCompl
         // An unmarked record is pending, not "No". Persisting No for the first
         // time must still update its status and audit history.
         if (old.Equals(status,StringComparison.OrdinalIgnoreCase)) return;
-        if (status.Equals("Yes", StringComparison.OrdinalIgnoreCase) || status.Equals("N/A", StringComparison.OrdinalIgnoreCase))
-        {
-            var allRecords = await _compliance.GetByPatientAsync(r.PatientId, ct);
-            var prerequisiteError = PatientWorkflowStageRules.GetPrerequisiteError(patient, allRecords, code);
-            if (!string.IsNullOrWhiteSpace(prerequisiteError))
-                throw new InvalidOperationException(prerequisiteError);
-        }
         c.SetStatus(status,r.UserId);
         if (code=="INSURANCE_VERIFICATION") { if (c.IsCompleted && !patient.InsuranceVerifiedAt.HasValue) patient.VerifyInsurance(r.UserId); else if (!c.IsCompleted) patient.ClearInsuranceVerification(); }
         var newStatus=status.Equals("N/A",StringComparison.OrdinalIgnoreCase)?"N/A":status.Equals("Yes",StringComparison.OrdinalIgnoreCase)?"Completed":"Pending";
         patient.Activities.Add(new CCAP.Domain.Entities.Activity(patient.PatientId,r.UserId,"Compliance","Compliance status changed",$"{code}: {old} → {status}."));
         await _audit.AddAsync(new CCAP.Domain.Entities.PatientAuditLog(patient.PatientId,r.UserId,"Compliance",c.ComplianceRecordId.ToString(),"UPDATE",old,newStatus,$"{code} compliance status changed from {old} to {status}."),ct);
         var updatedRecords = await _compliance.GetByPatientAsync(r.PatientId, ct);
-        if (PatientWorkflowStageRules.IsGroupComplete(patient, updatedRecords, PatientWorkflowStageRules.Admission))
+        if (patient.Referrals.Count > 0 && patient.InsuranceVerifiedAt.HasValue &&
+            PatientWorkflowStageRules.IsGroupComplete(patient, updatedRecords, PatientWorkflowStageRules.Admission))
             patient.ActivateAfterAdmission();
 
         await PatientComplianceTaskSynchronizer.EnsureAsync(patient, code, _tasks, _compliance, ct);

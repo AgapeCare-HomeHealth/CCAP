@@ -3,8 +3,9 @@ using CCAP.Domain.Entities;
 namespace CCAP.Application.Features.Patients;
 
 /// <summary>
-/// Shared sequencing rules for the five patient workflow groups.
-/// A requirement can only be completed after all preceding groups are complete.
+/// Shared stage definitions and completion checks for the patient workflow.
+/// Individual compliance items may be completed at any time; stage progression
+/// is calculated separately and remains sequential.
 /// </summary>
 internal static class PatientWorkflowStageRules
 {
@@ -44,36 +45,4 @@ internal static class PatientWorkflowStageRules
             string.Equals(item.RequirementCode, code, StringComparison.OrdinalIgnoreCase)));
     }
 
-    internal static string? GetPrerequisiteError(
-        Patient patient,
-        IEnumerable<ComplianceRecord> records,
-        string requirementCode)
-    {
-        var items = records.ToList();
-        var code = requirementCode.Trim().ToUpperInvariant();
-
-        if (Admission.Contains(code, StringComparer.OrdinalIgnoreCase))
-        {
-            if (!patient.InsuranceVerifiedAt.HasValue)
-                return "Complete Insurance Verification before completing Admission requirements.";
-            return null;
-        }
-
-        if (!IsGroupComplete(patient, items, Admission))
-            return "Complete all Admission requirements before completing items in the SOC group.";
-
-        if (Soc.Contains(code, StringComparer.OrdinalIgnoreCase))
-            return null;
-
-        if (!IsGroupComplete(patient, items, Soc))
-            return "Complete all SOC requirements before moving to On-Going Care.";
-
-        if (OngoingCare.Contains(code, StringComparer.OrdinalIgnoreCase))
-            return null;
-
-        if (!IsGroupComplete(patient, items, OngoingCare))
-            return "Complete the On-Going Care compliance requirements before completing Discharge requirements.";
-
-        return null;
-    }
 }
